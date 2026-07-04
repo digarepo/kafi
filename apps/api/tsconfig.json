@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "compilerOptions": {
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "target": "ES2022",
+    "outDir": "./dist",
+    "rootDir": ".",
+    "ignoreDeprecations": "6.0",
+
+    "declaration": true,
+    "sourceMap": true,
+    "removeComments": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "allowSyntheticDefaultImports": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "types": ["node"],
+
+    "paths": {
+      "@repo/shared-types": ["../../packages/shared-types/src/index.ts"],
+      "@repo/shared-validation": [
+        "../../packages/shared-validation/src/index.ts"
+      ],
+      "@repo/shared-config": ["../../packages/shared-config/src/index.ts"]
+    }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}

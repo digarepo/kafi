@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["vite/client"],
+    "ignoreDeprecations": "6.0",
+    "baseUrl": ".",
+    "rootDirs": [".", "./.react-router/types"],
+    "paths": {
+      "app/+types/*": [".react-router/types/app/+types/*"],
+      "app/routes/+types/*": [".react-router/types/app/routes/+types/*"]
+    }
+  },
+  "include": ["**/*.ts", "**/*.tsx", "**/.server/**/*.ts", "**/.server/**/*.tsx", "**/.client/**/*.ts", "**/.client/**/*.tsx", ".react-router/types/**/*"],
+  "exclude": ["node_modules", "build", "server-build"]
+}

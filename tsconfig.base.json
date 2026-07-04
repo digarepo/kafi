@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "compileOnSave": false,
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "baseUrl": ".",
+    "paths": {
+      "@repo/ui": ["packages/ui/src/index.ts"],
+      "@repo/ui/*": ["packages/ui/src/*"],
+      "@repo/ui/globals.css": ["packages/ui/src/styles/globals.css"],
+      "@repo/shared-types": ["packages/shared-types/src/index.ts"],
+      "@repo/shared-types/*": ["packages/shared-types/src/*"],
+      "@repo/shared-validation": ["packages/shared-validation/src/index.ts"],
+      "@repo/shared-validation/*": ["packages/shared-validation/src/*"],
+      "@repo/shared-config": ["packages/shared-config/src/index.ts"],
+      "@repo/shared-config/*": ["packages/shared-config/src/*"]
+    }
+  },
+  "exclude": ["node_modules", "dist", "build"]
+}

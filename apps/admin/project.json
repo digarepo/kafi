@@ -1,0 +1,31 @@
+{
+  "name": "@repo/admin",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/admin",
+  "projectType": "application",
+  "tags": ["type:app", "scope:admin"],
+  "targets": {
+    "dev": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/admin",
+        "command": "react-router dev --port 3000"
+      }
+    },
+    "build": {
+      "executor": "nx:run-commands",
+      "outputs": ["{projectRoot}/build"],
+      "options": {
+        "cwd": "apps/admin",
+        "command": "react-router build"
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/admin",
+        "command": "react-router typegen && tsc --noEmit"
+      }
+    }
+  }
+}
