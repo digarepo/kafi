@@ -79,8 +79,8 @@ jobs:
           username: ${{ secrets.CPANEL_USER }}
           server: ${{ secrets.CPANEL_HOST }}
           ssh_private_key: ${{ secrets.CPANEL_DEPLOY_KEY }}
-          local_path: ./deploy
-          remote_path: /home/${{ secrets.CPANEL_USER }}/kafi
+          local_path: ./deploy/
+          remote_path: /home/${{ secrets.CPANEL_USER }}/kafi/
           port: 22
           sftp_only: true
           delete_remote_files: false
