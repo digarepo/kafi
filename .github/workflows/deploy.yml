@@ -43,34 +43,55 @@ jobs:
           rm -rf deploy
           mkdir -p deploy
 
-          # WEB
-          if [ -d "apps/web/build" ]; then
-            mkdir -p deploy/web
-            cp -r apps/web/build deploy/web/
-            cp deployment/react-router/server.js deploy/web/
-            cp deployment/react-router/start.cjs deploy/web/
-            cp apps/web/package.json deploy/web/
-            mkdir -p deploy/web/tmp
-          fi
+          # Root workspace files
+          cp package.json deploy/
+          cp package-lock.json deploy/
+          cp nx.json deploy/
+          cp tsconfig.base.json deploy/
 
-          # ADMIN
-          if [ -d "apps/admin/build" ]; then
-            mkdir -p deploy/admin
-            cp -r apps/admin/build deploy/admin/
-            cp deployment/react-router/server.js deploy/admin/
-            cp deployment/react-router/start.cjs deploy/admin/
-            cp apps/admin/package.json deploy/admin/
-            mkdir -p deploy/admin/tmp
-          fi
+          # ---------- Packages ----------
+          mkdir -p deploy/packages/ui
 
-          # API
-          if [ -d "apps/api/dist" ]; then
-            mkdir -p deploy/api
-            cp -r apps/api/dist deploy/api/
-            cp deployment/api/start.cjs deploy/api/
-            cp apps/api/package.json deploy/api/
-            mkdir -p deploy/api/tmp
-          fi
+          cp packages/ui/package.json deploy/packages/ui/
+          cp -R packages/ui/dist deploy/packages/ui/
+
+          # Keep CSS export
+          mkdir -p deploy/packages/ui/src/styles
+          cp packages/ui/src/styles/base.css deploy/packages/ui/src/styles/
+
+          # ---------- Web ----------
+          mkdir -p deploy/apps/web
+
+          cp apps/web/package.json deploy/apps/web/
+          cp deployment/react-router/server.js deploy/apps/web/
+          cp deployment/react-router/start.cjs deploy/apps/web/
+
+          cp -R apps/web/build deploy/apps/web/
+          cp -R apps/web/public deploy/apps/web/
+
+          mkdir -p deploy/apps/web/tmp
+
+          # ---------- Admin ----------
+          mkdir -p deploy/apps/admin
+
+          cp apps/admin/package.json deploy/apps/admin/
+          cp deployment/react-router/server.js deploy/apps/admin/
+          cp deployment/react-router/start.cjs deploy/apps/admin/
+
+          cp -R apps/admin/build deploy/apps/admin/
+          cp -R apps/admin/public deploy/apps/admin/
+
+          mkdir -p deploy/apps/admin/tmp
+
+          # ---------- API ----------
+          mkdir -p deploy/apps/api
+
+          cp apps/api/package.json deploy/apps/api/
+          cp deployment/api/start.cjs deploy/apps/api/
+
+          cp -R apps/api/dist deploy/apps/api/
+
+          mkdir -p deploy/apps/api/tmp
 
       # Step 7: Upload the deploy folder
       - name: Upload to cPanel
