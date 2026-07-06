@@ -51,47 +51,52 @@ jobs:
 
           # ---------- Packages ----------
           mkdir -p deploy/packages/ui
-
           cp packages/ui/package.json deploy/packages/ui/
           cp -R packages/ui/dist deploy/packages/ui/
 
-          # Keep CSS export
+          # CSS export
           mkdir -p deploy/packages/ui/src/styles
           cp packages/ui/src/styles/base.css deploy/packages/ui/src/styles/
 
-          # ---------- Web ----------
-          mkdir -p deploy/apps/web
+          # ---------- WEB ----------
+          if [ -d "apps/web/build" ]; then
+            mkdir -p deploy/apps/web
 
-          cp apps/web/package.json deploy/apps/web/
-          cp deployment/react-router/server.js deploy/apps/web/
-          cp deployment/react-router/start.cjs deploy/apps/web/
+            cp apps/web/package.json deploy/apps/web/
+            cp deployment/react-router/server.js deploy/apps/web/
+            cp deployment/react-router/start.cjs deploy/apps/web/
 
-          cp -R apps/web/build deploy/apps/web/
-          cp -R apps/web/public deploy/apps/web/
+            cp -R apps/web/build deploy/apps/web/
+            cp -R apps/web/public deploy/apps/web/
 
-          mkdir -p deploy/apps/web/tmp
+            mkdir -p deploy/apps/web/tmp
+          fi
 
-          # ---------- Admin ----------
-          mkdir -p deploy/apps/admin
+          # ---------- ADMIN ----------
+          if [ -d "apps/admin/build" ]; then
+            mkdir -p deploy/apps/admin
 
-          cp apps/admin/package.json deploy/apps/admin/
-          cp deployment/react-router/server.js deploy/apps/admin/
-          cp deployment/react-router/start.cjs deploy/apps/admin/
+            cp apps/admin/package.json deploy/apps/admin/
+            cp deployment/react-router/server.js deploy/apps/admin/
+            cp deployment/react-router/start.cjs deploy/apps/admin/
 
-          cp -R apps/admin/build deploy/apps/admin/
-          cp -R apps/admin/public deploy/apps/admin/
+            cp -R apps/admin/build deploy/apps/admin/
+            cp -R apps/admin/public deploy/apps/admin/
 
-          mkdir -p deploy/apps/admin/tmp
+            mkdir -p deploy/apps/admin/tmp
+          fi
 
           # ---------- API ----------
-          mkdir -p deploy/apps/api
+          if [ -d "apps/api/dist" ]; then
+            mkdir -p deploy/apps/api
 
-          cp apps/api/package.json deploy/apps/api/
-          cp deployment/api/start.cjs deploy/apps/api/
+            cp apps/api/package.json deploy/apps/api/
+            cp deployment/api/start.cjs deploy/apps/api/
 
-          cp -R apps/api/dist deploy/apps/api/
+            cp -R apps/api/dist deploy/apps/api/
 
-          mkdir -p deploy/apps/api/tmp
+            mkdir -p deploy/apps/api/tmp
+          fi
 
       # Step 7: Upload the deploy folder
       - name: Upload to cPanel
