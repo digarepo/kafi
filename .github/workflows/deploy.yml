@@ -112,7 +112,7 @@ jobs:
           delete_remote_files: false
 
       # Step 8: Move files into place and restart Passenger apps
-      - name: Move deployed files and restart
+      - name: Install and restart
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.CPANEL_DEPLOY_KEY }}" > ~/.ssh/id_rsa
@@ -120,20 +120,36 @@ jobs:
           ssh-keyscan -H ${{ secrets.CPANEL_HOST }} >> ~/.ssh/known_hosts
 
           ssh ${{ secrets.CPANEL_USER }}@${{ secrets.CPANEL_HOST }} << 'EOF'
+            set -e
+
             cd /home/${{ secrets.CPANEL_USER }}/kafi
 
+            # Copy workspace files
+            cp -f deploy/package.json .
+            cp -f deploy/package-lock.json .
+            cp -f deploy/nx.json .
+            cp -f deploy/tsconfig.base.json .
+
+            rm -rf packages
+            cp -R deploy/packages .
+
+            mkdir -p apps
+
+            # Replace only the apps that were deployed
             for app in web admin api; do
-              if [ -d "deploy/$app" ]; then
-                rm -rf "./$app"
-                mv "deploy/$app" "./$app"
+              if [ -d "deploy/apps/$app" ]; then
+                rm -rf "apps/$app"
+                cp -R "deploy/apps/$app" "apps/$app"
               fi
             done
 
-            # Remove the now emptied deploy folder
-            rmdir deploy 2>/dev/null || true
+            # Install production dependencies for the workspace
+            npm install --omit=dev
 
-            # Restart Passenger apps
-            [ -d web/tmp ]   && touch web/tmp/restart.txt   || true
-            [ -d admin/tmp ] && touch admin/tmp/restart.txt || true
-            [ -d api/tmp ]   && touch api/tmp/restart.txt   || true
+            # Restart Passenger
+            [ -d apps/web/tmp ] && touch apps/web/tmp/restart.txt || true
+            [ -d apps/admin/tmp ] && touch apps/admin/tmp/restart.txt || true
+            [ -d apps/api/tmp ] && touch apps/api/tmp/restart.txt || true
+
+            rm -rf deploy
           EOF
