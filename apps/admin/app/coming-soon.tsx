@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ArrowLeft, Mail, Loader2 } from 'lucide-react';
 import { DecorativeBackground } from '@kafi/ui';
-// import { DecorativeBackground } from '../components/DecorativeBackground';
 
 interface StatusItem {
   label: string;

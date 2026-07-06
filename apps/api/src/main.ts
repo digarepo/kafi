@@ -5,7 +5,7 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.setGlobalPrefix('api');
 
-  app.getHttpAdapter().get('/', (req, res) => {
+  app.getHttpAdapter().get('/', (_req, res) => {
     res.send('Nestjs Backend app');
   });
 

@@ -13,7 +13,7 @@ export function ErrorBoundary({ error, reset }: ErrorBoundaryProps) {
   return (
     <main className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="max-w-md w-full space-y-4 text-center">
-        <h1 className="text-4xl font-bold text-foreground">Something went wrong</h1>
+        <h1 className="text-4xl font-bold text-foreground">Something went wrong!</h1>
         <p className="text-muted-foreground">{error.message}</p>
         <button
           onClick={reset}
