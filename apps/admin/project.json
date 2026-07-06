@@ -1,9 +1,12 @@
 {
-  "name": "@repo/admin",
+  "name": "@kafi/admin",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "apps/admin",
   "projectType": "application",
-  "tags": ["type:app", "scope:admin"],
+  "tags": [
+    "type:app",
+    "scope:admin"
+  ],
   "targets": {
     "dev": {
       "executor": "nx:run-commands",
@@ -14,7 +17,9 @@
     },
     "build": {
       "executor": "nx:run-commands",
-      "outputs": ["{projectRoot}/build"],
+      "outputs": [
+        "{projectRoot}/build"
+      ],
       "options": {
         "cwd": "apps/admin",
         "command": "react-router build"

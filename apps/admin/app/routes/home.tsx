@@ -10,7 +10,7 @@ import {
   Label,
   CardFooter,
   Separator,
-} from '@repo/ui';
+} from '@kafi/ui';
 import type { Route } from './+types/home';
 
 export function meta({}: Route.MetaArgs) {
@@ -48,7 +48,7 @@ export default function Home() {
           <p className="text-muted-foreground leading-7">
             Same components from{' '}
             <code className="relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-sm font-semibold">
-              @repo/ui
+              @kafi/ui
             </code>
             , different brand color — violet primary overriding the base-nova
             theme.
