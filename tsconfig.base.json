@@ -23,15 +23,15 @@
     "noFallthroughCasesInSwitch": true,
     "baseUrl": ".",
     "paths": {
-      "@repo/ui": ["packages/ui/src/index.ts"],
-      "@repo/ui/*": ["packages/ui/src/*"],
-      "@repo/ui/globals.css": ["packages/ui/src/styles/globals.css"],
-      "@repo/shared-types": ["packages/shared-types/src/index.ts"],
-      "@repo/shared-types/*": ["packages/shared-types/src/*"],
-      "@repo/shared-validation": ["packages/shared-validation/src/index.ts"],
-      "@repo/shared-validation/*": ["packages/shared-validation/src/*"],
-      "@repo/shared-config": ["packages/shared-config/src/index.ts"],
-      "@repo/shared-config/*": ["packages/shared-config/src/*"]
+      "@kafi/ui": ["packages/ui/src/index.ts"],
+      "@kafi/ui/*": ["packages/ui/src/*"],
+      "@kafi/ui/base.css": ["packages/ui/src/styles/base.css"],
+      "@kafi/shared-types": ["packages/shared-types/src/index.ts"],
+      "@kafi/shared-types/*": ["packages/shared-types/src/*"],
+      "@kafi/shared-validation": ["packages/shared-validation/src/index.ts"],
+      "@kafi/shared-validation/*": ["packages/shared-validation/src/*"],
+      "@kafi/shared-config": ["packages/shared-config/src/index.ts"],
+      "@kafi/shared-config/*": ["packages/shared-config/src/*"]
     }
   },
   "exclude": ["node_modules", "dist", "build"]

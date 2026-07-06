@@ -1,9 +1,12 @@
 {
-  "name": "@repo/api",
+  "name": "@kafi/api",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "apps/api/src",
   "projectType": "application",
-  "tags": ["type:app", "scope:api"],
+  "tags": [
+    "type:app",
+    "scope:api"
+  ],
   "targets": {
     "dev": {
       "executor": "nx:run-commands",
@@ -14,7 +17,9 @@
     },
     "build": {
       "executor": "nx:run-commands",
-      "outputs": ["{projectRoot}/dist"],
+      "outputs": [
+        "{projectRoot}/dist"
+      ],
       "options": {
         "cwd": "apps/api",
         "command": "nest build"

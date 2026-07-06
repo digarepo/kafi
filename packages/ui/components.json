@@ -12,11 +12,11 @@
     "theme": "cyan"
   },
   "aliases": {
-    "components": "@repo/ui/components",
-    "ui": "@repo/ui/components/ui",
-    "hooks": "@repo/ui/hooks",
-    "lib": "@repo/ui/lib",
-    "utils": "@repo/ui/lib/utils"
+    "components": "@ui/components",
+    "ui": "@ui/components/ui",
+    "hooks": "@ui/hooks",
+    "lib": "@ui/lib",
+    "utils": "@ui/lib/utils"
   },
   "iconLibrary": "lucide"
 }

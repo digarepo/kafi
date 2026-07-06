@@ -2,6 +2,7 @@ import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
 import type { Route } from "./+types/root";
 
 import "./app.css";
+import { ThemeProvider, Toaster, TooltipProvider, UIConfigProvider } from "@kafi/ui";
 
 export function Layout({ children }: { children: React.ReactNode }) {
   return (
@@ -11,9 +12,23 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <Meta />
         <Links />
+
+        <link rel="icon" type="image/png" href="%PUBLIC_URL%/favicon-96x96.png" sizes="96x96" />
+        <link rel="icon" type="image/svg+xml" href="%PUBLIC_URL%/favicon.svg" />
+        <link rel="shortcut icon" href="/favicon.ico" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+        <meta name="apple-mobile-web-app-title" content="Kafi" />
+        <link rel="manifest" href="/site.webmanifest" />
       </head>
       <body>
-        {children}
+        <UIConfigProvider style="nova">
+          <ThemeProvider>
+        <TooltipProvider>
+          {children}
+          <Toaster/>
+        </TooltipProvider>
+        </ThemeProvider>
+        </UIConfigProvider>
         <ScrollRestoration />
         <Scripts />
       </body>

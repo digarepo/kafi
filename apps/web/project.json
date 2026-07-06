@@ -1,9 +1,12 @@
 {
-  "name": "@repo/web",
+  "name": "@kafi/web",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "apps/web",
   "projectType": "application",
-  "tags": ["type:app", "scope:web"],
+  "tags": [
+    "type:app",
+    "scope:web"
+  ],
   "targets": {
     "dev": {
       "executor": "nx:run-commands",
@@ -14,7 +17,9 @@
     },
     "build": {
       "executor": "nx:run-commands",
-      "outputs": ["{projectRoot}/build"],
+      "outputs": [
+        "{projectRoot}/build"
+      ],
       "options": {
         "cwd": "apps/web",
         "command": "react-router build"

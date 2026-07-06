@@ -1,4 +1,4 @@
-import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input, Badge, Separator, CardFooter, Label } from "@repo/ui";
+import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input, Badge, Separator, CardFooter, Label } from "@kafi/ui";
 import type { Route } from "./+types/home";
 
 export function meta({}: Route.MetaArgs) {
@@ -32,7 +32,7 @@ export default function Home() {
             Shared shadcn/ui components
           </h2>
           <p className="text-muted-foreground leading-7">
-            Same components from <code className="relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-sm font-semibold">@repo/ui</code>, different brand color — violet primary overriding the base-nova theme.
+            Same components from <code className="relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-sm font-semibold">@kafi/ui</code>, different brand color — violet primary overriding the base-nova theme.
           </p>
         </section>
 
@@ -81,7 +81,7 @@ export default function Home() {
               </div>
             </CardContent>
             <CardFooter className="gap-2">
-              <Button>Search</Button>
+              <Button className={'w-full'}>Search</Button>
               <Button variant="outline">Reset</Button>
             </CardFooter>
           </Card>

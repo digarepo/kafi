@@ -19,11 +19,11 @@
     "types": ["node"],
 
     "paths": {
-      "@repo/shared-types": ["../../packages/shared-types/src/index.ts"],
-      "@repo/shared-validation": [
+      "@kafi/shared-types": ["../../packages/shared-types/src/index.ts"],
+      "@kafi/shared-validation": [
         "../../packages/shared-validation/src/index.ts"
       ],
-      "@repo/shared-config": ["../../packages/shared-config/src/index.ts"]
+      "@kafi/shared-config": ["../../packages/shared-config/src/index.ts"]
     }
   },
   "include": ["src/**/*"],

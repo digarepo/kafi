@@ -1,0 +1,102 @@
+name: Deploy Kafi Monorepo
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout FULL history (IMPORTANT for nx affected)
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # 2. Setup Node
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      # 3. Install dependencies
+      - name: Install dependencies
+        run: npm ci
+
+      # 4. Get affected projects
+      - name: Determine affected projects
+        id: nx
+        run: |
+          npx nx show projects --affected --base=origin/main --head=HEAD > affected.txt
+          cat affected.txt
+
+      # 5. Build affected projects only
+      - name: Build affected apps
+        run: npx nx affected -t build --base=origin/main --head=HEAD
+
+      # 6. Prepare deployment package
+      - name: Create deploy package
+        run: |
+          rm -rf deploy
+          mkdir -p deploy
+
+          # WEB
+          if [ -d "apps/web/build" ]; then
+            mkdir -p deploy/web
+            cp -r apps/web/build deploy/web/
+            cp deployment/react-router/server.js deploy/web/
+            cp deployment/react-router/start.cjs deploy/web/
+            cp apps/web/package.json deploy/web/
+            mkdir -p deploy/web/tmp
+          fi
+
+          # ADMIN
+          if [ -d "apps/admin/build" ]; then
+            mkdir -p deploy/admin
+            cp -r apps/admin/build deploy/admin/
+            cp deployment/react-router/server.js deploy/admin/
+            cp deployment/react-router/start.cjs deploy/admin/
+            cp apps/admin/package.json deploy/admin/
+            mkdir -p deploy/admin/tmp
+          fi
+
+          # API
+          if [ -d "apps/api/dist" ]; then
+            mkdir -p deploy/api
+            cp -r apps/api/dist deploy/api/
+            cp deployment/api/start.cjs deploy/api/
+            cp apps/api/package.json deploy/api/
+            mkdir -p deploy/api/tmp
+          fi
+
+      # 7. Upload via SFTP
+      - name: Upload to cPanel
+        uses: wlixcc/SFTP-Deploy-Action@v1.2.4
+        with:
+          username: ${{ secrets.CPANEL_USER }}
+          server: ${{ secrets.CPANEL_HOST }}
+          ssh_private_key: ${{ secrets.CPANEL_DEPLOY_KEY }}
+          local_path: ./deploy/*
+          remote_path: /home/${{ secrets.CPANEL_USER }}/kafi
+          port: 22
+          sftp_only: true
+          delete_remote_files: false
+
+      # 8. Restart only affected apps
+      - name: Restart apps (Passenger)
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.CPANEL_DEPLOY_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.CPANEL_HOST }} >> ~/.ssh/known_hosts
+
+          ssh ${{ secrets.CPANEL_USER }}@${{ secrets.CPANEL_HOST }} << 'EOF'
+            cd /home/${{ secrets.CPANEL_USER }}/kafi
+
+            [ -d web/tmp ] && touch web/tmp/restart.txt || true
+            [ -d admin/tmp ] && touch admin/tmp/restart.txt || true
+            [ -d api/tmp ] && touch api/tmp/restart.txt || true
+          EOF
