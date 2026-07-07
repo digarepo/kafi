@@ -92,6 +92,7 @@ jobs:
           mkdir -p deploy/api
 
           cp apps/api/package.json deploy/api/
+          cp package-lock.json deploy/api/
 
           cp deployment/api/start.cjs deploy/api/
 
@@ -128,7 +129,7 @@ jobs:
           remote_path: /home/${{ secrets.CPANEL_USER }}/kafitour.com
           port: 22
           sftp_only: true
-          delete_remote_files: true
+          delete_remote_files: false
 
       - name: Upload Admin
         uses: wlixcc/SFTP-Deploy-Action@v1.2.4
@@ -140,7 +141,7 @@ jobs:
           remote_path: /home/${{ secrets.CPANEL_USER }}/admin.kafitour.com
           port: 22
           sftp_only: true
-          delete_remote_files: true
+          delete_remote_files: false
 
       - name: Upload API
         uses: wlixcc/SFTP-Deploy-Action@v1.2.4
@@ -152,7 +153,7 @@ jobs:
           remote_path: /home/${{ secrets.CPANEL_USER }}/api.kafitour.com
           port: 22
           sftp_only: true
-          delete_remote_files: true
+          delete_remote_files: false
 
       # Step 8: Install dependencies and restart Passenger apps
       - name: Install dependencies and restart Passenger
@@ -166,21 +167,46 @@ jobs:
           ssh-keyscan -H ${{ secrets.CPANEL_HOST }} >> ~/.ssh/known_hosts
 
           ssh ${{ secrets.CPANEL_USER }}@${{ secrets.CPANEL_HOST }} << 'EOF'
+          set -e
 
           echo "Installing web dependencies..."
+
           cd /home/${{ secrets.CPANEL_USER }}/kafitour.com
+
+          rm -rf build public server.js
+
           npm install --omit=dev
+
+          test -d node_modules/@kafi/ui
+
           touch tmp/restart.txt
+
 
           echo "Installing admin dependencies..."
+
           cd /home/${{ secrets.CPANEL_USER }}/admin.kafitour.com
+
+          rm -rf build public server.js
+
           npm install --omit=dev
+
+          test -d node_modules/@kafi/ui
+
           touch tmp/restart.txt
 
+
           echo "Installing api dependencies..."
+
           cd /home/${{ secrets.CPANEL_USER }}/api.kafitour.com
-          npm install --omit=dev
+
+          rm -rf dist node_modules
+
+          npm ci --omit=dev
+
+          test -d node_modules
+
           touch tmp/restart.txt
+
 
           echo "Deployment complete"
 

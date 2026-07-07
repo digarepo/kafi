@@ -38,7 +38,7 @@ export function DecorativeBackground({
 
       {/* Secondary orb */}
       <div
-        className="absolute top-[30%] -left-[15%] w-[40vw] h-[40vw] max-w-[400px] max-h-[400px] rounded-full animate-float"
+        className="absolute top-[30%] left-[-15%] w-[40vw] h-[40vw] max-w-[400px] max-h-[400px] rounded-full animate-float"
         style={{
           background:
             'radial-gradient(circle, rgba(197, 160, 89, 0.06) 0%, transparent 70%)',
