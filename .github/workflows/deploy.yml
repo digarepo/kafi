@@ -37,119 +37,152 @@ jobs:
       - name: Build affected apps
         run: npx nx affected -t build --base=HEAD~1 --head=HEAD
 
+      - name: Pack UI package
+        run: |
+          npm pack ./packages/ui
+
       # 6. Prepare deployment package
       - name: Create deploy package
         run: |
           rm -rf deploy
-          mkdir -p deploy
+          mkdir deploy
 
-          # Root workspace files
-          cp package.json deploy/
-          cp package-lock.json deploy/
-          cp nx.json deploy/
-          cp tsconfig.base.json deploy/
+          UI_PACKAGE=$(ls kafi-ui-*.tgz)
 
-          # ---------- Packages ----------
-          mkdir -p deploy/packages/ui
-          cp packages/ui/package.json deploy/packages/ui/
-          cp -R packages/ui/dist deploy/packages/ui/
+          #################################
+          # WEB
+          #################################
 
-          # CSS export
-          mkdir -p deploy/packages/ui/src/styles
-          cp packages/ui/src/styles/base.css deploy/packages/ui/src/styles/
+          mkdir -p deploy/web
 
-          # ---------- WEB ----------
-          if [ -d "apps/web/build" ]; then
-            mkdir -p deploy/apps/web
+          cp apps/web/package.json deploy/web/
+          cp "$UI_PACKAGE" deploy/web/
+          node deployment/prepare-package-json.mjs deploy/web/package.json "$UI_PACKAGE"
 
-            cp apps/web/package.json deploy/apps/web/
-            cp deployment/react-router/server.js deploy/apps/web/
-            cp deployment/react-router/start.cjs deploy/apps/web/
+          cp deployment/react-router/server.js deploy/web/
+          cp deployment/react-router/start.cjs deploy/web/
 
-            cp -R apps/web/build deploy/apps/web/
-            cp -R apps/web/public deploy/apps/web/
+          cp -R apps/web/build deploy/web/
+          cp -R apps/web/public deploy/web/
 
-            mkdir -p deploy/apps/web/tmp
-          fi
+          mkdir deploy/web/tmp
 
-          # ---------- ADMIN ----------
-          if [ -d "apps/admin/build" ]; then
-            mkdir -p deploy/apps/admin
+          cd deploy/web
 
-            cp apps/admin/package.json deploy/apps/admin/
-            cp deployment/react-router/server.js deploy/apps/admin/
-            cp deployment/react-router/start.cjs deploy/apps/admin/
+          npm install --omit=dev
 
-            cp -R apps/admin/build deploy/apps/admin/
-            cp -R apps/admin/public deploy/apps/admin/
+          cd ../..
 
-            mkdir -p deploy/apps/admin/tmp
-          fi
+          #################################
+          # ADMIN
+          #################################
 
-          # ---------- API ----------
-          if [ -d "apps/api/dist" ]; then
-            mkdir -p deploy/apps/api
+          mkdir -p deploy/admin
 
-            cp apps/api/package.json deploy/apps/api/
-            cp deployment/api/start.cjs deploy/apps/api/
+          cp apps/admin/package.json deploy/admin/
+          cp "$UI_PACKAGE" deploy/admin/
+          node deployment/prepare-package-json.mjs deploy/admin/package.json "$UI_PACKAGE"
 
-            cp -R apps/api/dist deploy/apps/api/
+          cp deployment/react-router/server.js deploy/admin/
+          cp deployment/react-router/start.cjs deploy/admin/
 
-            mkdir -p deploy/apps/api/tmp
-          fi
+          cp -R apps/admin/build deploy/admin/
+          cp -R apps/admin/public deploy/admin/
 
+          mkdir deploy/admin/tmp
+
+          cd deploy/admin
+
+          npm install --omit=dev
+
+          cd ../..
+
+          #################################
+          # API
+          #################################
+
+          mkdir -p deploy/api
+
+          cp apps/api/package.json deploy/api/
+          cp package-lock.json deploy/api/
+
+          cp deployment/api/start.cjs deploy/api/
+
+          cp -R apps/api/dist deploy/api/
+
+          mkdir deploy/api/tmp
+
+          cd deploy/api
+
+          npm install --omit=dev
+
+          cd ../..
+
+
+      - name: Inspect deployment package
+        run: |
+          echo "WEB PACKAGE"
+          cat deploy/web/package.json
+
+          echo "UI PACKAGE"
+          ls -la deploy/web/node_modules/@kafi/ui
+
+          echo "LOCK FILE"
+          grep '"@kafi/ui"' deploy/web/package-lock.json
       # Step 7: Upload the deploy folder
-      - name: Upload to cPanel
+      - name: Upload Web
         uses: wlixcc/SFTP-Deploy-Action@v1.2.4
         with:
           username: ${{ secrets.CPANEL_USER }}
           server: ${{ secrets.CPANEL_HOST }}
           ssh_private_key: ${{ secrets.CPANEL_DEPLOY_KEY }}
-          local_path: ./deploy
-          remote_path: /home/${{ secrets.CPANEL_USER }}/kafi/
+          local_path: ./deploy/web
+          remote_path: /home/${{ secrets.CPANEL_USER }}/kafitour.com
           port: 22
           sftp_only: true
-          delete_remote_files: false
+          delete_remote_files: true
+
+      - name: Upload Admin
+        uses: wlixcc/SFTP-Deploy-Action@v1.2.4
+        with:
+          username: ${{ secrets.CPANEL_USER }}
+          server: ${{ secrets.CPANEL_HOST }}
+          ssh_private_key: ${{ secrets.CPANEL_DEPLOY_KEY }}
+          local_path: ./deploy/admin
+          remote_path: /home/${{ secrets.CPANEL_USER }}/admin.kafitour.com
+          port: 22
+          sftp_only: true
+          delete_remote_files: true
+
+      - name: Upload API
+        uses: wlixcc/SFTP-Deploy-Action@v1.2.4
+        with:
+          username: ${{ secrets.CPANEL_USER }}
+          server: ${{ secrets.CPANEL_HOST }}
+          ssh_private_key: ${{ secrets.CPANEL_DEPLOY_KEY }}
+          local_path: ./deploy/api
+          remote_path: /home/${{ secrets.CPANEL_USER }}/api.kafitour.com
+          port: 22
+          sftp_only: true
+          delete_remote_files: true
 
       # Step 8: Move files into place and restart Passenger apps
-      - name: Install and restart
+      - name: Restart Passenger
         run: |
           mkdir -p ~/.ssh
+
           echo "${{ secrets.CPANEL_DEPLOY_KEY }}" > ~/.ssh/id_rsa
+
           chmod 600 ~/.ssh/id_rsa
+
           ssh-keyscan -H ${{ secrets.CPANEL_HOST }} >> ~/.ssh/known_hosts
 
           ssh ${{ secrets.CPANEL_USER }}@${{ secrets.CPANEL_HOST }} << 'EOF'
-            set -e
 
-            cd /home/${{ secrets.CPANEL_USER }}/kafi
+          touch /home/${{ secrets.CPANEL_USER }}/kafitour.com/tmp/restart.txt || true
 
-            # Copy workspace files
-            cp -f deploy/package.json .
-            cp -f deploy/package-lock.json .
-            cp -f deploy/nx.json .
-            cp -f deploy/tsconfig.base.json .
+          touch /home/${{ secrets.CPANEL_USER }}/admin.kafitour.com/tmp/restart.txt || true
 
-            rm -rf packages
-            cp -R deploy/packages .
+          touch /home/${{ secrets.CPANEL_USER }}/api.kafitour.com/tmp/restart.txt || true
 
-            mkdir -p apps
-
-            # Replace only the apps that were deployed
-            for app in web admin api; do
-              if [ -d "deploy/apps/$app" ]; then
-                rm -rf "apps/$app"
-                cp -R "deploy/apps/$app" "apps/$app"
-              fi
-            done
-
-            # Install production dependencies for the workspace
-            npm install --omit=dev
-
-            # Restart Passenger
-            [ -d apps/web/tmp ] && touch apps/web/tmp/restart.txt || true
-            [ -d apps/admin/tmp ] && touch apps/admin/tmp/restart.txt || true
-            [ -d apps/api/tmp ] && touch apps/api/tmp/restart.txt || true
-
-            rm -rf deploy
           EOF

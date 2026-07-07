@@ -19,7 +19,8 @@
     }
   },
   "files": [
-    "src"
+    "dist",
+    "src/styles"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
