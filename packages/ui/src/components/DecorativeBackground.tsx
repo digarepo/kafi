@@ -29,7 +29,7 @@ export function DecorativeBackground({
 
       {/* Primary floating orb - emerald glow */}
       <div
-        className="absolute -top-[20%] -right-[10%] w-[50vw] h-[50vw] max-w-[600px] max-h-[600px] rounded-full animate-pulse-glow"
+        className="absolute -top-[20%] -right-[10%] w-[50vw] h-[50vw] max-w-150 max-h-[600px] rounded-full animate-pulse-glow"
         style={{
           background:
             'radial-gradient(circle, rgba(0, 84, 48, 0.08) 0%, transparent 70%)',

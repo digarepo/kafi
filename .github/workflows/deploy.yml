@@ -125,7 +125,7 @@ jobs:
           username: ${{ secrets.CPANEL_USER }}
           server: ${{ secrets.CPANEL_HOST }}
           ssh_private_key: ${{ secrets.CPANEL_DEPLOY_KEY }}
-          local_path: ./deploy/web/
+          local_path: ./deploy/web/*
           remote_path: /home/${{ secrets.CPANEL_USER }}/kafitour.com
           port: 22
           sftp_only: true
@@ -137,7 +137,7 @@ jobs:
           username: ${{ secrets.CPANEL_USER }}
           server: ${{ secrets.CPANEL_HOST }}
           ssh_private_key: ${{ secrets.CPANEL_DEPLOY_KEY }}
-          local_path: ./deploy/admin/
+          local_path: ./deploy/admin/*
           remote_path: /home/${{ secrets.CPANEL_USER }}/admin.kafitour.com
           port: 22
           sftp_only: true
@@ -149,7 +149,7 @@ jobs:
           username: ${{ secrets.CPANEL_USER }}
           server: ${{ secrets.CPANEL_HOST }}
           ssh_private_key: ${{ secrets.CPANEL_DEPLOY_KEY }}
-          local_path: ./deploy/api/
+          local_path: ./deploy/api/*
           remote_path: /home/${{ secrets.CPANEL_USER }}/api.kafitour.com
           port: 22
           sftp_only: true
