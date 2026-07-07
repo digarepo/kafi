@@ -168,14 +168,13 @@ jobs:
 
           ssh ${{ secrets.CPANEL_USER }}@${{ secrets.CPANEL_HOST }} << 'EOF'
           set -e
+          export CI=true
 
           echo "Installing web dependencies..."
 
           cd /home/${{ secrets.CPANEL_USER }}/kafitour.com
 
-          rm -rf build public server.js
-
-          npm install --omit=dev
+          npm install --omit=dev --no-audit --no-fund
 
           test -d node_modules/@kafi/ui
 
@@ -186,9 +185,7 @@ jobs:
 
           cd /home/${{ secrets.CPANEL_USER }}/admin.kafitour.com
 
-          rm -rf build public server.js
-
-          npm install --omit=dev
+          npm install --omit=dev --no-audit --no-fund
 
           test -d node_modules/@kafi/ui
 
@@ -199,9 +196,7 @@ jobs:
 
           cd /home/${{ secrets.CPANEL_USER }}/api.kafitour.com
 
-          rm -rf dist node_modules
-
-          npm ci --omit=dev
+          npm ci --omit=dev --no-audit --no-fund
 
           test -d node_modules
 
