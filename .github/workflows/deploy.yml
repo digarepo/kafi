@@ -92,7 +92,6 @@ jobs:
           mkdir -p deploy/api
 
           cp apps/api/package.json deploy/api/
-          cp package-lock.json deploy/api/
 
           cp deployment/api/start.cjs deploy/api/
 
@@ -196,7 +195,7 @@ jobs:
 
           cd /home/${{ secrets.CPANEL_USER }}/api.kafitour.com
 
-          npm ci --omit=dev --no-audit --no-fund
+          npm install --omit=dev --no-audit --no-fund
 
           test -d node_modules
 
