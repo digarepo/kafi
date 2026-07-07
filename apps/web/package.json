@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@kafi/ui": "*",
+    "@react-router/express": "^8.1.0",
     "@react-router/node": "^8.1.0",
     "@react-router/serve": "^8.1.0",
     "compression": "^1.8.1",
