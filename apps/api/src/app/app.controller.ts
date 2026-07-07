@@ -7,7 +7,7 @@ export class AppController {
     return {
       name: 'API',
       version: '1.0.0',
-      status: 'operational!',
+      status: 'operational',
     };
   }
 

@@ -4,7 +4,9 @@ interface DecorativeBackgroundProps {
   variant?: 'default' | 'subtle' | 'ambient';
 }
 
-export function DecorativeBackground({ variant = 'default' }: DecorativeBackgroundProps) {
+export function DecorativeBackground({
+  variant = 'default',
+}: DecorativeBackgroundProps) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -29,7 +31,8 @@ export function DecorativeBackground({ variant = 'default' }: DecorativeBackgrou
       <div
         className="absolute -top-[20%] -right-[10%] w-[50vw] h-[50vw] max-w-[600px] max-h-[600px] rounded-full animate-pulse-glow"
         style={{
-          background: 'radial-gradient(circle, rgba(0, 84, 48, 0.08) 0%, transparent 70%)',
+          background:
+            'radial-gradient(circle, rgba(0, 84, 48, 0.08) 0%, transparent 70%)',
         }}
       />
 
@@ -37,26 +40,29 @@ export function DecorativeBackground({ variant = 'default' }: DecorativeBackgrou
       <div
         className="absolute top-[30%] -left-[15%] w-[40vw] h-[40vw] max-w-[400px] max-h-[400px] rounded-full animate-float"
         style={{
-          background: 'radial-gradient(circle, rgba(197, 160, 89, 0.06) 0%, transparent 70%)',
+          background:
+            'radial-gradient(circle, rgba(197, 160, 89, 0.06) 0%, transparent 70%)',
         }}
       />
 
       {/* Tertiary subtle glow */}
       <div
-        className="absolute bottom-[10%] right-[20%] w-[30vw] h-[30vw] max-w-[300px] max-h-[300px] rounded-full animate-float-delayed"
+        className="absolute bottom-[10%] right-[20%] w-[30vw] h-[30vw] max-w-75 max-h-75 rounded-full animate-float-delayed"
         style={{
-          background: 'radial-gradient(circle, rgba(0, 84, 48, 0.04) 0%, transparent 70%)',
+          background:
+            'radial-gradient(circle, rgba(0, 84, 48, 0.04) 0%, transparent 70%)',
         }}
       />
 
       {/* Ambient gradient overlay for dark mode */}
-      <div className="absolute inset-0 dark:bg-gradient-to-br dark:from-brand-primary/5 dark:via-transparent dark:to-transparent opacity-0 dark:opacity-100 transition-opacity duration-500" />
+      <div className="absolute inset-0 dark:bg-linear-to-br dark:from-brand-primary/5 dark:via-transparent dark:to-transparent opacity-0 dark:opacity-100 transition-opacity duration-500" />
 
       {/* Subtle vignette */}
       <div
         className="absolute inset-0"
         style={{
-          background: 'radial-gradient(ellipse at center, transparent 0%, rgba(0,0,0,0.02) 100%)',
+          background:
+            'radial-gradient(ellipse at center, transparent 0%, rgba(0,0,0,0.02) 100%)',
         }}
       />
     </div>

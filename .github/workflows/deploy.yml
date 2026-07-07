@@ -67,12 +67,6 @@ jobs:
 
           mkdir deploy/web/tmp
 
-          cd deploy/web
-
-          npm install --omit=dev
-
-          cd ../..
-
           #################################
           # ADMIN
           #################################
@@ -91,12 +85,6 @@ jobs:
 
           mkdir deploy/admin/tmp
 
-          cd deploy/admin
-
-          npm install --omit=dev
-
-          cd ../..
-
           #################################
           # API
           #################################
@@ -104,7 +92,6 @@ jobs:
           mkdir -p deploy/api
 
           cp apps/api/package.json deploy/api/
-          cp package-lock.json deploy/api/
 
           cp deployment/api/start.cjs deploy/api/
 
@@ -112,23 +99,24 @@ jobs:
 
           mkdir deploy/api/tmp
 
-          cd deploy/api
-
-          npm install --omit=dev
-
-          cd ../..
-
-
-      - name: Inspect deployment package
+      - name: Verify deployment package
         run: |
-          echo "WEB PACKAGE"
-          cat deploy/web/package.json
+          echo "WEB"
+          test -f deploy/web/package.json
+          test -f deploy/web/kafi-ui-1.0.0.tgz
+          test -f deploy/web/build/server/index.js
 
-          echo "UI PACKAGE"
-          ls -la deploy/web/node_modules/@kafi/ui
+          echo "ADMIN"
+          test -f deploy/admin/package.json
+          test -f deploy/admin/kafi-ui-1.0.0.tgz
+          test -f deploy/admin/build/server/index.js
 
-          echo "LOCK FILE"
-          grep '"@kafi/ui"' deploy/web/package-lock.json
+          echo "API"
+          test -f deploy/api/package.json
+          test -d deploy/api/dist
+
+          echo "Deployment package looks good"
+
       # Step 7: Upload the deploy folder
       - name: Upload Web
         uses: wlixcc/SFTP-Deploy-Action@v1.2.4
@@ -166,8 +154,8 @@ jobs:
           sftp_only: true
           delete_remote_files: true
 
-      # Step 8: Move files into place and restart Passenger apps
-      - name: Restart Passenger
+      # Step 8: Install dependencies and restart Passenger apps
+      - name: Install dependencies and restart Passenger
         run: |
           mkdir -p ~/.ssh
 
@@ -179,10 +167,21 @@ jobs:
 
           ssh ${{ secrets.CPANEL_USER }}@${{ secrets.CPANEL_HOST }} << 'EOF'
 
-          touch /home/${{ secrets.CPANEL_USER }}/kafitour.com/tmp/restart.txt || true
+          echo "Installing web dependencies..."
+          cd /home/${{ secrets.CPANEL_USER }}/kafitour.com
+          npm install --omit=dev
+          touch tmp/restart.txt
 
-          touch /home/${{ secrets.CPANEL_USER }}/admin.kafitour.com/tmp/restart.txt || true
+          echo "Installing admin dependencies..."
+          cd /home/${{ secrets.CPANEL_USER }}/admin.kafitour.com
+          npm install --omit=dev
+          touch tmp/restart.txt
 
-          touch /home/${{ secrets.CPANEL_USER }}/api.kafitour.com/tmp/restart.txt || true
+          echo "Installing api dependencies..."
+          cd /home/${{ secrets.CPANEL_USER }}/api.kafitour.com
+          npm install --omit=dev
+          touch tmp/restart.txt
+
+          echo "Deployment complete"
 
           EOF
