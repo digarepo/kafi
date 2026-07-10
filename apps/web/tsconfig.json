@@ -8,10 +8,21 @@
     "baseUrl": ".",
     "rootDirs": [".", "./.react-router/types"],
     "paths": {
+      "@/*": ["app/*"],
+      "@kafi/ui": ["../../packages/ui/src/index.ts"],
+      "@kafi/ui/*": ["../../packages/ui/src/*"],
       "app/+types/*": [".react-router/types/app/+types/*"],
       "app/routes/+types/*": [".react-router/types/app/routes/+types/*"]
     }
   },
-  "include": ["**/*.ts", "**/*.tsx", "**/.server/**/*.ts", "**/.server/**/*.tsx", "**/.client/**/*.ts", "**/.client/**/*.tsx", ".react-router/types/**/*"],
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "**/.server/**/*.ts",
+    "**/.server/**/*.tsx",
+    "**/.client/**/*.ts",
+    "**/.client/**/*.tsx",
+    ".react-router/types/**/*"
+  ],
   "exclude": ["node_modules", "build", "server-build"]
 }
