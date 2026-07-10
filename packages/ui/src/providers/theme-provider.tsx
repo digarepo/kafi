@@ -27,7 +27,6 @@ export function ThemeProvider({
 }: ThemeProviderProps) {
   const [theme, setTheme] = useState<Theme>(defaultTheme);
   const [systemTheme, setSystemTheme] = useState<'light' | 'dark'>(() => {
-    // This function only runs on client during hydration
     if (typeof window !== 'undefined') {
       return window.matchMedia('(prefers-color-scheme: dark)').matches
         ? 'dark'
