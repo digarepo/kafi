@@ -34,8 +34,8 @@ jobs:
           cat affected.txt
 
       # 5. Build affected projects only
-      - name: Build affected apps
-        run: npx nx affected -t build --base=HEAD~1 --head=HEAD
+      - name: Build all apps
+        run: npx nx run-many -t build
 
       - name: Pack UI package
         run: |
