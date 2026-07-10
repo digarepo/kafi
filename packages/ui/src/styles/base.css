@@ -13,6 +13,7 @@
   --color-foreground: var(--foreground);
 
   --color-card: var(--card);
+  --color-card-gradient: var(--card-gradient);
   --color-card-foreground: var(--card-foreground);
 
   --color-popover: var(--popover);
