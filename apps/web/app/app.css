@@ -56,94 +56,101 @@
 
 /* Web application theme */
 :root {
-  /* Base layers */
-  --background: hsl(0 0% 90%);
-  --foreground: hsl(150 70% 10%);
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.259 0.053 157.428);
 
-  /* Card layer - elevated surface */
-  --card: hsl(0 0% 95%);
-  --card-foreground: hsl(150 70% 10%);
+  --card: oklch(1 0 0);
+  --card-gradient: linear-gradient(to bottom, oklch(0.97 0 0), oklch(0.95 0 0));
+  --card-foreground: oklch(0.259 0.053 157.428);
 
-  /* Popover layer - overlay surface */
-  --popover: hsl(0 0% 100%);
-  --popover-foreground: hsl(150 70% 10%);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.259 0.053 157.428);
 
-  /* Primary brand - Deep Emerald */
-  --primary: hsl(150 100% 16%);
-  --primary-foreground: hsl(0 0% 95%);
+  --primary: oklch(0.383 0.098 153.327);
+  --primary-foreground: oklch(1 0 0);
 
-  /* Secondary - muted variant */
-  --secondary: hsl(40 30% 97%);
-  --secondary-foreground: hsl(150 10% 45%);
+  --secondary: oklch(0.98 0.004 84.563);
+  --secondary-foreground: oklch(0.572 0.032 163.583);
 
-  /* Muted - subtle backgrounds */
-  --muted: hsl(40 30% 97%);
-  --muted-foreground: hsl(150 10% 45%);
+  --muted: oklch(0.98 0.004 84.563);
+  --muted-foreground: oklch(0.572 0.032 163.583);
 
-  /* Accent - Lime-Gold secondary */
-  --accent: hsl(40 45% 56%);
-  --accent-foreground: hsl(0 0% 100%);
+  --accent: oklch(0.721 0.095 83.495);
+  --accent-foreground: oklch(1 0 0);
 
-  /* Destructive - error states */
-  --destructive: hsl(0 84% 60%);
-  --destructive-foreground: hsl(0 0% 100%);
+  --destructive: oklch(0.636 0.208 25.378);
+  --destructive-foreground: oklch(1 0 0);
 
-  /* Borders and inputs */
-  --border: hsl(150 15% 90%);
-  --input: hsl(150 15% 90%);
-  --ring: hsl(150 100% 16%);
+  --border: oklch(0.928 0.01 164.869);
+  --input: oklch(0.928 0.01 164.869);
+  --ring: oklch(0.383 0.098 153.327);
 
-  /* Radius - matches existing rounded-xl (12px) */
+  --chart-1: oklch(0.383 0.098 153.327);
+  --chart-2: oklch(0.721 0.095 83.495);
+  --chart-3: oklch(0.447 0.116 152.684);
+  --chart-4: oklch(0.572 0.032 163.583);
+  --chart-5: oklch(0.759 0.083 84.006);
+
   --radius: 0.75rem;
 
-  /* Sidebar elevation - higher than card */
-  --sidebar: hsl(0 0% 95%);
-  --sidebar-foreground: hsl(150 70% 10%);
-  --sidebar-border: hsl(150 15% 92%);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.259 0.053 157.428);
+  --sidebar-primary: oklch(0.383 0.098 153.327);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.98 0.004 84.563);
+  --sidebar-accent-foreground: oklch(0.259 0.053 157.428);
+  --sidebar-border: oklch(0.943 0.008 164.928);
+  --sidebar-ring: oklch(0.383 0.098 153.327);
 }
 
 .dark {
-  /* Base layers - deep obsidian */
-  --background: hsl(150 40% 8%);
-  --foreground: hsl(0 0% 95%);
+  --background: oklch(0.211 0.028 160.994);
+  --foreground: oklch(0.985 0 0);
 
-  /* Card layer - elevated surface */
-  --card: hsl(150 35% 12%);
-  --card-foreground: hsl(0 0% 95%);
+  --card: oklch(0.26 0.034 160.943);
+  --card-gradient: linear-gradient(
+    to bottom,
+    oklch(0.33 0.034 160.943),
+    oklch(0.26 0.034 160.943)
+  );
+  --card-foreground: oklch(0.985 0 0);
 
-  /* Popover layer - overlay surface */
-  --popover: hsl(150 35% 10%);
-  --popover-foreground: hsl(0 0% 98%);
+  --popover: oklch(0.235 0.03 161.19);
+  --popover-foreground: oklch(0.985 0 0);
 
-  /* Primary brand - Deep Emerald (slightly lighter for dark mode) */
-  --primary: hsl(150 100% 20%);
-  --primary-foreground: hsl(0 0% 95%);
+  --primary: oklch(0.447 0.116 152.684);
+  --primary-foreground: oklch(1 0 0);
 
-  /* Secondary - muted variant */
-  --secondary: hsl(150 30% 15%);
-  --secondary-foreground: hsl(150 10% 60%);
+  --secondary: oklch(0.293 0.036 161.299);
+  --secondary-foreground: oklch(0.697 0.027 164.075);
 
-  /* Muted - subtle backgrounds */
-  --muted: hsl(150 30% 15%);
-  --muted-foreground: hsl(150 10% 60%);
+  --muted: oklch(0.293 0.036 161.299);
+  --muted-foreground: oklch(0.697 0.027 164.075);
 
-  /* Accent - Lime-Gold secondary */
-  --accent: hsl(40 45% 56%);
-  --accent-foreground: hsl(0 0% 95%);
+  --accent: oklch(0.721 0.095 83.495);
+  --accent-foreground: oklch(1 0 0);
 
-  /* Destructive - error states */
-  --destructive: hsl(0 62% 50%);
-  --destructive-foreground: hsl(0 0% 95%);
+  --destructive: oklch(0.561 0.195 26.166);
+  --destructive-foreground: oklch(1 0 0);
 
-  /* Borders and inputs */
-  --border: hsl(150 25% 18%);
-  --input: hsl(150 25% 18%);
-  --ring: hsl(150 100% 20%);
+  --border: oklch(0.323 0.036 161.789);
+  --input: oklch(0.323 0.036 161.789);
+  --ring: oklch(0.447 0.116 152.684);
 
-  /* Sidebar elevation - higher than card */
-  --sidebar: hsl(150 35% 10%);
-  --sidebar-foreground: hsl(0 0% 95%);
-  --sidebar-border: hsl(150 25% 20%);
+  --chart-1: oklch(0.759 0.083 84.006);
+  --chart-2: oklch(0.447 0.116 152.684);
+  --chart-3: oklch(0.721 0.095 83.495);
+  --chart-4: oklch(0.697 0.027 164.075);
+  --chart-5: oklch(0.383 0.098 153.327);
+
+  --sidebar: oklch(0.235 0.03 161.19);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.447 0.116 152.684);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.293 0.036 161.299);
+  --sidebar-accent-foreground: oklch(0.759 0.083 84.006);
+  --sidebar-border: oklch(0.345 0.039 161.709);
+  --sidebar-ring: oklch(0.447 0.116 152.684);
 }
 
 * {
@@ -205,11 +212,15 @@ h6 {
   }
 
   .glow-emerald {
-    box-shadow: 0 0 60px rgba(0, 84, 48, 0.15), 0 0 100px rgba(0, 84, 48, 0.1);
+    box-shadow:
+      0 0 60px rgba(0, 84, 48, 0.15),
+      0 0 100px rgba(0, 84, 48, 0.1);
   }
 
   .glow-emerald-strong {
-    box-shadow: 0 0 80px rgba(0, 84, 48, 0.25), 0 0 120px rgba(0, 84, 48, 0.15);
+    box-shadow:
+      0 0 80px rgba(0, 84, 48, 0.25),
+      0 0 120px rgba(0, 84, 48, 0.15);
   }
 }
 
