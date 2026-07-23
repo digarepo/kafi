@@ -43,10 +43,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <TooltipProvider>
               <Navbar />
               {children}
-              <Toaster />
+              <Toaster richColors position="top-right" duration={3000} />
               <Footer />
-              <MobileBottomNav />
             </TooltipProvider>
+            <MobileBottomNav />
           </ThemeProvider>
         </UIConfigProvider>
         <ScrollRestoration />

@@ -19,7 +19,7 @@ import {
   QuestionIcon,
   SparkleIcon,
 } from '@phosphor-icons/react';
-import { useLocation } from 'react-router';
+import { Link, useLocation } from 'react-router';
 
 /**
  * Represents one primary mobile bottom navigation item.
@@ -101,7 +101,7 @@ export function MobileBottomNav() {
   }, [location.pathname]);
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-background/80 backdrop-blur-md border-t border-border/40 flex justify-around items-center py-2.5 px-4 shadow-elevated">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-background/80 backdrop-blur-md border-t border-border/40 flex justify-around items-center py-2.5 px-4 pb-[calc(0.625rem+env(safe-area-inset-bottom))] shadow-elevated">
       {MOBILE_NAV_ITEMS.map((item) => (
         <MobileBottomNavLink
           key={item.key}
@@ -117,7 +117,10 @@ export function MobileBottomNav() {
           <ListIcon weight="regular" className="w-5.5 h-5.5" />
           <span className="text-[9px] font-semibold mt-1">More</span>
         </SheetTrigger>
-        <SheetContent side="bottom" className="rounded-t-3xl p-0 pb-6">
+        <SheetContent
+          side="bottom"
+          className="rounded-t-3xl p-0 max-h-[85dvh] overflow-y-auto overscroll-y-contain pb-[calc(1.5rem+env(safe-area-inset-bottom))]"
+        >
           <SheetHeader className="px-5 py-4">
             <SheetTitle>More</SheetTitle>
             <SheetDescription>Quick access…</SheetDescription>
@@ -133,7 +136,7 @@ export function MobileBottomNav() {
                     render={
                       <Button
                         variant={'ghost'}
-                        render={<a href={item.href} />}
+                        render={<Link to={item.href} />}
                         size="lg"
                         className="h-auto items-start gap-3 rounded-2xl px-3 py-3 border-none"
                       />
@@ -180,14 +183,14 @@ function MobileBottomNavLink({
   isActive: boolean;
 }) {
   return (
-    <a
-      href={href}
+    <Link
+      to={href}
       className={`flex flex-col items-center justify-center transition-colors ${
         isActive ? 'text-primary' : 'text-muted-foreground hover:text-primary'
       }`}
     >
       <Icon weight={isActive ? 'fill' : 'regular'} className="w-5.5 h-5.5" />
       <span className="text-[9px] font-semibold mt-1">{label}</span>
-    </a>
+    </Link>
   );
 }
