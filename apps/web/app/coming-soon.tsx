@@ -130,7 +130,7 @@ export default function ComingSoonPage() {
             style={{ animationDelay: '0.3s' }}
           >
             <div className="space-y-3">
-              {statusItems.map((item, index) => (
+              {statusItems.map((item, _index) => (
                 <div
                   key={item.label}
                   className="flex items-center justify-between group"
