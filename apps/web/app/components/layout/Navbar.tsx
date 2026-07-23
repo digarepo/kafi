@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
-import { Button, ThemeToggle } from '@kafi/ui';
-import { ArrowRightIcon } from '@phosphor-icons/react';
-import { Link } from 'react-router';
+import { useEffect, useState } from "react";
+import { Button, ThemeToggle } from "@kafi/ui";
+import { ArrowRightIcon } from "@phosphor-icons/react";
+import { Link } from "react-router";
 
 /**
  * Represents one desktop navigation item in the landing navbar.
@@ -12,10 +12,11 @@ type NavLink = {
 };
 
 const NAV_LINKS: NavLink[] = [
-  { href: '/', label: 'Home' },
-  { href: '/packages', label: 'Packages' },
-  { href: '/services', label: 'Services' },
-  { href: '/contact', label: 'Contact' },
+  { href: "/", label: "Home" },
+  { href: "/packages", label: "Packages" },
+  { href: "/services", label: "Services" },
+  { href: "/about", label: "About" },
+  { href: "/contact", label: "Contact" },
 ];
 
 function clamp(value: number, min: number, max: number) {
@@ -39,9 +40,9 @@ export function Navbar() {
     };
 
     handleScroll();
-    window.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener("scroll", handleScroll, { passive: true });
 
-    return () => window.removeEventListener('scroll', handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
   const revealProgress = easeOutCubic(stage(scrollProgress, 0.02, 0.35));
@@ -91,18 +92,18 @@ export function Navbar() {
               }}
             />
 
-            <a
-              href="#hero"
-              className="relative flex h-12 items-center gap-2 px-3"
+            <Link
+              to="/"
+              className="relative flex h-24 items-center gap-2 px-3"
               aria-label="Kafi Tours home"
             >
               <img
-                src="/kafi-icon-green.svg"
+                src="/KafiOr.svg"
                 alt="Kafi Tours Logo"
                 className="block h-10 w-10 transition-transform duration-300 hover:rotate-12 dark:hidden"
               />
               <img
-                src="/kafi-icon-gold.svg"
+                src="/KafiDef.svg"
                 alt="Kafi Tours Logo"
                 className="hidden h-10 w-10 transition-transform duration-300 hover:rotate-12 dark:block"
               />
@@ -116,14 +117,14 @@ export function Navbar() {
                 <span>KAFI</span>
                 <span className="font-medium text-accent">TOURS</span>
               </span>
-            </a>
+            </Link>
           </div>
 
           <div
             className="pointer-events-auto absolute left-1/2 top-0 hidden h-12 items-center gap-6 px-4 transition-transform duration-300 ease-out md:flex"
             style={{
               transform: `translateX(-50%) scale(${centerScale})`,
-              transformOrigin: 'center',
+              transformOrigin: "center",
             }}
           >
             <div
@@ -136,13 +137,13 @@ export function Navbar() {
 
             <nav className="relative flex items-center gap-5 lg:gap-7">
               {NAV_LINKS.map((link) => (
-                <a
+                <Link
                   key={link.href}
-                  href={link.href}
+                  to={link.href}
                   className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
                 >
                   {link.label}
-                </a>
+                </Link>
               ))}
               <ThemeToggle />
             </nav>
@@ -164,9 +165,9 @@ export function Navbar() {
               }}
             />
 
-            <Link to={'/packages'}>
+            <Link to="/booking">
               <Button className="relative btn-primary flex h-8 items-center rounded-full hover:scale-110 gap-1.5 px-4 mx-4 text-xs shadow-soft">
-                Book a Trip
+                Plan My Umrah
                 <ArrowRightIcon weight="bold" className="h-3.5 w-3.5" />
               </Button>
             </Link>

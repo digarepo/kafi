@@ -52,6 +52,29 @@
   --color-brand-light: hsl(150 100% 20%);
   --color-brand-gold: hsl(40 45% 56%);
   --color-brand-goldLight: hsl(40 45% 62%);
+
+  --animate-accordion-down: accordion-down 300ms ease-out;
+  --animate-accordion-up: accordion-up 300ms ease-out;
+
+  @keyframes accordion-down {
+    from {
+      height: 0;
+    }
+
+    to {
+      height: var(--accordion-panel-height);
+    }
+  }
+
+  @keyframes accordion-up {
+    from {
+      height: var(--accordion-panel-height);
+    }
+
+    to {
+      height: 0;
+    }
+  }
 }
 
 /* Web application theme */

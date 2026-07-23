@@ -11,6 +11,7 @@
       "@/*": ["app/*"],
       "@kafi/ui": ["../../packages/ui/src/index.ts"],
       "@kafi/ui/*": ["../../packages/ui/src/*"],
+      "@ui/*": ["../../packages/ui/src/*"],
       "app/+types/*": [".react-router/types/app/+types/*"],
       "app/routes/+types/*": [".react-router/types/app/routes/+types/*"]
     }
