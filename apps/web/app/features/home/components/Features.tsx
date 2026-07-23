@@ -1,4 +1,4 @@
-import { Badge, Button, Card, Separator } from "@kafi/ui";
+import { Badge, Button, Card, Input, Separator } from '@kafi/ui';
 import {
   ArrowRightIcon,
   AirplaneIcon,
@@ -6,10 +6,9 @@ import {
   UsersIcon,
   ShieldCheckIcon,
   CheckIcon,
-} from "@phosphor-icons/react";
-import { Link } from "react-router";
-
-import { InlineCallbackForm } from "@/features/callback";
+  PhoneCallIcon,
+} from '@phosphor-icons/react';
+import { Link } from 'react-router';
 
 /**
  * Renders the partnerships section showcasing trusted travel and pilgrimage partners.
@@ -54,7 +53,10 @@ export function Partners() {
 
 export function Destinations() {
   return (
-    <section id="destinations" className="section-padding bg-muted/30 border-t border-border/20">
+    <section
+      id="destinations"
+      className="section-padding bg-muted/30 border-t border-border/20"
+    >
       <div className="mx-auto max-w-7xl px-6 sm:px-8 lg:px-12 space-y-16">
         {/* Title */}
         <div className="space-y-3 max-w-xl text-left">
@@ -68,7 +70,8 @@ export function Destinations() {
             Travel Destinations
           </h2>
           <p className="text-muted-foreground font-light text-sm">
-            Curated packages utilizing high-quality logistics and luxury boarding parameters.
+            Curated packages utilizing high-quality logistics and luxury
+            boarding parameters.
           </p>
         </div>
 
@@ -96,8 +99,9 @@ export function Destinations() {
                 Makkah Al-Mukarramah
               </h3>
               <p className="text-sm text-accent-foreground font-light leading-relaxed">
-                Perform your umrah with thoughtfully arranged accomodation near al-masjid Al-Haram,
-                Allowing you to focus on your worship with convenience.
+                Perform your umrah with thoughtfully arranged accomodation near
+                al-masjid Al-Haram, Allowing you to focus on your worship with
+                convenience.
               </p>
               <div className="flex gap-4 text-xs font-semibold text-accent">
                 <span>✓ Carefully Selected Accommodations</span>
@@ -128,8 +132,8 @@ export function Destinations() {
                 Al-Madinah Al-Munawwarah
               </h3>
               <p className="text-sm text-accent-foreground font-light leading-relaxed">
-                Visit the Prophet’s Mosque (Al-Masjid an-Nabawi) and trace historical landmarks in
-                peaceful guided groups.
+                Visit the Prophet’s Mosque (Al-Masjid an-Nabawi) and trace
+                historical landmarks in peaceful guided groups.
               </p>
             </div>
           </Card>
@@ -156,8 +160,9 @@ export function Destinations() {
                   Ethiopian Airlines
                 </h3>
                 <p className="text-sm text-foreground/70 font-normal max-w-2xl leading-relaxed">
-                  We coordinate direct Ethiopian Airlines flights from Addis Ababa (ADD) to Jeddah
-                  (JED), helping ensure a comfortable and well-organized start to your pilgrimage.
+                  We coordinate direct Ethiopian Airlines flights from Addis
+                  Ababa (ADD) to Jeddah (JED), helping ensure a comfortable and
+                  well-organized start to your pilgrimage.
                 </p>
               </div>
             </div>
@@ -181,28 +186,36 @@ export function Features() {
   const items = [
     {
       icon: <StarIcon weight="light" className="w-5 h-5 text-accent" />,
-      title: "Carefully Selected Accommodation",
-      desc: "Comfortable hotel accommodations chosen for quality, convenience, and proximity to the Haram where available.",
+      title: 'Carefully Selected Accommodation',
+      desc: 'Comfortable hotel accommodations chosen for quality, convenience, and proximity to the Haram where available.',
     },
     {
-      icon: <AirplaneIcon weight="light" className="w-5 h-5 text-accent rotate-45" />,
-      title: "Flight Coordination",
-      desc: "Travel arrangements coordinated with Ethiopian Airlines to help provide a smooth journey from departure to arrival.",
+      icon: (
+        <AirplaneIcon
+          weight="light"
+          className="w-5 h-5 text-accent rotate-45"
+        />
+      ),
+      title: 'Flight Coordination',
+      desc: 'Travel arrangements coordinated with Ethiopian Airlines to help provide a smooth journey from departure to arrival.',
     },
     {
       icon: <UsersIcon weight="light" className="w-5 h-5 text-accent" />,
-      title: "Guidance Throughout Your Journey",
-      desc: "Support before and during your pilgrimage with organized briefings and experienced group coordinators.",
+      title: 'Guidance Throughout Your Journey',
+      desc: 'Support before and during your pilgrimage with organized briefings and experienced group coordinators.',
     },
     {
       icon: <ShieldCheckIcon weight="light" className="w-5 h-5 text-accent" />,
-      title: "Visa & Travel Assistance",
-      desc: "Assistance with visa processing and the required travel documentation for your pilgrimage.",
+      title: 'Visa & Travel Assistance',
+      desc: 'Assistance with visa processing and the required travel documentation for your pilgrimage.',
     },
   ];
 
   return (
-    <section id="features" className="section-padding border-t border-border/20">
+    <section
+      id="features"
+      className="section-padding border-t border-border/20"
+    >
       <div className="mx-auto max-w-7xl w-full px-6 sm:px-8 lg:px-12 grid gap-12 lg:grid-cols-12 lg:items-center">
         {/* Left Side Content Panel */}
         <div className="lg:col-span-5 space-y-6 text-left">
@@ -218,17 +231,18 @@ export function Features() {
             <span className="text-accent font-normal">TOURS</span>
           </h2>
           <p className="text-muted-foreground font-light text-sm leading-relaxed">
-            Every pilgrimage deserves careful planning. We coordinate flights, accommodation,
-            transportation, and essential travel arrangements so you can devote more of your
-            attention to worship and less to logistics.
+            Every pilgrimage deserves careful planning. We coordinate flights,
+            accommodation, transportation, and essential travel arrangements so
+            you can devote more of your attention to worship and less to
+            logistics.
           </p>
           <div className="pt-2">
             <Link to="/services">
               <Button
                 className="btn-outline flex items-center gap-2 text-xs hover:scale-110"
-                variant={"outline"}
+                variant={'outline'}
               >
-                Explore Services
+                Discover Our Services
                 <ArrowRightIcon weight="regular" className="w-3.5 h-3.5 " />
               </Button>
             </Link>
@@ -246,7 +260,9 @@ export function Features() {
               <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-accent/10 border border-accent/15 group-hover:scale-110 transition-transform duration-300">
                 {feat.icon}
               </div>
-              <h3 className="font-heading text-sm font-bold text-foreground mb-1">{feat.title}</h3>
+              <h3 className="font-heading text-sm font-bold text-foreground mb-1">
+                {feat.title}
+              </h3>
               <p className="text-xs text-muted-foreground font-light leading-relaxed">
                 {feat.desc}
               </p>
@@ -269,7 +285,10 @@ export function Features() {
  */
 export function Pricing() {
   return (
-    <section id="pricing" className="section-padding bg-muted/20 border-t border-border/20">
+    <section
+      id="pricing"
+      className="section-padding bg-muted/20 border-t border-border/20"
+    >
       <div className="mx-auto max-w-7xl px-6 sm:px-8 lg:px-12 text-center space-y-16">
         {/* Title */}
         <div className="space-y-3 max-w-xl mx-auto">
@@ -283,7 +302,8 @@ export function Pricing() {
             Pilgrimage Packages
           </h2>
           <p className="text-muted-foreground font-light text-sm">
-            Choose the package comfort level that best matches your family itinerary.
+            Choose the package comfort level that best matches your family
+            itinerary.
           </p>
         </div>
 
@@ -293,12 +313,18 @@ export function Pricing() {
           <Card className="card flex flex-col justify-between border-border/30 bg-linear-to-b from-card to-muted/10 p-6 relative">
             <div className="space-y-4">
               <div className="space-y-1">
-                <h3 className="font-heading text-sm font-bold text-foreground">Economy Package</h3>
-                <p className="text-[11px] text-muted-foreground">Best vaue for money</p>
+                <h3 className="font-heading text-sm font-bold text-foreground">
+                  Economy Package
+                </h3>
+                <p className="text-[11px] text-muted-foreground">
+                  Best vaue for money
+                </p>
               </div>
               <div className="flex items-baseline gap-1 text-foreground">
                 <span className="text-2xl font-bold">ETB 145,000</span>
-                <span className="text-[10px] text-muted-foreground font-light">/ traveler</span>
+                <span className="text-[10px] text-muted-foreground font-light">
+                  / traveler
+                </span>
               </div>
               <Separator className="opacity-60" />
               <ul className="space-y-3 text-xs text-muted-foreground font-light">
@@ -320,9 +346,12 @@ export function Pricing() {
                 </li>
               </ul>
             </div>
-            <Link to="/packages/economy">
-              <Button variant={"outline"} className="w-full btn-outline h-10 mt-8 text-xs">
-                Explore Economy
+            <Link to={'/contact'}>
+              <Button
+                variant={'outline'}
+                className="w-full btn-outline h-10 mt-8 text-xs"
+              >
+                Select Economy
               </Button>
             </Link>
           </Card>
@@ -338,14 +367,20 @@ export function Pricing() {
 
             <div className="space-y-4">
               <div className="space-y-1">
-                <h3 className="font-heading text-sm font-bold text-foreground">Comfort Package</h3>
+                <h3 className="font-heading text-sm font-bold text-foreground">
+                  Comfort Package
+                </h3>
                 <p className="text-[11px] text-muted-foreground">
                   Optimal balance of service & price
                 </p>
               </div>
               <div className="flex items-baseline gap-1 text-foreground">
-                <span className="text-2xl font-bold text-primary">ETB 160,000</span>
-                <span className="text-[10px] text-muted-foreground font-light">/ traveler</span>
+                <span className="text-2xl font-bold text-primary">
+                  ETB 160,000
+                </span>
+                <span className="text-[10px] text-muted-foreground font-light">
+                  / traveler
+                </span>
               </div>
               <Separator className="opacity-60" />
               <ul className="space-y-3 text-xs text-foreground font-light">
@@ -367,9 +402,9 @@ export function Pricing() {
                 </li>
               </ul>
             </div>
-            <Link to="/packages/comfort">
+            <Link to={'/contact'}>
               <Button className="w-full btn-primary h-10 mt-8 text-xs shadow-soft">
-                Explore Comfort
+                Select Comfort
               </Button>
             </Link>
           </Card>
@@ -378,15 +413,21 @@ export function Pricing() {
           <Card className="card flex flex-col justify-between border-border/30 bg-linear-to-b from-card to-muted/10 p-6 relative">
             <div className="space-y-4">
               <div className="space-y-1">
-                <h3 className="font-heading text-sm font-bold text-foreground">Premium Package</h3>
+                <h3 className="font-heading text-sm font-bold text-foreground">
+                  Premium Package
+                </h3>
                 <p className="text-[11px] text-muted-foreground">
                   Ultimate luxury spiritual experience
                 </p>
               </div>
               <div className="flex items-baseline gap-1 text-foreground">
                 <span className="text-[10px]">starting from </span>
-                <span className="text-2xl text-brand-gold font-bold">ETB 240,000</span>
-                <span className="text-[10px] text-muted-foreground font-light">/ traveler</span>
+                <span className="text-2xl text-brand-gold font-bold">
+                  ETB 240,000
+                </span>
+                <span className="text-[10px] text-muted-foreground font-light">
+                  / traveler
+                </span>
               </div>
               <Separator className="opacity-60" />
               <ul className="space-y-3 text-xs text-muted-foreground font-light">
@@ -408,9 +449,12 @@ export function Pricing() {
                 </li>
               </ul>
             </div>
-            <Link to="/packages/premium">
-              <Button variant={"outline"} className="w-full btn-outline h-10 mt-8 text-xs">
-                Explore Premium
+            <Link to={'/contact'}>
+              <Button
+                variant={'outline'}
+                className="w-full btn-outline h-10 mt-8 text-xs"
+              >
+                Select Premium
               </Button>
             </Link>
           </Card>
@@ -446,13 +490,23 @@ export function CTA() {
               Ready to Book Your Pilgrimage?
             </h2>
             <p className="text-xs sm:text-sm text-muted-foreground font-light leading-relaxed">
-              Register your interest and one of our dedicated spiritual travel coordinators will
-              reach out to build your custom itinerary.
+              Register your interest and one of our dedicated spiritual travel
+              coordinators will reach out to build your custom itinerary.
             </p>
           </div>
 
-          <div className="flex justify-center relative z-10">
-            <InlineCallbackForm />
+          <div className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto relative z-10">
+            <Input
+              type="email"
+              placeholder="Enter your email address"
+              className="px-4 py-3 border-border rounded-xl text-xs h-11 focus:ring-accent/20 bg-background/50"
+            />
+            <Link to={'/contact'}>
+              <Button className="hover:scale-110 py-3 px-6 h-11 flex items-center justify-center gap-2 whitespace-nowrap text-xs shadow-soft dark:bg-accent">
+                Request Callback
+                <PhoneCallIcon className="w-4 h-4" />
+              </Button>
+            </Link>
           </div>
         </div>
       </div>
