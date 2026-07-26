@@ -3,6 +3,7 @@ import { RoleRepository } from '../../application/ports/role.repository.js';
 import { PermissionResolver } from '../../application/services/permission-resolver.service.js';
 import { JwtAuthGuard } from '../../../../shared/application/guards/jwt-auth.guard.js';
 import { PermissionsGuard } from '../../../../shared/application/guards/permissions.guard.js';
+import { MustChangePasswordGuard } from '../guards/must-change-password.guard.js';
 import { RequirePermissions } from '../../../../shared/application/decorators/require-permissions.decorator.js';
 import { MySql2Database } from 'drizzle-orm/mysql2';
 import { Inject } from '@nestjs/common';
@@ -13,7 +14,7 @@ import * as schema from '@kafi/database';
  * Admin role and permission lookup endpoints.
  */
 @Controller('admin/roles')
-@UseGuards(JwtAuthGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard, MustChangePasswordGuard)
 export class RolesController {
   constructor(
     @Inject(DATABASE)

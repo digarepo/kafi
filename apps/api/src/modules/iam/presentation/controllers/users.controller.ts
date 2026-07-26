@@ -16,13 +16,14 @@ import { CreateUserDto } from '../../application/dto/create-user.dto.js';
 import { UpdateUserDto } from '../../application/dto/update-user.dto.js';
 import { JwtAuthGuard } from '../../../../shared/application/guards/jwt-auth.guard.js';
 import { PermissionsGuard } from '../../../../shared/application/guards/permissions.guard.js';
+import { MustChangePasswordGuard } from '../guards/must-change-password.guard.js';
 import { RequirePermissions } from '../../../../shared/application/decorators/require-permissions.decorator.js';
 
 /**
  * Admin user management endpoints.
  */
 @Controller('admin/users')
-@UseGuards(JwtAuthGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard, MustChangePasswordGuard)
 export class UsersController {
   constructor(private readonly users: UsersService) {}
 

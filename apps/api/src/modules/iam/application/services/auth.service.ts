@@ -1,9 +1,14 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { createHash, randomBytes } from 'node:crypto';
 import { ConfigService } from '../../../../shared/infrastructure/config/config.service.js';
 import { PasswordService } from './password.service.js';
 import { PermissionResolver } from './permission-resolver.service.js';
 import { UserRepository } from '../ports/user.repository.js';
+import { RefreshTokenRepository } from '../ports/refresh-token.repository.js';
+import { OneTimeTokenRepository } from '../ports/one-time-token.repository.js';
+import { Mailer } from '../ports/mailer.port.js';
+import { AuditLogger } from './audit-logger.service.js';
 import { createTypedId } from '../../../../shared/kernel/typed-id.js';
 
 /**
@@ -46,6 +51,10 @@ export class AuthService {
     private readonly users: UserRepository,
     private readonly password: PasswordService,
     private readonly permissionResolver: PermissionResolver,
+    private readonly refreshTokens: RefreshTokenRepository,
+    private readonly tokens: OneTimeTokenRepository,
+    private readonly mailer: Mailer,
+    private readonly audit: AuditLogger,
   ) {}
 
   /**
@@ -67,7 +76,11 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    return this.issueTokenPair(user);
+    await this.users.updateLastLogin(user.id);
+
+    const response = await this.issueTokenPair(user);
+    await this.audit.log({ userId: user.id as string, event: 'LOGIN' });
+    return response;
   }
 
   /**
@@ -95,7 +108,14 @@ export class AuthService {
       throw new UnauthorizedException('User no longer active');
     }
 
-    return this.issueTokenPair(user);
+    const tokenHash = createHash('sha256').update(refreshToken).digest('hex');
+    if (await this.refreshTokens.isBlocked(tokenHash)) {
+      throw new UnauthorizedException('Token has been revoked');
+    }
+
+    const response = await this.issueTokenPair(user);
+    await this.audit.log({ userId: user.id as string, event: 'REFRESH' });
+    return response;
   }
 
   /**
@@ -115,6 +135,171 @@ export class AuthService {
     );
 
     return this.toProfile(user, permissions);
+  }
+
+  /**
+   * Changes a user's password and returns a fresh token pair.
+   *
+   * @param userId - Authenticated user id.
+   * @param oldPassword - Current password.
+   * @param newPassword - New password.
+   * @returns New authentication response.
+   */
+  async changePassword(
+    userId: string,
+    oldPassword: string,
+    newPassword: string,
+  ): Promise<AuthResponse> {
+    const user = await this.users.findById(createTypedId<'User'>(userId));
+    if (!user) {
+      throw new UnauthorizedException();
+    }
+
+    const valid = await this.password.verify(user.password_hash, oldPassword);
+    if (!valid) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    const newHash = await this.password.hash(newPassword);
+    await this.users.updatePassword(user.id, newHash, false);
+    await this.users.updateLastLogin(user.id);
+
+    const response = await this.issueTokenPair(user);
+    await this.audit.log({
+      userId: user.id as string,
+      event: 'CHANGE_PASSWORD',
+    });
+    return response;
+  }
+
+  /**
+   * Revokes a refresh token so it can no longer be used.
+   *
+   * @param refreshToken - Refresh token to revoke.
+   */
+  async logout(refreshToken: string): Promise<void> {
+    let payload: RefreshTokenPayload;
+    try {
+      payload = this.jwt.verify<RefreshTokenPayload>(refreshToken, {
+        secret: this.config.get('JWT_REFRESH_SECRET'),
+      });
+    } catch {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    if (payload.type !== 'refresh') {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    const tokenHash = createHash('sha256').update(refreshToken).digest('hex');
+    const expiresAt = payload.exp ? new Date(payload.exp * 1000) : new Date();
+    await this.refreshTokens.block(
+      tokenHash,
+      createTypedId<'User'>(payload.sub),
+      expiresAt,
+    );
+
+    await this.audit.log({ userId: payload.sub, event: 'LOGOUT' });
+  }
+
+  /**
+   * Generates and e-mails an email verification token.
+   *
+   * @param userId - Authenticated user id.
+   */
+  async sendEmailVerification(userId: string): Promise<void> {
+    const user = await this.users.findById(createTypedId<'User'>(userId));
+    if (!user || user.is_email_verified) {
+      return;
+    }
+
+    const token = randomBytes(32).toString('hex');
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    await this.tokens.createEmailVerificationToken(
+      user.id,
+      tokenHash,
+      expiresAt,
+    );
+    await this.mailer.sendVerificationEmail(user.email_address, token);
+    await this.audit.log({
+      userId: user.id as string,
+      event: 'EMAIL_VERIFICATION_SENT',
+    });
+  }
+
+  /**
+   * Verifies an email using a one-time token.
+   *
+   * @param token - Plain token from the verification e-mail.
+   */
+  async verifyEmail(token: string): Promise<void> {
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    const userId = await this.tokens.consumeEmailVerificationToken(tokenHash);
+    if (!userId) {
+      throw new UnauthorizedException('Invalid or expired token');
+    }
+
+    await this.users.verifyEmail(createTypedId<'User'>(userId));
+    await this.audit.log({ userId, event: 'EMAIL_VERIFIED' });
+  }
+
+  /**
+   * Generates and e-mails a password reset token.
+   *
+   * @param email - Normalized email address.
+   */
+  async forgotPassword(email: string): Promise<void> {
+    const user = await this.users.findActiveByEmail(email);
+    if (!user) {
+      return;
+    }
+
+    const token = randomBytes(32).toString('hex');
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+
+    await this.tokens.createPasswordResetToken(user.id, tokenHash, expiresAt);
+    await this.mailer.sendPasswordResetEmail(user.email_address, token);
+    await this.audit.log({
+      userId: user.id as string,
+      event: 'PASSWORD_RESET_REQUESTED',
+    });
+  }
+
+  /**
+   * Resets a user's password using a one-time token.
+   *
+   * @param token - Plain token from the reset e-mail.
+   * @param newPassword - New plain-text password.
+   * @returns Authentication response.
+   */
+  async resetPassword(
+    token: string,
+    newPassword: string,
+  ): Promise<AuthResponse> {
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    const userId = await this.tokens.consumePasswordResetToken(tokenHash);
+    if (!userId) {
+      throw new UnauthorizedException('Invalid or expired token');
+    }
+
+    const user = await this.users.findById(createTypedId<'User'>(userId));
+    if (!user || user.status_code !== 'ACTIVE') {
+      throw new UnauthorizedException('User no longer active');
+    }
+
+    const newHash = await this.password.hash(newPassword);
+    await this.users.updatePassword(user.id, newHash, false);
+    await this.users.updateLastLogin(user.id);
+
+    const response = await this.issueTokenPair(user);
+    await this.audit.log({
+      userId: user.id as string,
+      event: 'PASSWORD_RESET_COMPLETED',
+    });
+    return response;
   }
 
   private async issueTokenPair(
@@ -212,6 +397,7 @@ interface TokenPayload {
   roles: string[];
   permissions: string[];
   must_change_password: boolean;
+  exp?: number;
   type: 'access' | 'refresh';
 }
 
