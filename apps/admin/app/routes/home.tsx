@@ -11,18 +11,6 @@ import {
   CardFooter,
   Separator,
 } from '@kafi/ui';
-import type { Route } from './+types/home';
-
-export function meta({}: Route.MetaArgs) {
-  return [
-    { title: 'Admin App | Monorepo' },
-    {
-      name: 'description',
-      content: 'Admin application built with React Router Fullstack SSR',
-    },
-  ];
-}
-
 export default function Home() {
   return (
     <main className="min-h-screen bg-background px-6 py-12">

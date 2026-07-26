@@ -4,7 +4,6 @@
   "compilerOptions": {
     "noEmit": true,
     "types": ["vite/client"],
-    "ignoreDeprecations": "6.0",
     "baseUrl": ".",
     "rootDirs": [".", "./.react-router/types"],
     "paths": {
@@ -12,6 +11,14 @@
       "app/routes/+types/*": [".react-router/types/app/routes/+types/*"]
     }
   },
-  "include": ["**/*.ts", "**/*.tsx", "**/.server/**/*.ts", "**/.server/**/*.tsx", "**/.client/**/*.ts", "**/.client/**/*.tsx", ".react-router/types/**/*"],
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "**/.server/**/*.ts",
+    "**/.server/**/*.tsx",
+    "**/.client/**/*.ts",
+    "**/.client/**/*.tsx",
+    ".react-router/types/**/*"
+  ],
   "exclude": ["node_modules", "build", "server-build"]
 }
