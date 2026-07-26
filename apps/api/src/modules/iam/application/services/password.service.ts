@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { randomInt } from 'node:crypto';
 import * as argon2 from 'argon2';
 
 /**
@@ -33,7 +34,11 @@ export class PasswordService {
    * @returns Random 16-character password.
    */
   generateTemporaryPassword(): string {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
-    return Array.from({ length: 16 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+    const chars =
+      'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
+    return Array.from(
+      { length: 16 },
+      () => chars[randomInt(chars.length)],
+    ).join('');
   }
 }

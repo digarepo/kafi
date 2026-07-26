@@ -1,5 +1,7 @@
 import { z } from 'zod';
 import { createZodDto } from '../../../../shared/infrastructure/validation/zod-dto.js';
+import { emailSchema } from '../../domain/value-objects/email.js';
+import { phoneSchema } from '../../domain/value-objects/phone.js';
 
 /**
  * Schema for updating a staff user. All fields are optional.
@@ -7,16 +9,11 @@ import { createZodDto } from '../../../../shared/infrastructure/validation/zod-d
 export const updateUserSchema = z.object({
   full_name: z.string().min(1).max(255).optional(),
   gender: z.enum(['Male', 'Female']).optional(),
-  email: z.string().trim().toLowerCase().email().optional(),
-  phone: z
-    .string()
-    .trim()
-    .transform((value) => value.replace(/\D/g, ''))
-    .pipe(z.string().min(9).max(15))
-    .optional(),
+  email: emailSchema.optional(),
+  phone: phoneSchema.optional(),
   job_title: z.string().max(100).optional().nullable(),
-  role_ids: z.array(z.string().uuid()).min(1).optional(),
-  user_status_id: z.string().uuid().optional(),
+  role_ids: z.array(z.ulid()).min(1).optional(),
+  user_status_id: z.ulid().optional(),
 });
 
 /**
