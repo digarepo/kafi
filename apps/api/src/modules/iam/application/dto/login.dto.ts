@@ -1,11 +1,12 @@
 import { z } from 'zod';
 import { createZodDto } from '../../../../shared/infrastructure/validation/zod-dto.js';
+import { emailSchema } from '../../domain/value-objects/email.js';
 
 /**
  * Login payload schema.
  */
 export const loginSchema = z.object({
-  email: z.string().trim().toLowerCase().email(),
+  email: emailSchema,
   password: z.string().min(1),
 });
 

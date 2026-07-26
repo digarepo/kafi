@@ -3,7 +3,7 @@ import { z } from 'zod';
 /**
  * Zod schema for a normalized email address.
  */
-export const emailSchema = z.string().trim().toLowerCase().email();
+export const emailSchema = z.string().trim().toLowerCase().pipe(z.email());
 
 /**
  * Normalized email value object.

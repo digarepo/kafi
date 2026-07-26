@@ -5,7 +5,7 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { MySql2Database } from 'drizzle-orm/mysql2';
-import { eq, sql } from 'drizzle-orm';
+import { count, eq } from 'drizzle-orm';
 import { DATABASE } from '../../../../shared/infrastructure/database/database.provider.js';
 import * as schema from '@kafi/database';
 import { createTypedId, TypedId } from '../../../../shared/kernel/typed-id.js';
@@ -165,17 +165,12 @@ export class UsersService {
     email: string,
     phone: string,
   ): Promise<void> {
-    const [emailTaken, phoneTaken] = await Promise.all([
-      this.db.query.users.findFirst({
-        where: (users, { eq, or }) =>
-          or(eq(users.email_address, email), eq(users.phone_number, phone)),
-      }),
-      this.db.query.users.findFirst({
-        where: (users, { eq }) => eq(users.phone_number, phone),
-      }),
-    ]);
+    const existing = await this.db.query.users.findFirst({
+      where: (users, { eq, or }) =>
+        or(eq(users.email_address, email), eq(users.phone_number, phone)),
+    });
 
-    if (emailTaken || phoneTaken) {
+    if (existing) {
       throw new ConflictException('Email or phone number already in use');
     }
   }
@@ -222,7 +217,7 @@ export class UsersService {
     }
 
     const result = await this.db
-      .select({ count: sql<number>`count(*)`.as('count') })
+      .select({ count: count() })
       .from(schema.users)
       .where(eq(schema.users.user_status_id, activeStatus.id));
 

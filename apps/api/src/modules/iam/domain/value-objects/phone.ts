@@ -3,11 +3,19 @@ import { z } from 'zod';
 /**
  * Zod schema for a normalized phone number stored without '+'.
  */
+const e164 = z.e164();
+
 export const phoneSchema = z
   .string()
   .trim()
   .transform((value) => value.replace(/\D/g, ''))
-  .pipe(z.string().min(9).max(15));
+  .refine(
+    (digits) =>
+      digits.length >= 9 &&
+      digits.length <= 15 &&
+      e164.safeParse(`+${digits}`).success,
+    { message: 'Invalid phone number' },
+  );
 
 /**
  * Normalized phone value object.
