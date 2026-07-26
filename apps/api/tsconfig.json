@@ -5,8 +5,6 @@
     "moduleResolution": "NodeNext",
     "target": "ES2022",
     "outDir": "./dist",
-    "rootDir": ".",
-    "ignoreDeprecations": "6.0",
 
     "declaration": true,
     "sourceMap": true,
@@ -19,6 +17,7 @@
     "types": ["node"],
 
     "paths": {
+      "@kafi/database": ["../../database/index.ts"],
       "@kafi/shared-types": ["../../packages/shared-types/src/index.ts"],
       "@kafi/shared-validation": [
         "../../packages/shared-validation/src/index.ts"
