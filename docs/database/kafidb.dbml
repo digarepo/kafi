@@ -1,0 +1,2471 @@
+// Kafi Tour & Travel - Updated DBML
+// Generated from kafidb.dbml with the requested schema updates.
+//
+// System Roles and Permissions
+// ============================
+// Roles:
+//   ADMIN   - full access
+//   MANAGER - operations and finance overview
+//   AGENT   - typical customer service and document operations
+//
+// Module Permissions (permissions.permission_code values):
+//   Users & Auth:   USER_CREATE, USER_VIEW, USER_EDIT, USER_DELETE, AUTH_MANAGE
+//   Travellers:     TRAVELLER_CREATE, TRAVELLER_VIEW, TRAVELLER_EDIT, TRAVELLER_DELETE
+//   Packages:       PACKAGE_CREATE, PACKAGE_VIEW, PACKAGE_EDIT, PACKAGE_DELETE
+//   Registrations:  REGISTRATION_CREATE, REGISTRATION_VIEW, REGISTRATION_EDIT, REGISTRATION_DELETE
+//   Financial:      FINANCE_CREATE, FINANCE_VIEW, FINANCE_EDIT, FINANCE_DELETE
+//   Visa:           VISA_MANAGE
+//   Documents:      DOCUMENT_MANAGE
+//   Accommodation:  ACCOMMODATION_MANAGE
+//   Travel Groups:  TRAVEL_GROUP_MANAGE
+//
+// Role-Permission Mappings:
+//   ADMIN   - all 25 permissions
+//   MANAGER - all except AUTH_MANAGE, USER_DELETE, TRAVELLER_DELETE, PACKAGE_DELETE, REGISTRATION_DELETE, FINANCE_DELETE
+//   AGENT   - USER_VIEW;
+//             TRAVELLER_VIEW, TRAVELLER_CREATE, TRAVELLER_EDIT;
+//             PACKAGE_VIEW;
+//             REGISTRATION_VIEW, REGISTRATION_CREATE;
+//             FINANCE_VIEW;
+//             VISA_MANAGE;
+//             DOCUMENT_MANAGE
+//
+// Demo / Backend Notes
+// ====================
+// - During the demo, every authenticated user can create users.
+// - Users authenticate with email + password.
+// - deleted_by may be introduced later if non-admin users can delete records.
+//
+// Manually Created Seed Data
+// ==========================
+// user_statuses: active, inactive, suspended, locked, deleted
+// Countries: Saudi Arabia, Ethiopia, United States
+// Regions: Makkah, Addis Ababa, Riyadh, New York, California, Oromia, Amhara
+// Languages: Amharic, Oromo, English, Arabic
+// Traveller_sources: Walk in, Referral, Social Media, Agent
+// Traveller_statuses: Active, Inactive, Blacklisted
+// Roles: ADMIN, MANAGER, AGENT
+// contact_person_statuses: Pending Verification, Inactive, Active, Archived
+// traveller_contact_statuses: Removed, Active, Inactive, Unverified
+// relationship_types: Siblings, child, parent, spouse, friend, guardian, other
+// (role_permissions, user_roles and permissions are populated by the application)
+//
+
+Enum gender {
+  Female
+  Male
+}
+
+Enum installment_frequency {
+  Weekly
+  Biweekly
+  Monthly
+  Semi_monthly [note: 'Displayed as Semi-monthly']
+  Quarterly
+  Yearly
+  Semi_yearly [note: 'Displayed as Semi-yearly']
+}
+
+Enum transport_type {
+  Flight
+  Bus
+  Train
+  Ship
+}
+
+Enum guarantee_requirement_status {
+  NOT_REQUIRED [note: 'Staff decided no guarantee is required']
+  REQUIRED [note: 'Staff decided a guarantee is required']
+}
+
+Enum guarantee_type {
+  PERSON [note: 'Individual guarantor, references contact_persons']
+  CASH_DEPOSIT [note: 'Cash deposit; requires reference, amount, currency']
+  CPO [note: 'Cash payment order / instrument; requires reference, issuer, expiry']
+  BANK_GUARANTEE [note: 'Bank guarantee; requires reference, issuer, amount, currency, expiry']
+}
+
+Enum guarantee_status {
+  PENDING [note: 'Created but security not yet provided']
+  ACTIVE [note: 'Guarantee in force']
+  REPLACED [note: 'Superseded by another guarantee']
+  RELEASED [note: 'Person guarantor liability ended']
+  REFUNDED [note: 'Cash deposit returned']
+  EXPIRED [note: 'CPO / bank guarantee term ended']
+}
+
+Table travellers {
+  // Primary Identifier
+  id uuid [pk, note: 'System-generated unique identifier']
+
+  // Business Identifier
+  traveller_number varchar(30) [not null, unique, note: 'Business reference (e.g. TRV-2026-000001)']
+
+  // Personal Information
+  first_name varchar(100) [not null]
+  middle_name varchar(100)
+  last_name varchar(100) [not null]
+
+  gender gender [not null]
+  date_of_birth date
+
+  // Contact Information
+  phone_number varchar(30) [not null]
+  email_address varchar(255)
+
+  // Government Identification
+  passport_number varchar(50) [unique, note: 'Collected progressively']
+  fayda_number varchar(50) [unique, note: 'Collected progressively']
+
+  // Lookup Foreign Keys
+  country_id uuid [not null]
+  region_id uuid
+  preferred_language_id uuid
+  traveller_source_id uuid
+
+  // Business State
+  traveller_status_id uuid [not null]
+
+  // Business Rules
+  //   - date_of_birth <= CURRENT_DATE
+  //   - duplicate warning: first_name + phone_no (enforced in backend)
+
+  // Audit
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  created_by uuid [not null]
+  updated_by uuid [not null]
+
+  Note: '''
+  Master traveller profile.
+
+  Independent root entity.
+
+  One traveller may have many registrations across different seasons.
+  '''
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table contact_persons {
+  // Primary Identifier
+  id uuid [pk, note: 'System-generated unique identifier']
+
+  // Personal Information
+  first_name varchar(100) [not null]
+  middle_name varchar(100)
+  last_name varchar(100) [not null]
+
+  gender gender
+  date_of_birth date
+
+  // Contact Information
+  phone_number varchar(30) [not null, unique]
+  alternate_phone_number varchar(30)
+  email_address varchar(255)
+
+  // Address
+  address text
+
+  // Lookup Foreign Keys
+  country_id uuid
+  region_id uuid
+  preferred_language_id uuid
+
+  // Business State
+  contact_person_status_id uuid [not null]
+
+  // Business Rules
+  //   - date_of_birth <= CURRENT_DATE
+
+  // Audit
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  created_by uuid [not null]
+  updated_by uuid [not null]
+
+  Note: '''
+  Independent reusable contact profile.
+
+  A single contact person may be associated with multiple travellers.
+
+  May also be referenced as a person guarantor from `guarantees`
+  without requiring a `traveller_contacts` record.
+  '''
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table traveller_contacts {
+  // Primary Identifier
+  id uuid [pk]
+
+  // Foreign Keys
+  traveller_id uuid [not null]
+  contact_person_id uuid [not null]
+
+  // Relationship Information
+  relationship_type_id uuid [not null, note: 'Father, Mother, Brother, Sister, Friend, Employer, etc.']
+
+  is_emergency_contact boolean [not null, default: false]
+  is_primary_contact boolean [not null, default: false]
+
+  priority int [not null, default: 1]
+
+  notes text
+
+  // Business State
+  traveller_contact_status_id uuid [not null]
+
+  unique (traveller_id, contact_person_id, priority) {
+    note: 'Prevents duplicate priority for a traveller-contact pair'
+  }
+  unique (traveller_id, priority) {
+    note: 'Ensures unique priority per traveller across contacts'
+  }
+
+  // Audit
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  created_by uuid [not null]
+  updated_by uuid [not null]
+
+  Note: '''
+  Resolves the many-to-many relationship between travellers and contact persons.
+
+  Stores relationship-specific information without duplicating contact person records.
+
+  Strictly for communication/emergency relationships; must not be used
+  for guarantee or guarantor linkage.
+  '''
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table guarantees {
+  // Primary Identifier
+  id uuid [pk]
+
+  // Business Identifier
+  guarantee_number varchar(30) [not null, unique, note: 'Business reference (e.g. GUA-2026-000001)']
+
+  // Ownership and context
+  group_membership_id uuid [not null, note: 'Travel participation that owns this guarantee']
+  registration_id uuid [note: 'Commercial origin reference; may be duplicated from group_membership for convenience']
+
+  // Guarantee type and lifecycle
+  guarantee_type guarantee_type [not null]
+  guarantee_status guarantee_status [not null, default: 'PENDING']
+
+  // Person guarantor (required when guarantee_type = PERSON)
+  contact_person_id uuid [note: 'References contact_persons directly; required for PERSON guarantees']
+
+  // Non-person instrument details (conditionally required)
+  instrument_reference varchar(100) [note: 'Receipt, CPO, or bank guarantee reference']
+  amount decimal(18,2) [note: 'Required for CASH_DEPOSIT and BANK_GUARANTEE']
+  currency_id uuid [note: 'Required when amount is set']
+  expiry_date date [note: 'Required for CPO and BANK_GUARANTEE']
+  issuer varchar(100) [note: 'Required for CPO and BANK_GUARANTEE']
+
+  effective_date date [note: 'Date the guarantee becomes effective; may default to creation date']
+  notes text
+
+  // Replacement history
+  previous_guarantee_id uuid [note: 'Points to the guarantee this one replaced']
+  replaced_by_id uuid [note: 'Points to the guarantee that replaced this one']
+
+  // Business Rules
+  //   - At most one ACTIVE guarantee per group_membership_id (implemented in backend)
+  //   - contact_person_id is required when guarantee_type = PERSON
+  //   - amount, currency_id, instrument_reference are required for CASH_DEPOSIT and BANK_GUARANTEE
+  //   - instrument_reference, issuer, expiry_date are required for CPO and BANK_GUARANTEE
+  //   - previous_guarantee_id and replaced_by_id form a replacement chain
+
+  // Audit
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  created_by uuid [not null]
+  updated_by uuid [not null]
+
+  Note: '''
+  Represents the actual security provided to satisfy a GuaranteeRequirement
+  for a specific travel participation (group_membership).
+
+  Person guarantors reference contact_persons directly; non-person instrument
+  details are stored on this table. TravellerContact is not used.
+
+  Replacement history is preserved via previous_guarantee_id and replaced_by_id.
+  '''
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table package_templates {
+  // Primary Identifier
+  id uuid [pk]
+
+  // Business Identifier
+  package_template_code varchar(30) [not null, unique, note: 'Business reference (e.g. PKG-UMR-STD)']
+
+  // Package Information
+  name varchar(150) [not null]
+  short_name varchar(50)
+  description text
+
+  pilgrimage_type_id uuid [not null, note: 'Umrah, Hajj, Tourism, etc.']
+  package_category_id uuid [not null, note: 'Economy, Standard, Premium, VIP']
+
+  default_duration_days int [not null]
+
+  // Business State
+  package_template_status_id uuid [not null]
+
+  // Audit
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  created_by uuid [not null]
+  updated_by uuid [not null]
+
+  Note: '''
+  Master package definition.
+
+  Package templates are reusable blueprints.
+
+  Customers never purchase templates directly.
+
+  One template may produce many package versions.
+  '''
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table package_versions {
+  // Primary Identifier
+  id uuid [pk]
+
+  // Business Identifier
+  package_version_code varchar(30) [not null, unique, note: 'Business reference (e.g. PV-2026-001)']
+
+  // Foreign Keys
+  package_template_id uuid [not null]
+
+  // Version Information
+  version_name varchar(150) [not null]
+  version_number int [not null]
+
+  season_id uuid
+  year int [not null]
+
+  // Travel Schedule
+  departure_date date
+  return_date date
+
+  // Commercial Information
+  base_price decimal(18,2) [not null]
+  currency_id uuid [not null]
+
+  max_capacity int
+
+  // Publication
+  published_at timestamp
+  sales_start_date date
+  sales_end_date date
+
+  // Business State
+  package_version_status_id uuid [not null, note: 'Draft, Published, Closed, Cancelled']
+
+  // Business Rules
+  //   - departure_date <= return_date
+  //   - sales_start_date <= sales_end_date
+  //   - base_price >= 0
+  //   - max_capacity >= 0
+  //   - historical versions are immutable after publication (enforced in backend)
+
+  // Audit
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  created_by uuid [not null]
+  updated_by uuid [not null]
+
+  Note: '''
+  Represents a sellable version of a package template.
+
+  Travellers register against package versions.
+
+  Pricing, schedule, and availability belong to the version.
+
+  Historical versions remain immutable after publication.
+  '''
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table registrations {
+  // Primary Identifier
+  id uuid [pk]
+
+  // Business Identifier
+  registration_number varchar(30) [not null, unique, note: 'Business reference (e.g. REG-2026-000001)']
+
+  // Foreign Keys
+  traveller_id uuid [not null]
+  package_version_id uuid [not null]
+
+  // Registration Information
+  registration_date timestamp [not null, default: `now()`]
+
+  expected_departure_date date
+  expected_return_date date
+
+  // Lookup Foreign Keys
+  registration_status_id uuid [not null]
+
+  // Administrative
+  remarks text
+
+  // Business Rules
+  //   - expected_departure_date <= expected_return_date
+
+  // Audit
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  created_by uuid [not null]
+  updated_by uuid [not null]
+
+  Note: '''
+  Represents a traveller purchasing a specific package version.
+
+  A traveller may have multiple registrations over time.
+
+  Registration is the operational anchor for financial,
+  visa and accommodation processes.
+  '''
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table travel_groups {
+  // Primary Identifier
+  id uuid [pk]
+
+  // Business Identifier
+  group_code varchar(30) [not null, unique, note: 'Business reference (e.g. UMR-2026-G01)']
+
+  // Group Information
+  name varchar(150) [not null]
+
+  planned_departure_date date
+  planned_return_date date
+
+  maximum_capacity int [not null]
+
+  // Lookup Foreign Keys
+  travel_group_status_id uuid [not null]
+
+  // Administrative
+  remarks text
+
+  // Business Rules
+  //   - planned_departure_date <= planned_return_date
+  //   - maximum_capacity >= 0
+  //   - current_capacity is derived from group_membership in the backend
+
+  // Audit
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  created_by uuid [not null]
+  updated_by uuid [not null]
+
+  Note: '''
+  Operational execution unit for one journey.
+
+  A travel group may contain registrations
+  from one or more package versions when
+  business rules permit.
+
+  Travel groups manage operations rather
+  than commercial sales.
+  '''
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table group_memberships {
+  // Primary Identifier
+  id uuid [pk]
+
+  // Foreign Keys
+  registration_id uuid [not null]
+  travel_group_id uuid [not null]
+
+  // Membership Information
+  joined_at timestamp [not null, default: `now()`]
+  left_at timestamp
+
+  // Lookup Foreign Keys
+  group_membership_status_id uuid [not null]
+
+  // Administrative
+  remarks text
+
+  // Business Rules
+  //   - only one active membership per registration at a time (backend)
+
+  // Audit
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  created_by uuid [not null]
+  updated_by uuid [not null]
+
+  Note: '''
+  The current travel-participation concept: links a registration
+  (and its traveller) to an operational travel group.
+
+  Supports transfers between travel groups
+  while preserving historical membership.
+
+  Multiple membership records may exist
+  over time for the same registration,
+  but only one active membership is allowed.
+
+  Owns guarantee_requirement and guarantee child records.
+  After departure the membership/guarantee relationship
+  is operationally locked.
+  '''
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table guarantee_requirements {
+  // Primary Identifier
+  id uuid [pk]
+
+  // Foreign Keys
+  group_membership_id uuid [not null, note: 'Travel participation the requirement applies to']
+
+  // Requirement decision
+  status guarantee_requirement_status [not null, note: 'NOT_REQUIRED or REQUIRED; manually decided by staff']
+  decided_by uuid [not null, note: 'Staff user who made the requirement decision']
+  decided_at timestamp [not null, default: `now()`]
+  notes text
+
+  // Business Rules
+  //   - One guarantee_requirement per group_membership_id (or one active, if history is kept)
+  //   - status is manually set by staff, not derived from rules
+
+  // Audit
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  created_by uuid [not null]
+  updated_by uuid [not null]
+
+  Note: '''
+  Persists the staff decision that a travel participation does or does not
+  require a guarantee. A guarantee is required only when staff mark it as
+  REQUIRED; NOT_REQUIRED records provide an explicit audit trail.
+  '''
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table invoices {
+  // Primary Identifier
+  id uuid [pk]
+
+  // Business Identifier
+  invoice_number varchar(30) [not null, unique, note: 'Business reference (e.g. INV-2026-000001)']
+
+  // Foreign Keys
+  registration_id uuid [not null]
+
+  // Financial Information
+  invoice_date date [not null]
+  due_date date
+
+  subtotal decimal(18,2) [not null]
+  discount_amount decimal(18,2) [not null, default: 0]
+  total_amount decimal(18,2) [not null]
+
+  currency_id uuid [not null]
+
+  // Lookup Foreign Keys
+  invoice_status_id uuid [not null]
+
+  // Administrative
+  notes text
+
+  // Business Rules
+  //   - discount_amount >= 0
+  //   - total_amount is calculated from subtotal - discount_amount (backend)
+
+  // Audit
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  created_by uuid [not null]
+  updated_by uuid [not null]
+
+  Note: '''
+  Represents a financial obligation arising from a registration.
+
+  Payments are never stored here.
+
+  Outstanding balances are derived through
+  Payment Allocations.
+  '''
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table payers {
+  // Primary Identifier
+  id uuid [pk]
+
+  // Business Identifier
+  payer_number varchar(30) [not null, unique, note: 'Business reference (e.g. PAYR-2026-000001)']
+
+  // Lookup Foreign Keys
+  payer_type_id uuid [not null]
+
+  // Optional Relationships
+  traveller_id uuid
+  contact_person_id uuid
+
+  // Organization Information
+  organization_name varchar(255)
+
+  // Contact Information
+  contact_name varchar(255)
+  phone_number varchar(30)
+  email_address varchar(255)
+
+  // Business State
+  payer_status_id uuid [not null]
+
+  // Administrative
+  notes text
+
+  // Audit
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  created_by uuid [not null]
+  updated_by uuid [not null]
+
+  Note: '''
+  Represents the party making a payment.
+
+  A payer may be:
+  - the traveller
+  - a guarantor
+  - a family member
+  - an organization
+  - another third party
+
+  Payments reference payers rather than travellers directly.
+  '''
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table payment_methods {
+  // Primary Identifier
+  id uuid [pk]
+
+  // Business Identifier
+  method_code varchar(30) [not null, unique]
+
+  // Method Information
+  name varchar(100) [not null]
+  description text
+
+  // Business State
+  payment_method_status_id uuid [not null]
+
+  display_order int [not null, default: 1]
+
+  // Audit
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  created_by uuid [not null]
+  updated_by uuid [not null]
+
+  Note: '''
+  Master list of accepted payment methods.
+
+  Examples include:
+  - Cash
+  - Bank Transfer
+  - Mobile Banking
+  - Card
+  - Online Payment Gateway
+
+  Referenced by Payments.
+  '''
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table payments {
+  // Primary Identifier
+  id uuid [pk]
+
+  // Business Identifier
+  payment_number varchar(30) [not null, unique, note: 'Business reference (e.g. PAY-2026-000001)']
+
+  // Foreign Keys
+  payer_id uuid [not null]
+  payment_method_id uuid [not null]
+
+  // Financial Information
+  payment_date timestamp [not null]
+
+  amount decimal(18,2) [not null]
+
+  currency_id uuid [not null]
+
+  exchange_rate decimal(18,6)
+
+  reference_number varchar(100) [note: 'Bank transaction number, receipt number, cheque number, etc.']
+
+  received_by uuid [not null, note: 'Staff member receiving the payment']
+
+  // Lookup Foreign Keys
+  payment_status_id uuid [not null]
+
+  // Administrative
+  notes text
+
+  // Business Rules
+  //   - amount > 0
+
+  // Audit
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  created_by uuid [not null]
+  updated_by uuid [not null]
+
+  Note: '''
+  Represents money received by the company.
+
+  A payment does not settle an invoice until
+  it has been allocated.
+
+  One payment may be allocated across
+  multiple invoices.
+  '''
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table payment_allocations {
+  // Primary Identifier
+  id uuid [pk]
+
+  // Foreign Keys
+  payment_id uuid [not null]
+  invoice_id uuid [not null]
+
+  // Allocation Information
+  allocated_amount decimal(18,2) [not null]
+
+  allocation_date timestamp [not null, default: `now()`]
+
+  // Administrative
+  notes text
+
+  unique (payment_id, invoice_id) {
+    note: 'One allocation per payment-invoice pair'
+  }
+
+  // Business Rules
+  //   - allocated_amount > 0
+  //   - SUM(allocated_amount) per payment <= payments.amount (backend)
+  //   - allocated_amount per row <= payment.amount (backend)
+
+  // Audit
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  created_by uuid [not null]
+  updated_by uuid [not null]
+
+  Note: '''
+  Resolves the many-to-many relationship
+  between payments and invoices.
+
+  A payment may settle multiple invoices.
+
+  An invoice may be settled by multiple
+  payments.
+
+  Outstanding balances are calculated from
+  invoice totals minus allocated amounts.
+  '''
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table payment_arrangements {
+  // Primary Identifier
+  id uuid [pk]
+
+  // Business Identifier
+  arrangement_number varchar(30) [not null, unique, note: 'Business reference (e.g. ARR-2026-000001)']
+
+  // Foreign Keys
+  registration_id uuid [not null]
+
+  approved_by uuid [not null]
+
+  // Arrangement Information
+  approval_date date [not null]
+
+  effective_date date [not null]
+
+  expiry_date date
+
+  approved_amount decimal(18,2)
+
+  installment_count int
+
+  installment_frequency installment_frequency
+  // Lookup Foreign Keys
+  arrangement_type_id uuid [not null]
+  payment_arrangement_status_id uuid [not null]
+
+  // Administrative
+  reason text
+
+  terms_and_conditions text
+
+  notes text
+
+  // Business Rules
+  //   - effective_date <= expiry_date
+  //   - installment_count > 0
+  //   - approved_amount >= 0
+  //   - only one active arrangement per registration at a time (backend)
+
+  // Audit
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  created_by uuid [not null]
+  updated_by uuid [not null]
+
+  Note: '''
+  Represents an approved financial agreement
+  between Kafi Tour & Travel and a traveller.
+
+  Supports deferred payment, installment
+  plans, management approval and future
+  collection activities.
+
+  A registration may have multiple payment
+  arrangements over time, but only one
+  active arrangement should exist at any
+  given moment.
+  '''
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table payment_installement_statuses {
+  id uuid [pk]
+
+  code varchar(30) [not null, unique]
+  name varchar(100) [not null]
+  description text
+
+  display_order int [not null, default: 1]
+
+  is_active boolean [not null, default: true]
+
+  // Audit
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+
+Table payment_installements {
+  // Primary Identifier
+  id uuid [pk]
+
+  // Business Identifier
+  installement_no varchar(30) [not null, note: 'Business identification for this installement']
+
+  // Foreign Keys
+  payment_arrangement_id uuid [not null]
+
+  // Installement Information
+  due_date date [not null]
+  amount decimal(18,2) [not null]
+  paid_amount decimal(18,2) [not null, default: 0]
+
+  // Administrative
+  notes text
+
+  // Business State
+  payment_installement_status_id uuid [not null]
+
+  // Audit
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  created_by uuid [not null]
+  updated_by uuid [not null]
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+
+  // Business Rules
+  //   - amount > 0
+  //   - paid_amount >= 0
+  //   - paid_amount <= amount
+
+  unique (payment_arrangement_id, installement_no) {
+    note: 'One installement number per payment arrangement'
+  }
+
+  Note: '''
+  Represents a single installement of a payment arrangement.
+  '''
+}
+
+Table visa_applications {
+  // Primary Identifier
+  id uuid [pk]
+
+  // Business Identifier
+  application_number varchar(30) [not null, unique, note: 'Business reference (e.g. VISA-2026-000001)']
+
+  // Foreign Keys
+  registration_id uuid [not null]
+
+  // Application Information
+  submission_date date
+  approval_date date
+  expiry_date date
+  visa_number varchar(100)
+
+  // Lookup Foreign Keys
+  visa_application_status_id uuid [not null]
+
+  // Administrative
+  notes text
+
+  // Business Rules
+  //   - approval_date >= submission_date
+  //   - at most one approved visa application per registration (backend)
+
+  // Audit
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  created_by uuid [not null]
+  updated_by uuid [not null]
+
+  Note: '''
+  Represents the visa processing lifecycle for a registration.
+
+  Each visa application belongs to exactly one registration.
+  '''
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table hotels {
+  // Primary Identifier
+  id uuid [pk]
+
+  // Business Identifier
+  hotel_code varchar(30) [not null, unique]
+
+  // Hotel Information
+  name varchar(150) [not null]
+
+  address text
+
+  city varchar(100)
+  country varchar(100)
+
+  phone_number varchar(30)
+  email_address varchar(255)
+
+  // Lookup Foreign Keys
+  hotel_type_id uuid
+  hotel_status_id uuid [not null]
+
+  // Administrative
+  notes text
+
+  // Audit
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  created_by uuid [not null]
+  updated_by uuid [not null]
+
+  Note: '''
+  Master hotel catalog.
+
+  Hotels are independent business entities that
+  may be reused across multiple travel groups.
+  '''
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table group_hotel_stays {
+  // Primary Identifier
+  id uuid [pk]
+
+  // Business Identifier
+  stay_number varchar(30) [not null, unique]
+
+  // Foreign Keys
+  travel_group_id uuid [not null]
+  hotel_id uuid [not null]
+
+  // Stay Information
+  check_in_date date [not null]
+  check_out_date date [not null]
+
+  // Lookup Foreign Keys
+  group_hotel_stay_status_id uuid [not null]
+
+  // Administrative
+  notes text
+
+  // Business Rules
+  //   - check_in_date < check_out_date
+
+  // Audit
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  created_by uuid [not null]
+  updated_by uuid [not null]
+
+  Note: '''
+  Represents a scheduled hotel stay for
+  a travel group.
+
+  A travel group may have multiple hotel stays
+  throughout its journey.
+  '''
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table rooms {
+  // Primary Identifier
+  id uuid [pk]
+
+  // Business Identifier
+  room_code varchar(30) [not null]
+
+  // Foreign Keys
+  group_hotel_stay_id uuid [not null]
+
+  // Room Information
+  room_number varchar(50) [not null]
+
+  capacity int [not null]
+
+  gender_restriction gender
+  // Lookup Foreign Keys
+  room_type_id uuid
+  room_status_id uuid [not null]
+
+  // Administrative
+  notes text
+
+  // Business Rules
+  //   - capacity > 0
+
+  // Audit
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  created_by uuid [not null]
+  updated_by uuid [not null]
+
+  Note: '''
+  Represents a room reserved within a
+  group hotel stay.
+
+  Room capacity is validated during
+  room assignment.
+  '''
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table room_assignments {
+  // Primary Identifier
+  id uuid [pk]
+
+  // Foreign Keys
+  room_id uuid [not null]
+  registration_id uuid [not null]
+
+  // Assignment Information
+  assigned_at timestamp [not null, default: `now()`]
+  released_at timestamp
+
+  bed_number varchar(20)
+
+  // Lookup Foreign Keys
+  room_assignment_status_id uuid [not null]
+
+  // Administrative
+  notes text
+
+  // Business Rules
+  //   - only one active room assignment per hotel stay (backend)
+
+  // Audit
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  created_by uuid [not null]
+  updated_by uuid [not null]
+
+  Note: '''
+  Assigns a registered traveller to a room.
+
+  Supports room changes while preserving
+  assignment history.
+
+  A registration may have multiple room
+  assignments over time, but only one active
+  assignment per hotel stay.
+  '''
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table vendors {
+  // Primary Identifier
+  id uuid [pk]
+
+  // Business Identifier
+  vendor_number varchar(30) [not null, unique]
+
+  // Basic Information
+  name varchar(255) [not null]
+  vendor_type_id uuid [not null]
+
+  // Contact Information
+  contact_person_name varchar(255)
+  phone_number varchar(30)
+  alternate_phone_number varchar(30)
+  email_address varchar(255)
+
+  // Address
+  address text
+
+  // Business Information
+  tax_identification_number varchar(100)
+  license_number varchar(100)
+
+  // Business State
+  vendor_status_id uuid [not null]
+
+  // Audit
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  created_by uuid [not null]
+  updated_by uuid [not null]
+
+  Note: '''
+  External supplier providing operational services.
+
+  Examples:
+  • Hotels
+  • Transport companies
+  • Visa agencies
+  • Catering providers
+
+  Independent root entity.
+  '''
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table transport_segments {
+  // Primary Identifier
+  id uuid [pk]
+
+  // Business Identifier
+  transport_segment_number varchar(30) [not null, unique]
+
+  // Foreign Keys
+  travel_group_id uuid [not null]
+  vendor_id uuid [not null]
+
+  transport_type transport_type [not null]
+  // Operational Information
+  segment_order int [not null]
+
+  origin_location varchar(255) [not null]
+  destination_location varchar(255) [not null]
+
+  departure_datetime timestamp
+  arrival_datetime timestamp
+
+  vehicle_identifier varchar(100)
+  driver_name varchar(255)
+  driver_phone_number varchar(30)
+
+  notes text
+
+  // Business State
+  transport_segment_status_id uuid [not null]
+
+  // Audit
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  created_by uuid [not null]
+  updated_by uuid [not null]
+
+  Note: '''
+  Represents one transportation leg used by a travel group.
+
+  A pilgrimage may contain multiple transport segments
+  (airport transfer, Makkah → Madinah, Madinah → Airport, etc.)
+  '''
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table expense_categories {
+  // Primary Identifier
+  id uuid [pk]
+
+  // Business Identifier
+  category_code varchar(30) [not null, unique]
+
+  // Category Information
+  name varchar(100) [not null]
+  description text
+
+  // Business Rules
+  is_operational boolean [not null, default: true]
+
+  // Business State
+  expense_category_status_id uuid [not null]
+
+  // Audit
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  created_by uuid [not null]
+  updated_by uuid [not null]
+
+  Note: '''
+  Standardized classification of business expenses.
+
+  Examples:
+  • Hotel
+  • Transport
+  • Visa
+  • Food
+  • Administration
+  '''
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table expenses {
+  // Primary Identifier
+  id uuid [pk]
+
+  // Business Identifier
+  expense_number varchar(30) [not null, unique]
+
+  // Foreign Keys
+  expense_category_id uuid [not null]
+
+  vendor_id uuid
+  travel_group_id uuid
+  transport_segment_id uuid
+  group_hotel_stay_id uuid
+
+  // Financial Information
+  amount decimal(18,2) [not null]
+  currency_id uuid [not null]
+
+  expense_date date [not null]
+
+  description text
+
+  // Approval
+  approved_by uuid
+  approved_at timestamp
+
+  // Business State
+  expense_status_id uuid [not null]
+
+  // Business Rules
+  //   - amount > 0
+
+  // Audit
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  created_by uuid [not null]
+  updated_by uuid [not null]
+
+  Note: '''
+  Represents a business expense.
+
+  Expenses may optionally be attributed to:
+
+  • Vendor
+  • Travel Group
+  • Hotel Stay
+  • Transport Segment
+
+  This supports operational profitability reporting.
+  '''
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table documents {
+  // Primary Identifier
+  id uuid [pk]
+
+  // Business Identifier
+  document_number varchar(30) [not null, unique]
+
+  // Ownership
+  traveller_id uuid
+  registration_id uuid
+
+  // Classification
+  document_type_id uuid [not null]
+
+  // File Information
+  original_filename varchar(255)
+  stored_filename varchar(255)
+
+  mime_type varchar(100)
+
+  file_size bigint
+
+  storage_path text
+
+  // Verification
+  verification_status_id uuid [not null]
+
+  verified_by uuid
+  verified_at timestamp
+
+  expiry_date date
+
+  remarks text
+
+  // Business State
+  document_status_id uuid [not null]
+
+  // Business Rules
+  //   - file_size >= 0
+  //   - at least one owner (traveller_id or registration_id) must be set (backend)
+
+  // Audit
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  created_by uuid [not null]
+  updated_by uuid [not null]
+
+  Note: '''
+  Stores documents belonging to a traveller or a registration.
+
+  Examples:
+
+  • Passport
+  • Fayda ID
+  • Photograph
+  • Visa Copy
+  • Payment Receipt
+  • Vaccination Certificate
+
+  At least one owner (Traveller or Registration) must exist.
+  '''
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table users {
+  // Primary Identifier
+  id uuid [pk]
+
+  // Business Identifier
+  employee_number varchar(30) [not null, unique]
+
+  // Identity
+  full_name varchar(255) [not null]
+  gender gender [not null]
+
+  // Login Credentials
+  email_address varchar(255) [not null, unique]
+  phone_number varchar(30) [not null, unique]
+  password_hash text [not null]
+
+  // Job Information
+  job_title varchar(100)
+
+  // Account Information
+  last_login_at timestamp
+  password_changed_at timestamp
+  must_change_password boolean [not null, default: true]
+
+  is_email_verified boolean [not null, default: false]
+  is_phone_verified boolean [not null, default: false]
+
+  failed_login_attempts int [not null, default: 0]
+  locked_until timestamp
+
+  // Business State
+  user_status_id uuid [not null]
+
+  // Business Rules
+  //   - users authenticate with email + password
+  //   - failed_login_attempts and locked_until are managed by the authentication backend
+
+  // Audit
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  created_by uuid
+  updated_by uuid
+
+  Note: '''
+  Represents an authenticated staff member.
+
+  Users may manage their own profile,
+  including email address, phone number,
+  password and other personal account
+  settings.
+
+  Administrative functions such as role
+  assignment, account activation,
+  suspension and permission management
+  are performed by authorized users.
+  '''
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+
+// Note: '''
+// tables/entities from here onwards unless mentioned otherwise are lookup tables
+// '''
+
+Table countries {
+  id uuid [pk]
+
+  iso_code varchar(10) [not null, unique]
+  name varchar(100) [not null]
+
+  is_active boolean [not null, default: true]
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table regions {
+  id uuid [pk]
+
+  country_id uuid [not null]
+
+  code varchar(20) [not null, unique]
+  name varchar(100) [not null]
+
+  is_active boolean [not null, default: true]
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table languages {
+  id uuid [pk]
+
+  code varchar(20) [not null, unique]
+  name varchar(100) [not null]
+
+  is_active boolean [not null, default: true]
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table traveller_sources {
+  id uuid [pk]
+
+  code varchar(30) [not null, unique]
+  name varchar(100) [not null]
+
+  is_active boolean [not null, default: true]
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table relationship_types {
+  id uuid [pk]
+
+  code varchar(30) [not null, unique]
+  name varchar(100) [not null]
+
+  is_active boolean [not null, default: true]
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table pilgrimage_types {
+  id uuid [pk]
+
+  code varchar(30) [not null, unique]
+  name varchar(100) [not null]
+
+  is_active boolean [not null, default: true]
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table package_categories {
+  id uuid [pk]
+
+  code varchar(30) [not null, unique]
+  name varchar(100) [not null]
+
+  is_active boolean [not null, default: true]
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table currencies {
+  id uuid [pk]
+
+  code varchar(10) [not null, unique]
+  name varchar(100) [not null]
+  symbol varchar(10)
+
+  is_active boolean [not null, default: true]
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table seasons {
+  id uuid [pk]
+
+  code varchar(20) [not null, unique]
+  name varchar(100) [not null]
+
+  is_active boolean [not null, default: true]
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+
+Table document_types {
+  id uuid [pk]
+
+  code varchar(30) [not null, unique]
+  name varchar(100) [not null]
+
+  is_active boolean [not null, default: true]
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table hotel_types {
+  id uuid [pk]
+
+  code varchar(30) [not null, unique]
+  name varchar(100) [not null]
+
+  is_active boolean [not null, default: true]
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table room_types {
+  id uuid [pk]
+
+  code varchar(30) [not null, unique]
+  name varchar(100) [not null]
+
+  is_active boolean [not null, default: true]
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table vendor_types {
+  id uuid [pk]
+
+  code varchar(30) [not null, unique]
+  name varchar(100) [not null]
+
+  is_active boolean [not null, default: true]
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+
+Table payer_types {
+  id uuid [pk]
+
+  code varchar(30) [not null, unique]
+  name varchar(100) [not null]
+
+  is_active boolean [not null, default: true]
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table payment_arrangement_types {
+  id uuid [pk]
+
+  code varchar(30) [not null, unique]
+  name varchar(100) [not null]
+
+  is_active boolean [not null, default: true]
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table traveller_statuses {
+  id uuid [pk]
+
+  code varchar(30) [not null, unique]
+  name varchar(100) [not null]
+  description text
+
+  display_order int [not null, default: 1]
+
+  is_active boolean [not null, default: true]
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table contact_person_statuses {
+  id uuid [pk]
+
+  code varchar(30) [not null, unique]
+  name varchar(100) [not null]
+  description text
+
+  display_order int [not null, default: 1]
+
+  is_active boolean [not null, default: true]
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table traveller_contact_statuses {
+  id uuid [pk]
+
+  code varchar(30) [not null, unique]
+  name varchar(100) [not null]
+  description text
+
+  display_order int [not null, default: 1]
+
+  is_active boolean [not null, default: true]
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table package_template_statuses {
+  id uuid [pk]
+
+  code varchar(30) [not null, unique]
+  name varchar(100) [not null]
+  description text
+
+  display_order int [not null, default: 1]
+
+  is_active boolean [not null, default: true]
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table package_version_statuses {
+  id uuid [pk]
+
+  code varchar(30) [not null, unique]
+  name varchar(100) [not null]
+  description text
+
+  display_order int [not null, default: 1]
+
+  is_active boolean [not null, default: true]
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table registration_statuses {
+  id uuid [pk]
+
+  code varchar(30) [not null, unique]
+  name varchar(100) [not null]
+  description text
+
+  display_order int [not null, default: 1]
+
+  is_active boolean [not null, default: true]
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table travel_group_statuses {
+  id uuid [pk]
+
+  code varchar(30) [not null, unique]
+  name varchar(100) [not null]
+  description text
+
+  display_order int [not null, default: 1]
+
+  is_active boolean [not null, default: true]
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table group_membership_statuses {
+  id uuid [pk]
+
+  code varchar(30) [not null, unique]
+  name varchar(100) [not null]
+  description text
+
+  display_order int [not null, default: 1]
+
+  is_active boolean [not null, default: true]
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table invoice_statuses {
+  id uuid [pk]
+
+  code varchar(30) [not null, unique]
+  name varchar(100) [not null]
+  description text
+
+  display_order int [not null, default: 1]
+
+  is_active boolean [not null, default: true]
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table payer_statuses {
+  id uuid [pk]
+
+  code varchar(30) [not null, unique]
+  name varchar(100) [not null]
+  description text
+
+  display_order int [not null, default: 1]
+
+  is_active boolean [not null, default: true]
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table payment_method_statuses {
+  id uuid [pk]
+
+  code varchar(30) [not null, unique]
+  name varchar(100) [not null]
+  description text
+
+  display_order int [not null, default: 1]
+
+  is_active boolean [not null, default: true]
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table payment_statuses {
+  id uuid [pk]
+
+  code varchar(30) [not null, unique]
+  name varchar(100) [not null]
+  description text
+
+  display_order int [not null, default: 1]
+
+  is_active boolean [not null, default: true]
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table payment_arrangement_statuses {
+  id uuid [pk]
+
+  code varchar(30) [not null, unique]
+  name varchar(100) [not null]
+  description text
+
+  display_order int [not null, default: 1]
+
+  is_active boolean [not null, default: true]
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table visa_application_statuses {
+  id uuid [pk]
+
+  code varchar(30) [not null, unique]
+  name varchar(100) [not null]
+  description text
+
+  display_order int [not null, default: 1]
+
+  is_active boolean [not null, default: true]
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table hotel_statuses {
+  id uuid [pk]
+
+  code varchar(30) [not null, unique]
+  name varchar(100) [not null]
+  description text
+
+  display_order int [not null, default: 1]
+
+  is_active boolean [not null, default: true]
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table group_hotel_stay_statuses {
+  id uuid [pk]
+
+  code varchar(30) [not null, unique]
+  name varchar(100) [not null]
+  description text
+
+  display_order int [not null, default: 1]
+
+  is_active boolean [not null, default: true]
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table room_statuses {
+  id uuid [pk]
+
+  code varchar(30) [not null, unique]
+  name varchar(100) [not null]
+  description text
+
+  display_order int [not null, default: 1]
+
+  is_active boolean [not null, default: true]
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table room_assignment_statuses {
+  id uuid [pk]
+
+  code varchar(30) [not null, unique]
+  name varchar(100) [not null]
+  description text
+
+  display_order int [not null, default: 1]
+
+  is_active boolean [not null, default: true]
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table vendor_statuses {
+  id uuid [pk]
+
+  code varchar(30) [not null, unique]
+  name varchar(100) [not null]
+  description text
+
+  display_order int [not null, default: 1]
+
+  is_active boolean [not null, default: true]
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table transport_segment_statuses {
+  id uuid [pk]
+
+  code varchar(30) [not null, unique]
+  name varchar(100) [not null]
+  description text
+
+  display_order int [not null, default: 1]
+
+  is_active boolean [not null, default: true]
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table expense_category_statuses {
+  id uuid [pk]
+
+  code varchar(30) [not null, unique]
+  name varchar(100) [not null]
+  description text
+
+  display_order int [not null, default: 1]
+
+  is_active boolean [not null, default: true]
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table expense_statuses {
+  id uuid [pk]
+
+  code varchar(30) [not null, unique]
+  name varchar(100) [not null]
+  description text
+
+  display_order int [not null, default: 1]
+
+  is_active boolean [not null, default: true]
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table document_statuses {
+  id uuid [pk]
+
+  code varchar(30) [not null, unique]
+  name varchar(100) [not null]
+  description text
+
+  display_order int [not null, default: 1]
+
+  is_active boolean [not null, default: true]
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table verification_statuses {
+  id uuid [pk]
+
+  code varchar(30) [not null, unique]
+  name varchar(100) [not null]
+  description text
+
+  display_order int [not null, default: 1]
+
+  is_active boolean [not null, default: true]
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table user_statuses {
+  id uuid [pk]
+
+  status_code varchar(30) [not null, unique]
+  name varchar(100) [not null]
+
+  is_active boolean [not null, default: true]
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  Note: '''
+  Defines lifecycle state of system users.
+
+  Examples:
+  - ACTIVE
+  - INACTIVE
+  - SUSPENDED
+  - LOCKED
+  - DELETED
+  '''
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table roles {
+  id uuid [pk]
+
+  role_code varchar(30) [not null, unique]
+  name varchar(100) [not null]
+
+  description text
+
+  is_system_role boolean [not null, default: false]
+  is_active boolean [not null, default: true]
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table user_roles {
+  id uuid [pk]
+
+  user_id uuid [not null]
+  role_id uuid [not null]
+
+  assigned_at timestamp [not null, default: `now()`]
+
+  is_active boolean [not null, default: true]
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  created_by uuid [not null]
+  updated_by uuid [not null]
+  unique (user_id, role_id) {
+    note: 'One role assignment per user-role pair'
+  }
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table permissions {
+  id uuid [pk]
+
+  permission_code varchar(50) [not null, unique]
+  name varchar(100) [not null]
+
+  description text
+
+  module varchar(100)
+
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+Table role_permissions {
+  id uuid [pk]
+
+  role_id uuid [not null]
+  permission_id uuid [not null]
+
+  created_at timestamp [not null, default: `now()`]
+  unique (role_id, permission_id) {
+    note: 'One permission per role-permission pair'
+  }
+
+  // Soft delete
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamp
+}
+
+// From here onwards are relationships
+
+Ref: users.user_status_id > user_statuses.id
+Ref: users.created_by > users.id
+Ref: users.updated_by > users.id
+Ref: user_roles.user_id > users.id
+Ref: user_roles.role_id > roles.id
+
+Ref: role_permissions.role_id > roles.id
+Ref: role_permissions.permission_id > permissions.id
+
+Ref: travellers.created_by > users.id
+Ref: travellers.updated_by > users.id
+
+Ref: travellers.country_id > countries.id
+Ref: travellers.region_id > regions.id
+Ref: travellers.preferred_language_id > languages.id
+Ref: travellers.traveller_source_id > traveller_sources.id
+Ref: travellers.traveller_status_id > traveller_statuses.id
+
+Ref: contact_persons.created_by > users.id
+Ref: contact_persons.updated_by > users.id
+
+Ref: contact_persons.country_id > countries.id
+Ref: contact_persons.region_id > regions.id
+Ref: contact_persons.preferred_language_id > languages.id
+Ref: contact_persons.contact_person_status_id > contact_person_statuses.id
+
+Ref: traveller_contacts.traveller_id > travellers.id
+Ref: traveller_contacts.contact_person_id > contact_persons.id
+
+Ref: traveller_contacts.relationship_type_id > relationship_types.id
+Ref: traveller_contacts.traveller_contact_status_id > traveller_contact_statuses.id
+
+Ref: traveller_contacts.created_by > users.id
+Ref: traveller_contacts.updated_by > users.id
+
+Ref: guarantees.group_membership_id > group_memberships.id
+Ref: guarantees.registration_id > registrations.id
+Ref: guarantees.contact_person_id > contact_persons.id
+Ref: guarantees.previous_guarantee_id > guarantees.id
+Ref: guarantees.replaced_by_id > guarantees.id
+Ref: guarantees.currency_id > currencies.id
+
+Ref: guarantees.created_by > users.id
+Ref: guarantees.updated_by > users.id
+
+Ref: guarantee_requirements.group_membership_id > group_memberships.id
+Ref: guarantee_requirements.decided_by > users.id
+Ref: guarantee_requirements.created_by > users.id
+Ref: guarantee_requirements.updated_by > users.id
+
+Ref: package_templates.pilgrimage_type_id > pilgrimage_types.id
+Ref: package_templates.package_category_id > package_categories.id
+Ref: package_templates.package_template_status_id > package_template_statuses.id
+
+Ref: package_templates.created_by > users.id
+Ref: package_templates.updated_by > users.id
+
+Ref: package_versions.package_template_id > package_templates.id
+
+Ref: package_versions.season_id > seasons.id
+Ref: package_versions.currency_id > currencies.id
+Ref: package_versions.package_version_status_id > package_version_statuses.id
+
+Ref: package_versions.created_by > users.id
+Ref: package_versions.updated_by > users.id
+
+Ref: registrations.traveller_id > travellers.id
+Ref: registrations.package_version_id > package_versions.id
+Ref: registrations.registration_status_id > registration_statuses.id
+
+Ref: registrations.created_by > users.id
+Ref: registrations.updated_by > users.id
+
+Ref: travel_groups.travel_group_status_id > travel_group_statuses.id
+
+Ref: travel_groups.created_by > users.id
+Ref: travel_groups.updated_by > users.id
+
+Ref: group_memberships.registration_id > registrations.id
+
+Ref: group_memberships.travel_group_id > travel_groups.id
+Ref: group_memberships.group_membership_status_id > group_membership_statuses.id
+
+Ref: group_memberships.created_by > users.id
+Ref: group_memberships.updated_by > users.id
+
+Ref: invoices.registration_id > registrations.id
+Ref: invoices.currency_id > currencies.id
+Ref: invoices.invoice_status_id > invoice_statuses.id
+
+Ref: invoices.created_by > users.id
+Ref: invoices.updated_by > users.id
+
+Ref: payers.payer_type_id > payer_types.id
+Ref: payers.payer_status_id > payer_statuses.id
+
+Ref: payment_methods.payment_method_status_id > payment_method_statuses.id
+
+Ref: payments.payer_id > payers.id
+Ref: payments.payment_method_id > payment_methods.id
+Ref: payments.currency_id > currencies.id
+Ref: payments.payment_status_id > payment_statuses.id
+Ref: payments.received_by > users.id
+
+Ref: payments.created_by > users.id
+Ref: payments.updated_by > users.id
+
+Ref: payment_allocations.payment_id > payments.id
+Ref: payment_allocations.invoice_id > invoices.id
+
+Ref: payment_allocations.created_by > users.id
+Ref: payment_allocations.updated_by > users.id
+
+Ref: payment_arrangements.arrangement_type_id > payment_arrangement_types.id
+
+Ref: payment_arrangements.payment_arrangement_status_id > payment_arrangement_statuses.id
+
+Ref: payment_installements.payment_arrangement_id > payment_arrangements.id
+Ref: payment_installements.payment_installement_status_id > payment_installement_statuses.id
+Ref: payment_installements.created_by > users.id
+Ref: payment_installements.updated_by > users.id
+
+Ref: visa_applications.registration_id > registrations.id
+Ref: visa_applications.visa_application_status_id > visa_application_statuses.id
+
+Ref: visa_applications.created_by > users.id
+Ref: visa_applications.updated_by > users.id
+
+Ref: hotels.hotel_type_id > hotel_types.id
+Ref: hotels.hotel_status_id > hotel_statuses.id
+
+Ref: hotels.created_by > users.id
+Ref: hotels.updated_by > users.id
+
+Ref: group_hotel_stays.travel_group_id > travel_groups.id
+Ref: group_hotel_stays.hotel_id > hotels.id
+Ref: group_hotel_stays.group_hotel_stay_status_id > group_hotel_stay_statuses.id
+
+Ref: group_hotel_stays.created_by > users.id
+Ref: group_hotel_stays.updated_by > users.id
+
+Ref: rooms.group_hotel_stay_id > group_hotel_stays.id
+Ref: rooms.room_type_id > room_types.id
+
+Ref: rooms.room_status_id > room_statuses.id
+
+Ref: rooms.created_by > users.id
+Ref: rooms.updated_by > users.id
+
+Ref: room_assignments.room_id > rooms.id
+Ref: room_assignments.registration_id > registrations.id
+Ref: room_assignments.room_assignment_status_id > room_assignment_statuses.id
+
+Ref: room_assignments.created_by > users.id
+Ref: room_assignments.updated_by > users.id
+
+Ref: vendors.vendor_type_id > vendor_types.id
+Ref: vendors.vendor_status_id > vendor_statuses.id
+
+Ref: vendors.created_by > users.id
+Ref: vendors.updated_by > users.id
+
+Ref: transport_segments.travel_group_id > travel_groups.id
+Ref: transport_segments.vendor_id > vendors.id
+
+Ref: transport_segments.transport_segment_status_id > transport_segment_statuses.id
+
+Ref: transport_segments.created_by > users.id
+Ref: transport_segments.updated_by > users.id
+
+Ref: expense_categories.expense_category_status_id > expense_category_statuses.id
+
+Ref: expenses.expense_category_id > expense_categories.id
+Ref: expenses.vendor_id > vendors.id
+Ref: expenses.travel_group_id > travel_groups.id
+Ref: expenses.transport_segment_id > transport_segments.id
+Ref: expenses.group_hotel_stay_id > group_hotel_stays.id
+Ref: expenses.currency_id > currencies.id
+Ref: expenses.expense_status_id > expense_statuses.id
+
+Ref: expenses.created_by > users.id
+Ref: expenses.updated_by > users.id
+Ref: expenses.approved_by > users.id
+
+Ref: documents.traveller_id > travellers.id
+Ref: documents.registration_id > registrations.id
+Ref: documents.document_type_id > document_types.id
+Ref: documents.verification_status_id > verification_statuses.id
+Ref: documents.document_status_id > document_statuses.id
+
+Ref: documents.created_by > users.id
+Ref: documents.updated_by > users.id
+Ref: documents.verified_by > users.id
