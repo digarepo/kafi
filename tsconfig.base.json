@@ -31,7 +31,9 @@
       "@kafi/shared-validation": ["packages/shared-validation/src/index.ts"],
       "@kafi/shared-validation/*": ["packages/shared-validation/src/*"],
       "@kafi/shared-config": ["packages/shared-config/src/index.ts"],
-      "@kafi/shared-config/*": ["packages/shared-config/src/*"]
+      "@kafi/shared-config/*": ["packages/shared-config/src/*"],
+      "@kafi/database": ["database/index.ts"],
+      "@kafi/database/*": ["database/*"]
     }
   },
   "exclude": ["node_modules", "dist", "build"]
