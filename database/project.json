@@ -1,0 +1,57 @@
+{
+  "name": "@kafi/database",
+  "$schema": "../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "database/schema",
+  "projectType": "library",
+  "tags": [
+    "type:database",
+    "scope:api"
+  ],
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "outputs": [
+        "{projectRoot}/dist"
+      ],
+      "options": {
+        "cwd": "database",
+        "command": "tsc -p tsconfig.json"
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "database",
+        "command": "tsc --noEmit -p tsconfig.json"
+      }
+    },
+    "db:generate": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "database",
+        "command": "drizzle-kit generate --config=drizzle.config.ts"
+      }
+    },
+    "db:migrate": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "database",
+        "command": "drizzle-kit migrate --config=drizzle.config.ts"
+      }
+    },
+    "db:seed": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "database",
+        "command": "tsx seeds/seed.ts"
+      }
+    },
+    "db:studio": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "database",
+        "command": "drizzle-kit studio --config=drizzle.config.ts"
+      }
+    }
+  }
+}
