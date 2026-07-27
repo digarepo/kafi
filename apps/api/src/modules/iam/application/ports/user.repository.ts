@@ -13,6 +13,7 @@ export interface UserWithRoles {
   job_title: string | null;
   password_hash: string;
   must_change_password: boolean;
+  is_email_verified: boolean;
   user_status_id: TypedId<'UserStatus'>;
   status_code: string;
   roles: { id: TypedId<'Role'>; role_code: string; name: string }[];
@@ -77,7 +78,25 @@ export abstract class UserRepository {
    * @param password_hash - New Argon2id hash.
    * @param must_change_password - Whether the user must reset on next login.
    */
-  abstract updatePassword(id: TypedId<'User'>, password_hash: string, must_change_password: boolean): Promise<void>;
+  abstract updatePassword(
+    id: TypedId<'User'>,
+    password_hash: string,
+    must_change_password: boolean,
+  ): Promise<void>;
+
+  /**
+   * Updates the user's last login timestamp.
+   *
+   * @param id - User typed id.
+   */
+  abstract updateLastLogin(id: TypedId<'User'>): Promise<void>;
+
+  /**
+   * Marks the user's email address as verified.
+   *
+   * @param id - User typed id.
+   */
+  abstract verifyEmail(id: TypedId<'User'>): Promise<void>;
 }
 
 /**

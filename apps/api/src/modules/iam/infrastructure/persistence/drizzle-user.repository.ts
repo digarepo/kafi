@@ -223,7 +223,25 @@ export class DrizzleUserRepository extends UserRepository {
   ): Promise<void> {
     await this.db
       .update(schema.users)
-      .set({ password_hash, must_change_password })
+      .set({
+        password_hash,
+        must_change_password,
+        password_changed_at: must_change_password ? null : new Date(),
+      })
+      .where(eq(schema.users.id, id));
+  }
+
+  async updateLastLogin(id: TypedId<'User'>): Promise<void> {
+    await this.db
+      .update(schema.users)
+      .set({ last_login_at: new Date() })
+      .where(eq(schema.users.id, id));
+  }
+
+  async verifyEmail(id: TypedId<'User'>): Promise<void> {
+    await this.db
+      .update(schema.users)
+      .set({ is_email_verified: true })
       .where(eq(schema.users.id, id));
   }
 
@@ -242,6 +260,7 @@ export class DrizzleUserRepository extends UserRepository {
       job_title: user.job_title ?? null,
       password_hash: user.password_hash,
       must_change_password: user.must_change_password,
+      is_email_verified: user.is_email_verified,
       user_status_id: createTypedId<'UserStatus'>(status.id),
       status_code: status.status_code,
       roles: roles.map((role) => ({
