@@ -6,6 +6,7 @@ import {
   mysqlTable,
   text,
   unique,
+  index,
   varchar,
 } from 'drizzle-orm/mysql-core';
 import {
@@ -126,6 +127,85 @@ export const rolePermissions = mysqlTable(
       table.role_id,
       table.permission_id,
     ),
+  ],
+);
+
+/**
+ * Revoked refresh tokens that can no longer be used for token refresh.
+ */
+export const refreshTokenBlocklist = mysqlTable(
+  'refresh_token_blocklist',
+  {
+    id: idColumn,
+    token_hash: varchar('token_hash', { length: 64 }).notNull(),
+    user_id: fkUuid('user_id').notNull(),
+    expires_at: datetime('expires_at', { mode: 'date' }).notNull(),
+    created_at: datetime('created_at', { mode: 'date' })
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    unique('refresh_token_blocklist_token_hash_unique').on(table.token_hash),
+    index('refresh_token_blocklist_expires_at_idx').on(table.expires_at),
+  ],
+);
+
+/**
+ * Authentication and authorization audit events.
+ */
+export const authAuditLogs = mysqlTable('auth_audit_logs', {
+  id: idColumn,
+  user_id: fkUuid('user_id'),
+  event_type: varchar('event_type', { length: 50 }).notNull(),
+  ip_address: varchar('ip_address', { length: 45 }),
+  user_agent: varchar('user_agent', { length: 255 }),
+  success: boolean('success').notNull().default(true),
+  details: text('details'),
+  created_at: datetime('created_at', { mode: 'date' })
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
+});
+
+/**
+ * One-time tokens used for email address verification.
+ */
+export const emailVerificationTokens = mysqlTable(
+  'email_verification_tokens',
+  {
+    id: idColumn,
+    user_id: fkUuid('user_id').notNull(),
+    token_hash: varchar('token_hash', { length: 64 }).notNull(),
+    expires_at: datetime('expires_at', { mode: 'date' }).notNull(),
+    created_at: datetime('created_at', { mode: 'date' })
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    unique('email_verification_tokens_token_hash_unique').on(table.token_hash),
+    index('email_verification_tokens_user_id_idx').on(table.user_id),
+    index('email_verification_tokens_expires_at_idx').on(table.expires_at),
+  ],
+);
+
+/**
+ * One-time tokens used for password reset flows.
+ */
+export const passwordResetTokens = mysqlTable(
+  'password_reset_tokens',
+  {
+    id: idColumn,
+    user_id: fkUuid('user_id').notNull(),
+    token_hash: varchar('token_hash', { length: 64 }).notNull(),
+    expires_at: datetime('expires_at', { mode: 'date' }).notNull(),
+    used_at: datetime('used_at', { mode: 'date' }),
+    created_at: datetime('created_at', { mode: 'date' })
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    unique('password_reset_tokens_token_hash_unique').on(table.token_hash),
+    index('password_reset_tokens_user_id_idx').on(table.user_id),
+    index('password_reset_tokens_expires_at_idx').on(table.expires_at),
   ],
 );
 
