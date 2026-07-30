@@ -20,4 +20,6 @@ export const dashboardMeta: RouteMeta = {
   breadcrumb: {
     label: 'Dashboard',
   },
+
+  permission: 'DASHBOARD_VIEW',
 };

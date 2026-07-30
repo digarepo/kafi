@@ -27,7 +27,7 @@ export class RolesController {
    * Lists all active roles.
    */
   @Get()
-  @RequirePermissions('USER_VIEW')
+  @RequirePermissions('AUTH_MANAGE')
   list() {
     return this.roles.list();
   }
@@ -36,7 +36,7 @@ export class RolesController {
    * Lists all permissions grouped by module.
    */
   @Get('permissions')
-  @RequirePermissions('USER_VIEW')
+  @RequirePermissions('AUTH_MANAGE')
   async permissions() {
     const rows = await this.db.query.permissions.findMany({
       orderBy: (permissions, { asc }) => asc(permissions.permission_code),

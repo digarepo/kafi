@@ -2,6 +2,7 @@ import {
   Controller,
   Post,
   Get,
+  Patch,
   Body,
   HttpCode,
   HttpStatus,
@@ -12,6 +13,7 @@ import { LoginDto } from '../../application/dto/login.dto.js';
 import { RefreshDto } from '../../application/dto/refresh.dto.js';
 import { ChangePasswordDto } from '../../application/dto/change-password.dto.js';
 import { LogoutDto } from '../../application/dto/logout.dto.js';
+import { UpdateProfileDto } from '../../application/dto/update-profile.dto.js';
 import { VerifyEmailDto } from '../../application/dto/verify-email.dto.js';
 import { ForgotPasswordDto } from '../../application/dto/forgot-password.dto.js';
 import { ResetPasswordDto } from '../../application/dto/reset-password.dto.js';
@@ -74,6 +76,26 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   me(@CurrentUser() user: AuthenticatedUser) {
     return this.auth.me(user.sub as string);
+  }
+
+  /**
+   * Updates the authenticated user's own profile.
+   *
+   * @param user - Authenticated user principal.
+   * @param dto - Profile update data.
+   * @returns Updated profile.
+   */
+  @Patch('me')
+  @UseGuards(JwtAuthGuard)
+  updateMe(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: UpdateProfileDto,
+  ) {
+    return this.auth.updateProfile(
+      user.sub as string,
+      dto.full_name,
+      dto.phone_number,
+    );
   }
 
   /**

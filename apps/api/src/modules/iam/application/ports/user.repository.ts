@@ -16,6 +16,8 @@ export interface UserWithRoles {
   is_email_verified: boolean;
   user_status_id: TypedId<'UserStatus'>;
   status_code: string;
+  created_at: Date;
+  last_login_at: Date | null;
   roles: { id: TypedId<'Role'>; role_code: string; name: string }[];
 }
 

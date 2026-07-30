@@ -33,6 +33,13 @@ export class ResendMailer implements Mailer {
     await this.sendEmail(to, 'Reset your password', text);
   }
 
+  async sendWelcomeEmail(to: string, temporaryPassword: string): Promise<void> {
+    const loginUrl = `${this.baseUrl}/login`;
+    const text = `Welcome to Kafi Tours\n\nYour staff account has been created.\n\nTemporary password: ${temporaryPassword}\n\nLog in here:\n${loginUrl}\n\nYou will be prompted to change this password on your first login.`;
+
+    await this.sendEmail(to, 'Welcome to Kafi Tours', text);
+  }
+
   private get baseUrl(): string {
     return this.options.appUrl.replace(/\/+$/, '');
   }

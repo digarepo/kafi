@@ -201,15 +201,24 @@ export interface AuthResponse {
     id: string;
     email: string;
     full_name: string;
+    phone_number: string;
+    status_code: string;
     roles: string[];
     permissions: string[];
     must_change_password: boolean;
+    created_at: string;
+    last_login_at: string | null;
   };
   tokens: {
     access_token: string;
     refresh_token: string;
     expires_in: number;
   };
+}
+
+export interface UpdateProfileInput {
+  full_name: string;
+  phone_number: string;
 }
 
 export interface CreateUserInput {
@@ -241,6 +250,8 @@ export interface User {
   phone_number: string;
   job_title: string | null;
   must_change_password: boolean;
+  is_email_verified: boolean;
+  user_status_id: string;
   status_code: string;
   roles: { id: string; role_code: string; name: string }[];
 }
@@ -300,6 +311,13 @@ export const api = {
     return request<AuthResponse['user']>('/api/auth/me');
   },
 
+  async updateMe(input: UpdateProfileInput): Promise<AuthResponse['user']> {
+    return request<AuthResponse['user']>('/api/auth/me', {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    });
+  },
+
   async logout(): Promise<void> {
     const refreshToken = getRefreshToken();
     if (refreshToken) {
@@ -350,16 +368,25 @@ export const api = {
     );
   },
 
-  async createUser(
-    input: CreateUserInput,
-  ): Promise<{ id: string; temporary_password: string }> {
-    return request<{ id: string; temporary_password: string }>(
-      '/api/admin/users',
-      {
-        method: 'POST',
-        body: JSON.stringify(input),
-      },
+  async listUserStatuses(): Promise<{ id: string; status_code: string }[]> {
+    return request<{ id: string; status_code: string }[]>(
+      '/api/admin/users/statuses',
     );
+  },
+
+  async createUser(input: CreateUserInput): Promise<{
+    id: string;
+    temporary_password: string;
+    emailErrors: string[];
+  }> {
+    return request<{
+      id: string;
+      temporary_password: string;
+      emailErrors: string[];
+    }>('/api/admin/users', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
   },
 
   async updateUser(id: string, input: UpdateUserInput): Promise<void> {
@@ -369,9 +396,19 @@ export const api = {
     });
   },
 
+  async getUser(id: string): Promise<User> {
+    return request<User>(`/api/admin/users/${id}`);
+  },
+
   async deleteUser(id: string): Promise<void> {
     await request(`/api/admin/users/${id}`, {
       method: 'DELETE',
+    });
+  },
+
+  async resendVerification(id: string): Promise<void> {
+    await request(`/api/admin/users/${id}/resend-verification`, {
+      method: 'POST',
     });
   },
 

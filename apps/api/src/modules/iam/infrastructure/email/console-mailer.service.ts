@@ -15,4 +15,10 @@ export class ConsoleMailer implements Mailer {
   async sendPasswordResetEmail(to: string, token: string): Promise<void> {
     console.log(`[Password reset email] to=${to} token=${token}`);
   }
+
+  async sendWelcomeEmail(to: string, temporaryPassword: string): Promise<void> {
+    console.log(
+      `[Welcome email] to=${to} temporary_password=${temporaryPassword}`,
+    );
+  }
 }

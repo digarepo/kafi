@@ -11,6 +11,7 @@ export default [
     index('routes/home.tsx'),
     route('users', 'routes/admin/users.tsx'),
     route('roles', 'routes/admin/roles.tsx'),
+    route('profile', 'routes/profile.tsx'),
   ]),
   route('*', 'not-found.tsx'),
 ] satisfies RouteConfig;

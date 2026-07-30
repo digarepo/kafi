@@ -263,6 +263,8 @@ export class DrizzleUserRepository extends UserRepository {
       is_email_verified: user.is_email_verified,
       user_status_id: createTypedId<'UserStatus'>(status.id),
       status_code: status.status_code,
+      created_at: user.created_at,
+      last_login_at: user.last_login_at ?? null,
       roles: roles.map((role) => ({
         id: createTypedId<'Role'>(role.id),
         role_code: role.role_code,

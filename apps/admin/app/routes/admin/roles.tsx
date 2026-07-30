@@ -1,6 +1,9 @@
 import { useState } from 'react';
+import type { ColumnDef } from '@tanstack/react-table';
 import { redirect, useLoaderData } from 'react-router';
 import { Badge, Card, CardContent, CardHeader, CardTitle } from '@kafi/ui';
+import { DataTable } from '../../shared/data-table';
+import { textColumn } from '../../shared/data-table/columns';
 import { api, type PermissionGroup, type Role } from '../../lib/api.js';
 
 export function meta() {
@@ -8,9 +11,24 @@ export function meta() {
 }
 
 export async function clientLoader() {
+  let user;
   try {
-    const [roles, permissions] = await Promise.all([api.listRoles(), api.listPermissions()]);
-    return { roles, permissions };
+    user = await api.me();
+  } catch {
+    api.logout();
+    throw redirect('/login');
+  }
+
+  if (!user.permissions?.includes('AUTH_MANAGE')) {
+    throw redirect('/forbidden');
+  }
+
+  try {
+    const [roles, permissionsData] = await Promise.all([
+      api.listRoles(),
+      api.listPermissions(),
+    ]);
+    return { roles, permissions: permissionsData };
   } catch {
     api.logout();
     throw redirect('/login');
@@ -22,11 +40,31 @@ export default function RolesPage() {
   const [roles] = useState<Role[]>(initial.roles);
   const [permissions] = useState<PermissionGroup>(initial.permissions);
 
+  const columns: ColumnDef<Role>[] = [
+    textColumn<Role>({ accessorKey: 'role_code', header: 'Code' }),
+    textColumn<Role>({ accessorKey: 'name', header: 'Name' }),
+    {
+      id: 'system',
+      header: 'System',
+      enableSorting: false,
+      cell: ({ row }) =>
+        row.original.is_system_role ? (
+          <Badge variant="default">System</Badge>
+        ) : (
+          <Badge variant="outline">Custom</Badge>
+        ),
+    },
+  ];
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Roles & Permissions</h1>
-        <p className="text-muted-foreground">System roles and available permissions.</p>
+        <h1 className="text-2xl font-bold tracking-tight">
+          Roles & Permissions
+        </h1>
+        <p className="text-muted-foreground">
+          System roles and available permissions.
+        </p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -35,32 +73,7 @@ export default function RolesPage() {
             <CardTitle>Roles</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-muted text-left">
-                  <tr>
-                    <th className="px-4 py-3 font-medium">Code</th>
-                    <th className="px-4 py-3 font-medium">Name</th>
-                    <th className="px-4 py-3 font-medium">System</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {roles.map((role) => (
-                    <tr key={role.id} className="border-b last:border-0">
-                      <td className="px-4 py-3 font-mono">{role.role_code}</td>
-                      <td className="px-4 py-3">{role.name}</td>
-                      <td className="px-4 py-3">
-                        {role.is_system_role ? (
-                          <Badge variant="default">System</Badge>
-                        ) : (
-                          <Badge variant="outline">Custom</Badge>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <DataTable columns={columns} data={roles} />
           </CardContent>
         </Card>
 

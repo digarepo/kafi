@@ -37,6 +37,11 @@ const ROLE_CODES = [
 
 const PERMISSION_CODES = [
   {
+    permission_code: 'DASHBOARD_VIEW',
+    name: 'View dashboard',
+    module: 'General',
+  },
+  {
     permission_code: 'USER_CREATE',
     name: 'Create users',
     module: 'Users & Auth',
@@ -145,6 +150,11 @@ const PERMISSION_CODES = [
     module: 'Accommodation',
   },
   {
+    permission_code: 'TRAVEL_GROUP_VIEW',
+    name: 'View travel groups',
+    module: 'Travel Groups',
+  },
+  {
     permission_code: 'TRAVEL_GROUP_MANAGE',
     name: 'Manage travel groups',
     module: 'Travel Groups',
@@ -155,26 +165,23 @@ const ROLE_PERMISSION_MAP: Record<string, string[]> = {
   ADMIN: PERMISSION_CODES.map((p) => p.permission_code),
   MANAGER: PERMISSION_CODES.map((p) => p.permission_code).filter(
     (code) =>
-      ![
-        'AUTH_MANAGE',
-        'USER_DELETE',
-        'TRAVELLER_DELETE',
-        'PACKAGE_DELETE',
-        'REGISTRATION_DELETE',
-        'FINANCE_DELETE',
-      ].includes(code),
+      !code.startsWith('USER_') &&
+      !code.endsWith('_DELETE') &&
+      code !== 'AUTH_MANAGE',
   ),
   AGENT: [
-    'USER_VIEW',
+    'DASHBOARD_VIEW',
     'TRAVELLER_VIEW',
     'TRAVELLER_CREATE',
     'TRAVELLER_EDIT',
     'PACKAGE_VIEW',
     'REGISTRATION_VIEW',
     'REGISTRATION_CREATE',
+    'REGISTRATION_EDIT',
     'FINANCE_VIEW',
     'VISA_MANAGE',
     'DOCUMENT_MANAGE',
+    'TRAVEL_GROUP_VIEW',
   ],
 };
 
@@ -240,6 +247,8 @@ async function seed() {
     }
 
     // Role permissions
+    await db.delete(rolePermissions);
+
     const roleRows = await db.select().from(roles);
     const permissionRows = await db.select().from(permissions);
 
