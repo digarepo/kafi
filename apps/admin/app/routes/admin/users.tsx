@@ -10,10 +10,14 @@ import {
   Input,
   Label,
 } from '@kafi/ui';
+
+import { usePermissions } from '../../core/permissions';
+import { UserEditDialog } from '../../features/users/components/user-edit-dialog';
 import {
   api,
   type CreateUserInput,
   type Role,
+  type UpdateUserInput,
   type User,
 } from '../../lib/api.js';
 
@@ -38,6 +42,8 @@ export default function UsersPage() {
   const initial = useLoaderData<typeof clientLoader>();
   const [users, setUsers] = useState(initial.users.items);
   const [roles] = useState<Role[]>(initial.roles);
+  const { can } = usePermissions();
+  const [editingUser, setEditingUser] = useState<User | null>(null);
   const [form, setForm] = useState<CreateUserInput>({
     employee_number: '',
     full_name: '',
@@ -91,18 +97,46 @@ export default function UsersPage() {
     }
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm('Are you sure you want to delete this user?')) {
+  async function handleDelete(user: User) {
+    if (!confirm(`Are you sure you want to delete ${user.full_name}?`)) {
       return;
     }
 
     try {
-      await api.deleteUser(id);
+      await api.deleteUser(user.id);
       const refreshed = await api.listUsers();
       setUsers(refreshed.items);
+      setSuccess('User deleted successfully.');
     } catch (err) {
       const message =
         err instanceof Error ? err.message : 'Failed to delete user';
+      setError(message);
+    }
+  }
+
+  async function handleUpdate(id: string, input: UpdateUserInput) {
+    try {
+      await api.updateUser(id, input);
+      const refreshed = await api.listUsers();
+      setUsers(refreshed.items);
+      setSuccess('User updated successfully.');
+      setEditingUser(null);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Failed to update user';
+      setError(message);
+    }
+  }
+
+  async function handleResendVerification(user: User) {
+    try {
+      await api.resendVerification(user.id);
+      setSuccess(`Verification email resent to ${user.email_address}.`);
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : 'Failed to resend verification email';
       setError(message);
     }
   }
@@ -115,6 +149,16 @@ export default function UsersPage() {
           Manage staff accounts and role assignments.
         </p>
       </div>
+
+      <UserEditDialog
+        user={editingUser}
+        roles={roles}
+        open={editingUser !== null}
+        onOpenChange={(open) => {
+          if (!open) setEditingUser(null);
+        }}
+        onSave={handleUpdate}
+      />
 
       <Card>
         <CardHeader>
@@ -287,13 +331,35 @@ export default function UsersPage() {
                       </Badge>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => handleDelete(user.id)}
-                      >
-                        Delete
-                      </Button>
+                      <div className="flex justify-end gap-2">
+                        {can('USER_EDIT') && !user.is_email_verified && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleResendVerification(user)}
+                          >
+                            Resend verification
+                          </Button>
+                        )}
+                        {can('USER_EDIT') && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setEditingUser(user)}
+                          >
+                            Edit
+                          </Button>
+                        )}
+                        {can('USER_DELETE') && (
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleDelete(user)}
+                          >
+                            Delete
+                          </Button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

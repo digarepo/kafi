@@ -241,6 +241,7 @@ export interface User {
   phone_number: string;
   job_title: string | null;
   must_change_password: boolean;
+  is_email_verified: boolean;
   status_code: string;
   roles: { id: string; role_code: string; name: string }[];
 }
@@ -369,9 +370,19 @@ export const api = {
     });
   },
 
+  async getUser(id: string): Promise<User> {
+    return request<User>(`/api/admin/users/${id}`);
+  },
+
   async deleteUser(id: string): Promise<void> {
     await request(`/api/admin/users/${id}`, {
       method: 'DELETE',
+    });
+  },
+
+  async resendVerification(id: string): Promise<void> {
+    await request(`/api/admin/users/${id}/resend-verification`, {
+      method: 'POST',
     });
   },
 
