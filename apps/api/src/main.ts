@@ -1,22 +1,22 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app/app.module.js';
+import { ConfigService } from './shared/infrastructure/config/config.service.js';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.setGlobalPrefix('api');
 
-  const isProduction = process.env.NODE_ENV === 'production';
+  const config = app.get(ConfigService);
+  const isProduction = config.isProduction();
 
   app.enableCors({
-    // In production, only allow known admin origins. In development, reflect the
+    // In production, only allow configured origins. In development, reflect the
     // request origin so the app works from any local/IP address (e.g. mobile).
     origin: isProduction
-      ? [
-          'http://localhost:3000',
-          'http://localhost:3001',
-          'http://localhost:5173',
-          'http://localhost:5174',
-        ]
+      ? config
+          .get('ALLOWED_ORIGINS')
+          .split(',')
+          .map((o) => o.trim())
       : true,
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization'],
