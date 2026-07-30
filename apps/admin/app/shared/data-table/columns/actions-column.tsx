@@ -40,7 +40,12 @@ export function actionsColumn<TData>({
           <DropdownMenu>
             <DropdownMenuTrigger
               render={
-                <Button variant="ghost" size="icon" aria-label="Actions">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="border-none"
+                  aria-label="Actions"
+                >
                   <MoreHorizontal className="h-4 w-4" />
                 </Button>
               }

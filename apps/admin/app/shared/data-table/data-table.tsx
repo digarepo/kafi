@@ -133,7 +133,11 @@ export function DataTable<TData, TValue>({
 
   return (
     <div
-      className={cn(isMobile && renderMobileCard ? '' : 'rounded-md border')}
+      className={cn(
+        isMobile && renderMobileCard
+          ? ''
+          : 'overflow-hidden rounded-md bg-background',
+      )}
     >
       {isMobile && renderMobileCard ? (
         <div className="divide-y">
@@ -161,7 +165,7 @@ export function DataTable<TData, TValue>({
                 {headerGroup.headers.map((header) => (
                   <th
                     key={header.id}
-                    className="cursor-pointer border-b px-4 py-3 text-left text-sm font-medium"
+                    className="cursor-pointer border-b bg-muted px-4 py-3 text-left text-sm font-medium"
                     onClick={
                       header.column.getCanSort()
                         ? header.column.getToggleSortingHandler()

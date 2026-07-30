@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { redirect, useLoaderData } from 'react-router';
+import type { ColumnDef } from '@tanstack/react-table';
 import {
   Badge,
   Button,
@@ -13,6 +14,17 @@ import {
 
 import { usePermissions } from '../../core/permissions';
 import { UserEditDialog } from '../../features/users/components/user-edit-dialog';
+import { DeleteDialog } from '../../shared/delete-dialog';
+import { DataTable, DataTableToolbar } from '../../shared/data-table';
+import {
+  actionsColumn,
+  statusColumn,
+  textColumn,
+} from '../../shared/data-table/columns';
+import {
+  DataTableMobileActions,
+  DataTableMobileCard,
+} from '../../shared/data-table/data-table-mobile-card';
 import {
   api,
   type CreateUserInput,
@@ -44,6 +56,9 @@ export default function UsersPage() {
   const [roles] = useState<Role[]>(initial.roles);
   const { can } = usePermissions();
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [deletingUser, setDeletingUser] = useState<User | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [globalFilter, setGlobalFilter] = useState('');
   const [form, setForm] = useState<CreateUserInput>({
     employee_number: '',
     full_name: '',
@@ -97,13 +112,15 @@ export default function UsersPage() {
     }
   }
 
-  async function handleDelete(user: User) {
-    if (!confirm(`Are you sure you want to delete ${user.full_name}?`)) {
-      return;
-    }
+  function handleDeleteClick(user: User) {
+    setDeletingUser(user);
+  }
 
+  async function handleDeleteConfirm() {
+    if (!deletingUser) return;
+    setDeleteLoading(true);
     try {
-      await api.deleteUser(user.id);
+      await api.deleteUser(deletingUser.id);
       const refreshed = await api.listUsers();
       setUsers(refreshed.items);
       setSuccess('User deleted successfully.');
@@ -111,6 +128,9 @@ export default function UsersPage() {
       const message =
         err instanceof Error ? err.message : 'Failed to delete user';
       setError(message);
+    } finally {
+      setDeleteLoading(false);
+      setDeletingUser(null);
     }
   }
 
@@ -141,6 +161,95 @@ export default function UsersPage() {
     }
   }
 
+  const columns: ColumnDef<User>[] = [
+    textColumn<User>({ accessorKey: 'employee_number', header: 'ID' }),
+    textColumn<User>({ accessorKey: 'full_name', header: 'Name' }),
+    textColumn<User>({ accessorKey: 'email_address', header: 'Email' }),
+    {
+      id: 'roles',
+      header: 'Roles',
+      enableSorting: false,
+      cell: ({ row }) => (
+        <div className="flex flex-wrap gap-1">
+          {row.original.roles.map((r) => (
+            <Badge key={r.id} variant="outline">
+              {r.role_code}
+            </Badge>
+          ))}
+        </div>
+      ),
+    },
+    statusColumn<User>({ accessorKey: 'status_code', header: 'Status' }),
+    actionsColumn<User>({
+      actions: [
+        {
+          label: 'Edit',
+          onClick: (user) => setEditingUser(user),
+          disabled: () => !can('USER_EDIT'),
+        },
+        {
+          label: 'Resend verification',
+          onClick: (user) => {
+            void handleResendVerification(user);
+          },
+          disabled: (user) => !can('USER_EDIT') || user.is_email_verified,
+        },
+        {
+          label: 'Delete',
+          onClick: (user) => handleDeleteClick(user),
+          disabled: () => !can('USER_DELETE'),
+        },
+      ],
+    }),
+  ];
+
+  function renderMobileCard(user: User) {
+    const mobileActions = [
+      ...(can('USER_EDIT')
+        ? [{ label: 'Edit', onClick: () => setEditingUser(user) }]
+        : []),
+      ...(can('USER_EDIT') && !user.is_email_verified
+        ? [
+            {
+              label: 'Resend verification',
+              onClick: () => void handleResendVerification(user),
+            },
+          ]
+        : []),
+      ...(can('USER_DELETE')
+        ? [
+            {
+              label: 'Delete',
+              onClick: () => handleDeleteClick(user),
+              destructive: true as const,
+            },
+          ]
+        : []),
+    ];
+
+    return (
+      <DataTableMobileCard
+        title={user.full_name}
+        subtitle={user.email_address}
+        meta={
+          <Badge
+            variant={user.status_code === 'ACTIVE' ? 'default' : 'secondary'}
+          >
+            {user.status_code}
+          </Badge>
+        }
+        actions={<DataTableMobileActions items={mobileActions} />}
+      >
+        <div className="space-y-1">
+          <p>Employee number: {user.employee_number}</p>
+          <p>Phone: {user.phone_number}</p>
+          <p>Gender: {user.gender}</p>
+          <p>Roles: {user.roles.map((r) => r.name).join(', ')}</p>
+        </div>
+      </DataTableMobileCard>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -158,6 +267,15 @@ export default function UsersPage() {
           if (!open) setEditingUser(null);
         }}
         onSave={handleUpdate}
+      />
+
+      <DeleteDialog
+        open={deletingUser !== null}
+        onOpenChange={(open) => !open && setDeletingUser(null)}
+        name={deletingUser?.full_name}
+        itemName="user"
+        onConfirm={handleDeleteConfirm}
+        loading={deleteLoading}
       />
 
       <Card>
@@ -276,96 +394,21 @@ export default function UsersPage() {
       </Card>
 
       <Card>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-muted text-left">
-                <tr>
-                  <th className="px-4 py-3 font-medium">Employee #</th>
-                  <th className="px-4 py-3 font-medium">Name</th>
-                  <th className="px-4 py-3 font-medium">Email</th>
-                  <th className="px-4 py-3 font-medium">Roles</th>
-                  <th className="px-4 py-3 font-medium">Status</th>
-                  <th className="px-4 py-3 font-medium text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan={6}
-                      className="px-4 py-6 text-center text-muted-foreground"
-                    >
-                      No users found.
-                    </td>
-                  </tr>
-                )}
-                {users.map((user: User) => (
-                  <tr key={user.id} className="border-b last:border-0">
-                    <td className="px-4 py-3">{user.employee_number}</td>
-                    <td className="px-4 py-3">
-                      <div className="font-medium">{user.full_name}</div>
-                      <div className="text-muted-foreground">
-                        {user.phone_number}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">{user.email_address}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-wrap gap-1">
-                        {user.roles.map((r) => (
-                          <Badge key={r.id} variant="outline">
-                            {r.role_code}
-                          </Badge>
-                        ))}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <Badge
-                        variant={
-                          user.status_code === 'ACTIVE'
-                            ? 'default'
-                            : 'secondary'
-                        }
-                      >
-                        {user.status_code}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex justify-end gap-2">
-                        {can('USER_EDIT') && !user.is_email_verified && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleResendVerification(user)}
-                          >
-                            Resend verification
-                          </Button>
-                        )}
-                        {can('USER_EDIT') && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setEditingUser(user)}
-                          >
-                            Edit
-                          </Button>
-                        )}
-                        {can('USER_DELETE') && (
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => handleDelete(user)}
-                          >
-                            Delete
-                          </Button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        <CardHeader>
+          <CardTitle>Users</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <DataTableToolbar
+            filter={globalFilter}
+            onFilterChange={setGlobalFilter}
+          />
+          <DataTable
+            columns={columns}
+            data={users}
+            globalFilter={globalFilter}
+            onGlobalFilterChange={setGlobalFilter}
+            renderMobileCard={renderMobileCard}
+          />
         </CardContent>
       </Card>
     </div>
