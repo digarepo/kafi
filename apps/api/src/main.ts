@@ -27,6 +27,11 @@ async function bootstrap() {
     res.send('Nestjs Backend app');
   });
 
-  await app.listen(process.env.PORT ? parseInt(process.env.PORT, 10) : 4000);
+  const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 4000;
+  if (isProduction) {
+    await app.listen(port);
+  } else {
+    await app.listen(port, '0.0.0.0');
+  }
 }
 bootstrap();
