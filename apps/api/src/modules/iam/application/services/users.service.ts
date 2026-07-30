@@ -9,9 +9,13 @@ import { count, eq } from 'drizzle-orm';
 import { DATABASE } from '../../../../shared/infrastructure/database/database.provider.js';
 import * as schema from '@kafi/database';
 import { createTypedId, TypedId } from '../../../../shared/kernel/typed-id.js';
-import { UserRepository } from '../ports/user.repository.js';
+import {
+  UserRepository,
+  type UserWithRoles,
+} from '../ports/user.repository.js';
 import { RoleRepository } from '../ports/role.repository.js';
 import { PasswordService } from './password.service.js';
+import { AuditLogger } from './audit-logger.service.js';
 import { DomainException } from '../../../../shared/application/exceptions/domain.exception.js';
 import { CreateUserDto } from '../dto/create-user.dto.js';
 import { UpdateUserDto } from '../dto/update-user.dto.js';
@@ -25,6 +29,25 @@ export interface CreatedUserResult {
 }
 
 /**
+ * Public read-model view of a staff user. Excludes sensitive fields such as
+ * the password hash.
+ */
+export interface UserView {
+  id: TypedId<'User'>;
+  employee_number: string;
+  full_name: string;
+  gender: string;
+  email_address: string;
+  phone_number: string;
+  job_title: string | null;
+  must_change_password: boolean;
+  is_email_verified: boolean;
+  user_status_id: TypedId<'UserStatus'>;
+  status_code: string;
+  roles: { id: TypedId<'Role'>; role_code: string; name: string }[];
+}
+
+/**
  * Service responsible for staff user management.
  */
 @Injectable()
@@ -35,6 +58,7 @@ export class UsersService {
     private readonly users: UserRepository,
     private readonly roles: RoleRepository,
     private readonly password: PasswordService,
+    private readonly audit: AuditLogger,
   ) {}
 
   /**
@@ -48,7 +72,7 @@ export class UsersService {
     page = 1,
     pageSize = 25,
   ): Promise<{
-    items: Awaited<ReturnType<UserRepository['list']>>;
+    items: UserView[];
     total: number;
   }> {
     const limit = Math.min(pageSize, 100);
@@ -59,7 +83,21 @@ export class UsersService {
       this.countActive(),
     ]);
 
-    return { items, total: count };
+    return { items: items.map((user) => this.toUserView(user)), total: count };
+  }
+
+  /**
+   * Finds a single staff user by id.
+   *
+   * @param id - User id.
+   * @returns User view or throws if not found.
+   */
+  async getById(id: string): Promise<UserView> {
+    const user = await this.users.findById(createTypedId<'User'>(id));
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    return this.toUserView(user);
   }
 
   /**
@@ -88,6 +126,12 @@ export class UsersService {
       must_change_password: true,
       user_status_id: activeStatus,
       role_ids: roleIds,
+    });
+
+    await this.audit.log({
+      userId: id as string,
+      event: 'USER_CREATED',
+      details: `employee_number: ${dto.employee_number}`,
     });
 
     return {
@@ -133,6 +177,11 @@ export class UsersService {
         : undefined,
       role_ids: roleIds,
     });
+
+    await this.audit.log({
+      userId: id,
+      event: 'USER_UPDATED',
+    });
   }
 
   /**
@@ -148,6 +197,16 @@ export class UsersService {
     }
 
     await this.users.delete(userId);
+
+    await this.audit.log({
+      userId: id,
+      event: 'USER_DELETED',
+    });
+  }
+
+  private toUserView(user: UserWithRoles): UserView {
+    const { password_hash: _ignored, ...view } = user;
+    return view;
   }
 
   private async validateRoles(roleIds: TypedId<'Role'>[]): Promise<void> {
