@@ -24,9 +24,11 @@ export function SidebarFooter() {
     <ShadcnSidebarFooter>
       <SidebarMenu>
         <SidebarMenuItem>
-          <div className="flex flex-col px-2 py-2 text-xs">
+          <div className="flex flex-col px-2 py-2 space-y-2 text-xs">
             <span className="font-medium">{user.full_name}</span>
-            <span className="text-muted-foreground">{user.email}</span>
+            <span className="text-muted-foreground lowercase">
+              {user.roles}
+            </span>
           </div>
         </SidebarMenuItem>
 

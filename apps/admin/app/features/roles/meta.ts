@@ -21,5 +21,5 @@ export const rolesMeta: RouteMeta = {
     label: 'Roles',
   },
 
-  permission: 'USER_VIEW',
+  permission: 'AUTH_MANAGE',
 };

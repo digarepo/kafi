@@ -27,9 +27,13 @@ export interface AuthProfile {
   id: string;
   email: string;
   full_name: string;
+  phone_number: string;
+  status_code: string;
   roles: string[];
   permissions: string[];
   must_change_password: boolean;
+  created_at: string;
+  last_login_at: string | null;
 }
 
 /**
@@ -135,6 +139,31 @@ export class AuthService {
     );
 
     return this.toProfile(user, permissions);
+  }
+
+  /**
+   * Updates the authenticated user's own full name and phone number.
+   *
+   * @param userId - Authenticated user id.
+   * @param full_name - New full name.
+   * @param phone_number - New phone number.
+   * @returns Updated profile.
+   */
+  async updateProfile(
+    userId: string,
+    full_name: string,
+    phone_number: string,
+  ): Promise<AuthProfile> {
+    await this.users.update(createTypedId<'User'>(userId), {
+      full_name,
+      phone_number,
+    });
+    await this.audit.log({
+      userId,
+      event: 'PROFILE_UPDATED',
+      details: `full_name: ${full_name}, phone_number: ${phone_number}`,
+    });
+    return this.me(userId);
   }
 
   /**
@@ -358,9 +387,13 @@ export class AuthService {
       id: user.id as string,
       email: user.email_address,
       full_name: user.full_name,
+      phone_number: user.phone_number,
+      status_code: user.status_code,
       roles: user.roles.map((r) => r.role_code),
       permissions,
       must_change_password: user.must_change_password,
+      created_at: user.created_at.toISOString(),
+      last_login_at: user.last_login_at?.toISOString() ?? null,
     };
   }
 
@@ -387,6 +420,10 @@ interface UserShape {
   id: unknown;
   email_address: string;
   full_name: string;
+  phone_number: string;
+  status_code: string;
+  created_at: Date;
+  last_login_at: Date | null;
   roles: { role_code: string; id: unknown }[];
   must_change_password: boolean;
 }

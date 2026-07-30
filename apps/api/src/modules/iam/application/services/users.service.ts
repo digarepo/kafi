@@ -17,6 +17,8 @@ import { RoleRepository } from '../ports/role.repository.js';
 import { PasswordService } from './password.service.js';
 import { AuditLogger } from './audit-logger.service.js';
 import { DomainException } from '../../../../shared/application/exceptions/domain.exception.js';
+import { AuthService } from './auth.service.js';
+import { Mailer } from '../ports/mailer.port.js';
 import { CreateUserDto } from '../dto/create-user.dto.js';
 import { UpdateUserDto } from '../dto/update-user.dto.js';
 
@@ -26,6 +28,7 @@ import { UpdateUserDto } from '../dto/update-user.dto.js';
 export interface CreatedUserResult {
   id: string;
   temporary_password: string;
+  emailErrors: string[];
 }
 
 /**
@@ -59,6 +62,8 @@ export class UsersService {
     private readonly roles: RoleRepository,
     private readonly password: PasswordService,
     private readonly audit: AuditLogger,
+    private readonly auth: AuthService,
+    private readonly mailer: Mailer,
   ) {}
 
   /**
@@ -134,9 +139,38 @@ export class UsersService {
       details: `employee_number: ${dto.employee_number}`,
     });
 
+    const emailErrors: string[] = [];
+
+    try {
+      await this.mailer.sendWelcomeEmail(dto.email, temporaryPassword);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      console.error('Failed to send welcome email:', message);
+      emailErrors.push(message);
+      await this.audit.log({
+        userId: id as string,
+        event: 'WELCOME_EMAIL_FAILED',
+        details: message,
+      });
+    }
+
+    try {
+      await this.auth.sendEmailVerification(id as string);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      console.error('Failed to send verification email:', message);
+      emailErrors.push(message);
+      await this.audit.log({
+        userId: id as string,
+        event: 'VERIFICATION_EMAIL_FAILED',
+        details: message,
+      });
+    }
+
     return {
       id: id as string,
       temporary_password: temporaryPassword,
+      emailErrors,
     };
   }
 

@@ -6,4 +6,8 @@
 export abstract class Mailer {
   abstract sendVerificationEmail(to: string, token: string): Promise<void>;
   abstract sendPasswordResetEmail(to: string, token: string): Promise<void>;
+  abstract sendWelcomeEmail(
+    to: string,
+    temporaryPassword: string,
+  ): Promise<void>;
 }

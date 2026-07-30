@@ -45,7 +45,7 @@ export function UserMenu() {
         <div className="hidden text-left sm:block">
           <div className="text-sm font-medium">{user?.full_name}</div>
 
-          <div className="text-xs text-muted-foreground">{user?.email}</div>
+          <div className="text-xs text-muted-foreground">{user?.roles}</div>
         </div>
       </DropdownMenuTrigger>
 
@@ -55,7 +55,9 @@ export function UserMenu() {
 
           <DropdownMenuSeparator />
 
-          <DropdownMenuItem disabled>Profile</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => navigate('/profile')}>
+            Profile
+          </DropdownMenuItem>
 
           <DropdownMenuItem onClick={() => navigate('/change-password')}>
             Change Password

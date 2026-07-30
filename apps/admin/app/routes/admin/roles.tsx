@@ -11,12 +11,24 @@ export function meta() {
 }
 
 export async function clientLoader() {
+  let user;
   try {
-    const [roles, permissions] = await Promise.all([
+    user = await api.me();
+  } catch {
+    api.logout();
+    throw redirect('/login');
+  }
+
+  if (!user.permissions?.includes('AUTH_MANAGE')) {
+    throw redirect('/forbidden');
+  }
+
+  try {
+    const [roles, permissionsData] = await Promise.all([
       api.listRoles(),
       api.listPermissions(),
     ]);
-    return { roles, permissions };
+    return { roles, permissions: permissionsData };
   } catch {
     api.logout();
     throw redirect('/login');
