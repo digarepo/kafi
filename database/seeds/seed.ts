@@ -306,7 +306,7 @@ async function seed() {
         email_address: email,
         phone_number: phone,
         password_hash: passwordHash,
-        must_change_password: true,
+        must_change_password: false,
         user_status_id: activeStatus[0].id,
       })
       .onDuplicateKeyUpdate({
@@ -315,7 +315,7 @@ async function seed() {
           email_address: email,
           phone_number: phone,
           password_hash: passwordHash,
-          must_change_password: true,
+          must_change_password: false,
           user_status_id: activeStatus[0].id,
         },
       });
