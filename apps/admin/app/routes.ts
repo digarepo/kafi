@@ -7,7 +7,6 @@ export default [
   route('reset-password', 'routes/reset-password.tsx'),
   route('verify-email', 'routes/verify-email.tsx'),
   route('change-password', 'routes/change-password.tsx'),
-  route('forbidden', 'routes/forbidden.tsx'),
   layout('routes/admin.tsx', [
     index('routes/home.tsx'),
     route('users', 'routes/admin/users.tsx'),
