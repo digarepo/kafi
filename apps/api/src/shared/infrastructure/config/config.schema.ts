@@ -1,5 +1,8 @@
 import { z } from 'zod';
 
+const DEFAULT_ALLOWED_ORIGINS =
+  'http://localhost:3000,http://localhost:3001,http://localhost:5173,http://localhost:5174,https://admin.kafitour.com,https://kafitour.com,https://www.kafitour.com';
+
 /**
  * Validates the environment variables used by the API.
  *
@@ -24,9 +27,8 @@ export const configSchema = z.object({
 
   ALLOWED_ORIGINS: z
     .string()
-    .default(
-      'http://localhost:3000,http://localhost:3001,http://localhost:5173,http://localhost:5174,https://admin.kafitour.com,https://kafitour.com,https://www.kafitour.com',
-    ),
+    .default(DEFAULT_ALLOWED_ORIGINS)
+    .transform((v) => (v?.trim() ? v : DEFAULT_ALLOWED_ORIGINS)),
 });
 
 /**
