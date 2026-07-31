@@ -106,6 +106,7 @@ jobs:
           test -f deploy/api/package.json
           test -f deploy/api/kafi-database-1.0.0.tgz
           test -d deploy/api/dist
+          test -f deploy/api/dist/main.js
           echo "Deployment package looks good"
 
       # Step 7: Upload the deploy folder
