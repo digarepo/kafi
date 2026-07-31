@@ -38,14 +38,26 @@ jobs:
           echo "affected=$(cat affected.txt | tr '\n' ',')" >> "$GITHUB_OUTPUT"
           cat affected.txt
 
-      # 5. Build affected projects only
+      # 5. Prepare frontend build env
+      - name: Write frontend production env files
+        run: |
+          echo "VITE_API_URL=https://api.kafitour.com" > apps/web/.env.production
+          echo "VITE_API_URL=https://api.kafitour.com" > apps/admin/.env.production
+
+      # 6. Build affected projects only
       - name: Build affected apps
-        run: npx nx affected -t build --base=HEAD~1 --head=HEAD
+        run: |
+          npx nx affected -t build --base=HEAD~1 --head=HEAD
 
       - name: Pack UI package
         if: contains(steps.nx.outputs.affected, 'web') || contains(steps.nx.outputs.affected, 'admin')
         run: |
           npm pack ./packages/ui
+
+      - name: Pack database package
+        if: contains(steps.nx.outputs.affected, 'api')
+        run: |
+          npm pack ./database
 
       # 6. Prepare deployment package
       - name: Create deploy package
@@ -54,6 +66,7 @@ jobs:
           mkdir deploy
 
           UI_PACKAGE=$(ls kafi-ui-*.tgz 2>/dev/null || true)
+          DATABASE_PACKAGE=$(ls kafi-database-*.tgz 2>/dev/null || true)
 
           if grep -q '^web$' affected.txt; then
             echo "Packaging web..."
@@ -85,8 +98,10 @@ jobs:
             echo "Packaging api..."
             mkdir -p deploy/api
             cp apps/api/package.json deploy/api/
+            cp "$DATABASE_PACKAGE" deploy/api/
             cp deployment/api/start.cjs deploy/api/
             cp -R apps/api/dist deploy/api/
+            node deployment/prepare-package-json.mjs deploy/api/package.json "$DATABASE_PACKAGE" database
             mkdir deploy/api/tmp
           fi
 
@@ -109,12 +124,13 @@ jobs:
           if [ -d deploy/api ]; then
             echo "API"
             test -f deploy/api/package.json
+            test -f deploy/api/kafi-database-1.0.0.tgz
             test -d deploy/api/dist
           fi
 
           echo "Deployment package looks good"
 
-      # Step 7: Upload the deploy folder
+      # Step 9: Upload the deploy folder
       - name: Upload Web
         if: contains(steps.nx.outputs.affected, 'web')
         uses: wlixcc/SFTP-Deploy-Action@v1.2.4
@@ -154,7 +170,7 @@ jobs:
           sftp_only: true
           delete_remote_files: false
 
-      # Step 8: Install dependencies and restart Passenger apps
+      # Step 10: Install dependencies and restart Passenger apps
       - name: Install dependencies and restart Passenger
         run: |
           mkdir -p ~/.ssh
@@ -197,7 +213,7 @@ jobs:
 
           npm install --omit=dev --no-audit --no-fund
 
-          test -d node_modules
+          test -d node_modules/@kafi/database
 
           touch tmp/restart.txt
 

@@ -2,11 +2,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const packagePath = process.argv[2];
-const uiTarballPath = process.argv[3];
+const tarballPath = process.argv[3];
+const workspacePath = process.argv[4] ?? 'packages/ui';
 
-if (!packagePath || !uiTarballPath) {
+if (!packagePath || !tarballPath) {
   console.error(
-    'Usage: node prepare-package-json.mjs <package.json> <ui-tarball>',
+    'Usage: node prepare-package-json.mjs <package.json> <tarball> [<workspace-path>]',
   );
   process.exit(1);
 }
@@ -14,24 +15,28 @@ if (!packagePath || !uiTarballPath) {
 // 1. Read the deployment target app's package.json (e.g., deploy/web/package.json)
 const pkg = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
 
-// 2. Read the source shared UI package.json to catch its dependencies dynamically
-const uiPackageJsonPath = path.resolve(
+// 2. Read the source workspace package.json to catch its name and dependencies
+const workspacePackageJsonPath = path.resolve(
   process.cwd(),
-  'packages/ui/package.json',
+  workspacePath,
+  'package.json',
 );
-const uiPkg = JSON.parse(fs.readFileSync(uiPackageJsonPath, 'utf8'));
+const workspacePkg = JSON.parse(
+  fs.readFileSync(workspacePackageJsonPath, 'utf8'),
+);
+const packageName = workspacePkg.name;
 
-// 3. Point to the local packed tarball asset
+// 3. Point the workspace dependency at the local packed tarball asset
 pkg.dependencies = pkg.dependencies || {};
-delete pkg.dependencies['@kafi/ui'];
-pkg.dependencies['@kafi/ui'] = `file:${uiTarballPath}`;
+delete pkg.dependencies[packageName];
+pkg.dependencies[packageName] = `file:${tarballPath}`;
 
-// 4. Automatically sync all production dependencies from the UI package
-if (uiPkg.dependencies) {
+// 4. Automatically sync all production dependencies from the workspace package
+if (workspacePkg.dependencies) {
   console.log(
-    `Syncing external dependencies from UI package into ${packagePath}...`,
+    `Syncing external dependencies from ${packageName} into ${packagePath}...`,
   );
-  for (const [depName, version] of Object.entries(uiPkg.dependencies)) {
+  for (const [depName, version] of Object.entries(workspacePkg.dependencies)) {
     // Only inject if the consumer app hasn't explicitly specified its own version
     if (!pkg.dependencies[depName]) {
       pkg.dependencies[depName] = version;
@@ -48,4 +53,4 @@ if (pkg.devDependencies) {
 // 6. Write out the modified deployment package.json
 fs.writeFileSync(packagePath, JSON.stringify(pkg, null, 2) + '\n');
 
-console.log(`Successfully prepared ${packagePath}`);
+console.log(`Successfully prepared ${packagePath} with ${packageName}`);
