@@ -33,7 +33,9 @@ jobs:
       # 4. Write frontend production env files
       - name: Write frontend production env files
         run: |
+          echo "VITE_API_URL=https://api.kafitour.com" > apps/web/.env
           echo "VITE_API_URL=https://api.kafitour.com" > apps/web/.env.production
+          echo "VITE_API_URL=https://api.kafitour.com" > apps/admin/.env
           echo "VITE_API_URL=https://api.kafitour.com" > apps/admin/.env.production
 
       # 5. Build all apps
