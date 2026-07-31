@@ -131,44 +131,27 @@ jobs:
           echo "Deployment package looks good"
 
       # Step 9: Upload the deploy folder
-      - name: Upload Web
-        if: contains(steps.nx.outputs.affected, 'web')
-        uses: wlixcc/SFTP-Deploy-Action@v1.2.4
-        with:
-          username: ${{ secrets.CPANEL_USER }}
-          server: ${{ secrets.CPANEL_HOST }}
-          ssh_private_key: ${{ secrets.CPANEL_DEPLOY_KEY }}
-          local_path: ./deploy/web/*
-          remote_path: /home/${{ secrets.CPANEL_USER }}/kafitour.com
-          port: 22
-          sftp_only: true
-          delete_remote_files: false
+      - name: Upload packages
+        run: |
+          mkdir -p ~/.ssh
 
-      - name: Upload Admin
-        if: contains(steps.nx.outputs.affected, 'admin')
-        uses: wlixcc/SFTP-Deploy-Action@v1.2.4
-        with:
-          username: ${{ secrets.CPANEL_USER }}
-          server: ${{ secrets.CPANEL_HOST }}
-          ssh_private_key: ${{ secrets.CPANEL_DEPLOY_KEY }}
-          local_path: ./deploy/admin/*
-          remote_path: /home/${{ secrets.CPANEL_USER }}/admin.kafitour.com
-          port: 22
-          sftp_only: true
-          delete_remote_files: false
+          echo "${{ secrets.CPANEL_DEPLOY_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
 
-      - name: Upload API
-        if: contains(steps.nx.outputs.affected, 'api')
-        uses: wlixcc/SFTP-Deploy-Action@v1.2.4
-        with:
-          username: ${{ secrets.CPANEL_USER }}
-          server: ${{ secrets.CPANEL_HOST }}
-          ssh_private_key: ${{ secrets.CPANEL_DEPLOY_KEY }}
-          local_path: ./deploy/api/*
-          remote_path: /home/${{ secrets.CPANEL_USER }}/api.kafitour.com
-          port: 22
-          sftp_only: true
-          delete_remote_files: false
+          ssh-keyscan -H ${{ secrets.CPANEL_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
+
+          upload_package() {
+            local local_dir=$1
+            local remote_dir=$2
+            if [ -d "$local_dir" ]; then
+              echo "Uploading $local_dir to $remote_dir"
+              tar -czf - -C "$local_dir" . | ssh -o StrictHostKeyChecking=no -p 22 -i ~/.ssh/id_rsa ${{ secrets.CPANEL_USER }}@${{ secrets.CPANEL_HOST }} "mkdir -p \"$remote_dir\" && tar -xzf - -C \"$remote_dir\""
+            fi
+          }
+
+          upload_package deploy/web "/home/${{ secrets.CPANEL_USER }}/kafitour.com"
+          upload_package deploy/admin "/home/${{ secrets.CPANEL_USER }}/admin.kafitour.com"
+          upload_package deploy/api "/home/${{ secrets.CPANEL_USER }}/api.kafitour.com"
 
       # Step 10: Install dependencies and restart Passenger apps
       - name: Install dependencies and restart Passenger
