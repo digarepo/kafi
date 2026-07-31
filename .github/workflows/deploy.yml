@@ -130,6 +130,12 @@ jobs:
 
           echo "Deployment package looks good"
 
+      - name: Show runner IP
+        run: |
+          echo "GitHub Actions runner public IP:"
+          curl -s ifconfig.me
+          echo ""
+
       # Step 9: Upload the deploy folder
       - name: Upload packages
         run: |
