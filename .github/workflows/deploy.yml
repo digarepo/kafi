@@ -132,8 +132,10 @@ jobs:
 
       - name: Show runner IP
         run: |
-          echo "GitHub Actions runner public IP:"
-          curl -s ifconfig.me
+          echo "GitHub Actions runner public IP(s):"
+          curl -s --max-time 10 ifconfig.me || true
+          echo ""
+          curl -s --max-time 10 https://api.ipify.org || true
           echo ""
 
       # Step 9: Upload the deploy folder
@@ -151,7 +153,7 @@ jobs:
             local remote_dir=$2
             if [ -d "$local_dir" ]; then
               echo "Uploading $local_dir to $remote_dir"
-              tar -czf - -C "$local_dir" . | ssh -o StrictHostKeyChecking=no -p 22 -i ~/.ssh/id_rsa ${{ secrets.CPANEL_USER }}@${{ secrets.CPANEL_HOST }} "mkdir -p \"$remote_dir\" && tar -xzf - -C \"$remote_dir\""
+              tar -czf - -C "$local_dir" . | ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 -p 22 -i ~/.ssh/id_rsa ${{ secrets.CPANEL_USER }}@${{ secrets.CPANEL_HOST }} "mkdir -p \"$remote_dir\" && tar -xzf - -C \"$remote_dir\""
             fi
           }
 
@@ -181,22 +183,30 @@ jobs:
           EOF
           }
 
+          NEED_INSTALL=false
           {
             echo 'set -e'
             echo 'export CI=true'
             if [ -d deploy/web ]; then
+              NEED_INSTALL=true
               install_app "/home/${{ secrets.CPANEL_USER }}/kafitour.com" "@kafi/ui"
             fi
             if [ -d deploy/admin ]; then
+              NEED_INSTALL=true
               install_app "/home/${{ secrets.CPANEL_USER }}/admin.kafitour.com" "@kafi/ui"
             fi
             if [ -d deploy/api ]; then
+              NEED_INSTALL=true
               install_app "/home/${{ secrets.CPANEL_USER }}/api.kafitour.com" "@kafi/database"
             fi
             echo 'echo "Deployment complete"'
           } > /tmp/deploy-commands.sh
 
-          ssh -o StrictHostKeyChecking=no -o BatchMode=yes -p 22 -i ~/.ssh/id_rsa ${{ secrets.CPANEL_USER }}@${{ secrets.CPANEL_HOST }} 'bash -s' < /tmp/deploy-commands.sh
+          if [ "$NEED_INSTALL" = true ]; then
+            ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 -o BatchMode=yes -p 22 -i ~/.ssh/id_rsa ${{ secrets.CPANEL_USER }}@${{ secrets.CPANEL_HOST }} 'bash -s' < /tmp/deploy-commands.sh
+          else
+            echo "No packages to install, skipping remote SSH"
+          fi
 
       - name: Smoke test API health
         run: |
