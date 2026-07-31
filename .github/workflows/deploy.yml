@@ -159,51 +159,38 @@ jobs:
           mkdir -p ~/.ssh
 
           echo "${{ secrets.CPANEL_DEPLOY_KEY }}" > ~/.ssh/id_rsa
-
           chmod 600 ~/.ssh/id_rsa
 
-          ssh-keyscan -H ${{ secrets.CPANEL_HOST }} >> ~/.ssh/known_hosts
+          ssh-keyscan -H ${{ secrets.CPANEL_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
 
-          ssh ${{ secrets.CPANEL_USER }}@${{ secrets.CPANEL_HOST }} << 'EOF'
-
-          export CI=true
-
-          echo "Installing web dependencies..."
-
-          cd /home/${{ secrets.CPANEL_USER }}/kafitour.com
-
+          install_app() {
+            local remote_dir="$1"
+            local dep="$2"
+            cat <<EOF
+          echo "Installing $remote_dir dependencies..."
+          cd "$remote_dir"
           npm install --omit=dev --no-audit --no-fund
-
-          test -d node_modules/@kafi/ui
-
+          test -d node_modules/$dep
           touch tmp/restart.txt
-
-
-          echo "Installing admin dependencies..."
-
-          cd /home/${{ secrets.CPANEL_USER }}/admin.kafitour.com
-
-          npm install --omit=dev --no-audit --no-fund
-
-          test -d node_modules/@kafi/ui
-
-          touch tmp/restart.txt
-
-
-          echo "Installing api dependencies..."
-
-          cd /home/${{ secrets.CPANEL_USER }}/api.kafitour.com
-
-          npm install --omit=dev --no-audit --no-fund
-
-          test -d node_modules/@kafi/database
-
-          touch tmp/restart.txt
-
-
-          echo "Deployment complete"
-
           EOF
+          }
+
+          {
+            echo 'set -e'
+            echo 'export CI=true'
+            if [ -d deploy/web ]; then
+              install_app "/home/${{ secrets.CPANEL_USER }}/kafitour.com" "@kafi/ui"
+            fi
+            if [ -d deploy/admin ]; then
+              install_app "/home/${{ secrets.CPANEL_USER }}/admin.kafitour.com" "@kafi/ui"
+            fi
+            if [ -d deploy/api ]; then
+              install_app "/home/${{ secrets.CPANEL_USER }}/api.kafitour.com" "@kafi/database"
+            fi
+            echo 'echo "Deployment complete"'
+          } > /tmp/deploy-commands.sh
+
+          ssh -o StrictHostKeyChecking=no -o BatchMode=yes -p 22 -i ~/.ssh/id_rsa ${{ secrets.CPANEL_USER }}@${{ secrets.CPANEL_HOST }} 'bash -s' < /tmp/deploy-commands.sh
 
       - name: Smoke test API health
         run: |
