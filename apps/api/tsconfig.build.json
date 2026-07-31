@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "paths": {
+      "@kafi/database": ["../../database/dist/index.d.ts"],
+      "@kafi/shared-types": ["../../packages/shared-types/src/index.ts"],
+      "@kafi/shared-validation": [
+        "../../packages/shared-validation/src/index.ts"
+      ],
+      "@kafi/shared-config": ["../../packages/shared-config/src/index.ts"]
+    }
+  }
+}

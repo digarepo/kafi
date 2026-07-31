@@ -4,6 +4,10 @@ on:
   push:
     branches: [main]
 
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -19,7 +23,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 22
           cache: npm
 
       # 3. Install dependencies
@@ -31,15 +35,29 @@ jobs:
         id: nx
         run: |
           npx nx show projects --affected --base=HEAD~1 --head=HEAD > affected.txt
+          echo "affected=$(cat affected.txt | tr '\n' ',')" >> "$GITHUB_OUTPUT"
           cat affected.txt
 
-      # 5. Build affected projects only
-      - name: Build all apps
-        run: npx nx run-many -t build
+      # 5. Prepare frontend build env
+      - name: Write frontend production env files
+        run: |
+          echo "VITE_API_URL=https://api.kafitour.com" > apps/web/.env.production
+          echo "VITE_API_URL=https://api.kafitour.com" > apps/admin/.env.production
+
+      # 6. Build affected projects only
+      - name: Build affected apps
+        run: |
+          npx nx affected -t build --base=HEAD~1 --head=HEAD
 
       - name: Pack UI package
+        if: contains(steps.nx.outputs.affected, 'web') || contains(steps.nx.outputs.affected, 'admin')
         run: |
           npm pack ./packages/ui
+
+      - name: Pack database package
+        if: contains(steps.nx.outputs.affected, 'api')
+        run: |
+          npm pack ./database
 
       # 6. Prepare deployment package
       - name: Create deploy package
@@ -47,78 +65,74 @@ jobs:
           rm -rf deploy
           mkdir deploy
 
-          UI_PACKAGE=$(ls kafi-ui-*.tgz)
+          UI_PACKAGE=$(ls kafi-ui-*.tgz 2>/dev/null || true)
+          DATABASE_PACKAGE=$(ls kafi-database-*.tgz 2>/dev/null || true)
 
-          #################################
-          # WEB
-          #################################
+          if grep -q '^web$' affected.txt; then
+            echo "Packaging web..."
+            mkdir -p deploy/web
+            cp apps/web/package.json deploy/web/
+            cp "$UI_PACKAGE" deploy/web/
+            node deployment/prepare-package-json.mjs deploy/web/package.json "$UI_PACKAGE"
+            cp deployment/react-router/server.js deploy/web/
+            cp deployment/react-router/start.cjs deploy/web/
+            cp -R apps/web/build deploy/web/
+            cp -R apps/web/public deploy/web/
+            mkdir deploy/web/tmp
+          fi
 
-          mkdir -p deploy/web
+          if grep -q '^admin$' affected.txt; then
+            echo "Packaging admin..."
+            mkdir -p deploy/admin
+            cp apps/admin/package.json deploy/admin/
+            cp "$UI_PACKAGE" deploy/admin/
+            node deployment/prepare-package-json.mjs deploy/admin/package.json "$UI_PACKAGE"
+            cp deployment/react-router/server.js deploy/admin/
+            cp deployment/react-router/start.cjs deploy/admin/
+            cp -R apps/admin/build deploy/admin/
+            cp -R apps/admin/public deploy/admin/
+            mkdir deploy/admin/tmp
+          fi
 
-          cp apps/web/package.json deploy/web/
-          cp "$UI_PACKAGE" deploy/web/
-          node deployment/prepare-package-json.mjs deploy/web/package.json "$UI_PACKAGE"
-
-          cp deployment/react-router/server.js deploy/web/
-          cp deployment/react-router/start.cjs deploy/web/
-
-          cp -R apps/web/build deploy/web/
-          cp -R apps/web/public deploy/web/
-
-          mkdir deploy/web/tmp
-
-          #################################
-          # ADMIN
-          #################################
-
-          mkdir -p deploy/admin
-
-          cp apps/admin/package.json deploy/admin/
-          cp "$UI_PACKAGE" deploy/admin/
-          node deployment/prepare-package-json.mjs deploy/admin/package.json "$UI_PACKAGE"
-
-          cp deployment/react-router/server.js deploy/admin/
-          cp deployment/react-router/start.cjs deploy/admin/
-
-          cp -R apps/admin/build deploy/admin/
-          cp -R apps/admin/public deploy/admin/
-
-          mkdir deploy/admin/tmp
-
-          #################################
-          # API
-          #################################
-
-          mkdir -p deploy/api
-
-          cp apps/api/package.json deploy/api/
-
-          cp deployment/api/start.cjs deploy/api/
-
-          cp -R apps/api/dist deploy/api/
-
-          mkdir deploy/api/tmp
+          if grep -q '^api$' affected.txt; then
+            echo "Packaging api..."
+            mkdir -p deploy/api
+            cp apps/api/package.json deploy/api/
+            cp "$DATABASE_PACKAGE" deploy/api/
+            cp deployment/api/start.cjs deploy/api/
+            cp -R apps/api/dist deploy/api/
+            node deployment/prepare-package-json.mjs deploy/api/package.json "$DATABASE_PACKAGE" database
+            mkdir deploy/api/tmp
+          fi
 
       - name: Verify deployment package
         run: |
-          echo "WEB"
-          test -f deploy/web/package.json
-          test -f deploy/web/kafi-ui-1.0.0.tgz
-          test -f deploy/web/build/server/index.js
+          if [ -d deploy/web ]; then
+            echo "WEB"
+            test -f deploy/web/package.json
+            test -f deploy/web/kafi-ui-1.0.0.tgz
+            test -f deploy/web/build/server/index.js
+          fi
 
-          echo "ADMIN"
-          test -f deploy/admin/package.json
-          test -f deploy/admin/kafi-ui-1.0.0.tgz
-          test -f deploy/admin/build/server/index.js
+          if [ -d deploy/admin ]; then
+            echo "ADMIN"
+            test -f deploy/admin/package.json
+            test -f deploy/admin/kafi-ui-1.0.0.tgz
+            test -f deploy/admin/build/server/index.js
+          fi
 
-          echo "API"
-          test -f deploy/api/package.json
-          test -d deploy/api/dist
+          if [ -d deploy/api ]; then
+            echo "API"
+            test -f deploy/api/package.json
+            test -f deploy/api/kafi-database-1.0.0.tgz
+            test -d deploy/api/dist
+          fi
 
           echo "Deployment package looks good"
 
-      # Step 7: Upload the deploy folder
+      # Step 9: Upload the deploy folder
       - name: Upload Web
+        if: contains(steps.nx.outputs.affected, 'web')
         uses: wlixcc/SFTP-Deploy-Action@v1.2.4
         with:
           username: ${{ secrets.CPANEL_USER }}
@@ -131,6 +145,7 @@ jobs:
           delete_remote_files: false
 
       - name: Upload Admin
+        if: contains(steps.nx.outputs.affected, 'admin')
         uses: wlixcc/SFTP-Deploy-Action@v1.2.4
         with:
           username: ${{ secrets.CPANEL_USER }}
@@ -143,6 +158,7 @@ jobs:
           delete_remote_files: false
 
       - name: Upload API
+        if: contains(steps.nx.outputs.affected, 'api')
         uses: wlixcc/SFTP-Deploy-Action@v1.2.4
         with:
           username: ${{ secrets.CPANEL_USER }}
@@ -154,7 +170,7 @@ jobs:
           sftp_only: true
           delete_remote_files: false
 
-      # Step 8: Install dependencies and restart Passenger apps
+      # Step 10: Install dependencies and restart Passenger apps
       - name: Install dependencies and restart Passenger
         run: |
           mkdir -p ~/.ssh
@@ -197,7 +213,7 @@ jobs:
 
           npm install --omit=dev --no-audit --no-fund
 
-          test -d node_modules
+          test -d node_modules/@kafi/database
 
           touch tmp/restart.txt
 
@@ -205,3 +221,16 @@ jobs:
           echo "Deployment complete"
 
           EOF
+
+      - name: Smoke test API health
+        run: |
+          for i in {1..6}; do
+            if curl -fsS --max-time 10 https://api.kafitour.com/api/health; then
+              echo "API is healthy"
+              exit 0
+            fi
+            echo "Attempt $i failed, retrying in 5s..."
+            sleep 5
+          done
+          echo "API health check failed after retries"
+          exit 1
