@@ -1,13 +1,6 @@
 import { useState } from 'react';
 import type { ColumnDef } from '@tanstack/react-table';
-import {
-  Badge,
-  Button,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@kafi/ui';
+import { Badge, Button } from '@kafi/ui';
 
 import { usePermissions } from '../../../core/permissions';
 import { DeleteDialog } from '../../../shared/delete-dialog';
@@ -17,10 +10,6 @@ import {
   statusColumn,
   textColumn,
 } from '../../../shared/data-table/columns';
-import {
-  DataTableMobileActions,
-  DataTableMobileCard,
-} from '../../../shared/data-table/data-table-mobile-card';
 import {
   api,
   type CreateUserInput,
@@ -46,6 +35,7 @@ export function UsersPage({ initial }: UsersPageProps) {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [deletingUser, setDeletingUser] = useState<User | null>(null);
+  const [deletingUsers, setDeletingUsers] = useState<User[]>([]);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [globalFilter, setGlobalFilter] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -113,6 +103,24 @@ export function UsersPage({ initial }: UsersPageProps) {
     }
   }
 
+  async function handleDeleteSelectedConfirm() {
+    if (deletingUsers.length === 0) return;
+    setDeleteLoading(true);
+    try {
+      await Promise.all(deletingUsers.map((user) => api.deleteUser(user.id)));
+      const refreshed = await api.listUsers();
+      setUsers(refreshed.items);
+      setSuccess(`${deletingUsers.length} users deleted successfully.`);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Failed to delete selected users';
+      setError(message);
+    } finally {
+      setDeleteLoading(false);
+      setDeletingUsers([]);
+    }
+  }
+
   async function handleResendVerification(user: User) {
     try {
       await api.resendVerification(user.id);
@@ -168,53 +176,6 @@ export function UsersPage({ initial }: UsersPageProps) {
     }),
   ];
 
-  function renderMobileCard(user: User) {
-    const mobileActions = [
-      ...(can('USER_EDIT')
-        ? [{ label: 'Edit', onClick: () => setEditingUser(user) }]
-        : []),
-      ...(can('USER_EDIT') && !user.is_email_verified
-        ? [
-            {
-              label: 'Resend verification',
-              onClick: () => void handleResendVerification(user),
-            },
-          ]
-        : []),
-      ...(can('USER_DELETE')
-        ? [
-            {
-              label: 'Delete',
-              onClick: () => handleDeleteClick(user),
-              destructive: true as const,
-            },
-          ]
-        : []),
-    ];
-
-    return (
-      <DataTableMobileCard
-        title={user.full_name}
-        subtitle={user.email_address}
-        meta={
-          <Badge
-            variant={user.status_code === 'ACTIVE' ? 'default' : 'secondary'}
-          >
-            {user.status_code}
-          </Badge>
-        }
-        actions={<DataTableMobileActions items={mobileActions} />}
-      >
-        <div className="space-y-1">
-          <p>Employee number: {user.employee_number}</p>
-          <p>Phone: {user.phone_number}</p>
-          <p>Gender: {user.gender}</p>
-          <p>Roles: {user.roles.map((r) => r.name).join(', ')}</p>
-        </div>
-      </DataTableMobileCard>
-    );
-  }
-
   return (
     <div className="space-y-6">
       <div>
@@ -267,27 +228,41 @@ export function UsersPage({ initial }: UsersPageProps) {
         loading={deleteLoading}
       />
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Users</CardTitle>
+      <DeleteDialog
+        open={deletingUsers.length > 0}
+        onOpenChange={(open) => !open && setDeletingUsers([])}
+        name={
+          deletingUsers.length > 0 ? `${deletingUsers.length} selected` : ''
+        }
+        itemName="users"
+        onConfirm={handleDeleteSelectedConfirm}
+        loading={deleteLoading}
+      />
+
+      <div className="space-y-4">
+        <div className="flex flex-row items-center justify-between">
+          <h2 className="text-xl font-semibold tracking-tight">Users</h2>
           {can('USER_CREATE') && (
             <Button onClick={() => setCreateOpen(true)}>+ Add user</Button>
           )}
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <DataTableToolbar
-            filter={globalFilter}
-            onFilterChange={setGlobalFilter}
-          />
-          <DataTable
-            columns={columns}
-            data={users}
-            globalFilter={globalFilter}
-            onGlobalFilterChange={setGlobalFilter}
-            renderMobileCard={renderMobileCard}
-          />
-        </CardContent>
-      </Card>
+        </div>
+
+        <DataTableToolbar
+          filter={globalFilter}
+          onFilterChange={setGlobalFilter}
+        />
+
+        <DataTable
+          columns={columns}
+          data={users}
+          globalFilter={globalFilter}
+          onGlobalFilterChange={setGlobalFilter}
+          enableRowSelection
+          onDeleteSelected={
+            can('USER_DELETE') ? (rows) => setDeletingUsers(rows) : undefined
+          }
+        />
+      </div>
     </div>
   );
 }

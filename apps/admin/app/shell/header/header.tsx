@@ -1,28 +1,20 @@
-import { SidebarTrigger, Separator } from '@kafi/ui';
+import { SidebarTrigger } from '@kafi/ui';
 
-import { UserMenu } from './user-menu';
+import { AppBreadcrumbs } from '../breadcrumbs/breadcrumbs';
+import { GlobalSearch } from './global-search';
 
 /**
  * Top application header.
  *
- * Contains the mobile sidebar trigger and the user account menu.
+ * Contains breadcrumbs, the mobile sidebar trigger, and a visual-only
+ * global search placeholder.
  */
 export function Header() {
   return (
-    <header
-      className="
-      flex h-14
-      items-center
-      border-b
-      px-4
-      "
-    >
-      <SidebarTrigger />
-
-      <Separator orientation="vertical" className="mx-4 h-6" />
-      <div className="ml-auto">
-        <UserMenu />
-      </div>
+    <header className="flex h-14 items-center justify-between gap-4 border-b px-4">
+      <SidebarTrigger className="md:hidden" />
+      <AppBreadcrumbs />
+      <GlobalSearch />
     </header>
   );
 }

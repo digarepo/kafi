@@ -7,8 +7,19 @@ interface StatusColumnOptions<TData> {
   enableSorting?: boolean;
 }
 
+const statusVariantMap: Record<
+  string,
+  'default' | 'secondary' | 'destructive' | 'outline'
+> = {
+  ACTIVE: 'default',
+  PENDING: 'secondary',
+  INACTIVE: 'secondary',
+  CANCELLED: 'destructive',
+  DRAFT: 'outline',
+};
+
 /**
- * Returns a generic status column definition rendered as an outline badge.
+ * Returns a generic status column definition as a color-mapped badge.
  */
 export function statusColumn<TData>({
   accessorKey,
@@ -24,8 +35,9 @@ export function statusColumn<TData>({
 
     cell: ({ row }) => {
       const value = row.getValue(String(accessorKey));
+      const variant = statusVariantMap[String(value)] ?? 'outline';
 
-      return <Badge variant="outline">{String(value)}</Badge>;
+      return <Badge variant={variant}>{String(value)}</Badge>;
     },
   };
 }

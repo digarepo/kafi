@@ -4,26 +4,21 @@ import { SidebarProvider, SidebarInset } from '@kafi/ui';
 
 import { Sidebar } from '../sidebar/sidebar';
 import { Header } from '../header/header';
-import { AppBreadcrumbs } from '../breadcrumbs/breadcrumbs';
 
 /**
  * Main authenticated application layout.
  *
- * Renders the sidebar/header shell around the current route outlet.
+ * Renders the rounded workspace shell around the current route outlet.
  */
 export function AppLayout() {
   return (
-    <SidebarProvider>
+    <SidebarProvider className="min-h-svh w-full bg-muted/40">
       <Sidebar />
-      <SidebarInset>
+      <SidebarInset className="rounded-2xl bg-background shadow">
         <Header />
-
-        <div className="border-b px-6 py-3">
-          <AppBreadcrumbs />
-        </div>
-        <main className="flex-1 p-6">
+        <div className="flex-1 overflow-auto px-4">
           <Outlet />
-        </main>
+        </div>
       </SidebarInset>
     </SidebarProvider>
   );

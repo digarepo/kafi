@@ -10,19 +10,32 @@ import {
   type VisibilityState,
   useReactTable,
 } from '@tanstack/react-table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Button,
+} from '@kafi/ui';
+import { cn } from '@kafi/ui';
+import { Trash2 } from 'lucide-react';
 
-import { cn, useIsMobile } from '@kafi/ui';
-
-import type { DataTableProps } from './data-table.types';
-import { DataTablePaginationControls } from './data-table-pagination';
 import {
   CaretUpIcon,
   CaretUpDownIcon,
   CaretDownIcon,
 } from '@phosphor-icons/react';
 
+import type { DataTableProps } from './data-table.types';
+import { DataTablePaginationControls } from './data-table-pagination';
+import { DataTableViewOptions } from './data-table-view-options';
+import { selectionColumn } from './columns/selection-column';
+
 /**
- * Reusable TanStack Table wrapper with sorting, filtering and pagination.
+ * Reusable TanStack Table wrapper with sorting, filtering, pagination and
+ * row selection.
  *
  * The table can run entirely internally or be controlled via props. Pass both
  * a `pagination` value **and** `onPaginationChange` to enable server-side
@@ -37,13 +50,13 @@ export function DataTable<TData, TValue>({
   sorting: externalSorting,
   columnVisibility: externalColumnVisibility,
   globalFilter: externalGlobalFilter,
-  renderMobileCard,
   onSortingChange,
   onPaginationChange,
   onColumnVisibilityChange,
   onGlobalFilterChange,
+  onDeleteSelected,
+  enableRowSelection = false,
 }: DataTableProps<TData, TValue>) {
-  const isMobile = useIsMobile();
   const [internalSorting, setInternalSorting] = useState<SortingState>([]);
   const [internalPagination, setInternalPagination] = useState({
     pageIndex: 0,
@@ -65,10 +78,16 @@ export function DataTable<TData, TValue>({
   const sorting = externalSorting ?? internalSorting;
   const columnVisibility = externalColumnVisibility ?? internalColumnVisibility;
   const globalFilter = externalGlobalFilter ?? internalGlobalFilter;
+  const selectionEnabled = enableRowSelection || !!onDeleteSelected;
+  const visibleColumnCount = selectionEnabled
+    ? columns.length + 1
+    : columns.length;
 
   const table = useReactTable({
     data,
-    columns,
+    columns: selectionEnabled
+      ? [selectionColumn<TData>(), ...columns]
+      : columns,
     pageCount: isControlledPagination
       ? Math.ceil(pagination.total / pagination.pageSize)
       : undefined,
@@ -129,43 +148,44 @@ export function DataTable<TData, TValue>({
     manualPagination: isControlledPagination,
     manualFiltering: isControlledPagination,
     autoResetPageIndex: false,
+    enableRowSelection: selectionEnabled,
+    enableMultiRowSelection: selectionEnabled,
   });
 
+  const selectedRows = selectionEnabled
+    ? table.getSelectedRowModel().rows.map((row) => row.original)
+    : [];
+  const selectedCount = selectedRows.length;
+
   return (
-    <div
-      className={cn(
-        isMobile && renderMobileCard
-          ? ''
-          : 'overflow-hidden rounded-md bg-background',
-      )}
-    >
-      {isMobile && renderMobileCard ? (
-        <div className="divide-y">
-          {loading ? (
-            <div className="flex h-24 items-center justify-center text-sm text-muted-foreground">
-              Loading…
-            </div>
-          ) : table.getRowModel().rows.length ? (
-            table
-              .getRowModel()
-              .rows.map((row) => (
-                <div key={row.id}>{renderMobileCard(row.original)}</div>
-              ))
-          ) : (
-            <div className="flex h-24 items-center justify-center text-sm text-muted-foreground">
-              No results.
-            </div>
-          )}
-        </div>
-      ) : (
-        <table className="w-full">
-          <thead>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-2">
+        {selectionEnabled && onDeleteSelected && selectedCount > 0 ? (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8"
+            onClick={() => onDeleteSelected(selectedRows)}
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            Delete selected ({selectedCount})
+          </Button>
+        ) : null}
+        <DataTableViewOptions table={table} />
+      </div>
+
+      <div className={cn('overflow-hidden rounded-md border bg-background')}>
+        <Table className="min-w-max">
+          <TableHeader className="bg-muted">
             {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id}>
+              <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
-                  <th
+                  <TableHead
                     key={header.id}
-                    className="cursor-pointer border-b bg-muted px-4 py-3 text-left text-sm font-medium"
+                    className={cn(
+                      header.column.getCanSort() &&
+                        'cursor-pointer select-none',
+                    )}
                     onClick={
                       header.column.getCanSort()
                         ? header.column.getToggleSortingHandler()
@@ -196,47 +216,54 @@ export function DataTable<TData, TValue>({
                         )}
                       </div>
                     )}
-                  </th>
+                  </TableHead>
                 ))}
-              </tr>
+              </TableRow>
             ))}
-          </thead>
-
-          <tbody>
+          </TableHeader>
+          <TableBody>
             {loading ? (
-              <tr>
-                <td colSpan={columns.length} className="h-24 text-center">
+              <TableRow>
+                <TableCell
+                  colSpan={visibleColumnCount}
+                  className="h-24 text-center"
+                >
                   Loading…
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ) : table.getRowModel().rows.length ? (
               table.getRowModel().rows.map((row) => (
-                <tr key={row.id} className="border-b last:border-0">
+                <TableRow
+                  key={row.id}
+                  data-state={row.getIsSelected() ? 'selected' : undefined}
+                >
                   {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id} className="px-4 py-3 text-sm">
+                    <TableCell key={cell.id}>
                       {flexRender(
                         cell.column.columnDef.cell,
                         cell.getContext(),
                       )}
-                    </td>
+                    </TableCell>
                   ))}
-                </tr>
+                </TableRow>
               ))
             ) : (
-              <tr>
-                <td colSpan={columns.length} className="h-24 text-center">
+              <TableRow>
+                <TableCell
+                  colSpan={visibleColumnCount}
+                  className="h-24 text-center"
+                >
                   No results.
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             )}
-          </tbody>
-        </table>
-      )}
+          </TableBody>
+        </Table>
+      </div>
 
-      {!hidePagination &&
-        (table.getCanPreviousPage() || table.getCanNextPage()) && (
-          <DataTablePaginationControls table={table} />
-        )}
+      {!hidePagination && table.getPageCount() > 1 && (
+        <DataTablePaginationControls table={table} />
+      )}
     </div>
   );
 }

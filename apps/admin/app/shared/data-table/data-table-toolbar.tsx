@@ -1,6 +1,6 @@
 import { useId } from 'react';
-import { Search } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { Search } from 'lucide-react';
 
 import { Input } from '@kafi/ui';
 
@@ -29,15 +29,15 @@ export function DataTableToolbar({
   const id = useId();
 
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-3 rounded-md border bg-muted/40 p-2 sm:flex-row sm:items-center sm:justify-between">
       <div className="relative max-w-sm flex-1">
-        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+        <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
         <Input
           id={id}
           placeholder="Search…"
           value={filter}
           onChange={(event) => onFilterChange?.(event.target.value)}
-          className="pl-8"
+          className="h-9 max-w-sm rounded-md border bg-background pl-9 pr-3 text-sm"
         />
       </div>
 
