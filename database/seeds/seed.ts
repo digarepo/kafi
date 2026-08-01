@@ -5,9 +5,14 @@ import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/mysql2';
 import mysql from 'mysql2/promise';
 import {
+  currencies,
+  packageCategories,
+  packageVersionStatuses,
   permissions,
+  pilgrimageTypes,
   roles,
   rolePermissions,
+  seasons,
   userRoles,
   users,
   userStatuses,
@@ -185,6 +190,37 @@ const ROLE_PERMISSION_MAP: Record<string, string[]> = {
   ],
 };
 
+const PACKAGE_VERSION_STATUS_CODES = [
+  { status_code: 'DRAFT', name: 'Draft' },
+  { status_code: 'PUBLISHED', name: 'Published' },
+  { status_code: 'CLOSED', name: 'Closed' },
+  { status_code: 'CANCELLED', name: 'Cancelled' },
+];
+
+const PACKAGE_CATEGORIES = [
+  { category_code: 'ECONOMY', name: 'Economy' },
+  { category_code: 'STANDARD', name: 'Standard' },
+  { category_code: 'PREMIUM', name: 'Premium' },
+  { category_code: 'VIP', name: 'VIP' },
+];
+
+const PILGRIMAGE_TYPES = [
+  { pilgrimage_type_code: 'UMRAH', name: 'Umrah' },
+  { pilgrimage_type_code: 'HAJJ', name: 'Hajj' },
+  { pilgrimage_type_code: 'TOURISM', name: 'Tourism' },
+];
+
+const CURRENCY_CODES = [
+  { currency_code: 'ETB', name: 'Ethiopian Birr', symbol: 'Br' },
+  { currency_code: 'USD', name: 'US Dollar', symbol: '$' },
+  { currency_code: 'SAR', name: 'Saudi Riyal', symbol: '﷼' },
+];
+
+const SEASON_CODES = [
+  { season_code: 'RAMADAN_2027', name: 'Ramadan 2027' },
+  { season_code: 'HAJJ_2027', name: 'Hajj 2027' },
+];
+
 /**
  * Ensures a database connection is available from environment variables.
  */
@@ -273,6 +309,76 @@ async function seed() {
             },
           });
       }
+    }
+
+    // Package reference data
+    for (const status of PACKAGE_VERSION_STATUS_CODES) {
+      await db
+        .insert(packageVersionStatuses)
+        .values({
+          id: ulid(),
+          ...status,
+          is_active: true,
+        })
+        .onDuplicateKeyUpdate({
+          set: { name: status.name, is_active: true },
+        });
+    }
+
+    for (const category of PACKAGE_CATEGORIES) {
+      await db
+        .insert(packageCategories)
+        .values({
+          id: ulid(),
+          ...category,
+          is_active: true,
+        })
+        .onDuplicateKeyUpdate({
+          set: { name: category.name, is_active: true },
+        });
+    }
+
+    for (const type of PILGRIMAGE_TYPES) {
+      await db
+        .insert(pilgrimageTypes)
+        .values({
+          id: ulid(),
+          ...type,
+          is_active: true,
+        })
+        .onDuplicateKeyUpdate({
+          set: { name: type.name, is_active: true },
+        });
+    }
+
+    for (const currency of CURRENCY_CODES) {
+      await db
+        .insert(currencies)
+        .values({
+          id: ulid(),
+          ...currency,
+          is_active: true,
+        })
+        .onDuplicateKeyUpdate({
+          set: {
+            name: currency.name,
+            symbol: currency.symbol,
+            is_active: true,
+          },
+        });
+    }
+
+    for (const season of SEASON_CODES) {
+      await db
+        .insert(seasons)
+        .values({
+          id: ulid(),
+          ...season,
+          is_active: true,
+        })
+        .onDuplicateKeyUpdate({
+          set: { name: season.name, is_active: true },
+        });
     }
 
     // Root admin

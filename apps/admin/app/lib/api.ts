@@ -268,6 +268,153 @@ export interface PermissionGroup {
   [module: string]: { id: string; permission_code: string; name: string }[];
 }
 
+export interface PackageCategory {
+  id: string;
+  category_code: string;
+  name: string;
+  is_active: boolean;
+}
+
+export interface PilgrimageType {
+  id: string;
+  pilgrimage_type_code: string;
+  name: string;
+  is_active: boolean;
+}
+
+export interface Currency {
+  id: string;
+  currency_code: string;
+  name: string;
+  symbol: string | null;
+  is_active: boolean;
+}
+
+export interface Season {
+  id: string;
+  season_code: string;
+  name: string;
+  is_active: boolean;
+}
+
+export interface PackageVersionInclusion {
+  id: string;
+  inclusion_text: string;
+  display_order: number;
+  is_highlighted: boolean;
+}
+
+export interface PackageTemplate {
+  id: string;
+  package_template_code: string;
+  name: string;
+  short_name: string | null;
+  description: string | null;
+  default_duration_days: number;
+  pilgrimage_type: { id: string; name: string } | null;
+  package_category: { id: string; name: string } | null;
+  is_deleted: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PackageVersion {
+  id: string;
+  package_version_code: string;
+  version_name: string;
+  version_number: number;
+  slug: string;
+  hero_image_url: string | null;
+  sort_order: number;
+  year: number;
+  departure_date: string | null;
+  return_date: string | null;
+  base_price: number;
+  max_capacity: number | null;
+  published_at: string | null;
+  sales_start_date: string | null;
+  sales_end_date: string | null;
+  status: string;
+  status_name: string;
+  package_template: { id: string; name: string } | null;
+  package_category: { id: string; name: string } | null;
+  pilgrimage_type: { id: string; name: string } | null;
+  season: { id: string; name: string } | null;
+  currency: { id: string; code: string; name: string } | null;
+  currency_id: string;
+  package_template_id: string;
+  season_id: string | null;
+  available_capacity: number | null;
+  inclusions: PackageVersionInclusion[];
+}
+
+export interface CreatePackageTemplateInput {
+  name: string;
+  short_name?: string;
+  description?: string;
+  pilgrimage_type_id: string;
+  package_category_id: string;
+  default_duration_days: number;
+}
+
+export interface UpdatePackageTemplateInput {
+  name?: string;
+  short_name?: string;
+  description?: string;
+  pilgrimage_type_id?: string;
+  package_category_id?: string;
+  default_duration_days?: number;
+}
+
+export interface PackageVersionInclusionInput {
+  inclusion_text: string;
+  display_order: number;
+  is_highlighted?: boolean;
+}
+
+export interface CreatePackageVersionInput {
+  package_template_id: string;
+  version_name: string;
+  slug?: string;
+  hero_image_url?: string;
+  sort_order?: number;
+  season_id?: string;
+  year: number;
+  departure_date?: string;
+  return_date?: string;
+  base_price: number;
+  currency_id: string;
+  max_capacity?: number;
+  sales_start_date?: string;
+  sales_end_date?: string;
+  inclusions?: PackageVersionInclusionInput[];
+}
+
+export interface UpdatePackageVersionInput {
+  package_template_id?: string;
+  version_name?: string;
+  slug?: string;
+  hero_image_url?: string;
+  sort_order?: number;
+  season_id?: string;
+  year?: number;
+  departure_date?: string;
+  return_date?: string;
+  base_price?: number;
+  currency_id?: string;
+  max_capacity?: number;
+  sales_start_date?: string;
+  sales_end_date?: string;
+  inclusions?: PackageVersionInclusionInput[];
+}
+
+export interface PublicPackageFilters {
+  category?: string;
+  pilgrimageType?: string;
+  year?: string;
+  search?: string;
+}
+
 export const api = {
   isLoggedIn(): boolean {
     return !!getAccessToken();
@@ -431,5 +578,144 @@ export const api = {
     const remember = !sessionStorage.getItem(REFRESH_TOKEN_KEY);
     setTokens(data.tokens, remember);
     return data;
+  },
+
+  async listPackageCategories(): Promise<PackageCategory[]> {
+    return request<PackageCategory[]>('/api/admin/package-categories');
+  },
+
+  async listPilgrimageTypes(): Promise<PilgrimageType[]> {
+    return request<PilgrimageType[]>('/api/admin/pilgrimage-types');
+  },
+
+  async listCurrencies(): Promise<Currency[]> {
+    return request<Currency[]>('/api/admin/currencies');
+  },
+
+  async listSeasons(): Promise<Season[]> {
+    return request<Season[]>('/api/admin/seasons');
+  },
+
+  async listPackageTemplates(
+    page = 1,
+    pageSize = 25,
+    search?: string,
+  ): Promise<{
+    data: PackageTemplate[];
+    total: number;
+    page: number;
+    pageSize: number;
+  }> {
+    const qs = new URLSearchParams({
+      page: String(page),
+      pageSize: String(pageSize),
+    });
+    if (search) qs.set('search', search);
+    return request(`/api/admin/package-templates?${qs.toString()}`);
+  },
+
+  async getPackageTemplate(id: string): Promise<PackageTemplate> {
+    return request<PackageTemplate>(`/api/admin/package-templates/${id}`);
+  },
+
+  async createPackageTemplate(
+    input: CreatePackageTemplateInput,
+  ): Promise<PackageTemplate> {
+    return request<PackageTemplate>('/api/admin/package-templates', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
+
+  async updatePackageTemplate(
+    id: string,
+    input: UpdatePackageTemplateInput,
+  ): Promise<PackageTemplate> {
+    return request<PackageTemplate>(`/api/admin/package-templates/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    });
+  },
+
+  async archivePackageTemplate(id: string): Promise<void> {
+    await request(`/api/admin/package-templates/${id}/archive`, {
+      method: 'POST',
+    });
+  },
+
+  async listPackageVersions(
+    page = 1,
+    pageSize = 25,
+    templateId?: string,
+    search?: string,
+  ): Promise<{
+    data: PackageVersion[];
+    total: number;
+    page: number;
+    pageSize: number;
+  }> {
+    const qs = new URLSearchParams({
+      page: String(page),
+      pageSize: String(pageSize),
+    });
+    if (templateId) qs.set('templateId', templateId);
+    if (search) qs.set('search', search);
+    return request(`/api/admin/package-versions?${qs.toString()}`);
+  },
+
+  async getPackageVersion(id: string): Promise<PackageVersion> {
+    return request<PackageVersion>(`/api/admin/package-versions/${id}`);
+  },
+
+  async createPackageVersion(
+    input: CreatePackageVersionInput,
+  ): Promise<PackageVersion> {
+    return request<PackageVersion>('/api/admin/package-versions', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
+
+  async updatePackageVersion(
+    id: string,
+    input: UpdatePackageVersionInput,
+  ): Promise<PackageVersion> {
+    return request<PackageVersion>(`/api/admin/package-versions/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    });
+  },
+
+  async publishPackageVersion(id: string): Promise<PackageVersion> {
+    return request<PackageVersion>(
+      `/api/admin/package-versions/${id}/publish`,
+      {
+        method: 'POST',
+      },
+    );
+  },
+
+  async archivePackageVersion(id: string): Promise<void> {
+    await request(`/api/admin/package-versions/${id}/archive`, {
+      method: 'POST',
+    });
+  },
+
+  async listPublicPackages(
+    filters: PublicPackageFilters = {},
+  ): Promise<{ data: PackageVersion[]; total: number }> {
+    const qs = new URLSearchParams();
+    if (filters.category) qs.set('category', filters.category);
+    if (filters.pilgrimageType)
+      qs.set('pilgrimageType', filters.pilgrimageType);
+    if (filters.year) qs.set('year', filters.year);
+    if (filters.search) qs.set('search', filters.search);
+    return request<{ data: PackageVersion[]; total: number }>(
+      `/api/public/packages?${qs.toString()}`,
+    );
+  },
+
+  async getPublicPackage(slug: string): Promise<PackageVersion> {
+    return request<PackageVersion>(`/api/public/packages/${slug}`);
   },
 };
