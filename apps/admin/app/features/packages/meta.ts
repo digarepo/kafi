@@ -1,4 +1,4 @@
-import { Package } from 'lucide-react';
+import { PackageIcon } from '@phosphor-icons/react';
 import type { RouteMeta } from '../../shell/routing';
 
 export const packagesMeta: RouteMeta = {
@@ -6,7 +6,7 @@ export const packagesMeta: RouteMeta = {
   title: 'Packages',
   navigation: {
     label: 'Packages',
-    icon: Package,
+    icon: PackageIcon,
     order: 20,
     group: 'Operations',
   },

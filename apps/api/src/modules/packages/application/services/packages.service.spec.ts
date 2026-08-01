@@ -1,6 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
 import { PackagesService } from './packages.service.js';
-import * as schema from '@kafi/database';
 
 function createMockDb(rows: any) {
   return {
