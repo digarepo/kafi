@@ -166,7 +166,10 @@ export function PackageVersionForm({
                   className="h-9 w-full"
                   aria-invalid={field.state.meta.errors.length > 0}
                 >
-                  <SelectValue placeholder="Select…" />
+                  <SelectValue>
+                    {templates.find((t) => t.id === field.state.value)?.name ??
+                      'Select…'}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {templates.map((t) => (
@@ -333,7 +336,10 @@ export function PackageVersionForm({
                   className="h-9 w-full"
                   aria-invalid={field.state.meta.errors.length > 0}
                 >
-                  <SelectValue placeholder="Select…" />
+                  <SelectValue>
+                    {currencies.find((c) => c.id === field.state.value)?.name ??
+                      'Select…'}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {currencies.map((c) => (
@@ -360,7 +366,10 @@ export function PackageVersionForm({
                   className="h-9 w-full"
                   aria-invalid={field.state.meta.errors.length > 0}
                 >
-                  <SelectValue placeholder="Select…" />
+                  <SelectValue>
+                    {seasons.find((s) => s.id === field.state.value)?.name ??
+                      'Select…'}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {seasons.map((s) => (

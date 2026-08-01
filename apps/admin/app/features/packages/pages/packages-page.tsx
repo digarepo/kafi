@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { ColumnDef } from '@tanstack/react-table';
-import { Button } from '@kafi/ui';
+import { Button, Tabs, TabsList, TabsTrigger, TabsContent } from '@kafi/ui';
 
 import { usePermissions } from '../../../core/permissions';
 import { DataTable, DataTableToolbar } from '../../../shared/data-table';
@@ -97,7 +97,9 @@ export function PackagesPage() {
       setCreateTemplateOpen(false);
       await refreshAll();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create template');
+      setError(
+        err instanceof Error ? err.message : 'Failed to create template',
+      );
     }
   }
 
@@ -114,7 +116,9 @@ export function PackagesPage() {
       setEditingTemplate(null);
       await refreshAll();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update template');
+      setError(
+        err instanceof Error ? err.message : 'Failed to update template',
+      );
     }
   }
 
@@ -398,72 +402,70 @@ export function PackagesPage() {
         }}
       />
 
-      <div className="flex gap-2 border-b border-border pb-2">
-        <Button
-          variant={tab === 'templates' ? 'default' : 'outline'}
-          onClick={() => setTab('templates')}
-        >
-          Templates
-        </Button>
-        <Button
-          variant={tab === 'versions' ? 'default' : 'outline'}
-          onClick={() => setTab('versions')}
-        >
-          Versions
-        </Button>
-      </div>
+      <Tabs
+        value={tab}
+        onValueChange={(v) => setTab(v as Tab)}
+        className="space-y-4"
+      >
+        <TabsList>
+          <TabsTrigger value="templates">Templates</TabsTrigger>
+          <TabsTrigger value="versions">Versions</TabsTrigger>
+        </TabsList>
 
-      {tab === 'templates' && (
-        <div className="space-y-4">
-          <div className="flex flex-row items-center justify-between">
-            <h2 className="text-xl font-semibold tracking-tight">Templates</h2>
-            {can('PACKAGE_CREATE') && (
-              <Button onClick={() => setCreateTemplateOpen(true)}>
-                + Add template
-              </Button>
-            )}
+        <TabsContent value="templates" className="space-y-4">
+          <div className="space-y-4">
+            <div className="flex flex-row items-center justify-between">
+              <h2 className="text-xl font-semibold tracking-tight">
+                Templates
+              </h2>
+              {can('PACKAGE_CREATE') && (
+                <Button onClick={() => setCreateTemplateOpen(true)}>
+                  + Add template
+                </Button>
+              )}
+            </div>
+
+            <DataTableToolbar
+              filter={globalFilter}
+              onFilterChange={setGlobalFilter}
+            />
+
+            <DataTable
+              columns={templateColumns}
+              data={templates}
+              loading={loading}
+              globalFilter={globalFilter}
+              onGlobalFilterChange={setGlobalFilter}
+            />
           </div>
+        </TabsContent>
 
-          <DataTableToolbar
-            filter={globalFilter}
-            onFilterChange={setGlobalFilter}
-          />
+        <TabsContent value="versions" className="space-y-4">
+          <div className="space-y-4">
+            <div className="flex flex-row items-center justify-between">
+              <h2 className="text-xl font-semibold tracking-tight">Versions</h2>
+              {can('PACKAGE_CREATE') && (
+                <Button onClick={() => setCreateVersionOpen(true)}>
+                  + Add version
+                </Button>
+              )}
+            </div>
 
-          <DataTable
-            columns={templateColumns}
-            data={templates}
-            loading={loading}
-            globalFilter={globalFilter}
-            onGlobalFilterChange={setGlobalFilter}
-          />
-        </div>
-      )}
+            <DataTableToolbar
+              filter={globalFilter}
+              onFilterChange={setGlobalFilter}
+            />
 
-      {tab === 'versions' && (
-        <div className="space-y-4">
-          <div className="flex flex-row items-center justify-between">
-            <h2 className="text-xl font-semibold tracking-tight">Versions</h2>
-            {can('PACKAGE_CREATE') && (
-              <Button onClick={() => setCreateVersionOpen(true)}>
-                + Add version
-              </Button>
-            )}
+            <DataTable
+              columns={versionColumns}
+              data={versions}
+              loading={loading}
+              globalFilter={globalFilter}
+              onGlobalFilterChange={setGlobalFilter}
+            />
           </div>
-
-          <DataTableToolbar
-            filter={globalFilter}
-            onFilterChange={setGlobalFilter}
-          />
-
-          <DataTable
-            columns={versionColumns}
-            data={versions}
-            loading={loading}
-            globalFilter={globalFilter}
-            onGlobalFilterChange={setGlobalFilter}
-          />
-        </div>
-      )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

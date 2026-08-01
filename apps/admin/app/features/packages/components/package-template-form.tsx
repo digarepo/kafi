@@ -129,8 +129,14 @@ export function PackageTemplateForm({
                 value={field.state.value ?? ''}
                 onValueChange={(value: string) => field.handleChange(value)}
               >
-                <SelectTrigger className="h-9 w-full" aria-invalid={field.state.meta.errors.length > 0}>
-                  <SelectValue placeholder="Select…" />
+                <SelectTrigger
+                  className="h-9 w-full"
+                  aria-invalid={field.state.meta.errors.length > 0}
+                >
+                  <SelectValue>
+                    {pilgrimageTypes.find((t) => t.id === field.state.value)
+                      ?.name ?? 'Select…'}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {pilgrimageTypes.map((t) => (
@@ -153,8 +159,14 @@ export function PackageTemplateForm({
                 value={field.state.value ?? ''}
                 onValueChange={(value: string) => field.handleChange(value)}
               >
-                <SelectTrigger className="h-9 w-full" aria-invalid={field.state.meta.errors.length > 0}>
-                  <SelectValue placeholder="Select…" />
+                <SelectTrigger
+                  className="h-9 w-full"
+                  aria-invalid={field.state.meta.errors.length > 0}
+                >
+                  <SelectValue>
+                    {categories.find((c) => c.id === field.state.value)?.name ??
+                      'Select…'}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {categories.map((c) => (
@@ -172,16 +184,17 @@ export function PackageTemplateForm({
         <form.Field name="default_duration_days">
           {(field: AnyFieldApi) => (
             <div className="space-y-2">
-              <Label htmlFor="default_duration_days" className="text-sm font-medium">
+              <Label
+                htmlFor="default_duration_days"
+                className="text-sm font-medium"
+              >
                 Default duration (days)
               </Label>
               <Input
                 id="default_duration_days"
                 type="number"
                 value={String(field.state.value ?? 1)}
-                onChange={(e) =>
-                  field.handleChange(Number(e.target.value))
-                }
+                onChange={(e) => field.handleChange(Number(e.target.value))}
                 onBlur={field.handleBlur}
                 className="h-9"
                 aria-invalid={field.state.meta.errors.length > 0}
@@ -221,7 +234,8 @@ export function PackageTemplateForm({
             ? mode === 'edit'
               ? 'Saving…'
               : 'Creating…'
-            : (submitLabel ?? (mode === 'edit' ? 'Save changes' : 'Create template'))}
+            : (submitLabel ??
+              (mode === 'edit' ? 'Save changes' : 'Create template'))}
         </Button>
       </div>
     </form>

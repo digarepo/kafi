@@ -18,6 +18,7 @@ export * from './components/ui/direction';
 export * from './components/ui/popover';
 export * from './components/ui/calendar';
 export * from './components/ui/field';
+export * from './components/ui/tabs';
 export * from './components/ui/dialog';
 export * from './components/ui/avatar';
 export * from './components/ui/breadcrumb';
