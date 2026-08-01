@@ -117,6 +117,13 @@ export class AuthService {
       throw new UnauthorizedException('Token has been revoked');
     }
 
+    const expiresAt = payload.exp ? new Date(payload.exp * 1000) : new Date();
+    await this.refreshTokens.block(
+      tokenHash,
+      createTypedId<'User'>(payload.sub),
+      expiresAt,
+    );
+
     const response = await this.issueTokenPair(user);
     await this.audit.log({ userId: user.id as string, event: 'REFRESH' });
     return response;

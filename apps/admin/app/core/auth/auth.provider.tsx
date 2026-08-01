@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router';
 import { api } from '../../lib/api';
 
 import { AuthContext } from './auth.context';
+import { useSessionInactivity } from './use-session-inactivity';
 
 import type { AuthUser } from './auth.types';
 import { PermissionsProvider } from '../permissions';
@@ -16,6 +17,13 @@ type Props = {
 export function AuthProvider({ children, initialUser }: Props) {
   const [user, setUser] = useState<AuthUser | null>(initialUser);
   const navigate = useNavigate();
+
+  const INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000;
+
+  useSessionInactivity({
+    enabled: Boolean(user),
+    timeoutMs: INACTIVITY_TIMEOUT_MS,
+  });
 
   async function logout() {
     await api.logout();
