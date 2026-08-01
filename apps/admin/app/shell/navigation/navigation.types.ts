@@ -1,4 +1,9 @@
+import type { RouteMeta } from '../routing';
+
 /**
- * Type alias for sidebar navigation entries derived from route metadata.
+ * Sidebar navigation entries derived from route metadata, optionally with
+ * nested children.
  */
-export type { RouteMeta as NavigationItem } from '../routing';
+export interface NavigationItem extends RouteMeta {
+  children?: NavigationItem[];
+}

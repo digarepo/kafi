@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react';
 import type {
   ColumnDef,
   SortingState,
@@ -34,15 +33,6 @@ export interface DataTableProps<TData, TValue> {
 
   globalFilter?: string;
 
-  /**
-   * Renders a row as a compact card on mobile viewports.
-   *
-   * Use this to avoid wide tables on small screens. No extra card wrappers are
-   * added by the table itself, so the returned content sits directly inside the
-   * table container.
-   */
-  renderMobileCard?: (row: TData) => ReactNode;
-
   onSortingChange?: (sorting: SortingState) => void;
 
   onPaginationChange?: (pagination: DataTablePagination) => void;
@@ -50,4 +40,10 @@ export interface DataTableProps<TData, TValue> {
   onColumnVisibilityChange?: (visibility: VisibilityState) => void;
 
   onGlobalFilterChange?: (filter: string) => void;
+
+  /** Called when the user chooses the bulk delete action for selected rows. */
+  onDeleteSelected?: (rows: TData[]) => void;
+
+  /** When true, a checkbox column and multi-select behavior are enabled. */
+  enableRowSelection?: boolean;
 }

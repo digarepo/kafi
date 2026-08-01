@@ -1,4 +1,4 @@
-import { MoreHorizontal } from 'lucide-react';
+import { MoreVertical } from 'lucide-react';
 import type { ColumnDef } from '@tanstack/react-table';
 
 import {
@@ -46,7 +46,7 @@ export function actionsColumn<TData>({
                   className="border-none"
                   aria-label="Actions"
                 >
-                  <MoreHorizontal className="h-4 w-4" />
+                  <MoreVertical className="h-4 w-4" />
                 </Button>
               }
             />

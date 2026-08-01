@@ -507,17 +507,14 @@ function SidebarMenuButton({
   } & VariantProps<typeof sidebarMenuButtonVariants>) {
   const { isMobile, state, setOpenMobile } = useSidebar();
 
-  const handleClick = React.useCallback(
-    (event: React.MouseEvent<HTMLButtonElement>) => {
-      (
-        props.onClick as React.MouseEventHandler<HTMLButtonElement> | undefined
-      )?.(event);
-      if (isMobile) {
-        setOpenMobile(false);
-      }
-    },
-    [isMobile, props.onClick, setOpenMobile],
-  );
+  const handleClick = React.useCallback(() => {
+    // Only close the mobile sidebar for plain navigation items (no custom
+    // onClick). Dropdown/render triggers provide their own onClick and should
+    // not close the sidebar.
+    if (isMobile && !props.onClick) {
+      setOpenMobile(false);
+    }
+  }, [isMobile, props.onClick, setOpenMobile]);
 
   const comp = useRender({
     defaultTagName: 'button',
@@ -533,7 +530,7 @@ function SidebarMenuButton({
       slot: 'sidebar-menu-button',
       sidebar: 'menu-button',
       size,
-      active: isActive,
+      active: isActive ? 'active' : undefined,
     },
   });
 
@@ -700,7 +697,7 @@ function SidebarMenuSubButton({
       slot: 'sidebar-menu-sub-button',
       sidebar: 'menu-sub-button',
       size,
-      active: isActive,
+      active: isActive ? 'active' : undefined,
     },
   });
 }

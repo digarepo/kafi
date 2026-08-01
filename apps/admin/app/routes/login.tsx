@@ -7,9 +7,15 @@ export function meta() {
   return [{ title: 'Login | Kafi Admin' }];
 }
 
-export async function clientLoader() {
+export async function clientLoader({ request }: { request: Request }) {
   if (api.isLoggedIn()) {
-    throw redirect('/');
+    const url = new URL(request.url);
+    const redirectTo = url.searchParams.get('redirect') ?? '/';
+    throw redirect(
+      redirectTo.startsWith('/') && !redirectTo.startsWith('//')
+        ? redirectTo
+        : '/',
+    );
   }
 
   return null;

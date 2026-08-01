@@ -32,6 +32,8 @@ export interface RouteMeta {
 
     group?: string;
 
+    parent?: string;
+
     hidden?: boolean;
   };
 

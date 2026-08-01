@@ -12,7 +12,7 @@ import { SidebarFooter } from './sidebar-footer';
  */
 export function Sidebar() {
   return (
-    <ShadcnSidebar>
+    <ShadcnSidebar variant="inset" collapsible="icon" className="rounded-2xl">
       <SidebarHeader />
 
       <SidebarContent />
