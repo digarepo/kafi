@@ -1,4 +1,5 @@
 import { dashboardMeta } from '../../features/dashboard/meta';
+import { packagesMeta } from '../../features/packages/meta';
 import { profileMeta } from '../../features/profile/meta';
 import { rolesMeta } from '../../features/roles/meta';
 import { usersMeta } from '../../features/users/meta';
@@ -9,4 +10,10 @@ import { usersMeta } from '../../features/users/meta';
  * Import feature `meta.ts` objects here so they participate in routing,
  * navigation, breadcrumbs, and permission checks.
  */
-export const routeRegistry = [dashboardMeta, usersMeta, rolesMeta, profileMeta];
+export const routeRegistry = [
+  dashboardMeta,
+  usersMeta,
+  packagesMeta,
+  rolesMeta,
+  profileMeta,
+];

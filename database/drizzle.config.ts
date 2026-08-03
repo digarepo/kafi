@@ -8,7 +8,7 @@ import { defineConfig } from 'drizzle-kit';
  * DATABASE_NAME to be available in the environment.
  */
 export default defineConfig({
-  schema: './schema/index.ts',
+  schema: './schema/*.schema.ts',
   out: './migrations',
   dialect: 'mysql',
   dbCredentials: {

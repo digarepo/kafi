@@ -1,5 +1,11 @@
 import { sql } from 'drizzle-orm';
-import { boolean, char, datetime, varchar } from 'drizzle-orm/mysql-core';
+import {
+  boolean,
+  char,
+  datetime,
+  mysqlTable,
+  varchar,
+} from 'drizzle-orm/mysql-core';
 
 /**
  * Standard ULID primary key column used by every domain table.
@@ -61,3 +67,28 @@ export function codeColumn(name = 'code') {
 export function nameColumn(name = 'name') {
   return varchar(name, { length: 100 }).notNull();
 }
+
+/**
+ * Currencies used by packages and finance.
+ */
+export const currencies = mysqlTable('currencies', {
+  id: idColumn,
+  currency_code: codeColumn('currency_code'),
+  name: nameColumn(),
+  symbol: varchar('symbol', { length: 10 }),
+  is_active: boolean('is_active').notNull().default(true),
+  ...auditMetadata,
+  ...softDeleteMetadata,
+});
+
+/**
+ * Seasons used by package versions and operations.
+ */
+export const seasons = mysqlTable('seasons', {
+  id: idColumn,
+  season_code: codeColumn('season_code'),
+  name: nameColumn(),
+  is_active: boolean('is_active').notNull().default(true),
+  ...auditMetadata,
+  ...softDeleteMetadata,
+});

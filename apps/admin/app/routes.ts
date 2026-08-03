@@ -10,6 +10,7 @@ export default [
   layout('routes/admin.tsx', [
     index('routes/home.tsx'),
     route('users', 'routes/admin/users.tsx'),
+    route('packages', 'routes/admin/packages.tsx'),
     route('roles', 'routes/admin/roles.tsx'),
     route('profile', 'routes/profile.tsx'),
   ]),

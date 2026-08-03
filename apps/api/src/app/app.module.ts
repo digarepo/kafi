@@ -2,9 +2,10 @@ import { Module } from '@nestjs/common';
 import { AppController } from './app.controller.js';
 import { SharedModule } from '../shared/shared.module.js';
 import { IAMModule } from '../modules/iam/iam.module.js';
+import { PackagesModule } from '../modules/packages/packages.module.js';
 
 @Module({
-  imports: [SharedModule, IAMModule],
+  imports: [SharedModule, IAMModule, PackagesModule],
   controllers: [AppController],
   providers: [],
 })

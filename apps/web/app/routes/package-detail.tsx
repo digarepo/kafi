@@ -1,5 +1,5 @@
-import PackageDetailPage from '@/features/packages/components/packageDetailPage';
+import { LivePackageDetail } from '@/features/packages/components/live-package-detail';
 
-export default function ServicesRoute() {
-  return <PackageDetailPage />;
+export default function PackageDetailRoute() {
+  return <LivePackageDetail />;
 }

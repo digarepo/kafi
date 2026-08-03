@@ -57,7 +57,10 @@ describe('AuthService login and refresh', () => {
       isProduction: vi.fn().mockReturnValue(false),
     };
     permissions = { resolveForUser: vi.fn().mockResolvedValue(['USER_VIEW']) };
-    refreshTokens = { isBlocked: vi.fn().mockResolvedValue(false) };
+    refreshTokens = {
+      isBlocked: vi.fn().mockResolvedValue(false),
+      block: vi.fn().mockResolvedValue(undefined),
+    };
     audit = { log: vi.fn() };
 
     service = new AuthService(
