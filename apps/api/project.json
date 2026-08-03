@@ -20,6 +20,7 @@
       "outputs": [
         "{projectRoot}/dist"
       ],
+      "dependsOn": ["@kafi/database:build"],
       "options": {
         "cwd": "apps/api",
         "command": "nest build"
