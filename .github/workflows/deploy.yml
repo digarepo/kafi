@@ -169,6 +169,7 @@ jobs:
           touch tmp/restart.txt
           echo "Installing api dependencies..."
           cd /home/${{ secrets.CPANEL_USER }}/api.kafitour.com
+          rm -rf node_modules/@kafi/database
           npm install --omit=dev --no-audit --no-fund
           test -d node_modules
           touch tmp/restart.txt
