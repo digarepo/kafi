@@ -2,6 +2,7 @@ import { dashboardMeta } from '../../features/dashboard/meta';
 import { packagesMeta } from '../../features/packages/meta';
 import { profileMeta } from '../../features/profile/meta';
 import { rolesMeta } from '../../features/roles/meta';
+import { travellersMeta } from '../../features/travellers/meta';
 import { usersMeta } from '../../features/users/meta';
 
 /**
@@ -14,6 +15,7 @@ export const routeRegistry = [
   dashboardMeta,
   usersMeta,
   packagesMeta,
+  ...travellersMeta,
   rolesMeta,
   profileMeta,
 ];

@@ -415,6 +415,247 @@ export interface PublicPackageFilters {
   search?: string;
 }
 
+export interface Country {
+  id: string;
+  iso_code: string;
+  name: string;
+  is_active: boolean;
+}
+
+export interface Region {
+  id: string;
+  country_id: string;
+  region_code: string;
+  name: string;
+  is_active: boolean;
+}
+
+export interface Language {
+  id: string;
+  language_code: string;
+  name: string;
+  is_active: boolean;
+}
+
+export interface LookupOption {
+  id: string;
+  name: string;
+  code?: string;
+}
+
+export interface Traveller {
+  id: string;
+  traveller_number: string;
+  first_name: string;
+  middle_name: string | null;
+  last_name: string;
+  gender: 'Female' | 'Male';
+  date_of_birth: string | null;
+  phone_number: string;
+  email_address: string | null;
+  passport_number: string | null;
+  fayda_number: string | null;
+  country: { id: string; name: string } | null;
+  region: { id: string; name: string } | null;
+  preferred_language: { id: string; name: string } | null;
+  source: { id: string; name: string } | null;
+  status: { id: string; name: string } | null;
+  contacts: TravellerContact[];
+  is_deleted: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ContactPerson {
+  id: string;
+  first_name: string;
+  middle_name: string | null;
+  last_name: string;
+  gender: 'Female' | 'Male' | null;
+  date_of_birth: string | null;
+  phone_number: string;
+  alternate_phone_number: string | null;
+  email_address: string | null;
+  address: string | null;
+  country: { id: string; name: string } | null;
+  region: { id: string; name: string } | null;
+  preferred_language: { id: string; name: string } | null;
+  status: { id: string; name: string } | null;
+  is_deleted: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TravellerContact {
+  id: string;
+  traveller_id: string;
+  contact_person: Pick<
+    ContactPerson,
+    'id' | 'first_name' | 'last_name' | 'phone_number'
+  > | null;
+  relationship_type: { id: string; name: string } | null;
+  is_emergency_contact: boolean;
+  is_primary_contact: boolean;
+  priority: number;
+  notes: string | null;
+  status: { id: string; name: string } | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Registration {
+  id: string;
+  registration_number: string;
+  registration_date: string;
+  expected_departure_date: string | null;
+  expected_return_date: string | null;
+  remarks: string | null;
+  status: string;
+  status_name: string;
+  traveller: {
+    id: string;
+    first_name: string;
+    last_name: string;
+    full_name: string;
+    traveller_number: string;
+    phone_number: string;
+    country: { id: string; name: string } | null;
+    status: { id: string; name: string } | null;
+  } | null;
+  package_version: {
+    id: string;
+    package_version_code: string;
+    version_name: string;
+    max_capacity: number | null;
+    status: string;
+  } | null;
+  package_template: { id: string; name: string } | null;
+  currency: { id: string; code: string; name: string } | null;
+  season: { id: string; name: string } | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PaginatedTravellers {
+  data: Traveller[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export interface PaginatedContactPersons {
+  data: ContactPerson[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export interface PaginatedRegistrations {
+  data: Registration[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export interface CreateTravellerInput {
+  first_name: string;
+  middle_name?: string;
+  last_name: string;
+  gender: 'Female' | 'Male';
+  date_of_birth?: string;
+  phone_number: string;
+  email_address?: string;
+  passport_number?: string;
+  fayda_number?: string;
+  country_id: string;
+  region_id?: string;
+  preferred_language_id?: string;
+  traveller_source_id?: string;
+  traveller_status_id: string;
+}
+
+export interface UpdateTravellerInput {
+  first_name?: string;
+  middle_name?: string;
+  last_name?: string;
+  gender?: 'Female' | 'Male';
+  date_of_birth?: string | null;
+  phone_number?: string;
+  email_address?: string | null;
+  passport_number?: string | null;
+  fayda_number?: string | null;
+  country_id?: string;
+  region_id?: string | null;
+  preferred_language_id?: string | null;
+  traveller_source_id?: string | null;
+  traveller_status_id?: string;
+}
+
+export interface CreateContactPersonInput {
+  first_name: string;
+  middle_name?: string;
+  last_name: string;
+  gender?: 'Female' | 'Male';
+  date_of_birth?: string;
+  phone_number: string;
+  alternate_phone_number?: string;
+  email_address?: string;
+  address?: string;
+  country_id?: string;
+  region_id?: string;
+  preferred_language_id?: string;
+  contact_person_status_id: string;
+}
+
+export interface UpdateContactPersonInput {
+  first_name?: string;
+  middle_name?: string;
+  last_name?: string;
+  gender?: 'Female' | 'Male' | null;
+  date_of_birth?: string | null;
+  phone_number?: string;
+  alternate_phone_number?: string | null;
+  email_address?: string | null;
+  address?: string | null;
+  country_id?: string | null;
+  region_id?: string | null;
+  preferred_language_id?: string | null;
+  contact_person_status_id?: string;
+}
+
+export interface CreateTravellerContactInput {
+  contact_person_id: string;
+  relationship_type_id: string;
+  is_emergency_contact?: boolean;
+  is_primary_contact?: boolean;
+  priority?: number;
+  notes?: string;
+  traveller_contact_status_id: string;
+}
+
+export interface UpdateTravellerContactInput {
+  relationship_type_id?: string;
+  is_emergency_contact?: boolean;
+  is_primary_contact?: boolean;
+  priority?: number;
+  notes?: string | null;
+  traveller_contact_status_id?: string;
+}
+
+export interface CreateRegistrationInput {
+  traveller_id: string;
+  package_version_id: string;
+  expected_departure_date?: string;
+  expected_return_date?: string;
+  remarks?: string;
+}
+
+export interface UpdateRegistrationInput {
+  expected_departure_date?: string | null;
+  expected_return_date?: string | null;
+  remarks?: string | null;
+}
+
 export const api = {
   isLoggedIn(): boolean {
     return !!getAccessToken();
@@ -717,5 +958,246 @@ export const api = {
 
   async getPublicPackage(slug: string): Promise<PackageVersion> {
     return request<PackageVersion>(`/api/public/packages/${slug}`);
+  },
+
+  // ---- Travellers reference data ----
+
+  async listTravellerStatuses(): Promise<LookupOption[]> {
+    return request<LookupOption[]>('/api/admin/traveller-statuses');
+  },
+
+  async listTravellerSources(): Promise<LookupOption[]> {
+    return request<LookupOption[]>('/api/admin/traveller-sources');
+  },
+
+  async listRelationshipTypes(): Promise<LookupOption[]> {
+    return request<LookupOption[]>('/api/admin/relationship-types');
+  },
+
+  async listContactPersonStatuses(): Promise<LookupOption[]> {
+    return request<LookupOption[]>('/api/admin/contact-person-statuses');
+  },
+
+  async listTravellerContactStatuses(): Promise<LookupOption[]> {
+    return request<LookupOption[]>('/api/admin/traveller-contact-statuses');
+  },
+
+  async listRegistrationStatuses(): Promise<LookupOption[]> {
+    return request<LookupOption[]>('/api/admin/registration-statuses');
+  },
+
+  async listCountries(): Promise<Country[]> {
+    return request<Country[]>('/api/admin/countries');
+  },
+
+  async listRegions(countryId?: string): Promise<Region[]> {
+    const qs = new URLSearchParams();
+    if (countryId) qs.set('countryId', countryId);
+    return request<Region[]>(`/api/admin/regions?${qs.toString()}`);
+  },
+
+  async listLanguages(): Promise<Language[]> {
+    return request<Language[]>('/api/admin/languages');
+  },
+
+  // ---- Travellers ----
+
+  async listTravellers(
+    page = 1,
+    pageSize = 25,
+    search?: string,
+  ): Promise<PaginatedTravellers> {
+    const qs = new URLSearchParams({
+      page: String(page),
+      page_size: String(pageSize),
+    });
+    if (search) qs.set('search', search);
+    return request(`/api/admin/travellers?${qs.toString()}`);
+  },
+
+  async getTraveller(id: string): Promise<Traveller> {
+    return request<Traveller>(`/api/admin/travellers/${id}`);
+  },
+
+  async createTraveller(input: CreateTravellerInput): Promise<Traveller> {
+    return request<Traveller>('/api/admin/travellers', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
+
+  async updateTraveller(
+    id: string,
+    input: UpdateTravellerInput,
+  ): Promise<Traveller> {
+    return request<Traveller>(`/api/admin/travellers/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    });
+  },
+
+  async archiveTraveller(id: string): Promise<void> {
+    await request(`/api/admin/travellers/${id}/archive`, { method: 'POST' });
+  },
+
+  async checkDuplicateTraveller(
+    first_name: string,
+    phone_number: string,
+    excludeId?: string,
+  ): Promise<{ possible_matches: Traveller[] }> {
+    const qs = new URLSearchParams();
+    if (excludeId) qs.set('excludeId', excludeId);
+    return request<{ possible_matches: Traveller[] }>(
+      `/api/admin/travellers/check-duplicate?${qs.toString()}`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ first_name, phone_number }),
+      },
+    );
+  },
+
+  // ---- Contact persons ----
+
+  async listContactPersons(
+    page = 1,
+    pageSize = 25,
+    search?: string,
+  ): Promise<PaginatedContactPersons> {
+    const qs = new URLSearchParams({
+      page: String(page),
+      page_size: String(pageSize),
+    });
+    if (search) qs.set('search', search);
+    return request(`/api/admin/contact-persons?${qs.toString()}`);
+  },
+
+  async getContactPerson(id: string): Promise<ContactPerson> {
+    return request<ContactPerson>(`/api/admin/contact-persons/${id}`);
+  },
+
+  async createContactPerson(
+    input: CreateContactPersonInput,
+  ): Promise<ContactPerson> {
+    return request<ContactPerson>('/api/admin/contact-persons', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
+
+  async updateContactPerson(
+    id: string,
+    input: UpdateContactPersonInput,
+  ): Promise<ContactPerson> {
+    return request<ContactPerson>(`/api/admin/contact-persons/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    });
+  },
+
+  async archiveContactPerson(id: string): Promise<void> {
+    await request(`/api/admin/contact-persons/${id}/archive`, {
+      method: 'POST',
+    });
+  },
+
+  // ---- Traveller contacts ----
+
+  async listTravellerContacts(
+    travellerId: string,
+  ): Promise<TravellerContact[]> {
+    return request<TravellerContact[]>(
+      `/api/admin/travellers/${travellerId}/contacts`,
+    );
+  },
+
+  async createTravellerContact(
+    travellerId: string,
+    input: CreateTravellerContactInput,
+  ): Promise<TravellerContact> {
+    return request<TravellerContact>(
+      `/api/admin/travellers/${travellerId}/contacts`,
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+    );
+  },
+
+  async updateTravellerContact(
+    travellerId: string,
+    contactId: string,
+    input: UpdateTravellerContactInput,
+  ): Promise<TravellerContact> {
+    return request<TravellerContact>(
+      `/api/admin/travellers/${travellerId}/contacts/${contactId}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      },
+    );
+  },
+
+  async archiveTravellerContact(
+    travellerId: string,
+    contactId: string,
+  ): Promise<void> {
+    await request(
+      `/api/admin/travellers/${travellerId}/contacts/${contactId}/archive`,
+      {
+        method: 'POST',
+      },
+    );
+  },
+
+  // ---- Registrations ----
+
+  async listRegistrations(
+    page = 1,
+    pageSize = 25,
+    search?: string,
+  ): Promise<PaginatedRegistrations> {
+    const qs = new URLSearchParams({
+      page: String(page),
+      page_size: String(pageSize),
+    });
+    if (search) qs.set('search', search);
+    return request(`/api/admin/registrations?${qs.toString()}`);
+  },
+
+  async getRegistration(id: string): Promise<Registration> {
+    return request<Registration>(`/api/admin/registrations/${id}`);
+  },
+
+  async createRegistration(
+    input: CreateRegistrationInput,
+  ): Promise<Registration> {
+    return request<Registration>('/api/admin/registrations', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
+
+  async updateRegistration(
+    id: string,
+    input: UpdateRegistrationInput,
+  ): Promise<Registration> {
+    return request<Registration>(`/api/admin/registrations/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    });
+  },
+
+  async updateRegistrationStatus(
+    id: string,
+    registration_status_id: string,
+  ): Promise<Registration> {
+    return request<Registration>(`/api/admin/registrations/${id}/status`, {
+      method: 'POST',
+      body: JSON.stringify({ registration_status_id }),
+    });
+  },
+
+  async archiveRegistration(id: string): Promise<void> {
+    await request(`/api/admin/registrations/${id}/archive`, { method: 'POST' });
   },
 };

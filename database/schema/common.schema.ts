@@ -92,3 +92,44 @@ export const seasons = mysqlTable('seasons', {
   ...auditMetadata,
   ...softDeleteMetadata,
 });
+
+/**
+ * Countries used by travellers and contact persons.
+ */
+export const countries = mysqlTable('countries', {
+  id: idColumn,
+  iso_code: varchar('iso_code', { length: 10 }).notNull().unique(),
+  name: nameColumn(),
+  is_active: boolean('is_active').notNull().default(true),
+  ...auditMetadata,
+  ...softDeleteMetadata,
+});
+
+/**
+ * Regions within a country.
+ */
+export const regions = mysqlTable(
+  'regions',
+  {
+    id: idColumn,
+    country_id: fkUuid('country_id').notNull(),
+    region_code: codeColumn('region_code'),
+    name: nameColumn(),
+    is_active: boolean('is_active').notNull().default(true),
+    ...auditMetadata,
+    ...softDeleteMetadata,
+  },
+  (table) => [],
+);
+
+/**
+ * Languages used as communication preferences.
+ */
+export const languages = mysqlTable('languages', {
+  id: idColumn,
+  language_code: codeColumn('language_code'),
+  name: nameColumn(),
+  is_active: boolean('is_active').notNull().default(true),
+  ...auditMetadata,
+  ...softDeleteMetadata,
+});

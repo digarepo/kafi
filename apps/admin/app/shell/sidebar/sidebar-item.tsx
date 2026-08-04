@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router';
 import { Link } from 'react-router';
 import {
@@ -30,7 +31,8 @@ type Props = {
 export function SidebarItem({ item }: Props) {
   const Icon = item.navigation?.icon;
   const location = useLocation();
-  const isActive = location.pathname === item.path;
+  const isGroup = item.navigation?.isGroup ?? false;
+  const isActive = !isGroup && location.pathname === item.path;
   const hasChildren = item.children && item.children.length > 0;
 
   if (!hasChildren) {
@@ -59,9 +61,14 @@ export function SidebarItem({ item }: Props) {
   const isChildActive =
     item.children?.some((child) => location.pathname === child.path) ?? false;
   const defaultOpen = isActive || isChildActive;
+  const [open, setOpen] = useState(defaultOpen);
+
+  useEffect(() => {
+    setOpen(defaultOpen);
+  }, [defaultOpen]);
 
   return (
-    <Collapsible defaultOpen={defaultOpen} className="contents">
+    <Collapsible open={open} onOpenChange={setOpen} className="contents">
       <SidebarMenuItem>
         <SidebarMenuButton
           isActive={isActive}
@@ -69,19 +76,32 @@ export function SidebarItem({ item }: Props) {
           data-active={isActive}
           aria-current={isActive ? 'page' : undefined}
           render={
-            <Link to={item.path}>
-              {Icon && <Icon />}
-              <span>{item.navigation?.label}</span>
-            </Link>
+            isGroup ? (
+              <CollapsibleTrigger>
+                {Icon && <Icon />}
+                <span>{item.navigation?.label}</span>
+              </CollapsibleTrigger>
+            ) : (
+              <Link to={item.path}>
+                {Icon && <Icon />}
+                <span>{item.navigation?.label}</span>
+              </Link>
+            )
           }
         />
 
         <SidebarMenuAction
-          className="transition-transform data-[state=open]:rotate-90"
           aria-label="Toggle"
           render={
             <CollapsibleTrigger>
-              <ChevronRight className="h-4 w-4" />
+              <span
+                className={
+                  'inline-block h-4 w-4 transition-transform duration-200 ' +
+                  (open ? 'rotate-90' : '')
+                }
+              >
+                <ChevronRight className="h-4 w-4" />
+              </span>
               <span className="sr-only">Toggle</span>
             </CollapsibleTrigger>
           }
