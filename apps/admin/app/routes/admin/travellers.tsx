@@ -1,14 +1,13 @@
 /**
- * Admin route for the travellers feature.
+ * Admin layout route for the travellers feature.
  *
  * @remarks
  * - Uses the same loader pattern as packages and roles.
  * - Redirects to `/forbidden` if the actor lacks `TRAVELLER_VIEW`.
  */
 
-import { redirect, useLoaderData } from 'react-router';
+import { Outlet, redirect, useLoaderData } from 'react-router';
 
-import { TravellersPage } from '../../features/travellers';
 import { api } from '../../lib/api.js';
 
 export function meta() {
@@ -34,11 +33,11 @@ export async function clientLoader() {
 }
 
 /**
- * Render the travellers admin page.
+ * Render the travellers layout with nested child routes.
  *
- * @returns The travellers route element.
+ * @returns The travellers layout route element.
  */
-export default function TravellersRoute() {
+export default function TravellersLayout() {
   useLoaderData<typeof clientLoader>();
-  return <TravellersPage />;
+  return <Outlet />;
 }

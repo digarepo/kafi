@@ -15,7 +15,7 @@ export const routeRegistry = [
   dashboardMeta,
   usersMeta,
   packagesMeta,
-  travellersMeta,
+  ...travellersMeta,
   rolesMeta,
   profileMeta,
 ];

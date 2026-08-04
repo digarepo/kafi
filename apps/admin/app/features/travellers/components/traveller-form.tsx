@@ -85,6 +85,7 @@ export function TravellerForm({
   statuses,
   onCountryChange,
   onSubmit,
+  onDuplicateChange,
   submitLabel,
 }: TravellerFormProps) {
   const defaultValues = useMemo<TravellerFormValues>(
@@ -142,8 +143,14 @@ export function TravellerForm({
           phone_number,
           mode === 'edit' ? traveller?.id : undefined,
         )
-        .then((res) => setDuplicateMatches(res.possible_matches))
-        .catch(() => setDuplicateMatches([]));
+        .then((res) => {
+          setDuplicateMatches(res.possible_matches);
+          onDuplicateChange?.(res.possible_matches);
+        })
+        .catch(() => {
+          setDuplicateMatches([]);
+          onDuplicateChange?.([]);
+        });
     }, 500);
     return () => clearTimeout(timeout);
   }, [first_name, phone_number, mode, traveller?.id]);

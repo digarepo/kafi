@@ -74,6 +74,7 @@ export interface TravellerFormProps {
   statuses: LookupOption[];
   onCountryChange: (countryId: string) => void;
   onSubmit: (values: TravellerFormOutput) => Promise<void>;
+  onDuplicateChange?: (matches: Traveller[]) => void;
   submitLabel?: string;
 }
 
