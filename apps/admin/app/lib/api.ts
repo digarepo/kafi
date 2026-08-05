@@ -656,6 +656,241 @@ export interface UpdateRegistrationInput {
   remarks?: string | null;
 }
 
+// ---- Finance ----
+
+export interface InvoiceLineItem {
+  id: string;
+  description: string;
+  quantity: string | number;
+  unit_price: string | number;
+  total_price: string | number;
+  notes: string | null;
+  line_item_type: { id: string; code: string; name: string } | null;
+}
+
+export interface InvoiceListItem {
+  id: string;
+  invoice_number: string;
+  invoice_date: string;
+  due_date: string | null;
+  total_amount: string | number;
+  status: { id: string; code: string; name: string } | null;
+  registration: { id: string; registration_number: string } | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Invoice {
+  id: string;
+  invoice_number: string;
+  registration_id: string;
+  invoice_date: string;
+  due_date: string | null;
+  subtotal: string | number;
+  discount_amount: string | number;
+  total_amount: string | number;
+  currency_id: string;
+  invoice_status_id: string;
+  notes: string | null;
+  line_items: InvoiceLineItem[];
+  outstanding_balance: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PaginatedInvoices {
+  data: InvoiceListItem[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export interface CreateInvoiceLineItemInput {
+  line_item_type_id?: string;
+  description: string;
+  quantity?: number;
+  unit_price: number;
+  notes?: string;
+}
+
+export interface CreateInvoiceInput {
+  registration_id: string;
+  invoice_date: string;
+  due_date?: string;
+  discount_amount?: number;
+  notes?: string;
+  line_items: CreateInvoiceLineItemInput[];
+}
+
+export interface UpdateInvoiceInput {
+  due_date?: string | null;
+  discount_amount?: number;
+  notes?: string;
+}
+
+export interface UpdateLineItemInput {
+  line_item_type_id?: string;
+  description?: string;
+  quantity?: number;
+  unit_price?: number;
+  notes?: string;
+}
+
+export interface RegistrationFinanceSummary {
+  registration_id: string;
+  total_invoiced: number;
+  total_paid: number;
+  total_unallocated: number;
+  outstanding_balance: number;
+}
+
+export interface Payer {
+  id: string;
+  payer_number: string;
+  traveller_id: string | null;
+  contact_person_id: string | null;
+  organization_name: string | null;
+  contact_name: string | null;
+  phone_number: string | null;
+  email_address: string | null;
+  notes: string | null;
+  payer_type: { id: string; code: string; name: string } | null;
+  status: { id: string; code: string; name: string } | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PaginatedPayers {
+  data: Payer[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export interface CreatePayerInput {
+  payer_type_id: string;
+  traveller_id?: string;
+  contact_person_id?: string;
+  organization_name?: string;
+  contact_name?: string;
+  phone_number?: string;
+  email_address?: string;
+  notes?: string;
+}
+
+export interface UpdatePayerInput {
+  payer_status_id?: string;
+  organization_name?: string;
+  contact_name?: string;
+  phone_number?: string;
+  email_address?: string;
+  notes?: string;
+}
+
+export interface PaymentMethod {
+  id: string;
+  method_code: string;
+  name: string;
+  description: string | null;
+  display_order: number;
+  status: { id: string; code: string; name: string } | null;
+}
+
+export interface CreatePaymentMethodInput {
+  method_code: string;
+  name: string;
+  description?: string;
+  display_order?: number;
+}
+
+export interface UpdatePaymentMethodInput {
+  name?: string;
+  description?: string;
+  display_order?: number;
+  payment_method_status_id?: string;
+}
+
+export interface PaymentAllocation {
+  id: string;
+  invoice_id: string;
+  invoice_number: string;
+  allocated_amount: string | number;
+  allocation_date: string;
+  notes: string | null;
+}
+
+export interface PaymentListItem {
+  id: string;
+  payment_number: string;
+  payment_date: string;
+  amount: string | number;
+  unallocated_amount: number;
+  payer: {
+    id: string;
+    payer_number: string;
+    organization_name: string | null;
+    contact_name: string | null;
+  } | null;
+  payment_method: { id: string; name: string } | null;
+  status: { id: string; code: string; name: string } | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Payment {
+  id: string;
+  payment_number: string;
+  payer_id: string;
+  payment_method_id: string;
+  payment_date: string;
+  original_amount: string | number;
+  original_currency_id: string;
+  exchange_rate: string | number;
+  amount: string | number;
+  reference_number: string | null;
+  received_by: string;
+  payment_status_id: string;
+  notes: string | null;
+  allocations: PaymentAllocation[];
+  unallocated_amount: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PaginatedPayments {
+  data: PaymentListItem[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export interface CreatePaymentInput {
+  payer_id: string;
+  payment_method_id: string;
+  payment_date: string;
+  original_amount: number;
+  original_currency_id: string;
+  exchange_rate: number;
+  reference_number?: string;
+  notes?: string;
+}
+
+export interface UpdatePaymentInput {
+  payment_status_id?: string;
+  reference_number?: string;
+  notes?: string;
+}
+
+export interface AllocationInput {
+  invoice_id: string;
+  allocated_amount: number;
+  notes?: string;
+}
+
+export interface AllocatePaymentInput {
+  allocations: AllocationInput[];
+}
+
 export const api = {
   isLoggedIn(): boolean {
     return !!getAccessToken();
@@ -1199,5 +1434,229 @@ export const api = {
 
   async archiveRegistration(id: string): Promise<void> {
     await request(`/api/admin/registrations/${id}/archive`, { method: 'POST' });
+  },
+
+  // ---- Finance reference data ----
+
+  async listInvoiceStatuses(): Promise<LookupOption[]> {
+    return request<LookupOption[]>('/api/admin/invoice-statuses');
+  },
+
+  async listPaymentStatuses(): Promise<LookupOption[]> {
+    return request<LookupOption[]>('/api/admin/payment-statuses');
+  },
+
+  async listPayerTypes(): Promise<LookupOption[]> {
+    return request<LookupOption[]>('/api/admin/payer-types');
+  },
+
+  async listPayerStatuses(): Promise<LookupOption[]> {
+    return request<LookupOption[]>('/api/admin/payer-statuses');
+  },
+
+  async listInvoiceLineItemTypes(): Promise<LookupOption[]> {
+    return request<LookupOption[]>('/api/admin/invoice-line-item-types');
+  },
+
+  async listPaymentMethods(): Promise<PaymentMethod[]> {
+    return request<PaymentMethod[]>('/api/admin/payment-methods');
+  },
+
+  async createPaymentMethod(
+    input: CreatePaymentMethodInput,
+  ): Promise<PaymentMethod> {
+    return request<PaymentMethod>('/api/admin/payment-methods', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
+
+  async updatePaymentMethod(
+    id: string,
+    input: UpdatePaymentMethodInput,
+  ): Promise<PaymentMethod> {
+    return request<PaymentMethod>(`/api/admin/payment-methods/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    });
+  },
+
+  async archivePaymentMethod(id: string): Promise<void> {
+    await request(`/api/admin/payment-methods/${id}/archive`, {
+      method: 'POST',
+    });
+  },
+
+  // ---- Invoices ----
+
+  async listInvoices(
+    page = 1,
+    pageSize = 25,
+    search?: string,
+    registrationId?: string,
+  ): Promise<PaginatedInvoices> {
+    const qs = new URLSearchParams({
+      page: String(page),
+      page_size: String(pageSize),
+    });
+    if (search) qs.set('search', search);
+    if (registrationId) qs.set('registration_id', registrationId);
+    return request(`/api/admin/invoices?${qs.toString()}`);
+  },
+
+  async getInvoice(id: string): Promise<Invoice> {
+    return request<Invoice>(`/api/admin/invoices/${id}`);
+  },
+
+  async createInvoice(input: CreateInvoiceInput): Promise<Invoice> {
+    return request<Invoice>('/api/admin/invoices', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
+
+  async updateInvoice(id: string, input: UpdateInvoiceInput): Promise<Invoice> {
+    return request<Invoice>(`/api/admin/invoices/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    });
+  },
+
+  async archiveInvoice(id: string): Promise<void> {
+    await request(`/api/admin/invoices/${id}/archive`, { method: 'POST' });
+  },
+
+  async getInvoiceOutstandingBalance(
+    id: string,
+  ): Promise<{ invoice_id: string; outstanding_balance: number }> {
+    return request(`/api/admin/invoices/${id}/outstanding-balance`);
+  },
+
+  async addInvoiceLineItem(
+    invoiceId: string,
+    input: CreateInvoiceLineItemInput,
+  ): Promise<Invoice> {
+    return request<Invoice>(`/api/admin/invoices/${invoiceId}/line-items`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
+
+  async updateInvoiceLineItem(
+    invoiceId: string,
+    lineItemId: string,
+    input: UpdateLineItemInput,
+  ): Promise<Invoice> {
+    return request<Invoice>(
+      `/api/admin/invoices/${invoiceId}/line-items/${lineItemId}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      },
+    );
+  },
+
+  async archiveInvoiceLineItem(
+    invoiceId: string,
+    lineItemId: string,
+  ): Promise<Invoice> {
+    return request<Invoice>(
+      `/api/admin/invoices/${invoiceId}/line-items/${lineItemId}/archive`,
+      { method: 'POST' },
+    );
+  },
+
+  async getRegistrationFinanceSummary(
+    registrationId: string,
+  ): Promise<RegistrationFinanceSummary> {
+    return request(
+      `/api/admin/registrations/${registrationId}/finance-summary`,
+    );
+  },
+
+  // ---- Payers ----
+
+  async listPayers(
+    page = 1,
+    pageSize = 25,
+    search?: string,
+  ): Promise<PaginatedPayers> {
+    const qs = new URLSearchParams({
+      page: String(page),
+      page_size: String(pageSize),
+    });
+    if (search) qs.set('search', search);
+    return request(`/api/admin/payers?${qs.toString()}`);
+  },
+
+  async getPayer(id: string): Promise<Payer> {
+    return request<Payer>(`/api/admin/payers/${id}`);
+  },
+
+  async createPayer(input: CreatePayerInput): Promise<Payer> {
+    return request<Payer>('/api/admin/payers', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
+
+  async updatePayer(id: string, input: UpdatePayerInput): Promise<Payer> {
+    return request<Payer>(`/api/admin/payers/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    });
+  },
+
+  async archivePayer(id: string): Promise<void> {
+    await request(`/api/admin/payers/${id}/archive`, { method: 'POST' });
+  },
+
+  // ---- Payments ----
+
+  async listPayments(
+    page = 1,
+    pageSize = 25,
+    search?: string,
+    payerId?: string,
+  ): Promise<PaginatedPayments> {
+    const qs = new URLSearchParams({
+      page: String(page),
+      page_size: String(pageSize),
+    });
+    if (search) qs.set('search', search);
+    if (payerId) qs.set('payer_id', payerId);
+    return request(`/api/admin/payments?${qs.toString()}`);
+  },
+
+  async getPayment(id: string): Promise<Payment> {
+    return request<Payment>(`/api/admin/payments/${id}`);
+  },
+
+  async createPayment(input: CreatePaymentInput): Promise<Payment> {
+    return request<Payment>('/api/admin/payments', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
+
+  async updatePayment(id: string, input: UpdatePaymentInput): Promise<Payment> {
+    return request<Payment>(`/api/admin/payments/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    });
+  },
+
+  async allocatePayment(
+    id: string,
+    input: AllocatePaymentInput,
+  ): Promise<Payment> {
+    return request<Payment>(`/api/admin/payments/${id}/allocate`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
+
+  async archivePayment(id: string): Promise<void> {
+    await request(`/api/admin/payments/${id}/archive`, { method: 'POST' });
   },
 };

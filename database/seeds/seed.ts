@@ -8,9 +8,16 @@ import {
   contactPersonStatuses,
   countries,
   currencies,
+  invoiceLineItemTypes,
+  invoiceStatuses,
   languages,
   packageCategories,
   packageVersionStatuses,
+  payerStatuses,
+  payerTypes,
+  paymentMethodStatuses,
+  paymentMethods,
+  paymentStatuses,
   permissions,
   pilgrimageTypes,
   regions,
@@ -192,6 +199,7 @@ const ROLE_PERMISSION_MAP: Record<string, string[]> = {
     'REGISTRATION_VIEW',
     'REGISTRATION_CREATE',
     'FINANCE_VIEW',
+    'FINANCE_CREATE',
     'VISA_MANAGE',
     'DOCUMENT_MANAGE',
     'TRAVEL_GROUP_VIEW',
@@ -227,6 +235,56 @@ const CURRENCY_CODES = [
 const SEASON_CODES = [
   { season_code: 'RAMADAN_2027', name: 'Ramadan 2027' },
   { season_code: 'HAJJ_2027', name: 'Hajj 2027' },
+];
+
+const INVOICE_STATUS_CODES = [
+  { status_code: 'DRAFT', name: 'Draft' },
+  { status_code: 'SENT', name: 'Sent' },
+  { status_code: 'PARTIALLY_PAID', name: 'Partially Paid' },
+  { status_code: 'PAID', name: 'Paid' },
+  { status_code: 'OVERDUE', name: 'Overdue' },
+  { status_code: 'CANCELLED', name: 'Cancelled' },
+];
+
+const PAYMENT_STATUS_CODES = [
+  { status_code: 'PENDING', name: 'Pending' },
+  { status_code: 'COMPLETED', name: 'Completed' },
+  { status_code: 'CANCELLED', name: 'Cancelled' },
+  { status_code: 'RECONCILED', name: 'Reconciled' },
+];
+
+const PAYER_TYPE_CODES = [
+  { type_code: 'INDIVIDUAL', name: 'Individual' },
+  { type_code: 'ORGANIZATION', name: 'Organization' },
+];
+
+const PAYER_STATUS_CODES = [
+  { status_code: 'ACTIVE', name: 'Active' },
+  { status_code: 'INACTIVE', name: 'Inactive' },
+  { status_code: 'BLACKLISTED', name: 'Blacklisted' },
+];
+
+const PAYMENT_METHOD_STATUS_CODES = [
+  { status_code: 'ACTIVE', name: 'Active' },
+  { status_code: 'INACTIVE', name: 'Inactive' },
+];
+
+const PAYMENT_METHOD_CODES = [
+  { method_code: 'CASH', name: 'Cash' },
+  { method_code: 'BANK_TRANSFER', name: 'Bank Transfer' },
+  { method_code: 'MOBILE_BANKING', name: 'Mobile Banking' },
+  { method_code: 'CARD', name: 'Card' },
+  { method_code: 'ONLINE_GATEWAY', name: 'Online Gateway' },
+];
+
+const INVOICE_LINE_ITEM_TYPE_CODES = [
+  { line_item_type_code: 'PACKAGE_COST', name: 'Package Cost' },
+  { line_item_type_code: 'VISA_PROCESSING', name: 'Visa Processing' },
+  { line_item_type_code: 'HOTEL_UPGRADE', name: 'Hotel Upgrade' },
+  { line_item_type_code: 'TRANSPORT_UPGRADE', name: 'Transport Upgrade' },
+  { line_item_type_code: 'INSURANCE', name: 'Insurance' },
+  { line_item_type_code: 'EXTRA_LUGGAGE', name: 'Extra Luggage' },
+  { line_item_type_code: 'OTHER_SERVICE_CHARGE', name: 'Other Service Charge' },
 ];
 
 /**
@@ -386,6 +444,89 @@ async function seed() {
         })
         .onDuplicateKeyUpdate({
           set: { name: season.name, is_active: true },
+        });
+    }
+
+    // Finance reference data
+    for (const status of INVOICE_STATUS_CODES) {
+      await db
+        .insert(invoiceStatuses)
+        .values({ id: ulid(), ...status, is_active: true })
+        .onDuplicateKeyUpdate({
+          set: { name: status.name, is_active: true },
+        });
+    }
+
+    for (const status of PAYMENT_STATUS_CODES) {
+      await db
+        .insert(paymentStatuses)
+        .values({ id: ulid(), ...status, is_active: true })
+        .onDuplicateKeyUpdate({
+          set: { name: status.name, is_active: true },
+        });
+    }
+
+    for (const type of PAYER_TYPE_CODES) {
+      await db
+        .insert(payerTypes)
+        .values({ id: ulid(), ...type, is_active: true })
+        .onDuplicateKeyUpdate({
+          set: { name: type.name, is_active: true },
+        });
+    }
+
+    for (const status of PAYER_STATUS_CODES) {
+      await db
+        .insert(payerStatuses)
+        .values({ id: ulid(), ...status, is_active: true })
+        .onDuplicateKeyUpdate({
+          set: { name: status.name, is_active: true },
+        });
+    }
+
+    for (const status of PAYMENT_METHOD_STATUS_CODES) {
+      await db
+        .insert(paymentMethodStatuses)
+        .values({ id: ulid(), ...status, is_active: true })
+        .onDuplicateKeyUpdate({
+          set: { name: status.name, is_active: true },
+        });
+    }
+
+    const activePaymentMethodStatus = await db
+      .select()
+      .from(paymentMethodStatuses)
+      .where(eq(paymentMethodStatuses.status_code, 'ACTIVE'))
+      .limit(1);
+
+    if (activePaymentMethodStatus.length === 0) {
+      throw new Error(
+        'ACTIVE payment_method_status must be seeded before payment_methods',
+      );
+    }
+
+    for (const method of PAYMENT_METHOD_CODES) {
+      await db
+        .insert(paymentMethods)
+        .values({
+          id: ulid(),
+          ...method,
+          payment_method_status_id: activePaymentMethodStatus[0].id,
+        })
+        .onDuplicateKeyUpdate({
+          set: {
+            name: method.name,
+            payment_method_status_id: activePaymentMethodStatus[0].id,
+          },
+        });
+    }
+
+    for (const type of INVOICE_LINE_ITEM_TYPE_CODES) {
+      await db
+        .insert(invoiceLineItemTypes)
+        .values({ id: ulid(), ...type, is_active: true })
+        .onDuplicateKeyUpdate({
+          set: { name: type.name, is_active: true },
         });
     }
 

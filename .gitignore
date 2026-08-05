@@ -25,3 +25,6 @@ coverage/
 # Local slice implementation plans (working drafts; not committed)
 docs/implementation/slice-2-package-preparation-plan.md
 docs/implementation/slice-3-traveller-registration-plan.md
+docs/implementation/slice-4-finance-plan.md
+docs/implementation/slice-4-architecture-review.md
+docs/database/kafidb-slice4.dbml

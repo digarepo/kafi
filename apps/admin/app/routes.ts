@@ -29,6 +29,18 @@ export default [
       route(':id', 'routes/admin/registrations/$id.tsx'),
       route(':id/edit', 'routes/admin/registrations/$id-edit.tsx'),
     ]),
+    route('invoices', 'routes/admin/invoices.tsx', [
+      index('routes/admin/invoices/index.tsx'),
+      route('new', 'routes/admin/invoices/new.tsx'),
+      route(':id', 'routes/admin/invoices/$id.tsx'),
+    ]),
+    route('payments', 'routes/admin/payments.tsx', [
+      index('routes/admin/payments/index.tsx'),
+      route('new', 'routes/admin/payments/new.tsx'),
+      route(':id', 'routes/admin/payments/$id.tsx'),
+    ]),
+    route('payers', 'routes/admin/payers.tsx'),
+    route('payment-methods', 'routes/admin/payment-methods.tsx'),
     route('roles', 'routes/admin/roles.tsx'),
     route('profile', 'routes/profile.tsx'),
   ]),

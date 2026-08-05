@@ -73,7 +73,6 @@ export function SidebarItem({ item }: Props) {
         <SidebarMenuButton
           isActive={isActive}
           tooltip={item.navigation?.label}
-          data-active={isActive}
           aria-current={isActive ? 'page' : undefined}
           render={
             isGroup ? (

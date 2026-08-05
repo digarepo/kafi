@@ -4,9 +4,16 @@ import { SharedModule } from '../shared/shared.module.js';
 import { IAMModule } from '../modules/iam/iam.module.js';
 import { PackagesModule } from '../modules/packages/packages.module.js';
 import { TravellersModule } from '../modules/travellers/index.js';
+import { FinanceModule } from '../modules/finance/index.js';
 
 @Module({
-  imports: [SharedModule, IAMModule, PackagesModule, TravellersModule],
+  imports: [
+    SharedModule,
+    IAMModule,
+    PackagesModule,
+    TravellersModule,
+    FinanceModule,
+  ],
   controllers: [AppController],
   providers: [],
 })
