@@ -14,12 +14,15 @@ import { Button, Input, Label } from '@kafi/ui';
 import { DatePicker } from '../components/date-picker';
 import { FieldError } from '../../../shared/field-error';
 import { LookupSelect } from '../components/lookup-select';
+import { CountryRegionFields } from '../components/country-region-fields';
+import { getDefaultCountryId } from '../lib/countries';
 import { contactPersonFormSchema } from '../validation/travellers.schema';
 import type {
   ContactPersonFormOutput,
   ContactPersonFormProps,
   ContactPersonFormValues,
 } from '../types/travellers.types';
+import type { Country } from '../../../lib/api';
 
 const emptyValues: ContactPersonFormValues = {
   first_name: '',
@@ -47,6 +50,7 @@ const emptyValues: ContactPersonFormValues = {
 function buildDefaultValues(
   mode: ContactPersonFormProps['mode'],
   contactPerson: ContactPersonFormProps['contactPerson'],
+  countries: Country[],
 ): ContactPersonFormValues {
   if (mode === 'edit' && contactPerson) {
     return {
@@ -65,23 +69,28 @@ function buildDefaultValues(
       contact_person_status_id: contactPerson.status?.id ?? '',
     };
   }
-  return emptyValues;
+  return {
+    ...emptyValues,
+    country_id: getDefaultCountryId(
+      countries,
+      emptyValues.country_id,
+      'create',
+    ),
+  };
 }
 
 export function ContactPersonForm({
   mode,
   contactPerson,
   countries,
-  regions,
   languages,
   statuses,
-  onCountryChange,
   onSubmit,
   submitLabel,
 }: ContactPersonFormProps) {
   const defaultValues = useMemo<ContactPersonFormValues>(
-    () => buildDefaultValues(mode, contactPerson),
-    [mode, contactPerson],
+    () => buildDefaultValues(mode, contactPerson, countries),
+    [mode, contactPerson, countries],
   );
 
   const form = useForm({
@@ -287,36 +296,7 @@ export function ContactPersonForm({
           )}
         </form.Field>
 
-        <form.Field name="country_id">
-          {(field: AnyFieldApi) => (
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Country</Label>
-              <LookupSelect
-                value={field.state.value}
-                options={countries.map((c) => ({ value: c.id, label: c.name }))}
-                placeholder="Select country"
-                onChange={(value) => {
-                  field.handleChange(value);
-                  onCountryChange(value);
-                }}
-              />
-            </div>
-          )}
-        </form.Field>
-
-        <form.Field name="region_id">
-          {(field: AnyFieldApi) => (
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Region</Label>
-              <LookupSelect
-                value={field.state.value}
-                options={regions.map((r) => ({ value: r.id, label: r.name }))}
-                placeholder="Select region"
-                onChange={(value) => field.handleChange(value)}
-              />
-            </div>
-          )}
-        </form.Field>
+        <CountryRegionFields form={form} countries={countries} />
 
         <form.Field name="preferred_language_id">
           {(field: AnyFieldApi) => (

@@ -12,7 +12,6 @@ import type {
   Language,
   LookupOption,
   PackageVersion,
-  Region,
   Registration,
   Traveller,
 } from '../../../lib/api.js';
@@ -68,11 +67,9 @@ export interface TravellerFormProps {
   mode: TravellerFormMode;
   traveller?: Traveller | null;
   countries: Country[];
-  regions: Region[];
   languages: Language[];
   sources: LookupOption[];
   statuses: LookupOption[];
-  onCountryChange: (countryId: string) => void;
   onSubmit: (values: TravellerFormOutput) => Promise<void>;
   onDuplicateChange?: (matches: Traveller[]) => void;
   submitLabel?: string;
@@ -123,10 +120,8 @@ export interface ContactPersonFormProps {
   mode: ContactPersonFormMode;
   contactPerson?: ContactPerson | null;
   countries: Country[];
-  regions: Region[];
   languages: Language[];
   statuses: LookupOption[];
-  onCountryChange: (countryId: string) => void;
   onSubmit: (values: ContactPersonFormOutput) => Promise<void>;
   submitLabel?: string;
 }

@@ -17,7 +17,6 @@ import type {
   Country,
   Language,
   LookupOption,
-  Region,
   Traveller,
 } from '../../../lib/api.js';
 
@@ -25,13 +24,11 @@ interface TravellerDialogProps {
   mode: 'create' | 'edit';
   traveller?: Traveller | null;
   countries: Country[];
-  regions: Region[];
   languages: Language[];
   sources: LookupOption[];
   statuses: LookupOption[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCountryChange: (countryId: string) => void;
   onSubmit: (values: TravellerFormOutput) => Promise<void>;
   error?: string | null;
   success?: string | null;
@@ -46,13 +43,11 @@ export function TravellerDialog({
   mode,
   traveller,
   countries,
-  regions,
   languages,
   sources,
   statuses,
   open,
   onOpenChange,
-  onCountryChange,
   onSubmit,
   error,
   success,
@@ -92,13 +87,13 @@ export function TravellerDialog({
               mode={mode}
               traveller={traveller}
               countries={countries}
-              regions={regions}
               languages={languages}
               sources={sources}
               statuses={statuses}
-              onCountryChange={onCountryChange}
               onSubmit={onSubmit}
-              submitLabel={mode === 'create' ? 'Create traveller' : 'Save changes'}
+              submitLabel={
+                mode === 'create' ? 'Create traveller' : 'Save changes'
+              }
             />
           )}
         </div>

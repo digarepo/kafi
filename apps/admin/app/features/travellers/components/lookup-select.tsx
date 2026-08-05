@@ -31,6 +31,9 @@ interface LookupSelectProps {
 
   /** Additional classes for the trigger. */
   className?: string;
+
+  /** Disables the select trigger. */
+  disabled?: boolean;
 }
 
 /**
@@ -46,11 +49,16 @@ export function LookupSelect({
   onChange,
   'aria-invalid': ariaInvalid,
   className,
+  disabled,
 }: LookupSelectProps) {
   const selected = options.find((o) => o.value === value);
 
   return (
-    <Select value={value ?? ''} onValueChange={(v) => onChange(v ?? '')}>
+    <Select
+      value={value ?? ''}
+      onValueChange={(v) => onChange(v ?? '')}
+      disabled={disabled}
+    >
       <SelectTrigger
         className={`h-9 w-full ${className ?? ''}`}
         aria-invalid={ariaInvalid}

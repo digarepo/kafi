@@ -7,7 +7,6 @@ import {
   type Country,
   type Language,
   type LookupOption,
-  type Region,
   type Traveller,
 } from '../../../lib/api.js';
 
@@ -19,7 +18,6 @@ export function TravellerEditPage({ id }: TravellerEditPageProps) {
   const navigate = useNavigate();
   const [traveller, setTraveller] = useState<Traveller | null>(null);
   const [countries, setCountries] = useState<Country[]>([]);
-  const [regions, setRegions] = useState<Region[]>([]);
   const [languages, setLanguages] = useState<Language[]>([]);
   const [sources, setSources] = useState<LookupOption[]>([]);
   const [statuses, setStatuses] = useState<LookupOption[]>([]);
@@ -42,12 +40,10 @@ export function TravellerEditPage({ id }: TravellerEditPageProps) {
         setLanguages(l);
         setSources(src);
         setStatuses(st);
-        if (t.country?.id) {
-          const r = await api.listRegions(t.country.id);
-          setRegions(r);
-        }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load traveller');
+        setError(
+          err instanceof Error ? err.message : 'Failed to load traveller',
+        );
       } finally {
         setLoading(false);
       }
@@ -55,52 +51,44 @@ export function TravellerEditPage({ id }: TravellerEditPageProps) {
     void load();
   }, [id]);
 
-  async function handleCountryChange(countryId: string) {
-    if (!countryId) {
-      setRegions([]);
-      return;
-    }
-    try {
-      const r = await api.listRegions(countryId);
-      setRegions(r);
-    } catch {
-      setRegions([]);
-    }
-  }
-
   async function handleSubmit(values: TravellerFormOutput) {
     setError(null);
     try {
       await api.updateTraveller(id, values);
       navigate(`/travellers/${id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update traveller');
+      setError(
+        err instanceof Error ? err.message : 'Failed to update traveller',
+      );
     }
   }
 
   if (loading) return <p className="text-muted-foreground">Loading...</p>;
-  if (!traveller) return <p className="text-destructive">{error ?? 'Traveller not found'}</p>;
+  if (!traveller)
+    return <p className="text-destructive">{error ?? 'Traveller not found'}</p>;
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Edit traveller</h1>
-        <p className="text-muted-foreground">Update the master traveller record.</p>
+        <p className="text-muted-foreground">
+          Update the master traveller record.
+        </p>
       </div>
 
       {error && (
-        <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>
+        <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+          {error}
+        </div>
       )}
 
       <TravellerForm
         mode="edit"
         traveller={traveller}
         countries={countries}
-        regions={regions}
         languages={languages}
         sources={sources}
         statuses={statuses}
-        onCountryChange={handleCountryChange}
         onSubmit={handleSubmit}
         submitLabel="Update"
       />

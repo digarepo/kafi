@@ -1,9 +1,13 @@
-import { sql } from 'drizzle-orm';
+import { relations, sql } from 'drizzle-orm';
 import {
   boolean,
   char,
   datetime,
+  decimal,
+  index,
+  int,
   mysqlTable,
+  unique,
   varchar,
 } from 'drizzle-orm/mysql-core';
 
@@ -133,3 +137,53 @@ export const languages = mysqlTable('languages', {
   ...auditMetadata,
   ...softDeleteMetadata,
 });
+
+/**
+ * GeoNames-sourced cities, scoped to a country and optionally a region.
+ */
+export const cities = mysqlTable(
+  'cities',
+  {
+    id: idColumn,
+    country_id: fkUuid('country_id').notNull(),
+    region_id: fkUuid('region_id'),
+    geoname_id: int('geoname_id').notNull(),
+    name: varchar('name', { length: 150 }).notNull(),
+    latitude: decimal('latitude', { precision: 10, scale: 7 }),
+    longitude: decimal('longitude', { precision: 10, scale: 7 }),
+    population: int('population').notNull().default(0),
+    is_active: boolean('is_active').notNull().default(true),
+    ...auditMetadata,
+    ...softDeleteMetadata,
+  },
+  (table) => [
+    unique('cities_geoname_id_unique').on(table.geoname_id),
+    index('cities_country_id_idx').on(table.country_id),
+    index('cities_region_id_idx').on(table.region_id),
+  ],
+);
+
+// Relations
+export const countriesRelations = relations(countries, ({ many }) => ({
+  regions: many(regions),
+  cities: many(cities),
+}));
+
+export const regionsRelations = relations(regions, ({ one, many }) => ({
+  country: one(countries, {
+    fields: [regions.country_id],
+    references: [countries.id],
+  }),
+  cities: many(cities),
+}));
+
+export const citiesRelations = relations(cities, ({ one }) => ({
+  country: one(countries, {
+    fields: [cities.country_id],
+    references: [countries.id],
+  }),
+  region: one(regions, {
+    fields: [cities.region_id],
+    references: [regions.id],
+  }),
+}));

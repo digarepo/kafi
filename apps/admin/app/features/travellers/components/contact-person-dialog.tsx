@@ -18,19 +18,16 @@ import type {
   Country,
   Language,
   LookupOption,
-  Region,
 } from '../../../lib/api.js';
 
 interface ContactPersonDialogProps {
   mode: 'create' | 'edit';
   contactPerson?: ContactPerson | null;
   countries: Country[];
-  regions: Region[];
   languages: Language[];
   statuses: LookupOption[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCountryChange: (countryId: string) => void;
   onSubmit: (values: ContactPersonFormOutput) => Promise<void>;
   error?: string | null;
   success?: string | null;
@@ -45,17 +42,16 @@ export function ContactPersonDialog({
   mode,
   contactPerson,
   countries,
-  regions,
   languages,
   statuses,
   open,
   onOpenChange,
-  onCountryChange,
   onSubmit,
   error,
   success,
 }: ContactPersonDialogProps) {
-  const title = mode === 'create' ? 'Create contact person' : 'Edit contact person';
+  const title =
+    mode === 'create' ? 'Create contact person' : 'Edit contact person';
   const description =
     mode === 'create'
       ? 'Add a new reusable contact person.'
@@ -90,10 +86,8 @@ export function ContactPersonDialog({
               mode={mode}
               contactPerson={contactPerson}
               countries={countries}
-              regions={regions}
               languages={languages}
               statuses={statuses}
-              onCountryChange={onCountryChange}
               onSubmit={onSubmit}
               submitLabel={
                 mode === 'create' ? 'Create contact person' : 'Save changes'

@@ -8,7 +8,6 @@ import {
   type Country,
   type Language,
   type LookupOption,
-  type Region,
 } from '../../../lib/api.js';
 
 interface ContactEditPageProps {
@@ -19,7 +18,6 @@ export function ContactEditPage({ id }: ContactEditPageProps) {
   const navigate = useNavigate();
   const [contact, setContact] = useState<ContactPerson | null>(null);
   const [countries, setCountries] = useState<Country[]>([]);
-  const [regions, setRegions] = useState<Region[]>([]);
   const [languages, setLanguages] = useState<Language[]>([]);
   const [statuses, setStatuses] = useState<LookupOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -39,12 +37,10 @@ export function ContactEditPage({ id }: ContactEditPageProps) {
         setLanguages(l);
         setStatuses(st);
         setContact(p);
-        if (p.country?.id) {
-          const r = await api.listRegions(p.country.id);
-          setRegions(r);
-        }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load contact person');
+        setError(
+          err instanceof Error ? err.message : 'Failed to load contact person',
+        );
       } finally {
         setLoading(false);
       }
@@ -52,51 +48,47 @@ export function ContactEditPage({ id }: ContactEditPageProps) {
     void load();
   }, [id]);
 
-  async function handleCountryChange(countryId: string) {
-    if (!countryId) {
-      setRegions([]);
-      return;
-    }
-    try {
-      const r = await api.listRegions(countryId);
-      setRegions(r);
-    } catch {
-      setRegions([]);
-    }
-  }
-
   async function handleSubmit(values: ContactPersonFormOutput) {
     setError(null);
     try {
       await api.updateContactPerson(id, values);
       navigate(`/contact-persons/${id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update contact person');
+      setError(
+        err instanceof Error ? err.message : 'Failed to update contact person',
+      );
     }
   }
 
   if (loading) return <p className="text-muted-foreground">Loading...</p>;
-  if (!contact) return <p className="text-destructive">{error ?? 'Contact person not found'}</p>;
+  if (!contact)
+    return (
+      <p className="text-destructive">{error ?? 'Contact person not found'}</p>
+    );
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Edit contact person</h1>
-        <p className="text-muted-foreground">Update the reusable contact person.</p>
+        <h1 className="text-2xl font-bold tracking-tight">
+          Edit contact person
+        </h1>
+        <p className="text-muted-foreground">
+          Update the reusable contact person.
+        </p>
       </div>
 
       {error && (
-        <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>
+        <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+          {error}
+        </div>
       )}
 
       <ContactPersonForm
         mode="edit"
         contactPerson={contact}
         countries={countries}
-        regions={regions}
         languages={languages}
         statuses={statuses}
-        onCountryChange={handleCountryChange}
         onSubmit={handleSubmit}
         submitLabel="Update"
       />

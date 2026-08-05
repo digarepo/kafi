@@ -26,7 +26,6 @@ import {
   type LookupOption,
   type PackageVersion,
   type Registration,
-  type Region,
   type Traveller,
   type UpdateContactPersonInput,
   type UpdateTravellerInput,
@@ -53,7 +52,6 @@ export function TravellersPage() {
 
   // Reference data
   const [countries, setCountries] = useState<Country[]>([]);
-  const [regions, setRegions] = useState<Region[]>([]);
   const [languages, setLanguages] = useState<Language[]>([]);
   const [travellerStatuses, setTravellerStatuses] = useState<LookupOption[]>(
     [],
@@ -168,35 +166,15 @@ export function TravellersPage() {
   }
 
   /**
-   * Load regions when the selected country changes.
+   * Open the traveller edit dialog.
    *
-   * @param countryId - The selected country id, or an empty string.
-   */
-  async function handleCountryChange(countryId: string) {
-    if (!countryId) {
-      setRegions([]);
-      return;
-    }
-    try {
-      const r = await api.listRegions(countryId);
-      setRegions(r);
-    } catch {
-      setRegions([]);
-    }
-  }
-
-  /**
-   * Open the traveller edit dialog and pre-load its regions.
+   * @remarks
+   * `TravellerForm` loads its own regions based on the traveller's country.
    *
    * @param t - The traveller to edit.
    */
-  async function handleEditTraveller(t: Traveller) {
+  function handleEditTraveller(t: Traveller) {
     setEditingTraveller(t);
-    if (t.country?.id) {
-      void api.listRegions(t.country.id).then(setRegions).catch(() => setRegions([]));
-    } else {
-      setRegions([]);
-    }
   }
 
   async function handleCreateTraveller(values: TravellerFormOutput) {
@@ -247,17 +225,15 @@ export function TravellersPage() {
   }
 
   /**
-   * Open the contact person edit dialog and pre-load its regions.
+   * Open the contact person edit dialog.
+   *
+   * @remarks
+   * `ContactPersonForm` loads its own regions based on the contact's country.
    *
    * @param c - The contact person to edit.
    */
-  async function handleEditContact(c: ContactPerson) {
+  function handleEditContact(c: ContactPerson) {
     setEditingContact(c);
-    if (c.country?.id) {
-      void api.listRegions(c.country.id).then(setRegions).catch(() => setRegions([]));
-    } else {
-      setRegions([]);
-    }
   }
 
   async function handleCreateContact(values: ContactPersonFormOutput) {
@@ -396,8 +372,14 @@ export function TravellersPage() {
   ];
 
   const contactColumns: ColumnDef<ContactPerson>[] = [
-    textColumn<ContactPerson>({ accessorKey: 'first_name', header: 'First name' }),
-    textColumn<ContactPerson>({ accessorKey: 'last_name', header: 'Last name' }),
+    textColumn<ContactPerson>({
+      accessorKey: 'first_name',
+      header: 'First name',
+    }),
+    textColumn<ContactPerson>({
+      accessorKey: 'last_name',
+      header: 'Last name',
+    }),
     textColumn<ContactPerson>({ accessorKey: 'phone_number', header: 'Phone' }),
     {
       id: 'status',
@@ -436,15 +418,13 @@ export function TravellersPage() {
       id: 'package',
       header: 'Package',
       enableSorting: false,
-      cell: ({ row }) =>
-        row.original.package_version?.version_name ?? '-',
+      cell: ({ row }) => row.original.package_version?.version_name ?? '-',
     },
     {
       id: 'status',
       header: 'Status',
       enableSorting: false,
-      cell: ({ row }) =>
-        row.original.status_name ?? row.original.status ?? '-',
+      cell: ({ row }) => row.original.status_name ?? row.original.status ?? '-',
     },
     actionsColumn<Registration>({
       actions: [
@@ -485,7 +465,6 @@ export function TravellersPage() {
       <TravellerDialog
         mode="create"
         countries={countries}
-        regions={regions}
         languages={languages}
         sources={travellerSources}
         statuses={travellerStatuses}
@@ -495,10 +474,8 @@ export function TravellersPage() {
           if (open) {
             setError(null);
             setSuccess(null);
-            setRegions([]);
           }
         }}
-        onCountryChange={handleCountryChange}
         onSubmit={handleCreateTraveller}
         error={createTravellerOpen ? error : null}
         success={createTravellerOpen ? success : null}
@@ -508,7 +485,6 @@ export function TravellersPage() {
         mode="edit"
         traveller={editingTraveller}
         countries={countries}
-        regions={regions}
         languages={languages}
         sources={travellerSources}
         statuses={travellerStatuses}
@@ -520,7 +496,6 @@ export function TravellersPage() {
             setSuccess(null);
           }
         }}
-        onCountryChange={handleCountryChange}
         onSubmit={handleUpdateTraveller}
         error={editingTraveller !== null ? error : null}
         success={editingTraveller !== null ? success : null}
@@ -529,7 +504,6 @@ export function TravellersPage() {
       <ContactPersonDialog
         mode="create"
         countries={countries}
-        regions={regions}
         languages={languages}
         statuses={contactStatuses}
         open={createContactOpen}
@@ -538,10 +512,8 @@ export function TravellersPage() {
           if (open) {
             setError(null);
             setSuccess(null);
-            setRegions([]);
           }
         }}
-        onCountryChange={handleCountryChange}
         onSubmit={handleCreateContact}
         error={createContactOpen ? error : null}
         success={createContactOpen ? success : null}
@@ -551,7 +523,6 @@ export function TravellersPage() {
         mode="edit"
         contactPerson={editingContact}
         countries={countries}
-        regions={regions}
         languages={languages}
         statuses={contactStatuses}
         open={editingContact !== null}
@@ -562,7 +533,6 @@ export function TravellersPage() {
             setSuccess(null);
           }
         }}
-        onCountryChange={handleCountryChange}
         onSubmit={handleUpdateContact}
         error={editingContact !== null ? error : null}
         success={editingContact !== null ? success : null}
@@ -616,9 +586,7 @@ export function TravellersPage() {
 
         <TabsContent value="travellers" className="space-y-4">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <h2 className="text-xl font-semibold tracking-tight">
-              Travellers
-            </h2>
+            <h2 className="text-xl font-semibold tracking-tight">Travellers</h2>
             {can('TRAVELLER_CREATE') && (
               <Button
                 onClick={() => setCreateTravellerOpen(true)}

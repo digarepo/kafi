@@ -8,14 +8,12 @@ import {
   type Country,
   type Language,
   type LookupOption,
-  type Region,
   type Traveller,
 } from '../../../lib/api.js';
 
 export function TravellerCreatePage() {
   const navigate = useNavigate();
   const [countries, setCountries] = useState<Country[]>([]);
-  const [regions, setRegions] = useState<Region[]>([]);
   const [languages, setLanguages] = useState<Language[]>([]);
   const [sources, setSources] = useState<LookupOption[]>([]);
   const [statuses, setStatuses] = useState<LookupOption[]>([]);
@@ -46,19 +44,6 @@ export function TravellerCreatePage() {
     }
     void load();
   }, []);
-
-  async function handleCountryChange(countryId: string) {
-    if (!countryId) {
-      setRegions([]);
-      return;
-    }
-    try {
-      const r = await api.listRegions(countryId);
-      setRegions(r);
-    } catch {
-      setRegions([]);
-    }
-  }
 
   async function handleSubmit(values: TravellerFormOutput) {
     setError(null);
@@ -94,11 +79,9 @@ export function TravellerCreatePage() {
       <TravellerForm
         mode="create"
         countries={countries}
-        regions={regions}
         languages={languages}
         sources={sources}
         statuses={statuses}
-        onCountryChange={handleCountryChange}
         onSubmit={handleSubmit}
         onDuplicateChange={setDuplicateMatches}
         submitLabel="Create"
