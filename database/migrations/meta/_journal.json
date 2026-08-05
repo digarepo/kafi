@@ -36,6 +36,27 @@
       "when": 1785587600419,
       "tag": "0004_chubby_bishop",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1785791121510,
+      "tag": "0005_superb_slayback",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1785902114344,
+      "tag": "0006_remarkable_payback",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1785929783035,
+      "tag": "0007_woozy_wendell_vaughn",
+      "breakpoints": true
     }
   ]
 }

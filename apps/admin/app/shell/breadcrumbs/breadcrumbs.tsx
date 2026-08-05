@@ -1,3 +1,4 @@
+import { Fragment } from 'react';
 import { Link, useMatches } from 'react-router';
 import {
   Breadcrumb,
@@ -43,13 +44,9 @@ export function AppBreadcrumbs() {
     <Breadcrumb>
       <BreadcrumbList>
         {items.map((item, index) => (
-          <>
-            {index > 0 && (
-              <BreadcrumbItem>
-                <BreadcrumbSeparator />
-              </BreadcrumbItem>
-            )}
-            <BreadcrumbItem key={item.path}>
+          <Fragment key={item.path}>
+            {index > 0 && <BreadcrumbSeparator />}
+            <BreadcrumbItem>
               {index === items.length - 1 ? (
                 <BreadcrumbPage>{item.label}</BreadcrumbPage>
               ) : (
@@ -58,7 +55,7 @@ export function AppBreadcrumbs() {
                 </BreadcrumbLink>
               )}
             </BreadcrumbItem>
-          </>
+          </Fragment>
         ))}
       </BreadcrumbList>
     </Breadcrumb>

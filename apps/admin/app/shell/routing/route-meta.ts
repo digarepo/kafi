@@ -35,6 +35,9 @@ export interface RouteMeta {
     parent?: string;
 
     hidden?: boolean;
+
+    /** Whether this item is a non-routable sidebar group header. */
+    isGroup?: boolean;
   };
 
   /**

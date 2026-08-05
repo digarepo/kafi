@@ -5,14 +5,30 @@ import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/mysql2';
 import mysql from 'mysql2/promise';
 import {
+  contactPersonStatuses,
+  countries,
   currencies,
+  invoiceLineItemTypes,
+  invoiceStatuses,
+  languages,
   packageCategories,
   packageVersionStatuses,
+  payerStatuses,
+  payerTypes,
+  paymentMethodStatuses,
+  paymentMethods,
+  paymentStatuses,
   permissions,
   pilgrimageTypes,
+  regions,
+  registrationStatuses,
+  relationshipTypes,
   roles,
   rolePermissions,
   seasons,
+  travellerContactStatuses,
+  travellerSources,
+  travellerStatuses,
   userRoles,
   users,
   userStatuses,
@@ -182,8 +198,8 @@ const ROLE_PERMISSION_MAP: Record<string, string[]> = {
     'PACKAGE_VIEW',
     'REGISTRATION_VIEW',
     'REGISTRATION_CREATE',
-    'REGISTRATION_EDIT',
     'FINANCE_VIEW',
+    'FINANCE_CREATE',
     'VISA_MANAGE',
     'DOCUMENT_MANAGE',
     'TRAVEL_GROUP_VIEW',
@@ -219,6 +235,56 @@ const CURRENCY_CODES = [
 const SEASON_CODES = [
   { season_code: 'RAMADAN_2027', name: 'Ramadan 2027' },
   { season_code: 'HAJJ_2027', name: 'Hajj 2027' },
+];
+
+const INVOICE_STATUS_CODES = [
+  { status_code: 'DRAFT', name: 'Draft' },
+  { status_code: 'SENT', name: 'Sent' },
+  { status_code: 'PARTIALLY_PAID', name: 'Partially Paid' },
+  { status_code: 'PAID', name: 'Paid' },
+  { status_code: 'OVERDUE', name: 'Overdue' },
+  { status_code: 'CANCELLED', name: 'Cancelled' },
+];
+
+const PAYMENT_STATUS_CODES = [
+  { status_code: 'PENDING', name: 'Pending' },
+  { status_code: 'COMPLETED', name: 'Completed' },
+  { status_code: 'CANCELLED', name: 'Cancelled' },
+  { status_code: 'RECONCILED', name: 'Reconciled' },
+];
+
+const PAYER_TYPE_CODES = [
+  { type_code: 'INDIVIDUAL', name: 'Individual' },
+  { type_code: 'ORGANIZATION', name: 'Organization' },
+];
+
+const PAYER_STATUS_CODES = [
+  { status_code: 'ACTIVE', name: 'Active' },
+  { status_code: 'INACTIVE', name: 'Inactive' },
+  { status_code: 'BLACKLISTED', name: 'Blacklisted' },
+];
+
+const PAYMENT_METHOD_STATUS_CODES = [
+  { status_code: 'ACTIVE', name: 'Active' },
+  { status_code: 'INACTIVE', name: 'Inactive' },
+];
+
+const PAYMENT_METHOD_CODES = [
+  { method_code: 'CASH', name: 'Cash' },
+  { method_code: 'BANK_TRANSFER', name: 'Bank Transfer' },
+  { method_code: 'MOBILE_BANKING', name: 'Mobile Banking' },
+  { method_code: 'CARD', name: 'Card' },
+  { method_code: 'ONLINE_GATEWAY', name: 'Online Gateway' },
+];
+
+const INVOICE_LINE_ITEM_TYPE_CODES = [
+  { line_item_type_code: 'PACKAGE_COST', name: 'Package Cost' },
+  { line_item_type_code: 'VISA_PROCESSING', name: 'Visa Processing' },
+  { line_item_type_code: 'HOTEL_UPGRADE', name: 'Hotel Upgrade' },
+  { line_item_type_code: 'TRANSPORT_UPGRADE', name: 'Transport Upgrade' },
+  { line_item_type_code: 'INSURANCE', name: 'Insurance' },
+  { line_item_type_code: 'EXTRA_LUGGAGE', name: 'Extra Luggage' },
+  { line_item_type_code: 'OTHER_SERVICE_CHARGE', name: 'Other Service Charge' },
 ];
 
 /**
@@ -378,6 +444,263 @@ async function seed() {
         })
         .onDuplicateKeyUpdate({
           set: { name: season.name, is_active: true },
+        });
+    }
+
+    // Finance reference data
+    for (const status of INVOICE_STATUS_CODES) {
+      await db
+        .insert(invoiceStatuses)
+        .values({ id: ulid(), ...status, is_active: true })
+        .onDuplicateKeyUpdate({
+          set: { name: status.name, is_active: true },
+        });
+    }
+
+    for (const status of PAYMENT_STATUS_CODES) {
+      await db
+        .insert(paymentStatuses)
+        .values({ id: ulid(), ...status, is_active: true })
+        .onDuplicateKeyUpdate({
+          set: { name: status.name, is_active: true },
+        });
+    }
+
+    for (const type of PAYER_TYPE_CODES) {
+      await db
+        .insert(payerTypes)
+        .values({ id: ulid(), ...type, is_active: true })
+        .onDuplicateKeyUpdate({
+          set: { name: type.name, is_active: true },
+        });
+    }
+
+    for (const status of PAYER_STATUS_CODES) {
+      await db
+        .insert(payerStatuses)
+        .values({ id: ulid(), ...status, is_active: true })
+        .onDuplicateKeyUpdate({
+          set: { name: status.name, is_active: true },
+        });
+    }
+
+    for (const status of PAYMENT_METHOD_STATUS_CODES) {
+      await db
+        .insert(paymentMethodStatuses)
+        .values({ id: ulid(), ...status, is_active: true })
+        .onDuplicateKeyUpdate({
+          set: { name: status.name, is_active: true },
+        });
+    }
+
+    const activePaymentMethodStatus = await db
+      .select()
+      .from(paymentMethodStatuses)
+      .where(eq(paymentMethodStatuses.status_code, 'ACTIVE'))
+      .limit(1);
+
+    if (activePaymentMethodStatus.length === 0) {
+      throw new Error(
+        'ACTIVE payment_method_status must be seeded before payment_methods',
+      );
+    }
+
+    for (const method of PAYMENT_METHOD_CODES) {
+      await db
+        .insert(paymentMethods)
+        .values({
+          id: ulid(),
+          ...method,
+          payment_method_status_id: activePaymentMethodStatus[0].id,
+        })
+        .onDuplicateKeyUpdate({
+          set: {
+            name: method.name,
+            payment_method_status_id: activePaymentMethodStatus[0].id,
+          },
+        });
+    }
+
+    for (const type of INVOICE_LINE_ITEM_TYPE_CODES) {
+      await db
+        .insert(invoiceLineItemTypes)
+        .values({ id: ulid(), ...type, is_active: true })
+        .onDuplicateKeyUpdate({
+          set: { name: type.name, is_active: true },
+        });
+    }
+
+    // Traveller reference data
+    const TRAVELLER_STATUS_CODES = [
+      { status_code: 'ACTIVE', name: 'Active' },
+      { status_code: 'INACTIVE', name: 'Inactive' },
+      { status_code: 'BLACKLISTED', name: 'Blacklisted' },
+    ];
+
+    const TRAVELLER_SOURCE_CODES = [
+      { source_code: 'WALK_IN', name: 'Walk in' },
+      { source_code: 'REFERRAL', name: 'Referral' },
+      { source_code: 'SOCIAL_MEDIA', name: 'Social Media' },
+      { source_code: 'AGENT', name: 'Agent' },
+    ];
+
+    const RELATIONSHIP_TYPE_CODES = [
+      { relationship_code: 'SIBLINGS', name: 'Siblings' },
+      { relationship_code: 'CHILD', name: 'Child' },
+      { relationship_code: 'PARENT', name: 'Parent' },
+      { relationship_code: 'SPOUSE', name: 'Spouse' },
+      { relationship_code: 'FRIEND', name: 'Friend' },
+      { relationship_code: 'GUARDIAN', name: 'Guardian' },
+      { relationship_code: 'OTHER', name: 'Other' },
+    ];
+
+    const CONTACT_PERSON_STATUS_CODES = [
+      { status_code: 'PENDING_VERIFICATION', name: 'Pending Verification' },
+      { status_code: 'INACTIVE', name: 'Inactive' },
+      { status_code: 'ACTIVE', name: 'Active' },
+      { status_code: 'ARCHIVED', name: 'Archived' },
+    ];
+
+    const TRAVELLER_CONTACT_STATUS_CODES = [
+      { status_code: 'REMOVED', name: 'Removed' },
+      { status_code: 'ACTIVE', name: 'Active' },
+      { status_code: 'INACTIVE', name: 'Inactive' },
+      { status_code: 'UNVERIFIED', name: 'Unverified' },
+    ];
+
+    const REGISTRATION_STATUS_CODES = [
+      { status_code: 'DRAFT', name: 'Draft' },
+      { status_code: 'PENDING_PAYMENT', name: 'Pending Payment' },
+      { status_code: 'CONFIRMED', name: 'Confirmed' },
+      { status_code: 'DOCUMENT_PENDING', name: 'Document Pending' },
+      { status_code: 'READY_FOR_TRAVEL', name: 'Ready for Travel' },
+      { status_code: 'COMPLETED', name: 'Completed' },
+      { status_code: 'CANCELLED', name: 'Cancelled' },
+    ];
+
+    const COUNTRY_CODES = [
+      { iso_code: 'SA', name: 'Saudi Arabia' },
+      { iso_code: 'ET', name: 'Ethiopia' },
+      { iso_code: 'US', name: 'United States' },
+    ];
+
+    const REGION_CODES = [
+      { country_iso_code: 'SA', region_code: 'MAKKAH', name: 'Makkah' },
+      { country_iso_code: 'SA', region_code: 'RIYADH', name: 'Riyadh' },
+      {
+        country_iso_code: 'ET',
+        region_code: 'ADDIS_ABABA',
+        name: 'Addis Ababa',
+      },
+      { country_iso_code: 'ET', region_code: 'OROMIA', name: 'Oromia' },
+      { country_iso_code: 'ET', region_code: 'AMHARA', name: 'Amhara' },
+      { country_iso_code: 'US', region_code: 'NEW_YORK', name: 'New York' },
+      { country_iso_code: 'US', region_code: 'CALIFORNIA', name: 'California' },
+    ];
+
+    const LANGUAGE_CODES = [
+      { language_code: 'AMHARIC', name: 'Amharic' },
+      { language_code: 'OROMO', name: 'Oromo' },
+      { language_code: 'ENGLISH', name: 'English' },
+      { language_code: 'ARABIC', name: 'Arabic' },
+    ];
+
+    for (const status of TRAVELLER_STATUS_CODES) {
+      await db
+        .insert(travellerStatuses)
+        .values({ id: ulid(), ...status, is_active: true })
+        .onDuplicateKeyUpdate({
+          set: { name: status.name, is_active: true },
+        });
+    }
+
+    for (const source of TRAVELLER_SOURCE_CODES) {
+      await db
+        .insert(travellerSources)
+        .values({ id: ulid(), ...source, is_active: true })
+        .onDuplicateKeyUpdate({
+          set: { name: source.name, is_active: true },
+        });
+    }
+
+    for (const type of RELATIONSHIP_TYPE_CODES) {
+      await db
+        .insert(relationshipTypes)
+        .values({ id: ulid(), ...type, is_active: true })
+        .onDuplicateKeyUpdate({
+          set: { name: type.name, is_active: true },
+        });
+    }
+
+    for (const status of CONTACT_PERSON_STATUS_CODES) {
+      await db
+        .insert(contactPersonStatuses)
+        .values({ id: ulid(), ...status, is_active: true })
+        .onDuplicateKeyUpdate({
+          set: { name: status.name, is_active: true },
+        });
+    }
+
+    for (const status of TRAVELLER_CONTACT_STATUS_CODES) {
+      await db
+        .insert(travellerContactStatuses)
+        .values({ id: ulid(), ...status, is_active: true })
+        .onDuplicateKeyUpdate({
+          set: { name: status.name, is_active: true },
+        });
+    }
+
+    for (const status of REGISTRATION_STATUS_CODES) {
+      await db
+        .insert(registrationStatuses)
+        .values({ id: ulid(), ...status, is_active: true })
+        .onDuplicateKeyUpdate({
+          set: { name: status.name, is_active: true },
+        });
+    }
+
+    for (const country of COUNTRY_CODES) {
+      await db
+        .insert(countries)
+        .values({ id: ulid(), ...country, is_active: true })
+        .onDuplicateKeyUpdate({
+          set: { name: country.name, is_active: true },
+        });
+    }
+
+    const countryRows = await db
+      .select({ id: countries.id, iso_code: countries.iso_code })
+      .from(countries);
+
+    const countryIdByIso = new Map(countryRows.map((c) => [c.iso_code, c.id]));
+
+    for (const region of REGION_CODES) {
+      const countryId = countryIdByIso.get(region.country_iso_code);
+      if (!countryId) continue;
+      await db
+        .insert(regions)
+        .values({
+          id: ulid(),
+          country_id: countryId,
+          region_code: region.region_code,
+          name: region.name,
+          is_active: true,
+        })
+        .onDuplicateKeyUpdate({
+          set: {
+            country_id: countryId,
+            name: region.name,
+            is_active: true,
+          },
+        });
+    }
+
+    for (const language of LANGUAGE_CODES) {
+      await db
+        .insert(languages)
+        .values({ id: ulid(), ...language, is_active: true })
+        .onDuplicateKeyUpdate({
+          set: { name: language.name, is_active: true },
         });
     }
 
