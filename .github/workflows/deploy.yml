@@ -169,9 +169,9 @@ jobs:
           touch tmp/restart.txt
           echo "Installing api dependencies..."
           cd /home/${{ secrets.CPANEL_USER }}/api.kafitour.com
-          rm -rf node_modules/@kafi/database
+          rm -rf node_modules package-lock.json
           npm install --omit=dev --no-audit --no-fund
-          test -d node_modules
+          test -d node_modules/@kafi/database
           touch tmp/restart.txt
           echo "Deployment complete"
           EOF
