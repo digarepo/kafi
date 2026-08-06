@@ -891,6 +891,193 @@ export interface AllocatePaymentInput {
   allocations: AllocationInput[];
 }
 
+export interface TravelGroupStatus {
+  id: string;
+  status_code: string;
+  name: string;
+}
+
+export interface GroupMembershipStatus {
+  id: string;
+  status_code: string;
+  name: string;
+}
+
+export interface TravelGroupListItem {
+  id: string;
+  group_number: string;
+  name: string;
+  package_version: { id: string; name: string } | null;
+  status: TravelGroupStatus | null;
+  departure_date: string | null;
+  return_date: string | null;
+  maximum_capacity: number;
+  current_capacity: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TravelGroup {
+  id: string;
+  group_number: string;
+  name: string;
+  package_version: { id: string; name: string } | null;
+  status: TravelGroupStatus | null;
+  status_code: string | null;
+  departure_date: string | null;
+  return_date: string | null;
+  maximum_capacity: number;
+  current_capacity: number;
+  remarks: string | null;
+  members: GroupMembership[];
+  created_at: string;
+  updated_at: string;
+  created_by: string;
+  updated_by: string;
+}
+
+export interface GroupMembership {
+  id: string;
+  travel_group_id: string;
+  registration_id: string;
+  travel_group: { id: string; name: string; group_number: string } | null;
+  registration: { id: string; registration_number: string } | null;
+  traveller: { id: string; first_name: string; last_name: string } | null;
+  status: { id: string; status_code: string; name: string } | null;
+  status_code: string | null;
+  joined_at: string;
+  left_at: string | null;
+  transferred_from_group_membership_id: string | null;
+  guarantee_required: boolean;
+  guarantee_waived: boolean;
+  guarantee_waived_by: string | null;
+  guarantee_waived_at: string | null;
+  remarks: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PaginatedGroupMemberships {
+  data: GroupMembership[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export interface PaginatedTravelGroups {
+  data: TravelGroupListItem[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export interface CreateTravelGroupInput {
+  package_version_id: string;
+  name: string;
+  departure_date?: string;
+  return_date?: string;
+  maximum_capacity: number;
+  travel_group_status_id?: string;
+  remarks?: string;
+}
+
+export interface UpdateTravelGroupInput {
+  name?: string;
+  departure_date?: string;
+  return_date?: string;
+  maximum_capacity?: number;
+  travel_group_status_id?: string;
+  remarks?: string;
+}
+
+export interface ChangeTravelGroupStatusInput {
+  travel_group_status_id: string;
+}
+
+export interface CreateGroupMembershipInput {
+  travel_group_id: string;
+  registration_id: string;
+  guarantee_required?: boolean;
+  guarantee_waived?: boolean;
+  remarks?: string;
+}
+
+export interface UpdateGroupMembershipStatusInput {
+  group_membership_status_id: string;
+}
+
+export interface TransferGroupMembershipInput {
+  target_travel_group_id: string;
+  guarantee_waived?: boolean;
+  remarks?: string;
+}
+
+export interface WaiveGuaranteeInput {
+  waived: boolean;
+  remarks?: string;
+}
+
+export interface Guarantee {
+  id: string;
+  guarantee_number: string;
+  group_membership_id: string;
+  registration_id: string;
+  guarantee_type: 'PERSON' | 'CASH_DEPOSIT' | 'CPO' | 'BANK_GUARANTEE';
+  guarantee_status: string;
+  contact_person_id: string | undefined;
+  contact_person: { id: string; full_name: string | undefined } | null;
+  instrument_reference: string | undefined;
+  amount: number | undefined;
+  currency_id: string | undefined;
+  currency: { id: string; code: string } | null;
+  effective_date: string | undefined;
+  expiry_date: string | undefined;
+  issuer: string | undefined;
+  previous_guarantee_id: string | null;
+  replaced_by_id: string | null;
+  notes: string | undefined;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateGuaranteeInput {
+  group_membership_id: string;
+  registration_id: string;
+  guarantee_type: 'PERSON' | 'CASH_DEPOSIT' | 'CPO' | 'BANK_GUARANTEE';
+  contact_person_id?: string;
+  instrument_reference?: string;
+  amount?: number;
+  currency_id?: string;
+  effective_date?: string;
+  expiry_date?: string;
+  issuer?: string;
+  notes?: string;
+}
+
+export interface UpdateGuaranteeInput {
+  guarantee_type?: 'PERSON' | 'CASH_DEPOSIT' | 'CPO' | 'BANK_GUARANTEE';
+  contact_person_id?: string;
+  instrument_reference?: string;
+  amount?: number;
+  currency_id?: string;
+  effective_date?: string;
+  expiry_date?: string;
+  issuer?: string;
+  notes?: string;
+}
+
+export interface ReplaceGuaranteeInput {
+  guarantee_type: 'PERSON' | 'CASH_DEPOSIT' | 'CPO' | 'BANK_GUARANTEE';
+  contact_person_id?: string;
+  instrument_reference?: string;
+  amount?: number;
+  currency_id?: string;
+  effective_date?: string;
+  expiry_date?: string;
+  issuer?: string;
+  notes?: string;
+}
+
 export const api = {
   isLoggedIn(): boolean {
     return !!getAccessToken();
@@ -1658,5 +1845,191 @@ export const api = {
 
   async archivePayment(id: string): Promise<void> {
     await request(`/api/admin/payments/${id}/archive`, { method: 'POST' });
+  },
+
+  // ---- Operations ----
+
+  // ---- Travel groups ----
+
+  async listTravelGroups(
+    page = 1,
+    pageSize = 25,
+    search?: string,
+  ): Promise<PaginatedTravelGroups> {
+    const qs = new URLSearchParams({
+      page: String(page),
+      page_size: String(pageSize),
+    });
+    if (search) qs.set('search', search);
+    return request(`/api/admin/travel-groups?${qs.toString()}`);
+  },
+
+  async getTravelGroup(id: string): Promise<TravelGroup> {
+    return request<TravelGroup>(`/api/admin/travel-groups/${id}`);
+  },
+
+  async createTravelGroup(input: CreateTravelGroupInput): Promise<TravelGroup> {
+    return request<TravelGroup>('/api/admin/travel-groups', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
+
+  async updateTravelGroup(
+    id: string,
+    input: UpdateTravelGroupInput,
+  ): Promise<TravelGroup> {
+    return request<TravelGroup>(`/api/admin/travel-groups/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    });
+  },
+
+  async deleteTravelGroup(id: string): Promise<void> {
+    await request(`/api/admin/travel-groups/${id}`, { method: 'DELETE' });
+  },
+
+  async changeTravelGroupStatus(
+    id: string,
+    input: ChangeTravelGroupStatusInput,
+  ): Promise<TravelGroup> {
+    return request<TravelGroup>(
+      `/api/admin/travel-groups/${id}/change-status`,
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+    );
+  },
+
+  async listTravelGroupStatuses(): Promise<TravelGroupStatus[]> {
+    return request<TravelGroupStatus[]>('/api/admin/travel-group-statuses');
+  },
+
+  // ---- Group memberships ----
+
+  async listGroupMembershipStatuses(): Promise<GroupMembershipStatus[]> {
+    return request<GroupMembershipStatus[]>(
+      '/api/admin/group-membership-statuses',
+    );
+  },
+
+  async listGroupMemberships(
+    groupId: string,
+    page = 1,
+    pageSize = 25,
+  ): Promise<PaginatedGroupMemberships> {
+    const qs = new URLSearchParams({
+      page: String(page),
+      page_size: String(pageSize),
+    });
+    return request(
+      `/api/admin/travel-groups/${groupId}/memberships?${qs.toString()}`,
+    );
+  },
+
+  async getGroupMembership(id: string): Promise<GroupMembership> {
+    return request<GroupMembership>(`/api/admin/group-memberships/${id}`);
+  },
+
+  async createGroupMembership(
+    input: CreateGroupMembershipInput,
+  ): Promise<GroupMembership> {
+    return request<GroupMembership>('/api/admin/group-memberships', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
+
+  async updateGroupMembershipStatus(
+    id: string,
+    input: UpdateGroupMembershipStatusInput,
+  ): Promise<GroupMembership> {
+    return request<GroupMembership>(
+      `/api/admin/group-memberships/${id}/status`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      },
+    );
+  },
+
+  async transferGroupMembership(
+    id: string,
+    input: TransferGroupMembershipInput,
+  ): Promise<GroupMembership> {
+    return request<GroupMembership>(
+      `/api/admin/group-memberships/${id}/transfer`,
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+    );
+  },
+
+  async waiveGuarantee(
+    id: string,
+    input: WaiveGuaranteeInput,
+  ): Promise<GroupMembership> {
+    return request<GroupMembership>(
+      `/api/admin/group-memberships/${id}/waive-guarantee`,
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+    );
+  },
+
+  async deleteGroupMembership(id: string): Promise<void> {
+    await request(`/api/admin/group-memberships/${id}`, { method: 'DELETE' });
+  },
+
+  // ---- Guarantees ----
+
+  async listGuarantees(groupMembershipId: string): Promise<Guarantee[]> {
+    return request<Guarantee[]>(
+      `/api/admin/group-memberships/${groupMembershipId}/guarantees`,
+    );
+  },
+
+  async getGuarantee(id: string): Promise<Guarantee> {
+    return request<Guarantee>(`/api/admin/guarantees/${id}`);
+  },
+
+  async createGuarantee(
+    groupMembershipId: string,
+    input: CreateGuaranteeInput,
+  ): Promise<Guarantee> {
+    return request<Guarantee>(
+      `/api/admin/group-memberships/${groupMembershipId}/guarantees`,
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+    );
+  },
+
+  async updateGuarantee(
+    id: string,
+    input: UpdateGuaranteeInput,
+  ): Promise<Guarantee> {
+    return request<Guarantee>(`/api/admin/guarantees/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    });
+  },
+
+  async replaceGuarantee(
+    id: string,
+    input: ReplaceGuaranteeInput,
+  ): Promise<Guarantee> {
+    return request<Guarantee>(`/api/admin/guarantees/${id}/replace`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
+
+  async deleteGuarantee(id: string): Promise<void> {
+    await request(`/api/admin/guarantees/${id}`, { method: 'DELETE' });
   },
 };

@@ -8,6 +8,7 @@ import {
   contactPersonStatuses,
   countries,
   currencies,
+  groupMembershipStatuses,
   invoiceLineItemTypes,
   invoiceStatuses,
   languages,
@@ -29,6 +30,7 @@ import {
   travellerContactStatuses,
   travellerSources,
   travellerStatuses,
+  travelGroupStatuses,
   userRoles,
   users,
   userStatuses,
@@ -203,6 +205,7 @@ const ROLE_PERMISSION_MAP: Record<string, string[]> = {
     'VISA_MANAGE',
     'DOCUMENT_MANAGE',
     'TRAVEL_GROUP_VIEW',
+    'TRAVEL_GROUP_MANAGE',
   ],
 };
 
@@ -444,6 +447,57 @@ async function seed() {
         })
         .onDuplicateKeyUpdate({
           set: { name: season.name, is_active: true },
+        });
+    }
+
+    // Operations reference data
+    const TRAVEL_GROUP_STATUS_CODES = [
+      { status_code: 'PLANNING', name: 'Planning', display_order: 1 },
+      { status_code: 'OPEN', name: 'Open', display_order: 2 },
+      { status_code: 'CLOSED', name: 'Closed', display_order: 3 },
+      { status_code: 'DEPARTED', name: 'Departed', display_order: 4 },
+      { status_code: 'COMPLETED', name: 'Completed', display_order: 5 },
+      { status_code: 'CANCELLED', name: 'Cancelled', display_order: 6 },
+    ];
+
+    const GROUP_MEMBERSHIP_STATUS_CODES = [
+      { status_code: 'ACTIVE', name: 'Active', display_order: 1 },
+      { status_code: 'CANCELLED', name: 'Cancelled', display_order: 2 },
+      { status_code: 'TRANSFERRED', name: 'Transferred', display_order: 3 },
+      { status_code: 'COMPLETED', name: 'Completed', display_order: 4 },
+    ];
+
+    for (const status of TRAVEL_GROUP_STATUS_CODES) {
+      await db
+        .insert(travelGroupStatuses)
+        .values({
+          id: ulid(),
+          ...status,
+          is_active: true,
+        })
+        .onDuplicateKeyUpdate({
+          set: {
+            name: status.name,
+            is_active: true,
+            display_order: status.display_order,
+          },
+        });
+    }
+
+    for (const status of GROUP_MEMBERSHIP_STATUS_CODES) {
+      await db
+        .insert(groupMembershipStatuses)
+        .values({
+          id: ulid(),
+          ...status,
+          is_active: true,
+        })
+        .onDuplicateKeyUpdate({
+          set: {
+            name: status.name,
+            is_active: true,
+            display_order: status.display_order,
+          },
         });
     }
 

@@ -57,6 +57,13 @@
       "when": 1785929783035,
       "tag": "0007_woozy_wendell_vaughn",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "5",
+      "when": 1786017789334,
+      "tag": "0008_short_luckman",
+      "breakpoints": true
     }
   ]
 }

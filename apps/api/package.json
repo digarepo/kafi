@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "nest start --watch",
-    "prebuild": "npm -w database run build",
+    "prebuild": "npm -w @kafi/database run build",
     "build": "nest build",
     "start": "node dist/main.js",
     "start:prod": "node dist/main.js",

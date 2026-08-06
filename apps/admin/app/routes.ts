@@ -39,6 +39,12 @@ export default [
       route('new', 'routes/admin/payments/new.tsx'),
       route(':id', 'routes/admin/payments/$id.tsx'),
     ]),
+    route('travel-groups', 'routes/admin/travel-groups.tsx', [
+      index('routes/admin/travel-groups/index.tsx'),
+      route('new', 'routes/admin/travel-groups/new.tsx'),
+      route(':id', 'routes/admin/travel-groups/$id.tsx'),
+      route(':id/edit', 'routes/admin/travel-groups/$id-edit.tsx'),
+    ]),
     route('payers', 'routes/admin/payers.tsx'),
     route('payment-methods', 'routes/admin/payment-methods.tsx'),
     route('roles', 'routes/admin/roles.tsx'),
