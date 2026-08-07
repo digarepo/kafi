@@ -33,6 +33,30 @@ export class BusinessNumberService {
     return this.nextNumber('GUA', schema.guarantees.guarantee_number);
   }
 
+  /**
+   * Returns the next `STY-YYYY-NNNNNN` number for a group hotel stay.
+   */
+  async generateStayNumber(): Promise<string> {
+    return this.nextNumber('STY', schema.groupHotelStays.stay_number);
+  }
+
+  /**
+   * Returns the next `VDR-YYYY-NNNNNN` number for a vendor.
+   */
+  async generateVendorNumber(): Promise<string> {
+    return this.nextNumber('VDR', schema.vendors.vendor_number);
+  }
+
+  /**
+   * Returns the next `TRS-YYYY-NNNNNN` number for a transport segment.
+   */
+  async generateTransportSegmentNumber(): Promise<string> {
+    return this.nextNumber(
+      'TRS',
+      schema.transportSegments.transport_segment_number,
+    );
+  }
+
   private async nextNumber(
     prefix: string,
     column: (typeof schema)['travelGroups']['group_number'],
@@ -43,14 +67,29 @@ export class BusinessNumberService {
   ): Promise<string>;
   private async nextNumber(
     prefix: string,
+    column: (typeof schema)['groupHotelStays']['stay_number'],
+  ): Promise<string>;
+  private async nextNumber(
+    prefix: string,
+    column: (typeof schema)['vendors']['vendor_number'],
+  ): Promise<string>;
+  private async nextNumber(
+    prefix: string,
+    column: (typeof schema)['transportSegments']['transport_segment_number'],
+  ): Promise<string>;
+  private async nextNumber(
+    prefix: string,
     column:
       | (typeof schema)['travelGroups']['group_number']
-      | (typeof schema)['guarantees']['guarantee_number'],
+      | (typeof schema)['guarantees']['guarantee_number']
+      | (typeof schema)['groupHotelStays']['stay_number']
+      | (typeof schema)['vendors']['vendor_number']
+      | (typeof schema)['transportSegments']['transport_segment_number'],
   ): Promise<string> {
     const year = new Date().getFullYear();
     const [row] = await this.db
       .select({ max: max(column) })
-      .from((column.table as any) as typeof schema.travelGroups)
+      .from(column.table as any as typeof schema.travelGroups)
       .where(like(column, `${prefix}-${year}-%`));
     let next = 1;
     if (row?.max) {

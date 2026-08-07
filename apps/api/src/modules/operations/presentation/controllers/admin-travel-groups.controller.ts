@@ -14,9 +14,15 @@ import { JwtAuthGuard } from '../../../../shared/application/guards/jwt-auth.gua
 import { PermissionsGuard } from '../../../../shared/application/guards/permissions.guard.js';
 import { RequirePermissions } from '../../../../shared/application/decorators/require-permissions.decorator.js';
 import { TravelGroupsService } from '../../application/services/travel-groups.service.js';
+import { GroupHotelStaysService } from '../../application/services/group-hotel-stays.service.js';
+import { TransportSegmentsService } from '../../application/services/transport-segments.service.js';
 import {
   ChangeTravelGroupStatusDto,
   CreateTravelGroupDto,
+  CreateGroupHotelStayForTravelGroupDto,
+  GroupHotelStayFiltersDto,
+  CreateTransportSegmentForTravelGroupDto,
+  TransportSegmentFiltersDto,
   TravelGroupFiltersDto,
   UpdateTravelGroupDto,
 } from '../../application/dto/operations.dto.js';
@@ -31,7 +37,11 @@ import {
 @Controller('admin')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class AdminTravelGroupsController {
-  constructor(private readonly travelGroups: TravelGroupsService) {}
+  constructor(
+    private readonly travelGroups: TravelGroupsService,
+    private readonly groupHotelStays: GroupHotelStaysService,
+    private readonly transportSegments: TransportSegmentsService,
+  ) {}
 
   @Get('travel-groups')
   @RequirePermissions('TRAVEL_GROUP_VIEW')
@@ -81,5 +91,57 @@ export class AdminTravelGroupsController {
   @RequirePermissions('TRAVEL_GROUP_VIEW')
   listStatuses() {
     return this.travelGroups.listStatuses();
+  }
+
+  // ---- Nested logistics workflows ----
+
+  @Get('travel-groups/:id/stays')
+  @RequirePermissions('TRAVEL_GROUP_VIEW')
+  listStaysForTravelGroup(
+    @Param('id') id: string,
+    @Query() filters: GroupHotelStayFiltersDto,
+  ) {
+    return this.groupHotelStays.listStays({
+      ...filters,
+      travel_group_id: id,
+    } as any);
+  }
+
+  @Post('travel-groups/:id/stays')
+  @RequirePermissions('TRAVEL_GROUP_MANAGE')
+  createStayForTravelGroup(
+    @Param('id') id: string,
+    @Body() dto: CreateGroupHotelStayForTravelGroupDto,
+    @Req() req: any,
+  ) {
+    return this.groupHotelStays.createStay(
+      { ...dto, travel_group_id: id } as any,
+      req.user.sub,
+    );
+  }
+
+  @Get('travel-groups/:id/transport-segments')
+  @RequirePermissions('TRAVEL_GROUP_VIEW')
+  listTransportSegmentsForTravelGroup(
+    @Param('id') id: string,
+    @Query() filters: TransportSegmentFiltersDto,
+  ) {
+    return this.transportSegments.listSegments({
+      ...filters,
+      travel_group_id: id,
+    } as any);
+  }
+
+  @Post('travel-groups/:id/transport-segments')
+  @RequirePermissions('TRAVEL_GROUP_MANAGE')
+  createTransportSegmentForTravelGroup(
+    @Param('id') id: string,
+    @Body() dto: CreateTransportSegmentForTravelGroupDto,
+    @Req() req: any,
+  ) {
+    return this.transportSegments.createSegment(
+      { ...dto, travel_group_id: id } as any,
+      req.user.sub,
+    );
   }
 }

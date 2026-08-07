@@ -35,6 +35,7 @@ import {
   users,
   userStatuses,
 } from '../schema/index.js';
+import { seedLogistics } from './logistics.seed.js';
 
 /**
  * Reference data and root admin seed script for the Kafi database.
@@ -821,6 +822,8 @@ async function seed() {
         is_active: true,
       })
       .onDuplicateKeyUpdate({ set: { is_active: true } });
+
+    await seedLogistics(db);
 
     console.log('Database seeded successfully');
   } finally {

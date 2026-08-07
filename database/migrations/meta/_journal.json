@@ -64,6 +64,13 @@
       "when": 1786017789334,
       "tag": "0008_short_luckman",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "5",
+      "when": 1786112245185,
+      "tag": "0009_fantastic_night_thrasher",
+      "breakpoints": true
     }
   ]
 }

@@ -45,6 +45,9 @@ export default [
       route(':id', 'routes/admin/travel-groups/$id.tsx'),
       route(':id/edit', 'routes/admin/travel-groups/$id-edit.tsx'),
     ]),
+    route('logistics', 'routes/admin/logistics.tsx', [
+      index('routes/admin/logistics/index.tsx'),
+    ]),
     route('payers', 'routes/admin/payers.tsx'),
     route('payment-methods', 'routes/admin/payment-methods.tsx'),
     route('roles', 'routes/admin/roles.tsx'),

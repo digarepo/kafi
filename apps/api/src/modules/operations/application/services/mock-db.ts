@@ -23,9 +23,11 @@ export class MockDb {
 
   then(onFulfilled?: (value: unknown) => unknown, _onRejected?: unknown) {
     const value = this.queue.shift();
+    let result = value;
     if (typeof onFulfilled === 'function') {
-      onFulfilled(value);
+      result = onFulfilled(value);
     }
+    return new MockDb().setQueue([result]);
   }
 
   select(..._args: unknown[]) {
@@ -114,6 +116,11 @@ export class MockDb {
 
   $dynamic(..._args: unknown[]) {
     return this.logCall('$dynamic');
+  }
+
+  async transaction<T>(callback: (db: MockDb) => Promise<T> | T): Promise<T> {
+    const result = await callback(this);
+    return result as T;
   }
 }
 
