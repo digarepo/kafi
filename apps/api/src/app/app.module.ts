@@ -6,6 +6,7 @@ import { PackagesModule } from '../modules/packages/packages.module.js';
 import { TravellersModule } from '../modules/travellers/index.js';
 import { FinanceModule } from '../modules/finance/index.js';
 import { OperationsModule } from '../modules/operations/index.js';
+import { DocumentsModule } from '../modules/documents/index.js';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { OperationsModule } from '../modules/operations/index.js';
     TravellersModule,
     FinanceModule,
     OperationsModule,
+    DocumentsModule,
   ],
   controllers: [AppController],
   providers: [],

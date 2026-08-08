@@ -26,6 +26,35 @@ const ENDPOINT_PERMISSIONS: Record<string, string> = {
   'POST /admin/group-memberships/:id/guarantees': 'TRAVEL_GROUP_MANAGE',
   'POST /admin/guarantees/:id/replace': 'TRAVEL_GROUP_MANAGE',
   'DELETE /admin/guarantees/:id': 'TRAVEL_GROUP_MANAGE',
+  'GET /admin/hotels': 'TRAVEL_GROUP_VIEW',
+  'GET /admin/hotels/:id': 'TRAVEL_GROUP_VIEW',
+  'POST /admin/hotels': 'TRAVEL_GROUP_MANAGE',
+  'PATCH /admin/hotels/:id': 'TRAVEL_GROUP_MANAGE',
+  'DELETE /admin/hotels/:id': 'TRAVEL_GROUP_MANAGE',
+  'GET /admin/vendors': 'TRAVEL_GROUP_VIEW',
+  'GET /admin/vendors/:id': 'TRAVEL_GROUP_VIEW',
+  'POST /admin/vendors': 'TRAVEL_GROUP_MANAGE',
+  'PATCH /admin/vendors/:id': 'TRAVEL_GROUP_MANAGE',
+  'DELETE /admin/vendors/:id': 'TRAVEL_GROUP_MANAGE',
+  'GET /admin/group-hotel-stays': 'TRAVEL_GROUP_VIEW',
+  'GET /admin/group-hotel-stays/:id': 'TRAVEL_GROUP_VIEW',
+  'POST /admin/group-hotel-stays': 'TRAVEL_GROUP_MANAGE',
+  'PATCH /admin/group-hotel-stays/:id': 'TRAVEL_GROUP_MANAGE',
+  'DELETE /admin/group-hotel-stays/:id': 'TRAVEL_GROUP_MANAGE',
+  'GET /admin/rooms': 'TRAVEL_GROUP_VIEW',
+  'GET /admin/rooms/:id': 'TRAVEL_GROUP_VIEW',
+  'POST /admin/rooms': 'TRAVEL_GROUP_MANAGE',
+  'PATCH /admin/rooms/:id': 'TRAVEL_GROUP_MANAGE',
+  'DELETE /admin/rooms/:id': 'TRAVEL_GROUP_MANAGE',
+  'GET /admin/room-assignments': 'TRAVEL_GROUP_VIEW',
+  'GET /admin/room-assignments/:id': 'TRAVEL_GROUP_VIEW',
+  'POST /admin/room-assignments': 'TRAVEL_GROUP_MANAGE',
+  'PATCH /admin/room-assignments/:id/release': 'TRAVEL_GROUP_MANAGE',
+  'GET /admin/transport-segments': 'TRAVEL_GROUP_VIEW',
+  'GET /admin/transport-segments/:id': 'TRAVEL_GROUP_VIEW',
+  'POST /admin/transport-segments': 'TRAVEL_GROUP_MANAGE',
+  'PATCH /admin/transport-segments/:id': 'TRAVEL_GROUP_MANAGE',
+  'DELETE /admin/transport-segments/:id': 'TRAVEL_GROUP_MANAGE',
 };
 
 function roleCanAccess(role: Set<string>, permission: string): boolean {
@@ -60,7 +89,10 @@ describe('Operations RBAC', () => {
   it('a viewer without manage permission cannot change travel group status', () => {
     const viewer = new Set(['TRAVEL_GROUP_VIEW']);
     expect(
-      roleCanAccess(viewer, ENDPOINT_PERMISSIONS['POST /admin/travel-groups/:id/change-status']),
+      roleCanAccess(
+        viewer,
+        ENDPOINT_PERMISSIONS['POST /admin/travel-groups/:id/change-status'],
+      ),
     ).toBe(false);
   });
 

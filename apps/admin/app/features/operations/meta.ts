@@ -7,7 +7,7 @@
  *   `TRAVEL_GROUP_MANAGE`.
  */
 
-import { Users } from 'lucide-react';
+import { Users, Package } from 'lucide-react';
 import type { RouteMeta } from '../../shell/routing';
 
 export const operationsMeta: RouteMeta[] = [
@@ -43,5 +43,17 @@ export const operationsMeta: RouteMeta[] = [
     breadcrumb: { label: 'Edit' },
     permission: 'TRAVEL_GROUP_VIEW',
     navigation: { label: 'Edit', parent: '/travel-groups', hidden: true },
+  },
+  {
+    path: '/logistics',
+    title: 'Logistics',
+    navigation: {
+      label: 'Logistics',
+      icon: Package,
+      order: 41,
+      group: 'Operations',
+    },
+    breadcrumb: { label: 'Logistics' },
+    permission: 'TRAVEL_GROUP_VIEW',
   },
 ];

@@ -2033,3 +2033,5 @@ export const api = {
     await request(`/api/admin/guarantees/${id}`, { method: 'DELETE' });
   },
 };
+
+export { request };

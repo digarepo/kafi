@@ -1,4 +1,5 @@
 import { dashboardMeta } from '../../features/dashboard/meta';
+import { documentsMeta } from '../../features/documents/meta';
 import { financeMeta } from '../../features/finance/meta';
 import { operationsMeta } from '../../features/operations/meta';
 import { packagesMeta } from '../../features/packages/meta';
@@ -19,6 +20,7 @@ export const routeRegistry = [
   packagesMeta,
   ...travellersMeta,
   ...operationsMeta,
+  ...documentsMeta,
   ...financeMeta,
   rolesMeta,
   profileMeta,

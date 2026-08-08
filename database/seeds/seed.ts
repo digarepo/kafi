@@ -35,6 +35,8 @@ import {
   users,
   userStatuses,
 } from '../schema/index.js';
+import { seedLogistics } from './logistics.seed.js';
+import { seedDocuments } from './documents.seed.js';
 
 /**
  * Reference data and root admin seed script for the Kafi database.
@@ -161,7 +163,17 @@ const PERMISSION_CODES = [
     name: 'Delete finance records',
     module: 'Financial',
   },
+  {
+    permission_code: 'VISA_VIEW',
+    name: 'View visas',
+    module: 'Visa',
+  },
   { permission_code: 'VISA_MANAGE', name: 'Manage visas', module: 'Visa' },
+  {
+    permission_code: 'DOCUMENT_VIEW',
+    name: 'View documents',
+    module: 'Documents',
+  },
   {
     permission_code: 'DOCUMENT_MANAGE',
     name: 'Manage documents',
@@ -202,7 +214,9 @@ const ROLE_PERMISSION_MAP: Record<string, string[]> = {
     'REGISTRATION_CREATE',
     'FINANCE_VIEW',
     'FINANCE_CREATE',
+    'VISA_VIEW',
     'VISA_MANAGE',
+    'DOCUMENT_VIEW',
     'DOCUMENT_MANAGE',
     'TRAVEL_GROUP_VIEW',
     'TRAVEL_GROUP_MANAGE',
@@ -821,6 +835,9 @@ async function seed() {
         is_active: true,
       })
       .onDuplicateKeyUpdate({ set: { is_active: true } });
+
+    await seedLogistics(db);
+    await seedDocuments(db);
 
     console.log('Database seeded successfully');
   } finally {
