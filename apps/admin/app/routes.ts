@@ -48,6 +48,16 @@ export default [
     route('logistics', 'routes/admin/logistics.tsx', [
       index('routes/admin/logistics/index.tsx'),
     ]),
+    route('documents', 'routes/admin/documents.tsx', [
+      index('routes/admin/documents/index.tsx'),
+      route('new', 'routes/admin/documents/new.tsx'),
+      route(':id', 'routes/admin/documents/$id.tsx'),
+    ]),
+    route('visa-applications', 'routes/admin/visa-applications.tsx', [
+      index('routes/admin/visa-applications/index.tsx'),
+      route('new', 'routes/admin/visa-applications/new.tsx'),
+      route(':id', 'routes/admin/visa-applications/$id.tsx'),
+    ]),
     route('payers', 'routes/admin/payers.tsx'),
     route('payment-methods', 'routes/admin/payment-methods.tsx'),
     route('roles', 'routes/admin/roles.tsx'),

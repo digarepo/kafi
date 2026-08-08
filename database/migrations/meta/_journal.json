@@ -71,6 +71,13 @@
       "when": 1786112245185,
       "tag": "0009_fantastic_night_thrasher",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "5",
+      "when": 1786188853673,
+      "tag": "0010_premium_whistler",
+      "breakpoints": true
     }
   ]
 }

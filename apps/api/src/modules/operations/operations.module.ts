@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import { SharedModule } from '../../shared/shared.module.js';
-import { BusinessNumberService } from './application/services/business-number.service.js';
 import { LogisticsLookupsService } from './application/services/logistics-lookups.service.js';
 import { TravelGroupsService } from './application/services/travel-groups.service.js';
 import { GroupMembershipsService } from './application/services/group-memberships.service.js';
@@ -45,7 +44,6 @@ import { AdminTransportSegmentsController } from './presentation/controllers/adm
     AdminLogisticsLookupsController,
   ],
   providers: [
-    BusinessNumberService,
     LogisticsLookupsService,
     TravelGroupsService,
     GroupMembershipsService,
@@ -58,7 +56,6 @@ import { AdminTransportSegmentsController } from './presentation/controllers/adm
     TransportSegmentsService,
   ],
   exports: [
-    BusinessNumberService,
     LogisticsLookupsService,
     TravelGroupsService,
     GroupMembershipsService,
