@@ -1,7 +1,9 @@
 import { Module } from '@nestjs/common';
 import { SharedModule } from '../../shared/shared.module.js';
+import { FinanceModule } from '../finance/finance.module.js';
 import { LogisticsLookupsService } from './application/services/logistics-lookups.service.js';
 import { TravelGroupsService } from './application/services/travel-groups.service.js';
+import { TravelGroupOperationalSummaryService } from './application/services/travel-group-operational-summary.service.js';
 import { GroupMembershipsService } from './application/services/group-memberships.service.js';
 import { GuaranteesService } from './application/services/guarantees.service.js';
 import { HotelsService } from './application/services/hotels.service.js';
@@ -30,7 +32,7 @@ import { AdminTransportSegmentsController } from './presentation/controllers/adm
  *   travellers, packages, finance, or iam tables.
  */
 @Module({
-  imports: [SharedModule],
+  imports: [SharedModule, FinanceModule],
   controllers: [
     AdminTravelGroupsController,
     AdminGroupMembershipsController,
@@ -46,6 +48,7 @@ import { AdminTransportSegmentsController } from './presentation/controllers/adm
   providers: [
     LogisticsLookupsService,
     TravelGroupsService,
+    TravelGroupOperationalSummaryService,
     GroupMembershipsService,
     GuaranteesService,
     HotelsService,
@@ -58,6 +61,7 @@ import { AdminTransportSegmentsController } from './presentation/controllers/adm
   exports: [
     LogisticsLookupsService,
     TravelGroupsService,
+    TravelGroupOperationalSummaryService,
     GroupMembershipsService,
     GuaranteesService,
     HotelsService,

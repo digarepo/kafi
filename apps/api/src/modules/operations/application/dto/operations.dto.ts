@@ -32,10 +32,6 @@ const updateTravelGroupSchema = z.object({
   remarks: z.string().optional(),
 });
 
-const changeTravelGroupStatusSchema = z.object({
-  travel_group_status_id: ulidSchema,
-});
-
 const createGroupMembershipSchema = z.object({
   travel_group_id: ulidSchema,
   registration_id: ulidSchema,
@@ -133,9 +129,6 @@ export class CreateTravelGroupDto extends createZodDto(
 ) {}
 export class UpdateTravelGroupDto extends createZodDto(
   updateTravelGroupSchema,
-) {}
-export class ChangeTravelGroupStatusDto extends createZodDto(
-  changeTravelGroupStatusSchema,
 ) {}
 
 export class CreateGroupMembershipDto extends createZodDto(

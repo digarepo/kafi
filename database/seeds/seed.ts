@@ -464,14 +464,47 @@ async function seed() {
         });
     }
 
+    // Travellers reference data
+    const REGISTRATION_STATUS_CODES = [
+      { status_code: 'DRAFT', name: 'Draft', display_order: 1 },
+      { status_code: 'PROCESSING', name: 'Processing', display_order: 2 },
+      {
+        status_code: 'READY_FOR_TRAVEL',
+        name: 'Ready for Travel',
+        display_order: 3,
+      },
+      { status_code: 'COMPLETED', name: 'Completed', display_order: 4 },
+      { status_code: 'CANCELLED', name: 'Cancelled', display_order: 5 },
+    ];
+
+    for (const status of REGISTRATION_STATUS_CODES) {
+      await db
+        .insert(registrationStatuses)
+        .values({
+          id: ulid(),
+          ...status,
+          is_active: true,
+        })
+        .onDuplicateKeyUpdate({
+          set: {
+            name: status.name,
+            is_active: true,
+            display_order: status.display_order,
+          },
+        });
+    }
+
     // Operations reference data
     const TRAVEL_GROUP_STATUS_CODES = [
       { status_code: 'PLANNING', name: 'Planning', display_order: 1 },
-      { status_code: 'OPEN', name: 'Open', display_order: 2 },
-      { status_code: 'CLOSED', name: 'Closed', display_order: 3 },
-      { status_code: 'DEPARTED', name: 'Departed', display_order: 4 },
-      { status_code: 'COMPLETED', name: 'Completed', display_order: 5 },
-      { status_code: 'CANCELLED', name: 'Cancelled', display_order: 6 },
+      {
+        status_code: 'TRAVEL_PREPARED',
+        name: 'Travel Prepared',
+        display_order: 2,
+      },
+      { status_code: 'DEPARTED', name: 'Departed', display_order: 3 },
+      { status_code: 'COMPLETED', name: 'Completed', display_order: 4 },
+      { status_code: 'CANCELLED', name: 'Cancelled', display_order: 5 },
     ];
 
     const GROUP_MEMBERSHIP_STATUS_CODES = [
@@ -638,9 +671,7 @@ async function seed() {
 
     const REGISTRATION_STATUS_CODES = [
       { status_code: 'DRAFT', name: 'Draft' },
-      { status_code: 'PENDING_PAYMENT', name: 'Pending Payment' },
-      { status_code: 'CONFIRMED', name: 'Confirmed' },
-      { status_code: 'DOCUMENT_PENDING', name: 'Document Pending' },
+      { status_code: 'PROCESSING', name: 'Processing' },
       { status_code: 'READY_FOR_TRAVEL', name: 'Ready for Travel' },
       { status_code: 'COMPLETED', name: 'Completed' },
       { status_code: 'CANCELLED', name: 'Cancelled' },

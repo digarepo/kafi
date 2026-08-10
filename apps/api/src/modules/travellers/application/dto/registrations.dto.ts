@@ -22,8 +22,8 @@ const updateRegistrationSchema = z.object({
   remarks: z.string().optional(),
 });
 
-const updateRegistrationStatusSchema = z.object({
-  registration_status_id: ulidSchema,
+const cancelRegistrationSchema = z.object({
+  cancellation_reason: z.string().optional(),
 });
 
 const registrationFiltersSchema = z.object({
@@ -41,8 +41,8 @@ export class CreateRegistrationDto extends createZodDto(
 export class UpdateRegistrationDto extends createZodDto(
   updateRegistrationSchema,
 ) {}
-export class UpdateRegistrationStatusDto extends createZodDto(
-  updateRegistrationStatusSchema,
+export class CancelRegistrationDto extends createZodDto(
+  cancelRegistrationSchema,
 ) {}
 export class RegistrationFiltersDto extends createZodDto(
   registrationFiltersSchema,
