@@ -1,10 +1,6 @@
-import {
-  Inject,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { MySql2Database } from 'drizzle-orm/mysql2';
-import { and, desc, eq, inArray, like, max, or, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, like, max, not, or, sql } from 'drizzle-orm';
 import { ulid } from 'ulid';
 import { DATABASE } from '../../../../shared/infrastructure/database/database.provider.js';
 import * as schema from '@kafi/database';
@@ -51,8 +47,7 @@ export class InvoicesService {
   ) {}
 
   async listInvoices(dto: InvoiceFiltersDto) {
-    const { page, page_size, search, registration_id, invoice_status_id } =
-      dto;
+    const { page, page_size, search, registration_id, invoice_status_id } = dto;
     const filters = [eq(schema.invoices.is_deleted, false)];
     if (registration_id)
       filters.push(eq(schema.invoices.registration_id, registration_id));
@@ -126,13 +121,10 @@ export class InvoicesService {
   }
 
   async createInvoice(dto: CreateInvoiceDto, actorId: string) {
-    const registration = await this.getActiveRegistration(
-      dto.registration_id,
-    );
+    const registration = await this.getActiveRegistration(dto.registration_id);
     const currency = await this.getEtbCurrency();
-    const draftStatus = await this.referenceData.getInvoiceStatusByCode(
-      'DRAFT',
-    );
+    const draftStatus =
+      await this.referenceData.getInvoiceStatusByCode('DRAFT');
 
     const subtotal = toTwoDecimals(
       dto.line_items.reduce((sum, item) => sum + lineItemTotal(item), 0),
@@ -327,12 +319,20 @@ export class InvoicesService {
    */
   async getRegistrationFinanceSummary(registrationId: string) {
     const invoiceRows = await this.db
-      .select({ id: schema.invoices.id, total_amount: schema.invoices.total_amount })
+      .select({
+        id: schema.invoices.id,
+        total_amount: schema.invoices.total_amount,
+      })
       .from(schema.invoices)
+      .innerJoin(
+        schema.invoiceStatuses,
+        eq(schema.invoices.invoice_status_id, schema.invoiceStatuses.id),
+      )
       .where(
         and(
           eq(schema.invoices.registration_id, registrationId),
           eq(schema.invoices.is_deleted, false),
+          not(eq(schema.invoiceStatuses.status_code, 'CANCELLED')),
         ),
       );
 
@@ -371,7 +371,9 @@ export class InvoicesService {
       ),
     );
 
-    const paymentIds = [...new Set(allocationRows.map((row) => row.payment_id))];
+    const paymentIds = [
+      ...new Set(allocationRows.map((row) => row.payment_id)),
+    ];
     let totalUnallocated = 0;
     if (paymentIds.length > 0) {
       const paymentRows = await this.db
@@ -415,6 +417,189 @@ export class InvoicesService {
     };
   }
 
+  async getOutstandingBalanceForRegistration(registrationId: string) {
+    const summary = await this.getRegistrationFinanceSummary(registrationId);
+    return summary.outstanding_balance;
+  }
+
+  /**
+   * Batch version of `getRegistrationFinanceSummary`.
+   *
+   * @returns A map of registration_id to the finance summary for the
+   * requested registrations. Registrations with no invoices still appear
+   * with zeroed totals.
+   */
+  async getRegistrationFinanceSummaries(registrationIds: string[]) {
+    if (registrationIds.length === 0) {
+      return new Map<
+        string,
+        {
+          total_invoiced: number;
+          total_paid: number;
+          total_unallocated: number;
+          outstanding_balance: number;
+        }
+      >();
+    }
+
+    const invoiceRows = await this.db
+      .select({
+        id: schema.invoices.id,
+        registration_id: schema.invoices.registration_id,
+        total_amount: schema.invoices.total_amount,
+      })
+      .from(schema.invoices)
+      .innerJoin(
+        schema.invoiceStatuses,
+        eq(schema.invoices.invoice_status_id, schema.invoiceStatuses.id),
+      )
+      .where(
+        and(
+          inArray(schema.invoices.registration_id, registrationIds),
+          eq(schema.invoices.is_deleted, false),
+          not(eq(schema.invoiceStatuses.status_code, 'CANCELLED')),
+        ),
+      );
+
+    const result = new Map<
+      string,
+      {
+        total_invoiced: number;
+        total_paid: number;
+        total_unallocated: number;
+        outstanding_balance: number;
+      }
+    >();
+
+    for (const id of registrationIds) {
+      result.set(id, {
+        total_invoiced: 0,
+        total_paid: 0,
+        total_unallocated: 0,
+        outstanding_balance: 0,
+      });
+    }
+
+    if (invoiceRows.length === 0) {
+      return result;
+    }
+
+    const invoiceIds = invoiceRows.map((row) => row.id);
+
+    const allocationRows = await this.db
+      .select({
+        payment_id: schema.paymentAllocations.payment_id,
+        invoice_id: schema.paymentAllocations.invoice_id,
+        allocated_amount: schema.paymentAllocations.allocated_amount,
+      })
+      .from(schema.paymentAllocations)
+      .where(
+        and(
+          inArray(schema.paymentAllocations.invoice_id, invoiceIds),
+          eq(schema.paymentAllocations.is_deleted, false),
+        ),
+      );
+
+    const paymentIds = [
+      ...new Set(allocationRows.map((row) => row.payment_id)),
+    ];
+
+    let unallocatedByPayment = new Map<string, number>();
+    if (paymentIds.length > 0) {
+      const paymentRows = await this.db
+        .select({ id: schema.payments.id, amount: schema.payments.amount })
+        .from(schema.payments)
+        .where(
+          and(
+            inArray(schema.payments.id, paymentIds),
+            eq(schema.payments.is_deleted, false),
+          ),
+        );
+
+      const allAllocationRows = await this.db
+        .select({
+          payment_id: schema.paymentAllocations.payment_id,
+          allocated_amount: schema.paymentAllocations.allocated_amount,
+        })
+        .from(schema.paymentAllocations)
+        .where(
+          and(
+            inArray(schema.paymentAllocations.payment_id, paymentIds),
+            eq(schema.paymentAllocations.is_deleted, false),
+          ),
+        );
+
+      const paymentAmountById = new Map(
+        paymentRows.map((p) => [p.id, Number(p.amount)]),
+      );
+
+      const allocatedByPayment = allAllocationRows.reduce((map, row) => {
+        const current = map.get(row.payment_id) ?? 0;
+        map.set(row.payment_id, current + Number(row.allocated_amount));
+        return map;
+      }, new Map<string, number>());
+
+      unallocatedByPayment = new Map(
+        paymentIds.map((id) => [
+          id,
+          Math.max(
+            (paymentAmountById.get(id) ?? 0) -
+              (allocatedByPayment.get(id) ?? 0),
+            0,
+          ),
+        ]),
+      );
+    }
+
+    const invoiceById = new Map(invoiceRows.map((inv) => [inv.id, inv]));
+    const totalInvoicedByReg = new Map<string, number>();
+    const totalPaidByReg = new Map<string, number>();
+    const paymentIdsByReg = new Map<string, Set<string>>();
+
+    for (const invoice of invoiceRows) {
+      const current = totalInvoicedByReg.get(invoice.registration_id) ?? 0;
+      totalInvoicedByReg.set(
+        invoice.registration_id,
+        toTwoDecimals(current + Number(invoice.total_amount)),
+      );
+    }
+
+    for (const alloc of allocationRows) {
+      const invoice = invoiceById.get(alloc.invoice_id);
+      if (!invoice) continue;
+
+      const currentPaid = totalPaidByReg.get(invoice.registration_id) ?? 0;
+      totalPaidByReg.set(
+        invoice.registration_id,
+        toTwoDecimals(currentPaid + Number(alloc.allocated_amount)),
+      );
+
+      const paymentSet =
+        paymentIdsByReg.get(invoice.registration_id) ?? new Set<string>();
+      paymentSet.add(alloc.payment_id);
+      paymentIdsByReg.set(invoice.registration_id, paymentSet);
+    }
+
+    for (const id of registrationIds) {
+      const totalInvoiced = totalInvoicedByReg.get(id) ?? 0;
+      const totalPaid = totalPaidByReg.get(id) ?? 0;
+      const paymentSet = paymentIdsByReg.get(id) ?? new Set<string>();
+      let totalUnallocated = 0;
+      for (const paymentId of paymentSet) {
+        totalUnallocated += unallocatedByPayment.get(paymentId) ?? 0;
+      }
+
+      result.set(id, {
+        total_invoiced: toTwoDecimals(totalInvoiced),
+        total_paid: toTwoDecimals(totalPaid),
+        total_unallocated: toTwoDecimals(totalUnallocated),
+        outstanding_balance: toTwoDecimals(totalInvoiced - totalPaid),
+      });
+    }
+
+    return result;
+  }
+
   // ---- Private helpers ----
 
   private async getActiveRegistration(id: string) {
@@ -451,7 +636,9 @@ export class InvoicesService {
     const [row] = await this.db
       .select()
       .from(schema.invoices)
-      .where(and(eq(schema.invoices.id, id), eq(schema.invoices.is_deleted, false)))
+      .where(
+        and(eq(schema.invoices.id, id), eq(schema.invoices.is_deleted, false)),
+      )
       .limit(1);
     if (!row) throw new NotFoundException('Invoice not found');
     return row;
@@ -536,7 +723,9 @@ export class InvoicesService {
     totalAmount: string | number,
   ) {
     const [row] = await this.db
-      .select({ allocated: sql<number>`coalesce(sum(${schema.paymentAllocations.allocated_amount}), 0)` })
+      .select({
+        allocated: sql<number>`coalesce(sum(${schema.paymentAllocations.allocated_amount}), 0)`,
+      })
       .from(schema.paymentAllocations)
       .where(
         and(

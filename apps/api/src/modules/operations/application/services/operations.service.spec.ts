@@ -14,6 +14,9 @@ const statusTransferred = {
 
 function membershipRow(overrides: any = {}) {
   const id = overrides.id ?? 'm-1';
+  const registrationStatusCode =
+    overrides.registration_status_code ?? 'READY_FOR_TRAVEL';
+  const registrationStatusName = registrationStatusCode;
   return [
     {
       group_memberships: {
@@ -45,6 +48,11 @@ function membershipRow(overrides: any = {}) {
         name: 'Active',
       },
       registrations: { id: 'reg-1', registration_number: 'REG-001' },
+      registrationStatuses: {
+        id: 'rs-ready',
+        status_code: registrationStatusCode,
+        name: registrationStatusName,
+      },
       travellers: { id: 'trv-1', first_name: 'Abebe', last_name: 'Kebede' },
       travel_groups: { id: 'tg-1', name: 'Group A', group_number: 'TGR-1' },
     },
@@ -74,13 +82,19 @@ function groupRow(overrides: any = {}) {
   ];
 }
 
-function registrationRow() {
+function registrationRow(statusCode = 'READY_FOR_TRAVEL') {
+  const name = statusCode;
   return [
     {
       registrations: {
         id: 'reg-1',
         registration_number: 'REG-001',
         traveller_id: 'trv-1',
+      },
+      registrationStatuses: {
+        id: 'rs-ready',
+        status_code: statusCode,
+        name,
       },
     },
   ];
@@ -231,6 +245,41 @@ describe('GroupMembershipsService', () => {
     expect(db.insertValues.length).toBe(1);
     const insert = db.insertValues[0] as any;
     expect(insert.transferred_from_group_membership_id).toBe(oldId);
+  });
+
+  it('rejects create when registration is not READY_FOR_TRAVEL', async () => {
+    const db = createMockDb([groupRow(), registrationRow('PROCESSING')]);
+    const service = new GroupMembershipsService(db as any);
+
+    await expect(
+      service.createMembership(
+        {
+          travel_group_id: 'tg-1',
+          registration_id: 'reg-1',
+        } as any,
+        actorId,
+      ),
+    ).rejects.toThrow(ConflictException);
+  });
+
+  it('rejects transfer when registration is not READY_FOR_TRAVEL', async () => {
+    const oldId = 'm-old';
+    const db = createMockDb([
+      membershipRow({
+        id: oldId,
+        guarantee_required: false,
+        registration_status_code: 'PROCESSING',
+      }),
+    ]);
+    const service = new GroupMembershipsService(db as any);
+
+    await expect(
+      service.transferMembership(
+        oldId,
+        { target_travel_group_id: 'tg-2' } as any,
+        actorId,
+      ),
+    ).rejects.toThrow(ConflictException);
   });
 });
 

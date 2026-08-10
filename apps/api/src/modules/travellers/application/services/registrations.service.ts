@@ -12,12 +12,14 @@ import { ulid } from 'ulid';
 import { DATABASE } from '../../../../shared/infrastructure/database/database.provider.js';
 import * as schema from '@kafi/database';
 import {
+  CancelRegistrationDto,
   CreateRegistrationDto,
   RegistrationFiltersDto,
   UpdateRegistrationDto,
-  UpdateRegistrationStatusDto,
 } from '../dto/registrations.dto.js';
 import { createRegistrationCreatedEvent } from '../../domain/events/registration-created.event.js';
+import { createRegistrationCancelledEvent } from '../../domain/events/registration-cancelled.event.js';
+import { RegistrationReadinessService } from './registration-readiness.service.js';
 
 function toDateOrNull(value: string | undefined | null): Date | null {
   if (!value) return null;
@@ -32,6 +34,7 @@ export class RegistrationsService {
     @Inject(DATABASE)
     private readonly db: MySql2Database<typeof schema>,
     private readonly eventEmitter: EventEmitter2,
+    private readonly readiness: RegistrationReadinessService,
   ) {}
 
   async listRegistrations(dto: RegistrationFiltersDto) {
@@ -300,35 +303,138 @@ export class RegistrationsService {
     return this.getRegistration(id);
   }
 
-  async updateRegistrationStatus(
-    id: string,
-    dto: UpdateRegistrationStatusDto,
-    actorId: string,
-  ) {
+  async startProcessing(id: string, actorId: string) {
     const existing = await this.getRegistration(id);
     if (existing.status === 'CANCELLED') {
       throw new ConflictException(
-        'Cannot change status of a cancelled registration',
+        'Cannot start processing a cancelled registration',
+      );
+    }
+    if (existing.status === 'PROCESSING') {
+      return existing;
+    }
+    if (existing.status !== 'DRAFT') {
+      throw new ConflictException(
+        `Cannot start processing from status ${existing.status}`,
       );
     }
 
-    const status = await this.db
-      .select()
-      .from(schema.registrationStatuses)
-      .where(eq(schema.registrationStatuses.id, dto.registration_status_id))
-      .limit(1);
-    if (status.length === 0)
-      throw new NotFoundException('Registration status not found');
+    const isComplete = await this.readiness.isRegistrationComplete(id);
+    if (!isComplete) {
+      throw new ConflictException(
+        'Registration intake conditions are not satisfied',
+      );
+    }
 
+    const processingStatus = await this.getRegistrationStatus('PROCESSING');
     await this.db
       .update(schema.registrations)
       .set({
-        registration_status_id: dto.registration_status_id,
+        registration_status_id: processingStatus.id,
         updated_at: new Date(),
         updated_by: actorId,
       })
       .where(eq(schema.registrations.id, id));
     return this.getRegistration(id);
+  }
+
+  async confirmReadyForTravel(id: string, actorId: string) {
+    const existing = await this.getRegistration(id);
+    if (existing.status === 'CANCELLED') {
+      throw new ConflictException('Cannot confirm a cancelled registration');
+    }
+    if (existing.status === 'READY_FOR_TRAVEL') {
+      return existing;
+    }
+    if (existing.status !== 'PROCESSING') {
+      throw new ConflictException(
+        `Cannot confirm ready from status ${existing.status}`,
+      );
+    }
+
+    const isReady = await this.readiness.isReadyForTravel(id);
+    if (!isReady) {
+      throw new ConflictException(
+        'Registration readiness conditions are not satisfied',
+      );
+    }
+
+    const readyStatus = await this.getRegistrationStatus('READY_FOR_TRAVEL');
+    await this.db
+      .update(schema.registrations)
+      .set({
+        registration_status_id: readyStatus.id,
+        updated_at: new Date(),
+        updated_by: actorId,
+      })
+      .where(eq(schema.registrations.id, id));
+    return this.getRegistration(id);
+  }
+
+  async cancelRegistration(
+    id: string,
+    dto: CancelRegistrationDto,
+    actorId: string,
+  ) {
+    const existing = await this.getRegistration(id);
+    if (existing.status === 'COMPLETED' || existing.status === 'CANCELLED') {
+      throw new ConflictException(
+        `Cannot cancel a ${existing.status.toLowerCase()} registration`,
+      );
+    }
+
+    const [activeMembership] = await this.db
+      .select()
+      .from(schema.groupMemberships)
+      .innerJoin(
+        schema.groupMembershipStatuses,
+        eq(
+          schema.groupMemberships.group_membership_status_id,
+          schema.groupMembershipStatuses.id,
+        ),
+      )
+      .where(
+        and(
+          eq(schema.groupMemberships.registration_id, id),
+          eq(schema.groupMemberships.is_deleted, false),
+          eq(schema.groupMembershipStatuses.status_code, 'ACTIVE'),
+        ),
+      )
+      .limit(1);
+
+    if (activeMembership) {
+      throw new ConflictException(
+        'Cannot cancel a registration with an active group membership',
+      );
+    }
+
+    const cancelledStatus = await this.getRegistrationStatus('CANCELLED');
+    const now = new Date();
+    await this.db
+      .update(schema.registrations)
+      .set({
+        registration_status_id: cancelledStatus.id,
+        cancellation_reason: dto.cancellation_reason ?? null,
+        cancelled_at: now,
+        cancelled_by: actorId,
+        updated_at: now,
+        updated_by: actorId,
+      })
+      .where(eq(schema.registrations.id, id));
+
+    const updated = await this.getRegistration(id);
+    const event = createRegistrationCancelledEvent({
+      registration_id: id,
+      registration_number: updated.registration_number,
+      traveller_id: updated.traveller!.id,
+      package_version_id: updated.package_version!.id,
+      reason: dto.cancellation_reason ?? null,
+      cancelled_at: now.toISOString(),
+      cancelled_by: actorId,
+    });
+    this.eventEmitter.emit(event.type, event);
+
+    return updated;
   }
 
   async archiveRegistration(id: string, actorId: string) {

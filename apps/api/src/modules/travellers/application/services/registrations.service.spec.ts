@@ -10,6 +10,11 @@ import { RegistrationsService } from './registrations.service.js';
 import { UpdateRegistrationDto } from '../dto/registrations.dto.js';
 import { createMockDb } from './mock-db.js';
 
+const readiness = {
+  isRegistrationComplete: vi.fn(),
+  isReadyForTravel: vi.fn(),
+};
+
 function registrationRow(statusCode: string) {
   return [
     {
@@ -65,7 +70,11 @@ describe('RegistrationsService', () => {
     it('starts at 1 when no registrations exist for the year', async () => {
       const db = createMockDb([[{ max: null }]]);
       const emitter = new EventEmitter2();
-      const service = new RegistrationsService(db as any, emitter as any);
+      const service = new RegistrationsService(
+        db as any,
+        emitter as any,
+        readiness as any,
+      );
       const number = await (service as any).generateRegistrationNumber();
       expect(number).toMatch(/^REG-\d{4}-000001$/);
     });
@@ -73,7 +82,11 @@ describe('RegistrationsService', () => {
     it('increments from the existing max for the year', async () => {
       const db = createMockDb([[{ max: 'REG-2026-000009' }]]);
       const emitter = new EventEmitter2();
-      const service = new RegistrationsService(db as any, emitter as any);
+      const service = new RegistrationsService(
+        db as any,
+        emitter as any,
+        readiness as any,
+      );
       const number = await (service as any).generateRegistrationNumber();
       expect(number).toBe('REG-2026-000010');
     });
@@ -83,7 +96,11 @@ describe('RegistrationsService', () => {
     it('throws when the package version is not published', async () => {
       const db = createMockDb([[]]);
       const emitter = new EventEmitter2();
-      const service = new RegistrationsService(db as any, emitter as any);
+      const service = new RegistrationsService(
+        db as any,
+        emitter as any,
+        readiness as any,
+      );
 
       await expect(
         (service as any).getPublishedPackageVersion('package-version-id'),
@@ -95,7 +112,11 @@ describe('RegistrationsService', () => {
         [{ package_versions: { id: 'package-version-id' } }],
       ]);
       const emitter = new EventEmitter2();
-      const service = new RegistrationsService(db as any, emitter as any);
+      const service = new RegistrationsService(
+        db as any,
+        emitter as any,
+        readiness as any,
+      );
 
       const result = await (service as any).getPublishedPackageVersion(
         'package-version-id',
@@ -108,7 +129,11 @@ describe('RegistrationsService', () => {
     it('counts only active lifecycle registrations (excludes CANCELLED and DRAFT)', async () => {
       const db = createMockDb([[{ count: 5 }]]);
       const emitter = new EventEmitter2();
-      const service = new RegistrationsService(db as any, emitter as any);
+      const service = new RegistrationsService(
+        db as any,
+        emitter as any,
+        readiness as any,
+      );
 
       const active = await (service as any).countActiveRegistrations('PV');
       expect(active).toBe(5);
@@ -121,7 +146,11 @@ describe('RegistrationsService', () => {
     it('rejects updates to a cancelled registration', async () => {
       const db = createMockDb([registrationRow('CANCELLED')]);
       const emitter = new EventEmitter2();
-      const service = new RegistrationsService(db as any, emitter as any);
+      const service = new RegistrationsService(
+        db as any,
+        emitter as any,
+        readiness as any,
+      );
 
       await expect(
         service.updateRegistration(
@@ -139,7 +168,11 @@ describe('RegistrationsService', () => {
     it('rejects departure date after return date', async () => {
       const db = createMockDb([registrationRow('CONFIRMED')]);
       const emitter = { emit: vi.fn() };
-      const service = new RegistrationsService(db as any, emitter as any);
+      const service = new RegistrationsService(
+        db as any,
+        emitter as any,
+        readiness as any,
+      );
 
       await expect(
         service.updateRegistration(
@@ -151,6 +184,175 @@ describe('RegistrationsService', () => {
           'actor',
         ),
       ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('registration workflow commands', () => {
+    it('startProcessing rejects when registration is not DRAFT', async () => {
+      const db = createMockDb([registrationRow('READY_FOR_TRAVEL')]);
+      const emitter = new EventEmitter2();
+      const service = new RegistrationsService(
+        db as any,
+        emitter as any,
+        readiness as any,
+      );
+
+      await expect(
+        service.startProcessing('01KZ4REG', 'actor'),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('startProcessing succeeds when registration is DRAFT and complete', async () => {
+      readiness.isRegistrationComplete.mockResolvedValue(true);
+      const db = createMockDb([
+        registrationRow('DRAFT'),
+        [{ id: 'RS-PROC', status_code: 'PROCESSING' }],
+        [],
+        registrationRow('PROCESSING'),
+      ]);
+      const emitter = new EventEmitter2();
+      const service = new RegistrationsService(
+        db as any,
+        emitter as any,
+        readiness as any,
+      );
+
+      const result = await service.startProcessing('01KZ4REG', 'actor');
+      expect(result.status).toBe('PROCESSING');
+    });
+
+    it('startProcessing rejects when intake conditions are not satisfied', async () => {
+      readiness.isRegistrationComplete.mockResolvedValue(false);
+      const db = createMockDb([registrationRow('DRAFT')]);
+      const emitter = new EventEmitter2();
+      const service = new RegistrationsService(
+        db as any,
+        emitter as any,
+        readiness as any,
+      );
+
+      await expect(
+        service.startProcessing('01KZ4REG', 'actor'),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('confirmReadyForTravel rejects when registration is not PROCESSING', async () => {
+      const db = createMockDb([registrationRow('DRAFT')]);
+      const emitter = new EventEmitter2();
+      const service = new RegistrationsService(
+        db as any,
+        emitter as any,
+        readiness as any,
+      );
+
+      await expect(
+        service.confirmReadyForTravel('01KZ4REG', 'actor'),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('confirmReadyForTravel rejects when readiness conditions fail', async () => {
+      readiness.isReadyForTravel.mockResolvedValue(false);
+      const db = createMockDb([registrationRow('PROCESSING')]);
+      const emitter = new EventEmitter2();
+      const service = new RegistrationsService(
+        db as any,
+        emitter as any,
+        readiness as any,
+      );
+
+      await expect(
+        service.confirmReadyForTravel('01KZ4REG', 'actor'),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('confirmReadyForTravel succeeds when registration is processing and ready', async () => {
+      readiness.isReadyForTravel.mockResolvedValue(true);
+      const db = createMockDb([
+        registrationRow('PROCESSING'),
+        [{ id: 'RS-READY', status_code: 'READY_FOR_TRAVEL' }],
+        [],
+        registrationRow('READY_FOR_TRAVEL'),
+      ]);
+      const emitter = new EventEmitter2();
+      const service = new RegistrationsService(
+        db as any,
+        emitter as any,
+        readiness as any,
+      );
+
+      const result = await service.confirmReadyForTravel('01KZ4REG', 'actor');
+      expect(result.status).toBe('READY_FOR_TRAVEL');
+    });
+
+    it('cancelRegistration rejects already-completed registrations', async () => {
+      const db = createMockDb([registrationRow('COMPLETED')]);
+      const emitter = new EventEmitter2();
+      const service = new RegistrationsService(
+        db as any,
+        emitter as any,
+        readiness as any,
+      );
+
+      await expect(
+        service.cancelRegistration(
+          '01KZ4REG',
+          { cancellation_reason: 'Customer withdrawal' } as any,
+          'actor',
+        ),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('cancelRegistration rejects when an active group membership exists', async () => {
+      const db = createMockDb([
+        registrationRow('READY_FOR_TRAVEL'),
+        [{ group_memberships: { id: 'GM-1' } }],
+      ]);
+      const emitter = new EventEmitter2();
+      const service = new RegistrationsService(
+        db as any,
+        emitter as any,
+        readiness as any,
+      );
+
+      await expect(
+        service.cancelRegistration(
+          '01KZ4REG',
+          { cancellation_reason: 'Customer withdrawal' } as any,
+          'actor',
+        ),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('cancelRegistration sets audit fields and emits an event', async () => {
+      readiness.isRegistrationComplete.mockReset();
+      const db = createMockDb([
+        registrationRow('DRAFT'),
+        [],
+        [{ id: 'RS-CANCEL', status_code: 'CANCELLED' }],
+        [],
+        registrationRow('CANCELLED'),
+      ]);
+      const emitter = { emit: vi.fn() };
+      const service = new RegistrationsService(
+        db as any,
+        emitter as any,
+        readiness as any,
+      );
+
+      const result = await service.cancelRegistration(
+        '01KZ4REG',
+        { cancellation_reason: 'Customer withdrawal' } as any,
+        'actor',
+      );
+
+      expect(result.status).toBe('CANCELLED');
+      expect(db.updateSets[0]).toMatchObject({
+        cancellation_reason: 'Customer withdrawal',
+        cancelled_at: expect.any(Date),
+        cancelled_by: 'actor',
+        updated_by: 'actor',
+      });
+      expect(emitter.emit).toHaveBeenCalledOnce();
     });
   });
 });

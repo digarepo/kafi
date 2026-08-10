@@ -14,10 +14,10 @@ import { JwtAuthGuard } from '../../../../shared/application/guards/jwt-auth.gua
 import { PermissionsGuard } from '../../../../shared/application/guards/permissions.guard.js';
 import { RequirePermissions } from '../../../../shared/application/decorators/require-permissions.decorator.js';
 import { TravelGroupsService } from '../../application/services/travel-groups.service.js';
+import { TravelGroupOperationalSummaryService } from '../../application/services/travel-group-operational-summary.service.js';
 import { GroupHotelStaysService } from '../../application/services/group-hotel-stays.service.js';
 import { TransportSegmentsService } from '../../application/services/transport-segments.service.js';
 import {
-  ChangeTravelGroupStatusDto,
   CreateTravelGroupDto,
   CreateGroupHotelStayForTravelGroupDto,
   GroupHotelStayFiltersDto,
@@ -39,6 +39,7 @@ import {
 export class AdminTravelGroupsController {
   constructor(
     private readonly travelGroups: TravelGroupsService,
+    private readonly operationalSummary: TravelGroupOperationalSummaryService,
     private readonly groupHotelStays: GroupHotelStaysService,
     private readonly transportSegments: TransportSegmentsService,
   ) {}
@@ -53,6 +54,18 @@ export class AdminTravelGroupsController {
   @RequirePermissions('TRAVEL_GROUP_VIEW')
   getTravelGroup(@Param('id') id: string) {
     return this.travelGroups.getTravelGroup(id);
+  }
+
+  @Get('travel-groups/:id/operational-summary')
+  @RequirePermissions('TRAVEL_GROUP_VIEW')
+  getOperationalSummary(@Param('id') id: string) {
+    return this.operationalSummary.getOperationalSummary(id);
+  }
+
+  @Get('travel-groups/:id/travellers')
+  @RequirePermissions('TRAVEL_GROUP_VIEW')
+  getTravellers(@Param('id') id: string) {
+    return this.operationalSummary.getTravellers(id);
   }
 
   @Post('travel-groups')
@@ -77,14 +90,22 @@ export class AdminTravelGroupsController {
     return this.travelGroups.deleteTravelGroup(id, req.user.sub);
   }
 
-  @Post('travel-groups/:id/change-status')
+  @Post('travel-groups/:id/confirm-travel-prepared')
   @RequirePermissions('TRAVEL_GROUP_MANAGE')
-  changeStatus(
-    @Param('id') id: string,
-    @Body() dto: ChangeTravelGroupStatusDto,
-    @Req() req: any,
-  ) {
-    return this.travelGroups.changeStatus(id, dto, req.user.sub);
+  confirmTravelPrepared(@Param('id') id: string, @Req() req: any) {
+    return this.travelGroups.confirmTravelPrepared(id, req.user.sub);
+  }
+
+  @Post('travel-groups/:id/depart')
+  @RequirePermissions('TRAVEL_GROUP_MANAGE')
+  depart(@Param('id') id: string, @Req() req: any) {
+    return this.travelGroups.depart(id, req.user.sub);
+  }
+
+  @Post('travel-groups/:id/complete')
+  @RequirePermissions('TRAVEL_GROUP_MANAGE')
+  complete(@Param('id') id: string, @Req() req: any) {
+    return this.travelGroups.complete(id, req.user.sub);
   }
 
   @Get('travel-group-statuses')

@@ -6,6 +6,7 @@
 export class MockDb {
   queue: unknown[] = [];
   calls: string[] = [];
+  updateSets: unknown[] = [];
 
   setQueue(values: unknown[]) {
     this.queue = [...values];
@@ -48,7 +49,8 @@ export class MockDb {
     return this.logCall('values');
   }
 
-  set(..._args: unknown[]) {
+  set(...args: unknown[]) {
+    this.updateSets.push(args[0]);
     return this.logCall('set');
   }
 

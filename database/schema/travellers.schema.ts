@@ -82,16 +82,19 @@ export const contactPersonStatuses = mysqlTable('contact_person_statuses', {
 /**
  * Lifecycle states for the traveller/contact link.
  */
-export const travellerContactStatuses = mysqlTable('traveller_contact_statuses', {
-  id: idColumn,
-  status_code: codeColumn('status_code'),
-  name: nameColumn(),
-  description: text('description'),
-  display_order: int('display_order').notNull().default(1),
-  is_active: boolean('is_active').notNull().default(true),
-  ...auditMetadata,
-  ...softDeleteMetadata,
-});
+export const travellerContactStatuses = mysqlTable(
+  'traveller_contact_statuses',
+  {
+    id: idColumn,
+    status_code: codeColumn('status_code'),
+    name: nameColumn(),
+    description: text('description'),
+    display_order: int('display_order').notNull().default(1),
+    is_active: boolean('is_active').notNull().default(true),
+    ...auditMetadata,
+    ...softDeleteMetadata,
+  },
+);
 
 /**
  * Lifecycle states for a registration.
@@ -178,12 +181,12 @@ export const travellerContacts = mysqlTable(
     is_emergency_contact: boolean('is_emergency_contact')
       .notNull()
       .default(false),
-    is_primary_contact: boolean('is_primary_contact')
-      .notNull()
-      .default(false),
+    is_primary_contact: boolean('is_primary_contact').notNull().default(false),
     priority: int('priority').notNull().default(1),
     notes: text('notes'),
-    traveller_contact_status_id: fkUuid('traveller_contact_status_id').notNull(),
+    traveller_contact_status_id: fkUuid(
+      'traveller_contact_status_id',
+    ).notNull(),
     ...auditMetadata,
     ...actorMetadata,
     ...softDeleteMetadata,
@@ -219,6 +222,9 @@ export const registrations = mysqlTable(
     expected_departure_date: date('expected_departure_date'),
     expected_return_date: date('expected_return_date'),
     registration_status_id: fkUuid('registration_status_id').notNull(),
+    cancellation_reason: text('cancellation_reason'),
+    cancelled_at: datetime('cancelled_at', { mode: 'date' }),
+    cancelled_by: fkUuid('cancelled_by'),
     remarks: text('remarks'),
     ...auditMetadata,
     ...actorMetadata,

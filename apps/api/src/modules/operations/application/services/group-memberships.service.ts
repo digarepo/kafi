@@ -114,6 +114,13 @@ export class GroupMembershipsService {
         eq(schema.groupMemberships.registration_id, schema.registrations.id),
       )
       .leftJoin(
+        schema.registrationStatuses,
+        eq(
+          schema.registrations.registration_status_id,
+          schema.registrationStatuses.id,
+        ),
+      )
+      .leftJoin(
         schema.travellers,
         eq(schema.registrations.traveller_id, schema.travellers.id),
       )
@@ -149,7 +156,11 @@ export class GroupMembershipsService {
 
     const registration = await this.findRegistration(dto.registration_id);
     if (!registration) throw new NotFoundException('Registration not found');
-
+    if (registration.status_code !== 'READY_FOR_TRAVEL') {
+      throw new ConflictException(
+        'Registration must be READY_FOR_TRAVEL to be assigned to a travel group',
+      );
+    }
     await this.assertNoActiveMembershipForRegistration(dto.registration_id);
     await this.assertCapacityAvailable(group.id, group.maximum_capacity);
 
@@ -228,6 +239,11 @@ export class GroupMembershipsService {
     const old = await this.getMembership(id);
     if (old.status_code !== 'ACTIVE') {
       throw new ConflictException('Only active memberships can be transferred');
+    }
+    if (old.registration_status_code !== 'READY_FOR_TRAVEL') {
+      throw new ConflictException(
+        'Registration must be READY_FOR_TRAVEL to be assigned to a travel group',
+      );
     }
 
     const target = await this.requireAssignableGroup(
@@ -353,8 +369,18 @@ export class GroupMembershipsService {
 
   private async findRegistration(id: string) {
     const [row] = await this.db
-      .select()
+      .select({
+        id: schema.registrations.id,
+        status_code: schema.registrationStatuses.status_code,
+      })
       .from(schema.registrations)
+      .innerJoin(
+        schema.registrationStatuses,
+        eq(
+          schema.registrations.registration_status_id,
+          schema.registrationStatuses.id,
+        ),
+      )
       .where(
         and(
           eq(schema.registrations.id, id),
@@ -456,6 +482,7 @@ export class GroupMembershipsService {
     const m = row.group_memberships;
     const status = row.group_membership_statuses;
     const reg = row.registrations;
+    const regStatus = row.registrationStatuses;
     const traveller = row.travellers;
     const group = row.travel_groups;
 
@@ -469,6 +496,14 @@ export class GroupMembershipsService {
       registration: reg
         ? { id: reg.id, registration_number: reg.registration_number }
         : null,
+      registration_status: regStatus
+        ? {
+            id: regStatus.id,
+            status_code: regStatus.status_code,
+            name: regStatus.name,
+          }
+        : null,
+      registration_status_code: regStatus?.status_code ?? null,
       traveller: traveller
         ? {
             id: traveller.id,

@@ -13,17 +13,23 @@ import { JwtAuthGuard } from '../../../../shared/application/guards/jwt-auth.gua
 import { PermissionsGuard } from '../../../../shared/application/guards/permissions.guard.js';
 import { RequirePermissions } from '../../../../shared/application/decorators/require-permissions.decorator.js';
 import { RegistrationsService } from '../../application/services/registrations.service.js';
+import { RegistrationOperationalSummaryService } from '../../application/services/registration-operational-summary.service.js';
+import { RegistrationQueuesService } from '../../application/services/registration-queues.service.js';
 import {
+  CancelRegistrationDto,
   CreateRegistrationDto,
   RegistrationFiltersDto,
   UpdateRegistrationDto,
-  UpdateRegistrationStatusDto,
 } from '../../application/dto/registrations.dto.js';
 
 @Controller('admin')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class AdminRegistrationsController {
-  constructor(private readonly registrations: RegistrationsService) {}
+  constructor(
+    private readonly registrations: RegistrationsService,
+    private readonly operationalSummary: RegistrationOperationalSummaryService,
+    private readonly queues: RegistrationQueuesService,
+  ) {}
 
   @Get('registrations')
   @RequirePermissions('REGISTRATION_VIEW')
@@ -53,19 +59,49 @@ export class AdminRegistrationsController {
     return this.registrations.updateRegistration(id, dto, req.user.sub);
   }
 
-  @Post('registrations/:id/status')
+  @Post('registrations/:id/start-processing')
   @RequirePermissions('REGISTRATION_EDIT')
-  updateStatus(
+  startProcessing(@Param('id') id: string, @Req() req: any) {
+    return this.registrations.startProcessing(id, req.user.sub);
+  }
+
+  @Post('registrations/:id/confirm-ready')
+  @RequirePermissions('REGISTRATION_EDIT')
+  confirmReadyForTravel(@Param('id') id: string, @Req() req: any) {
+    return this.registrations.confirmReadyForTravel(id, req.user.sub);
+  }
+
+  @Post('registrations/:id/cancel')
+  @RequirePermissions('REGISTRATION_EDIT')
+  cancelRegistration(
     @Param('id') id: string,
-    @Body() dto: UpdateRegistrationStatusDto,
+    @Body() dto: CancelRegistrationDto,
     @Req() req: any,
   ) {
-    return this.registrations.updateRegistrationStatus(id, dto, req.user.sub);
+    return this.registrations.cancelRegistration(id, dto, req.user.sub);
   }
 
   @Post('registrations/:id/archive')
   @RequirePermissions('REGISTRATION_DELETE')
   archiveRegistration(@Param('id') id: string, @Req() req: any) {
     return this.registrations.archiveRegistration(id, req.user.sub);
+  }
+
+  @Get('registrations/:id/operational-summary')
+  @RequirePermissions('REGISTRATION_VIEW')
+  getOperationalSummary(@Param('id') id: string) {
+    return this.operationalSummary.getOperationalSummary(id);
+  }
+
+  @Get('registrations/queue/blocked-from-ready')
+  @RequirePermissions('REGISTRATION_VIEW')
+  getBlockedFromReadyQueue() {
+    return this.queues.getBlockedFromReadyQueue();
+  }
+
+  @Get('registrations/queue/unpaid')
+  @RequirePermissions('REGISTRATION_VIEW')
+  getUnpaidQueue() {
+    return this.queues.getUnpaidQueue();
   }
 }
