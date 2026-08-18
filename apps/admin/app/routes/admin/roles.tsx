@@ -35,6 +35,8 @@ export async function clientLoader() {
   }
 }
 
+export { RouteHydrateFallback as HydrateFallback } from '../../shared/route-hydrate-fallback';
+
 export default function RolesPage() {
   const initial = useLoaderData<typeof clientLoader>();
   const [roles] = useState<Role[]>(initial.roles);

@@ -1,9 +1,14 @@
-import { TravelGroupEditPage } from '@/features/operations';
+import { TravelGroupEditPage } from "@/features/operations";
+import { RequirePermission } from "../../../core/permissions";
 
 export function meta() {
-  return [{ title: 'Edit travel group | Kafi Admin' }];
+  return [{ title: "Edit travel group | Kafi Admin" }];
 }
 
 export default function TravelGroupEditRoute() {
-  return <TravelGroupEditPage />;
+  return (
+    <RequirePermission permission="TRAVEL_GROUP_MANAGE">
+      <TravelGroupEditPage />
+    </RequirePermission>
+  );
 }

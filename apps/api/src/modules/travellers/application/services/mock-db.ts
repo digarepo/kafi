@@ -105,6 +105,11 @@ export class MockDb {
   $dynamic(..._args: unknown[]) {
     return this.logCall('$dynamic');
   }
+
+  transaction(cb: (tx: MockDb) => unknown) {
+    this.calls.push('transaction');
+    return Promise.resolve(cb(this));
+  }
 }
 
 export function createMockDb(queue: unknown[] = []) {

@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { SharedModule } from '../../shared/shared.module.js';
+import { FinanceModule } from '../finance/finance.module.js';
 import { DocumentsService } from './application/services/documents.service.js';
 import { VisaApplicationsService } from './application/services/visa-applications.service.js';
 import { LocalStorageProvider } from './infrastructure/storage/local-storage.provider.js';
@@ -15,9 +16,10 @@ import { AdminVisaApplicationsController } from './presentation/controllers/admi
  * - This module reads from travellers and registrations to resolve ownership
  *   and never writes to those tables.
  * - Storage is local for development/CI; S3 is deferred.
+ * - Imports FinanceModule so visa approval can auto-create a Finance expense.
  */
 @Module({
-  imports: [SharedModule],
+  imports: [SharedModule, FinanceModule],
   controllers: [AdminDocumentsController, AdminVisaApplicationsController],
   providers: [
     DocumentsService,

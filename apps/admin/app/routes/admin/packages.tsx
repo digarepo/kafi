@@ -19,6 +19,8 @@ export async function clientLoader() {
   }
 }
 
+export { RouteHydrateFallback as HydrateFallback } from '../../shared/route-hydrate-fallback';
+
 export default function PackagesRoute() {
   useLoaderData<typeof clientLoader>();
   return <PackagesPage />;

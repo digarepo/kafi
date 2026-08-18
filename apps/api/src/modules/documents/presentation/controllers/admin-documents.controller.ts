@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -15,14 +16,19 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
+import { extname } from 'node:path';
 import { JwtAuthGuard } from '../../../../shared/application/guards/jwt-auth.guard.js';
 import { PermissionsGuard } from '../../../../shared/application/guards/permissions.guard.js';
 import { RequirePermissions } from '../../../../shared/application/decorators/require-permissions.decorator.js';
 import { DocumentsService } from '../../application/services/documents.service.js';
 import {
+  AttachDocumentToRegistrationDto,
   ChangeDocumentStatusDto,
   ChangeDocumentVerificationDto,
   CreateDocumentDto,
+  DOCUMENT_ALLOWED_EXTENSIONS,
+  DOCUMENT_ALLOWED_MIME_TYPES,
+  DOCUMENT_MAX_FILE_SIZE,
   DocumentFiltersDto,
   UpdateDocumentDto,
 } from '../../application/dto/documents.dto.js';
@@ -40,7 +46,30 @@ export class AdminDocumentsController {
 
   @Post('documents')
   @RequirePermissions('DOCUMENT_MANAGE')
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: DOCUMENT_MAX_FILE_SIZE },
+      fileFilter: (_req, file, callback) => {
+        const extension = extname(file.originalname).toLowerCase();
+        const allowedMime = DOCUMENT_ALLOWED_MIME_TYPES.includes(
+          file.mimetype as (typeof DOCUMENT_ALLOWED_MIME_TYPES)[number],
+        );
+        const allowedExtension = DOCUMENT_ALLOWED_EXTENSIONS.includes(
+          extension as (typeof DOCUMENT_ALLOWED_EXTENSIONS)[number],
+        );
+        if (!allowedMime || !allowedExtension) {
+          callback(
+            new BadRequestException(
+              'Only PDF, JPG, and JPEG files are allowed',
+            ),
+            false,
+          );
+          return;
+        }
+        callback(null, true);
+      },
+    }),
+  )
   createDocument(
     @UploadedFile() file: any,
     @Body() dto: CreateDocumentDto,
@@ -119,6 +148,20 @@ export class AdminDocumentsController {
     @Req() req: any,
   ) {
     return this.documents.changeStatus(id, dto, req.user.sub);
+  }
+
+  @Post('documents/:id/attach')
+  @RequirePermissions('DOCUMENT_MANAGE')
+  attachDocumentToRegistration(
+    @Param('id') id: string,
+    @Body() dto: AttachDocumentToRegistrationDto,
+    @Req() req: any,
+  ) {
+    return this.documents.attachDocumentToRegistration(
+      id,
+      dto.registration_id,
+      req.user.sub,
+    );
   }
 
   @Get('travellers/:id/documents')

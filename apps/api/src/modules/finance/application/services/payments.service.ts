@@ -1,23 +1,18 @@
-import {
-  ConflictException,
-  Inject,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
-import { EventEmitter2 } from '@nestjs/event-emitter';
-import { MySql2Database } from 'drizzle-orm/mysql2';
-import { and, desc, eq, like, max, or, sql } from 'drizzle-orm';
-import { ulid } from 'ulid';
-import { DATABASE } from '../../../../shared/infrastructure/database/database.provider.js';
-import * as schema from '@kafi/database';
+import { ConflictException, Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { EventEmitter2 } from "@nestjs/event-emitter";
+import { MySql2Database } from "drizzle-orm/mysql2";
+import { and, desc, eq, like, max, or, sql } from "drizzle-orm";
+import { ulid } from "ulid";
+import { DATABASE } from "../../../../shared/infrastructure/database/database.provider.js";
+import * as schema from "@kafi/database";
 import {
   AllocatePaymentDto,
   CreatePaymentDto,
   PaymentFiltersDto,
   UpdatePaymentDto,
-} from '../dto/payments.dto.js';
-import { ReferenceDataService } from './reference-data.service.js';
-import { createPaymentUnallocatedEvent } from '../../domain/events/payment-unallocated.event.js';
+} from "../dto/payments.dto.js";
+import { ReferenceDataService } from "./reference-data.service.js";
+import { createPaymentUnallocatedEvent } from "../../domain/events/payment-unallocated.event.js";
 
 function toTwoDecimals(value: number): number {
   return Math.round(value * 100) / 100;
@@ -42,21 +37,20 @@ export class PaymentsService {
     @Inject(DATABASE)
     private readonly db: MySql2Database<typeof schema>,
     private readonly referenceData: ReferenceDataService,
-    private readonly eventEmitter: EventEmitter2,
+    private readonly eventEmitter: EventEmitter2
   ) {}
 
   async listPayments(dto: PaymentFiltersDto) {
     const { page, page_size, search, payer_id, payment_status_id } = dto;
     const filters = [eq(schema.payments.is_deleted, false)];
     if (payer_id) filters.push(eq(schema.payments.payer_id, payer_id));
-    if (payment_status_id)
-      filters.push(eq(schema.payments.payment_status_id, payment_status_id));
+    if (payment_status_id) filters.push(eq(schema.payments.payment_status_id, payment_status_id));
     if (search) {
       filters.push(
         or(
           like(schema.payments.payment_number, `%${search}%`),
-          like(schema.payments.reference_number, `%${search}%`),
-        ) as any,
+          like(schema.payments.reference_number, `%${search}%`)
+        ) as any
       );
     }
 
@@ -64,17 +58,14 @@ export class PaymentsService {
       this.db
         .select()
         .from(schema.payments)
-        .leftJoin(
-          schema.payers,
-          eq(schema.payments.payer_id, schema.payers.id),
-        )
+        .leftJoin(schema.payers, eq(schema.payments.payer_id, schema.payers.id))
         .leftJoin(
           schema.paymentMethods,
-          eq(schema.payments.payment_method_id, schema.paymentMethods.id),
+          eq(schema.payments.payment_method_id, schema.paymentMethods.id)
         )
         .leftJoin(
           schema.paymentStatuses,
-          eq(schema.payments.payment_status_id, schema.paymentStatuses.id),
+          eq(schema.payments.payment_status_id, schema.paymentStatuses.id)
         )
         .where(and(...filters))
         .orderBy(desc(schema.payments.created_at))
@@ -98,10 +89,7 @@ export class PaymentsService {
   async getPayment(id: string) {
     const payment = await this.getPaymentOrThrow(id);
     const allocations = await this.listAllocations(id);
-    const unallocated = await this.computeUnallocatedBalance(
-      id,
-      payment.amount,
-    );
+    const unallocated = await this.computeUnallocatedBalance(id, payment.amount);
     return {
       ...this.mapPaymentRow(payment),
       allocations,
@@ -112,9 +100,7 @@ export class PaymentsService {
   async createPayment(dto: CreatePaymentDto, actorId: string) {
     await this.getActivePayer(dto.payer_id);
     await this.getPaymentMethodOrThrow(dto.payment_method_id);
-    const completedStatus = await this.referenceData.getPaymentStatusByCode(
-      'COMPLETED',
-    );
+    const completedStatus = await this.referenceData.getPaymentStatusByCode("COMPLETED");
 
     const amount = toTwoDecimals(dto.original_amount * dto.exchange_rate);
     const id = ulid();
@@ -176,13 +162,13 @@ export class PaymentsService {
       .where(
         and(
           eq(schema.paymentAllocations.payment_id, id),
-          eq(schema.paymentAllocations.is_deleted, false),
-        ),
+          eq(schema.paymentAllocations.is_deleted, false)
+        )
       )
       .limit(1);
     if (activeAllocations.length > 0) {
       throw new ConflictException(
-        'Cannot archive a payment with active allocations; reverse allocations first',
+        "Cannot archive a payment with active allocations; reverse allocations first"
       );
     }
     await this.db
@@ -200,15 +186,12 @@ export class PaymentsService {
     const rows = await this.db
       .select()
       .from(schema.paymentAllocations)
-      .innerJoin(
-        schema.invoices,
-        eq(schema.paymentAllocations.invoice_id, schema.invoices.id),
-      )
+      .innerJoin(schema.invoices, eq(schema.paymentAllocations.invoice_id, schema.invoices.id))
       .where(
         and(
           eq(schema.paymentAllocations.payment_id, paymentId),
-          eq(schema.paymentAllocations.is_deleted, false),
-        ),
+          eq(schema.paymentAllocations.is_deleted, false)
+        )
       )
       .orderBy(desc(schema.paymentAllocations.allocation_date));
 
@@ -231,59 +214,231 @@ export class PaymentsService {
    * payment's unallocated balance, an invoice's outstanding balance, or a
    * `(payment_id, invoice_id)` allocation already exists.
    */
-  async allocatePayment(
-    id: string,
-    dto: AllocatePaymentDto,
-    actorId: string,
-  ) {
-    const payment = await this.getPaymentOrThrow(id);
-    const unallocated = await this.computeUnallocatedBalance(
-      id,
-      payment.amount,
-    );
+  async allocatePayment(id: string, dto: AllocatePaymentDto, actorId: string) {
+    // Use a transaction with row locks on the payment and all relevant
+    // invoices so that concurrent allocation requests cannot both read the
+    // same unallocated/invoice balances and over-allocate.
+    return this.db.transaction(async (tx) => {
+      // Lock the payment row
+      const [lockedPayment] = await tx
+        .select()
+        .from(schema.payments)
+        .where(and(eq(schema.payments.id, id), eq(schema.payments.is_deleted, false)))
+        .for("update")
+        .limit(1);
 
-    const requestedTotal = toTwoDecimals(
-      dto.allocations.reduce((sum, a) => sum + a.allocated_amount, 0),
-    );
-    if (requestedTotal > unallocated) {
-      throw new ConflictException(
-        `Requested allocation total (${requestedTotal}) exceeds the payment's unallocated balance (${unallocated})`,
-      );
-    }
+      if (!lockedPayment) throw new NotFoundException("Payment not found");
 
-    for (const allocation of dto.allocations) {
-      await this.assertNoExistingAllocation(id, allocation.invoice_id);
-      const invoiceBalance = await this.getInvoiceBalance(
-        allocation.invoice_id,
+      // Compute unallocated balance under lock
+      const [allocRow] = await tx
+        .select({
+          allocated: sql<number>`coalesce(sum(${schema.paymentAllocations.allocated_amount}), 0)`,
+        })
+        .from(schema.paymentAllocations)
+        .where(
+          and(
+            eq(schema.paymentAllocations.payment_id, id),
+            eq(schema.paymentAllocations.is_deleted, false)
+          )
+        );
+      const unallocated = toTwoDecimals(
+        Number(lockedPayment.amount) - Number(allocRow?.allocated ?? 0)
       );
-      if (allocation.allocated_amount > invoiceBalance) {
+
+      const requestedTotal = toTwoDecimals(
+        dto.allocations.reduce((sum, a) => sum + a.allocated_amount, 0)
+      );
+      if (requestedTotal > unallocated) {
         throw new ConflictException(
-          `Allocated amount (${allocation.allocated_amount}) exceeds invoice outstanding balance (${invoiceBalance})`,
+          `Requested allocation total (${requestedTotal}) exceeds the payment's unallocated balance (${unallocated})`
         );
       }
 
-      await this.db.insert(schema.paymentAllocations).values({
-        id: ulid(),
-        payment_id: id,
-        invoice_id: allocation.invoice_id,
-        allocated_amount: String(allocation.allocated_amount),
-        notes: allocation.notes ?? null,
-        created_by: actorId,
-        updated_by: actorId,
-      });
+      for (const allocation of dto.allocations) {
+        // Check for existing allocation under lock
+        const [existing] = await tx
+          .select({ id: schema.paymentAllocations.id })
+          .from(schema.paymentAllocations)
+          .where(
+            and(
+              eq(schema.paymentAllocations.payment_id, id),
+              eq(schema.paymentAllocations.invoice_id, allocation.invoice_id),
+              eq(schema.paymentAllocations.is_deleted, false)
+            )
+          )
+          .limit(1);
+        if (existing) {
+          throw new ConflictException("This payment is already allocated to this invoice");
+        }
+
+        // Lock the invoice row and compute its outstanding balance
+        const [lockedInvoice] = await tx
+          .select()
+          .from(schema.invoices)
+          .where(
+            and(
+              eq(schema.invoices.id, allocation.invoice_id),
+              eq(schema.invoices.is_deleted, false)
+            )
+          )
+          .for("update")
+          .limit(1);
+        if (!lockedInvoice) throw new NotFoundException("Invoice not found");
+
+        const [invoiceAllocRow] = await tx
+          .select({
+            allocated: sql<number>`coalesce(sum(${schema.paymentAllocations.allocated_amount}), 0)`,
+          })
+          .from(schema.paymentAllocations)
+          .where(
+            and(
+              eq(schema.paymentAllocations.invoice_id, allocation.invoice_id),
+              eq(schema.paymentAllocations.is_deleted, false)
+            )
+          );
+        const invoiceBalance = toTwoDecimals(
+          Number(lockedInvoice.total_amount) - Number(invoiceAllocRow?.allocated ?? 0)
+        );
+
+        if (allocation.allocated_amount > invoiceBalance) {
+          throw new ConflictException(
+            `Allocated amount (${allocation.allocated_amount}) exceeds invoice outstanding balance (${invoiceBalance})`
+          );
+        }
+
+        await tx.insert(schema.paymentAllocations).values({
+          id: ulid(),
+          payment_id: id,
+          invoice_id: allocation.invoice_id,
+          allocated_amount: String(allocation.allocated_amount),
+          notes: allocation.notes ?? null,
+          created_by: actorId,
+          updated_by: actorId,
+        });
+      }
+
+      const remaining = toTwoDecimals(unallocated - requestedTotal);
+      if (remaining > 0) {
+        this.eventEmitter.emit(
+          ...this.buildUnallocatedEvent(id, lockedPayment.payer_id, remaining)
+        );
+      }
+
+      return this.getPayment(id);
+    });
+  }
+
+  /**
+   * Reverses (soft-deletes) a single allocation, preserving history.
+   *
+   * This is the controlled allocation correction workflow. The allocation is
+   * soft-deleted, not mutated in place. After reversal, the unallocated
+   * balance on the payment increases and the invoice outstanding balance
+   * increases.
+   *
+   * @throws NotFoundException - When the allocation does not exist.
+   * @throws ConflictException - When the allocation is already deleted.
+   */
+  async reverseAllocation(paymentId: string, allocationId: string, actorId: string) {
+    await this.getPaymentOrThrow(paymentId);
+
+    const [allocation] = await this.db
+      .select()
+      .from(schema.paymentAllocations)
+      .where(
+        and(
+          eq(schema.paymentAllocations.id, allocationId),
+          eq(schema.paymentAllocations.payment_id, paymentId)
+        )
+      )
+      .limit(1);
+
+    if (!allocation) {
+      throw new NotFoundException("Allocation not found");
+    }
+    if (allocation.is_deleted) {
+      throw new ConflictException("Allocation is already reversed");
     }
 
-    const remaining = toTwoDecimals(unallocated - requestedTotal);
-    if (remaining > 0) {
-      this.eventEmitter.emit(
-        ...this.buildUnallocatedEvent(id, payment.payer_id, remaining),
-      );
+    await this.db
+      .update(schema.paymentAllocations)
+      .set({
+        is_deleted: true,
+        deleted_at: new Date(),
+        updated_at: new Date(),
+        updated_by: actorId,
+      })
+      .where(eq(schema.paymentAllocations.id, allocationId));
+
+    return this.getPayment(paymentId);
+  }
+
+  /**
+   * Cancels a payment and atomically reverses all its active allocations.
+   *
+   * This is the safe payment cancellation workflow. A cancelled payment must
+   * not continue to behave as an active completed payment. All active
+   * allocations are soft-deleted in the same transaction.
+   *
+   * @throws NotFoundException - When the payment does not exist.
+   * @throws ConflictException - When the payment is already cancelled.
+   */
+  async cancelPayment(id: string, actorId: string) {
+    const payment = await this.getPaymentOrThrow(id);
+
+    // Check current status
+    const [currentStatus] = await this.db
+      .select({ status_code: schema.paymentStatuses.status_code })
+      .from(schema.paymentStatuses)
+      .where(eq(schema.paymentStatuses.id, payment.payment_status_id))
+      .limit(1);
+
+    if (currentStatus?.status_code === "CANCELLED") {
+      throw new ConflictException("Payment is already cancelled");
     }
+
+    const cancelledStatus = await this.referenceData.getPaymentStatusByCode("CANCELLED");
+
+    await this.db.transaction(async (tx) => {
+      // Reverse all active allocations
+      await tx
+        .update(schema.paymentAllocations)
+        .set({
+          is_deleted: true,
+          deleted_at: new Date(),
+          updated_at: new Date(),
+          updated_by: actorId,
+        })
+        .where(
+          and(
+            eq(schema.paymentAllocations.payment_id, id),
+            eq(schema.paymentAllocations.is_deleted, false)
+          )
+        );
+
+      // Set payment status to CANCELLED
+      await tx
+        .update(schema.payments)
+        .set({
+          payment_status_id: cancelledStatus.id,
+          updated_at: new Date(),
+          updated_by: actorId,
+        })
+        .where(eq(schema.payments.id, id));
+    });
 
     return this.getPayment(id);
   }
 
   // ---- Private helpers ----
+
+  /**
+   * Public accessor for unallocated balance computation, used by
+   * `RefundsService` to validate refund amounts.
+   */
+  async computeUnallocatedBalanceForRefund(paymentId: string, amount: string | number) {
+    return this.computeUnallocatedBalance(paymentId, amount);
+  }
 
   private async getActivePayer(id: string) {
     const [row] = await this.db
@@ -291,7 +446,7 @@ export class PaymentsService {
       .from(schema.payers)
       .where(and(eq(schema.payers.id, id), eq(schema.payers.is_deleted, false)))
       .limit(1);
-    if (!row) throw new NotFoundException('Payer not found');
+    if (!row) throw new NotFoundException("Payer not found");
     return row;
   }
 
@@ -299,14 +454,9 @@ export class PaymentsService {
     const [row] = await this.db
       .select()
       .from(schema.paymentMethods)
-      .where(
-        and(
-          eq(schema.paymentMethods.id, id),
-          eq(schema.paymentMethods.is_deleted, false),
-        ),
-      )
+      .where(and(eq(schema.paymentMethods.id, id), eq(schema.paymentMethods.is_deleted, false)))
       .limit(1);
-    if (!row) throw new NotFoundException('Payment method not found');
+    if (!row) throw new NotFoundException("Payment method not found");
     return row;
   }
 
@@ -316,7 +466,7 @@ export class PaymentsService {
       .from(schema.payments)
       .where(and(eq(schema.payments.id, id), eq(schema.payments.is_deleted, false)))
       .limit(1);
-    if (!row) throw new NotFoundException('Payment not found');
+    if (!row) throw new NotFoundException("Payment not found");
     return row;
   }
 
@@ -324,14 +474,9 @@ export class PaymentsService {
     const [invoice] = await this.db
       .select({ total_amount: schema.invoices.total_amount })
       .from(schema.invoices)
-      .where(
-        and(
-          eq(schema.invoices.id, invoiceId),
-          eq(schema.invoices.is_deleted, false),
-        ),
-      )
+      .where(and(eq(schema.invoices.id, invoiceId), eq(schema.invoices.is_deleted, false)))
       .limit(1);
-    if (!invoice) throw new NotFoundException('Invoice not found');
+    if (!invoice) throw new NotFoundException("Invoice not found");
 
     const [row] = await this.db
       .select({
@@ -341,18 +486,15 @@ export class PaymentsService {
       .where(
         and(
           eq(schema.paymentAllocations.invoice_id, invoiceId),
-          eq(schema.paymentAllocations.is_deleted, false),
-        ),
+          eq(schema.paymentAllocations.is_deleted, false)
+        )
       );
 
     const allocated = Number(row?.allocated ?? 0);
     return toTwoDecimals(Number(invoice.total_amount) - allocated);
   }
 
-  private async assertNoExistingAllocation(
-    paymentId: string,
-    invoiceId: string,
-  ) {
+  private async assertNoExistingAllocation(paymentId: string, invoiceId: string) {
     const [existing] = await this.db
       .select({ id: schema.paymentAllocations.id })
       .from(schema.paymentAllocations)
@@ -360,21 +502,16 @@ export class PaymentsService {
         and(
           eq(schema.paymentAllocations.payment_id, paymentId),
           eq(schema.paymentAllocations.invoice_id, invoiceId),
-          eq(schema.paymentAllocations.is_deleted, false),
-        ),
+          eq(schema.paymentAllocations.is_deleted, false)
+        )
       )
       .limit(1);
     if (existing) {
-      throw new ConflictException(
-        'This payment is already allocated to this invoice',
-      );
+      throw new ConflictException("This payment is already allocated to this invoice");
     }
   }
 
-  private async computeUnallocatedBalance(
-    paymentId: string,
-    amount: string | number,
-  ) {
+  private async computeUnallocatedBalance(paymentId: string, amount: string | number) {
     const [row] = await this.db
       .select({
         allocated: sql<number>`coalesce(sum(${schema.paymentAllocations.allocated_amount}), 0)`,
@@ -383,8 +520,8 @@ export class PaymentsService {
       .where(
         and(
           eq(schema.paymentAllocations.payment_id, paymentId),
-          eq(schema.paymentAllocations.is_deleted, false),
-        ),
+          eq(schema.paymentAllocations.is_deleted, false)
+        )
       );
     const allocated = Number(row?.allocated ?? 0);
     return toTwoDecimals(Number(amount) - allocated);
@@ -393,7 +530,7 @@ export class PaymentsService {
   private buildUnallocatedEvent(
     paymentId: string,
     payerId: string,
-    unallocatedAmount: number,
+    unallocatedAmount: number
   ): [string, ReturnType<typeof createPaymentUnallocatedEvent>] {
     const event = createPaymentUnallocatedEvent({
       payment_id: paymentId,
@@ -404,15 +541,9 @@ export class PaymentsService {
     return [event.type, event];
   }
 
-  private emitUnallocatedIfAny(
-    paymentId: string,
-    payerId: string,
-    amount: number,
-  ) {
+  private emitUnallocatedIfAny(paymentId: string, payerId: string, amount: number) {
     if (amount > 0) {
-      this.eventEmitter.emit(
-        ...this.buildUnallocatedEvent(paymentId, payerId, amount),
-      );
+      this.eventEmitter.emit(...this.buildUnallocatedEvent(paymentId, payerId, amount));
     }
   }
 
@@ -424,10 +555,10 @@ export class PaymentsService {
       .where(like(schema.payments.payment_number, `PAY-${year}-%`));
     let next = 1;
     if (row?.max) {
-      const parts = row.max.split('-');
+      const parts = row.max.split("-");
       next = Number(parts[parts.length - 1]) + 1;
     }
-    return `PAY-${year}-${String(next).padStart(6, '0')}`;
+    return `PAY-${year}-${String(next).padStart(6, "0")}`;
   }
 
   private mapPaymentRow(row: typeof schema.payments.$inferSelect) {
@@ -451,10 +582,7 @@ export class PaymentsService {
   }
 
   private async mapListRow(row: any) {
-    const unallocated = await this.computeUnallocatedBalance(
-      row.payments.id,
-      row.payments.amount,
-    );
+    const unallocated = await this.computeUnallocatedBalance(row.payments.id, row.payments.amount);
     return {
       id: row.payments.id,
       payment_number: row.payments.payment_number,

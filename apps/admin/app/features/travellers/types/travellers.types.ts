@@ -157,5 +157,7 @@ export interface RegistrationFormProps {
   travellers: Traveller[];
   packageVersions: PackageVersion[];
   onSubmit: (values: RegistrationFormOutput) => Promise<void>;
+  onTravellerSearch?: (value: string) => void;
+  travellerLookupLoading?: boolean;
   submitLabel?: string;
 }

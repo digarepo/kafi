@@ -172,7 +172,7 @@ export function TravellerForm({
       className="space-y-6"
     >
       {duplicateMatches.length > 0 && (
-        <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+        <div className="rounded-md border border-warning/20 bg-warning/10 p-3 text-sm text-warning">
           <p className="font-medium">Possible duplicate travellers found:</p>
           <ul className="mt-1 list-disc pl-4">
             {duplicateMatches.map((t) => (

@@ -1,7 +1,7 @@
-import { SidebarTrigger } from '@kafi/ui';
+import { SidebarTrigger } from "@kafi/ui";
 
-import { AppBreadcrumbs } from '../breadcrumbs/breadcrumbs';
-import { GlobalSearch } from './global-search';
+import { AppBreadcrumbs } from "../breadcrumbs/breadcrumbs";
+import { GlobalSearch } from "./global-search";
 
 /**
  * Top application header.
@@ -12,7 +12,7 @@ import { GlobalSearch } from './global-search';
 export function Header() {
   return (
     <header className="flex h-14 items-center justify-between gap-4 border-b px-4">
-      <SidebarTrigger className="md:hidden" />
+      <SidebarTrigger className="lg:hidden" />
       <AppBreadcrumbs />
       <GlobalSearch />
     </header>

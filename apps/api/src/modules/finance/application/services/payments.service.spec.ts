@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PaymentsService } from './payments.service.js';
@@ -78,6 +78,69 @@ describe('PaymentsService', () => {
       );
       await expect(
         service.archivePayment('payment-id', 'actor'),
+      ).rejects.toThrow(ConflictException);
+    });
+  });
+
+  describe('allocation reversal', () => {
+    it('throws NotFoundException when the allocation does not exist', async () => {
+      const db = createMockDb([
+        [{ id: 'payment-id', amount: '1000.00' }], // getPaymentOrThrow
+        [], // allocation lookup (none)
+        [{ id: 'payment-id', amount: '1000.00' }], // getPayment (return)
+        [], // allocations list
+      ]);
+      const emitter = new EventEmitter2();
+      const service = new PaymentsService(
+        db as any,
+        {} as ReferenceDataService,
+        emitter as any,
+      );
+      await expect(
+        service.reverseAllocation('payment-id', 'missing-alloc', 'actor'),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('throws ConflictException when the allocation is already reversed', async () => {
+      const db = createMockDb([
+        [{ id: 'payment-id', amount: '1000.00' }], // getPaymentOrThrow
+        [{ id: 'alloc-id', is_deleted: true }], // allocation lookup (deleted)
+      ]);
+      const emitter = new EventEmitter2();
+      const service = new PaymentsService(
+        db as any,
+        {} as ReferenceDataService,
+        emitter as any,
+      );
+      await expect(
+        service.reverseAllocation('payment-id', 'alloc-id', 'actor'),
+      ).rejects.toThrow(ConflictException);
+    });
+  });
+
+  describe('payment cancellation', () => {
+    it('throws ConflictException when the payment is already cancelled', async () => {
+      const refData = {
+        getPaymentStatusByCode: vi.fn().mockResolvedValue({ id: 'PS-CANCEL' }),
+      };
+      const db = createMockDb([
+        [
+          {
+            id: 'payment-id',
+            amount: '1000.00',
+            payment_status_id: 'PS-CANCEL',
+          },
+        ],
+        [{ status_code: 'CANCELLED' }], // current status lookup
+      ]);
+      const emitter = new EventEmitter2();
+      const service = new PaymentsService(
+        db as any,
+        refData as any,
+        emitter as any,
+      );
+      await expect(
+        service.cancelPayment('payment-id', 'actor'),
       ).rejects.toThrow(ConflictException);
     });
   });

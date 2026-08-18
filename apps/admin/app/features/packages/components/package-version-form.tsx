@@ -32,7 +32,7 @@ export function PackageVersionForm({
   onSubmit,
   submitLabel,
 }: PackageVersionFormProps) {
-  const isPublished = mode === 'edit' && version?.status === 'PUBLISHED';
+  const isLocked = mode === 'edit' && version?.status !== 'DRAFT';
 
   const defaultValues = useMemo<PackageVersionFormValues>(() => {
     if (mode === 'edit' && version) {
@@ -104,7 +104,7 @@ export function PackageVersionForm({
         year: value.year,
         inclusions: value.inclusions,
       };
-      if (!isPublished) {
+      if (!isLocked) {
         output.package_template_id = value.package_template_id;
         output.departure_date = toYmd(value.travelRange?.from);
         output.return_date = toYmd(value.travelRange?.to);
@@ -160,7 +160,7 @@ export function PackageVersionForm({
               <Select
                 value={field.state.value ?? ''}
                 onValueChange={(value: string) => field.handleChange(value)}
-                disabled={isPublished}
+                disabled={isLocked}
               >
                 <SelectTrigger
                   className="h-9 w-full"
@@ -280,7 +280,7 @@ export function PackageVersionForm({
               <DateRangePicker
                 value={field.state.value}
                 onChange={(range) => field.handleChange(range)}
-                disabled={isPublished}
+                disabled={isLocked}
               />
               <FieldError field={field} />
             </div>
@@ -294,7 +294,7 @@ export function PackageVersionForm({
               <DateRangePicker
                 value={field.state.value}
                 onChange={(range) => field.handleChange(range)}
-                disabled={isPublished}
+                disabled={isLocked}
               />
               <FieldError field={field} />
             </div>
@@ -315,7 +315,7 @@ export function PackageVersionForm({
                 onChange={(e) => field.handleChange(Number(e.target.value))}
                 onBlur={field.handleBlur}
                 className="h-9"
-                disabled={isPublished}
+                disabled={isLocked}
                 aria-invalid={field.state.meta.errors.length > 0}
               />
               <FieldError field={field} />
@@ -330,7 +330,7 @@ export function PackageVersionForm({
               <Select
                 value={field.state.value ?? ''}
                 onValueChange={(value: string) => field.handleChange(value)}
-                disabled={isPublished}
+                disabled={isLocked}
               >
                 <SelectTrigger
                   className="h-9 w-full"
@@ -405,7 +405,7 @@ export function PackageVersionForm({
                 }
                 onBlur={field.handleBlur}
                 className="h-9"
-                disabled={isPublished}
+                disabled={isLocked}
               />
             </div>
           )}

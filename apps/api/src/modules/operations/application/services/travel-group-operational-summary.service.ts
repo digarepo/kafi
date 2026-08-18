@@ -6,6 +6,21 @@ import * as schema from '@kafi/database';
 import { InvoicesService } from '../../../finance/application/services/invoices.service.js';
 import { TravelGroupsService } from './travel-groups.service.js';
 
+/**
+ * Formats a Date as YYYY-MM-DD using the local timezone.
+ * Avoids toISOString() which shifts the date back a day in timezones
+ * behind UTC.
+ */
+function toDateStr(value: Date | string | null | undefined): string | null {
+  if (!value) return null;
+  const d = typeof value === 'string' ? new Date(value) : value;
+  if (Number.isNaN(d.getTime())) return null;
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 export interface TravelGroupTraveller {
   id: string;
   registration_id: string;
@@ -43,6 +58,11 @@ export class TravelGroupOperationalSummaryService {
   ) {}
 
   async getOperationalSummary(travelGroupId: string) {
+    // Auto-transition the group status based on departure/return dates
+    // before building the summary. This replaces manual Depart/Complete
+    // button clicks — the status updates automatically when the dates arrive.
+    await this.travelGroups.autoTransitionByDates(travelGroupId);
+
     const group = await this.travelGroups.getTravelGroup(travelGroupId);
     if (!group) {
       throw new NotFoundException('Travel group not found');
@@ -89,16 +109,78 @@ export class TravelGroupOperationalSummaryService {
     const hasConfirmedTransport = segments.some(
       (s) => s.status?.code === 'CONFIRMED',
     );
-    const allMembersReady = members
-      .filter((m: any) => m.status_code === 'ACTIVE')
-      .every((m: any) => m.registration_status_code === 'READY_FOR_TRAVEL');
+    const activeMembers = members.filter(
+      (m: any) => m.status_code === 'ACTIVE',
+    );
+    const allMembersReady = activeMembers.every(
+      (m: any) => m.registration_status_code === 'READY_FOR_TRAVEL',
+    );
 
+    // Multi-stay room coverage: every active member must have a room in EVERY
+    // confirmed stay, not just one assignment somewhere.
+    const confirmedStays = stays.filter((s) => s.status?.code === 'CONFIRMED');
+    const activeMemberIds = new Set(activeMembers.map((m: any) => m.id));
+
+    const stayCoverage = confirmedStays.map((stay) => {
+      const assignedInStay = new Set(
+        rooms
+          .filter(
+            (r) =>
+              r.group_hotel_stay?.id === stay.id &&
+              r.status?.code === 'ASSIGNED',
+          )
+          .map((r) => r.group_membership_id),
+      );
+      const assignedCount = [...assignedInStay].filter((id) =>
+        activeMemberIds.has(id),
+      ).length;
+      const missingCount = activeMembers.length - assignedCount;
+      return {
+        stay_id: stay.id,
+        stay_number: stay.stay_number,
+        hotel_name: stay.hotel_name ?? stay.hotel?.name ?? null,
+        city_name: stay.city?.name ?? null,
+        sequence_order: stay.sequence_order,
+        check_in_date: stay.check_in_date,
+        check_out_date: stay.check_out_date,
+        active_member_count: activeMembers.length,
+        assigned_count: assignedCount,
+        missing_count: missingCount,
+        complete: missingCount === 0,
+      };
+    });
+
+    const accommodationReady =
+      confirmedStays.length > 0 && stayCoverage.every((c) => c.complete);
+
+    const preparationBlockers: string[] = [];
+    if (activeMembers.length === 0) {
+      preparationBlockers.push('NO_ACTIVE_MEMBERS');
+    }
+    if (!allMembersReady) {
+      preparationBlockers.push('MEMBERS_NOT_READY');
+    }
+    if (!hasConfirmedHotelStay) {
+      preparationBlockers.push('HOTEL_NOT_CONFIRMED');
+    }
+    if (!accommodationReady) {
+      preparationBlockers.push('ROOM_ASSIGNMENTS_INCOMPLETE');
+    }
+
+    // Transport is NOT a hard blocker for TRAVEL_PREPARED. It is tracked as
+    // an informational warning so staff know it still needs to be arranged.
+    const transportWarnings: string[] = [];
+    if (!hasConfirmedTransport) {
+      transportWarnings.push('TRANSPORT_NOT_RECORDED');
+    }
+
+    const canConfirmTravelPrepared =
+      group.status_code === 'PLANNING' && preparationBlockers.length === 0;
     const readyToDepart =
       (group.status_code === 'PLANNING' ||
         group.status_code === 'TRAVEL_PREPARED') &&
       allMembersReady &&
-      hasConfirmedHotelStay &&
-      hasConfirmedTransport;
+      hasConfirmedHotelStay;
 
     return {
       ...group,
@@ -109,6 +191,8 @@ export class TravelGroupOperationalSummaryService {
         has_confirmed_hotel_stay: hasConfirmedHotelStay,
         has_confirmed_transport: hasConfirmedTransport,
         rooms_assigned_count: rooms.length,
+        stay_coverage: stayCoverage,
+        accommodation_ready: accommodationReady,
       },
       financial_summary: {
         total_invoiced: totalInvoiced,
@@ -119,6 +203,20 @@ export class TravelGroupOperationalSummaryService {
       departure_readiness: {
         all_members_ready: allMembersReady,
         can_depart: readyToDepart,
+      },
+      preparation_readiness: {
+        can_confirm_travel_prepared: canConfirmTravelPrepared,
+        blockers: preparationBlockers,
+        transport_warnings: transportWarnings,
+        active_member_count: activeMembers.length,
+        ready_member_count: activeMembers.filter(
+          (member: any) =>
+            member.registration_status_code === 'READY_FOR_TRAVEL',
+        ).length,
+        room_assignments_complete: accommodationReady,
+        assigned_room_count: rooms.filter((r) => r.status?.code === 'ASSIGNED')
+          .length,
+        stay_coverage: stayCoverage,
       },
     };
   }
@@ -189,13 +287,21 @@ export class TravelGroupOperationalSummaryService {
           eq(schema.groupHotelStays.is_deleted, false),
         ),
       )
-      .orderBy(asc(schema.groupHotelStays.check_in_date));
+      .orderBy(
+        asc(schema.groupHotelStays.sequence_order),
+        asc(schema.groupHotelStays.check_in_date),
+      );
 
     return rows.map((row) => ({
       id: row.group_hotel_stays.id,
       stay_number: row.group_hotel_stays.stay_number,
-      check_in_date: row.group_hotel_stays.check_in_date,
-      check_out_date: row.group_hotel_stays.check_out_date,
+      check_in_date: toDateStr(row.group_hotel_stays.check_in_date),
+      check_out_date: toDateStr(row.group_hotel_stays.check_out_date),
+      hotel_id: row.group_hotel_stays.hotel_id,
+      hotel_name: row.group_hotel_stays.hotel_name,
+      booking_reference: row.group_hotel_stays.booking_reference,
+      sequence_order: row.group_hotel_stays.sequence_order,
+      notes: row.group_hotel_stays.notes,
       hotel: row.hotels
         ? {
             id: row.hotels.id,

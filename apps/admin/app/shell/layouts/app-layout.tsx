@@ -16,7 +16,7 @@ export function AppLayout() {
       <Sidebar />
       <SidebarInset className="rounded-2xl bg-background shadow">
         <Header />
-        <div className="flex-1 overflow-auto px-4">
+        <div className="flex-1 overflow-auto p-4 ">
           <Outlet />
         </div>
       </SidebarInset>

@@ -92,11 +92,16 @@ export class TravellersService {
   }
 
   async listRegistrationStatuses() {
-    return this.db
+    const rows = await this.db
       .select()
       .from(schema.registrationStatuses)
       .where(eq(schema.registrationStatuses.is_active, true))
       .orderBy(asc(schema.registrationStatuses.display_order));
+
+    return rows.map((row) => ({
+      ...row,
+      code: row.status_code,
+    }));
   }
 
   async listCountries() {
@@ -761,8 +766,8 @@ export class TravellersService {
       country: row.countries
         ? { id: row.countries.id, name: row.countries.name }
         : null,
-      status: row.travellerStatuses
-        ? { id: row.travellerStatuses.id, name: row.travellerStatuses.name }
+      status: row.traveller_statuses
+        ? { id: row.traveller_statuses.id, name: row.traveller_statuses.name }
         : null,
       is_deleted: row.travellers.is_deleted,
       created_at: row.travellers.created_at,
@@ -780,10 +785,10 @@ export class TravellersService {
       preferred_language: traveller.languages
         ? { id: traveller.languages.id, name: traveller.languages.name }
         : null,
-      source: traveller.travellerSources
+      source: traveller.traveller_sources
         ? {
-            id: traveller.travellerSources.id,
-            name: traveller.travellerSources.name,
+            id: traveller.traveller_sources.id,
+            name: traveller.traveller_sources.name,
           }
         : null,
       contacts: contacts.map((c) => this.mapTravellerContactRow(c)),
@@ -811,10 +816,10 @@ export class TravellersService {
       preferred_language: row.languages
         ? { id: row.languages.id, name: row.languages.name }
         : null,
-      status: row.contactPersonStatuses
+      status: row.contact_person_statuses
         ? {
-            id: row.contactPersonStatuses.id,
-            name: row.contactPersonStatuses.name,
+            id: row.contact_person_statuses.id,
+            name: row.contact_person_statuses.name,
           }
         : null,
       is_deleted: row.contact_persons.is_deleted,
@@ -835,17 +840,17 @@ export class TravellersService {
             phone_number: row.contact_persons.phone_number,
           }
         : null,
-      relationship_type: row.relationshipTypes
-        ? { id: row.relationshipTypes.id, name: row.relationshipTypes.name }
+      relationship_type: row.relationship_types
+        ? { id: row.relationship_types.id, name: row.relationship_types.name }
         : null,
       is_emergency_contact: row.traveller_contacts.is_emergency_contact,
       is_primary_contact: row.traveller_contacts.is_primary_contact,
       priority: row.traveller_contacts.priority,
       notes: row.traveller_contacts.notes,
-      status: row.travellerContactStatuses
+      status: row.traveller_contact_statuses
         ? {
-            id: row.travellerContactStatuses.id,
-            name: row.travellerContactStatuses.name,
+            id: row.traveller_contact_statuses.id,
+            name: row.traveller_contact_statuses.name,
           }
         : null,
       created_at: row.traveller_contacts.created_at,

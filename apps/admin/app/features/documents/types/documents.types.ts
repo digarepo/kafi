@@ -6,10 +6,8 @@
  * - Empty strings in optional fields are mapped to `undefined` before submit.
  */
 
-import type {
-  DocumentType,
-  VisaApplicationStatus,
-} from '../lib/api.js';
+import type { DocumentType } from '../lib/api.js';
+import type { Registration } from '../../../lib/api.js';
 
 export type DocumentFormMode = 'create' | 'edit';
 export type VisaApplicationFormMode = 'create' | 'edit';
@@ -44,33 +42,37 @@ export interface DocumentFormOutput {
 export interface DocumentFormProps {
   mode: DocumentFormMode;
   documentTypes: DocumentType[];
+  ownerContext: {
+    traveller_id?: string;
+    registration_id?: string;
+    label: string;
+  };
   onSubmit: (values: DocumentFormOutput) => Promise<void>;
   submitLabel?: string;
 }
 
 /**
- * Internal state of the visa application form.
+ * Internal state of the visa application create form.
+ *
+ * @remarks
+ * - Status is fixed to SUBMITTED by the backend; not exposed in the form.
+ * - Result fields (approval, rejection, cancellation) are collected via
+ *   the RecordVisaResultDialog, not the create form.
  */
 export interface VisaApplicationFormValues {
   registration_id: string;
-  visa_application_status_id: string;
   submission_date: string;
-  approval_date: string;
-  expiry_date: string;
-  visa_number: string;
+  visa_cost: string;
   notes: string;
 }
 
 /**
- * Visa application payload produced by the form on submit.
+ * Visa application payload produced by the create form on submit.
  */
 export interface VisaApplicationFormOutput {
   registration_id: string;
-  visa_application_status_id?: string;
   submission_date?: string;
-  approval_date?: string;
-  expiry_date?: string;
-  visa_number?: string;
+  visa_cost?: number;
   notes?: string;
 }
 
@@ -79,7 +81,36 @@ export interface VisaApplicationFormOutput {
  */
 export interface VisaApplicationFormProps {
   mode: VisaApplicationFormMode;
-  visaApplicationStatuses: VisaApplicationStatus[];
+  registration?: Pick<Registration, 'id' | 'registration_number' | 'traveller'>;
   onSubmit: (values: VisaApplicationFormOutput) => Promise<void>;
   submitLabel?: string;
+}
+
+/**
+ * Internal state of the record visa result form.
+ */
+export interface VisaResultFormValues {
+  outcome: string;
+  // APPROVED fields
+  visa_number: string;
+  approval_date: string;
+  expiry_date: string;
+  visa_cost: string;
+  // REJECTED fields
+  rejection_date: string;
+  rejection_reason: string;
+  // CANCELLED fields
+  cancellation_date: string;
+  cancellation_reason: string;
+}
+
+/**
+ * Props for the record visa result dialog.
+ */
+export interface VisaResultDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSubmit: (values: VisaResultFormValues) => Promise<void>;
+  loading?: boolean;
+  currentVisaCost: number | null;
 }

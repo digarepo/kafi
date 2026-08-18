@@ -18,6 +18,8 @@ export async function clientLoader() {
   }
 }
 
+export { RouteHydrateFallback as HydrateFallback } from '../../shared/route-hydrate-fallback';
+
 export default function LogisticsLayout() {
   useLoaderData<typeof clientLoader>();
   return <Outlet />;

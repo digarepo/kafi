@@ -4,6 +4,8 @@
  * Wraps fetch, attaches the JWT access token, and manages token refresh.
  */
 
+import { getPerformanceMode } from '../dev/performance-mode';
+
 const API_BASE_URL = (() => {
   if (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) {
     return import.meta.env.VITE_API_URL as string;
@@ -30,14 +32,93 @@ const AUTH_ENDPOINTS = new Set([
 
 let accessToken: string | null = null;
 let isRefreshing = false;
+type RequestTrace = {
+  requestId: string;
+  endpoint: string;
+  method: string;
+  startedAt: number;
+  attempts: number;
+  retryCount: number;
+  authRefreshCount: number;
+  status?: number;
+  responseBytes?: number;
+  requestBytes?: number;
+  initiator?: string;
+};
+
 type PendingRequest = {
   resolve: (value: unknown) => void;
   reject: (reason?: unknown) => void;
   path: string;
   options: RequestInit;
+  trace: RequestTrace;
 };
 
 const pendingQueue: PendingRequest[] = [];
+
+function createRequestId(): string {
+  return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
+}
+
+function clientPerformanceMode() {
+  return getPerformanceMode(
+    import.meta.env.VITE_KAFI_PERF_MODE,
+    import.meta.env.VITE_KAFI_PERF_INSTRUMENTATION,
+  );
+}
+
+function isPerformanceInstrumentationEnabled(): boolean {
+  return typeof window !== 'undefined' && clientPerformanceMode() !== 'OFF';
+}
+
+function isVerbosePerformanceInstrumentationEnabled(): boolean {
+  return (
+    isPerformanceInstrumentationEnabled() &&
+    clientPerformanceMode() === 'VERBOSE'
+  );
+}
+
+function recordPerformanceRequest(trace: RequestTrace, aborted = false): void {
+  if (!isPerformanceInstrumentationEnabled()) return;
+
+  const record = {
+    requestId: trace.requestId,
+    endpoint: trace.endpoint,
+    method: trace.method,
+    route: `${window.location.pathname}${window.location.search}`,
+    startTime: trace.startedAt,
+    duration: performance.now() - trace.startedAt,
+    status: trace.status,
+    retryCount: trace.retryCount,
+    authRefreshCount: trace.authRefreshCount,
+    attempts: trace.attempts,
+    initiator: trace.initiator,
+    timestamp: new Date().toISOString(),
+    requestBytes: trace.requestBytes,
+    responseBytes: trace.responseBytes,
+    aborted,
+  };
+  const perf = window as Window & {
+    __KAFI_PERF__?: { recordApi?: (value: typeof record) => void };
+    __KAFI_PERF_API_BUFFER__?: (typeof record)[];
+  };
+  if (perf.__KAFI_PERF__) {
+    perf.__KAFI_PERF__.recordApi?.(record);
+  } else {
+    (perf.__KAFI_PERF_API_BUFFER__ ??= []).push(record);
+  }
+  if (isVerbosePerformanceInstrumentationEnabled()) {
+    console.info('[kafi-perf-api]', record);
+  }
+}
+
+function requestBodySize(
+  body: BodyInit | null | undefined,
+): number | undefined {
+  if (typeof body === 'string')
+    return new TextEncoder().encode(body).byteLength;
+  return undefined;
+}
 
 const ACCESS_TOKEN_KEY = 'kafi_access_token';
 const REFRESH_TOKEN_KEY = 'kafi_refresh_token';
@@ -107,10 +188,47 @@ async function request<T>(
   path: string,
   options: RequestInit = {},
   retry = true,
+  existingTrace?: RequestTrace,
 ): Promise<T> {
+  const trace =
+    existingTrace ??
+    ({
+      requestId: createRequestId(),
+      endpoint: path,
+      method: options.method ?? 'GET',
+      startedAt: globalThis.performance?.now?.() ?? Date.now(),
+      attempts: 0,
+      retryCount: 0,
+      authRefreshCount: 0,
+      initiator: new Error().stack?.split('\n')[3]?.trim(),
+      requestBytes: requestBodySize(options.body),
+    } satisfies RequestTrace);
+  const isRootRequest = existingTrace === undefined;
+
+  let aborted = false;
+  try {
+    return await performRequest<T>(path, options, retry, trace);
+  } catch (error) {
+    aborted = error instanceof DOMException && error.name === 'AbortError';
+    throw error;
+  } finally {
+    if (isRootRequest) {
+      recordPerformanceRequest(trace, aborted);
+    }
+  }
+}
+
+async function performRequest<T>(
+  path: string,
+  options: RequestInit,
+  retry: boolean,
+  trace: RequestTrace,
+): Promise<T> {
+  trace.attempts += 1;
   const token = getAccessToken();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
+    'X-Request-Id': trace.requestId,
     ...(options.headers as Record<string, string>),
   };
 
@@ -122,8 +240,12 @@ async function request<T>(
     ...options,
     headers,
   });
+  trace.status = response.status;
+  const responseLength = response.headers.get('content-length');
+  if (responseLength) trace.responseBytes = Number(responseLength);
 
   if (response.status === 401 && retry && !AUTH_ENDPOINTS.has(path)) {
+    trace.retryCount += 1;
     if (isRefreshing) {
       return new Promise<T>((resolve, reject) => {
         pendingQueue.push({
@@ -131,20 +253,25 @@ async function request<T>(
           reject,
           path,
           options,
+          trace,
         });
       });
     }
 
+    trace.authRefreshCount += 1;
     isRefreshing = true;
     try {
       await api.refresh();
       isRefreshing = false;
 
-      const result = await request<T>(path, options, false);
+      const result = await request<T>(path, options, false, trace);
 
       while (pendingQueue.length) {
         const next = pendingQueue.shift()!;
-        request(next.path, next.options, false).then(next.resolve, next.reject);
+        request(next.path, next.options, false, next.trace).then(
+          next.resolve,
+          next.reject,
+        );
       }
 
       return result;
@@ -311,6 +438,9 @@ export interface PackageTemplate {
   short_name: string | null;
   description: string | null;
   default_duration_days: number;
+  package_template_status_id: string;
+  status: string;
+  status_name: string;
   pilgrimage_type: { id: string; name: string } | null;
   package_category: { id: string; name: string } | null;
   is_deleted: boolean;
@@ -336,6 +466,11 @@ export interface PackageVersion {
   sales_end_date: string | null;
   status: string;
   status_name: string;
+  template_status: string | null;
+  registration_count: number;
+  remaining_capacity: number | null;
+  is_registration_available: boolean;
+  availability_blockers: string[];
   package_template: { id: string; name: string } | null;
   package_category: { id: string; name: string } | null;
   pilgrimage_type: { id: string; name: string } | null;
@@ -557,6 +692,336 @@ export interface PaginatedRegistrations {
   page_size: number;
 }
 
+export interface DashboardSummary {
+  registrations_needing_processing: number;
+  registrations_ready_for_travel: number;
+  registrations_ready_for_group: number;
+  registrations_with_outstanding_balance: number;
+  groups_requiring_preparation: number;
+  groups_ready_to_depart: number;
+  upcoming_departures: number;
+  generated_at: string;
+}
+
+export interface RegistrationQueueItem {
+  id: string;
+  registration_number: string;
+  registration_date: string;
+  expected_departure_date: string | null;
+  expected_return_date: string | null;
+  status: { id: string; code: string; name: string } | null;
+  traveller: {
+    id: string;
+    first_name: string;
+    last_name: string;
+    full_name: string;
+    traveller_number: string;
+    phone_number: string;
+  } | null;
+  package_version: { id: string; version_name: string } | null;
+  outstanding_balance: number;
+  blockers: string[];
+}
+
+export interface RegistrationReadiness {
+  registration_id: string;
+  status: string;
+  package_published: boolean;
+  has_primary_contact: boolean;
+  required_documents_verified: boolean;
+  visa_approved: boolean;
+  flight_confirmed: boolean;
+  payment_satisfied: boolean;
+  intake_payment_satisfied: boolean;
+  has_guarantee: boolean;
+  has_authorized_credit: boolean;
+  authorized_credit_amount: number;
+  outstanding_balance: number;
+  can_start_processing: boolean;
+  can_confirm_ready: boolean;
+  ready_for_travel: boolean;
+  blockers: string[];
+}
+
+export interface RegistrationOperationalSummary extends Registration {
+  base_price: number | string;
+  currency_code: string | null;
+  primary_contact: {
+    id: string;
+    name: string;
+    phone_number: string;
+  } | null;
+  finance: RegistrationFinanceSummary;
+  invoices: Array<{
+    id: string;
+    invoice_number: string;
+    invoice_date: string;
+    due_date: string | null;
+    total_amount: number | string;
+    status: { id: string; code: string; name: string } | null;
+  }>;
+  documents: Array<{
+    id: string;
+    file_name: string | null;
+    expiry_date: string | null;
+    document_type: { id: string; code: string; name: string } | null;
+    document_status: { id: string; code: string; name: string } | null;
+    verification_status: { id: string; code: string; name: string } | null;
+  }>;
+  visas: Array<{
+    id: string;
+    application_number: string;
+    submission_date: string | null;
+    approval_date: string | null;
+    expiry_date: string | null;
+    rejection_date: string | null;
+    rejection_reason: string | null;
+    cancellation_date: string | null;
+    cancellation_reason: string | null;
+    status: { id: string; code: string; name: string } | null;
+  }>;
+  flights: Array<{
+    id: string;
+    booking_number: string;
+    pnr: string;
+    departure_flight_number: string;
+    departure_date: string | null;
+    return_flight_number: string | null;
+    return_date: string | null;
+    cancellation_date: string | null;
+    cancellation_reason: string | null;
+    status: { id: string; code: string; name: string } | null;
+  }>;
+  group_membership: {
+    id: string;
+    travel_group_id: string;
+    group: {
+      id: string;
+      group_number: string;
+      name: string;
+      departure_date: string | null;
+      return_date: string | null;
+    } | null;
+    guarantee_required: boolean;
+    guarantee_waived: boolean;
+    joined_at: string | null;
+    left_at: string | null;
+    status: { id: string; code: string; name: string } | null;
+  } | null;
+  room_assignment: {
+    id: string;
+    room: {
+      id: string;
+      room_number: string;
+      room_type: { id: string; code: string; name: string } | null;
+    } | null;
+    group_hotel_stay: {
+      id: string;
+      stay_number: string;
+      hotel: { id: string; name: string } | null;
+    } | null;
+    status: { id: string; code: string; name: string } | null;
+  } | null;
+  readiness: RegistrationReadiness | null;
+  cancellation: {
+    cancellation_reason: string | null;
+    cancelled_at: string | null;
+    cancelled_by: string | null;
+  } | null;
+}
+
+export interface TravelGroupOperationalMember extends GroupMembership {
+  registration_number: string | null;
+  registration_status: {
+    id: string;
+    status_code: string;
+    name: string;
+  } | null;
+  registration_status_code: string | null;
+  finance: RegistrationFinanceSummary;
+  room: TravelGroupRoomAssignment | null;
+}
+
+export interface TravelGroupHotelStay {
+  id: string;
+  stay_number: string;
+  check_in_date: string;
+  check_out_date: string;
+  hotel_id: string | null;
+  hotel_name: string | null;
+  booking_reference: string | null;
+  sequence_order: number;
+  accommodation_cost: number | null;
+  notes: string | null;
+  hotel: { id: string; name: string } | null;
+  city: { id: string; name: string } | null;
+  status: { id: string; code: string; name: string } | null;
+}
+
+export interface TravelGroupTransportSegment {
+  id: string;
+  transport_segment_number: string;
+  transport_type: string | null;
+  segment_order: number;
+  origin_location: string;
+  destination_location: string;
+  departure_datetime: string | null;
+  arrival_datetime: string | null;
+  vehicle_identifier: string | null;
+  driver_name: string | null;
+  driver_phone_number: string | null;
+  vendor: { id: string; name: string } | null;
+  status: { id: string; code: string; name: string } | null;
+  notes: string | null;
+}
+
+export interface TravelGroupRoomAssignment {
+  id: string;
+  group_membership_id: string;
+  room_number: string | null;
+  room_type: { id: string; code: string; name: string } | null;
+  hotel: { id: string; name: string } | null;
+  group_hotel_stay: { id: string; stay_number: string } | null;
+  status: { id: string; code: string; name: string } | null;
+}
+
+export interface StayCoverage {
+  stay_id: string;
+  stay_number: string;
+  hotel_name: string | null;
+  city_name: string | null;
+  sequence_order: number;
+  check_in_date: string;
+  check_out_date: string;
+  active_member_count: number;
+  assigned_count: number;
+  missing_count: number;
+  complete: boolean;
+}
+
+export interface TravelGroupOperationalSummary extends TravelGroup {
+  logistics: {
+    hotel_stays: TravelGroupHotelStay[];
+    transport_segments: TravelGroupTransportSegment[];
+    room_assignments: TravelGroupRoomAssignment[];
+    has_confirmed_hotel_stay: boolean;
+    has_confirmed_transport: boolean;
+    rooms_assigned_count: number;
+    stay_coverage: StayCoverage[];
+    accommodation_ready: boolean;
+  };
+  financial_summary: {
+    total_invoiced: number;
+    total_paid: number;
+    total_outstanding: number;
+  };
+  members: TravelGroupOperationalMember[];
+  departure_readiness: {
+    all_members_ready: boolean;
+    can_depart: boolean;
+  };
+  preparation_readiness: {
+    can_confirm_travel_prepared: boolean;
+    blockers: string[];
+    transport_warnings: string[];
+    active_member_count: number;
+    ready_member_count: number;
+    room_assignments_complete: boolean;
+    assigned_room_count: number;
+    stay_coverage: StayCoverage[];
+  };
+}
+
+export interface LogisticsCity {
+  id: string;
+  name: string;
+}
+
+export interface CreateGroupHotelStayInput {
+  hotel_id?: string;
+  hotel_name?: string;
+  booking_reference?: string;
+  city_id: string;
+  check_in_date: string;
+  check_out_date: string;
+  accommodation_cost?: number;
+  notes?: string;
+}
+
+export interface CreateTransportSegmentInput {
+  vendor_id?: string;
+  transport_type?: 'BUS' | 'COASTER' | 'VAN' | 'SEDAN' | 'SUV' | 'OTHER';
+  segment_order?: number;
+  origin_location: string;
+  destination_location: string;
+  origin_type?: 'AIRPORT' | 'HOTEL' | 'RELIGIOUS_SITE' | 'OTHER';
+  destination_type?: 'AIRPORT' | 'HOTEL' | 'RELIGIOUS_SITE' | 'OTHER';
+  departure_datetime?: string;
+  arrival_datetime?: string;
+  vehicle_identifier?: string;
+  driver_name?: string;
+  driver_phone_number?: string;
+  transport_cost?: number;
+  notes?: string;
+}
+
+export interface CreateRoomInput {
+  room_number: string;
+  capacity: number;
+  gender_restriction?: 'Female' | 'Male';
+  room_type_id?: string;
+  room_status_id?: string;
+  notes?: string;
+}
+
+export interface Room {
+  id: string;
+  group_hotel_stay_id: string;
+  room_number: string;
+  capacity: number;
+  gender_restriction: 'Female' | 'Male' | null;
+  room_type: { id: string; type_code: string; name: string } | null;
+  room_status: { id: string; status_code: string; name: string } | null;
+  notes: string | null;
+}
+
+export interface CreateRoomAssignmentInput {
+  room_id: string;
+  group_hotel_stay_id: string;
+  group_membership_id: string;
+  bed_number?: string;
+  notes?: string;
+}
+
+export interface TravelGroupTraveller {
+  id: string;
+  registration_id: string;
+  registration_number: string | null;
+  registration_status: {
+    id: string;
+    status_code: string;
+    name: string;
+  } | null;
+  traveller: {
+    id: string;
+    first_name: string;
+    last_name: string;
+    full_name: string;
+    traveller_number: string | null;
+    phone_number: string | null;
+  } | null;
+  membership_status: {
+    id: string;
+    status_code: string;
+    name: string;
+  } | null;
+  joined_at: string | null;
+  left_at: string | null;
+  guarantee_required: boolean;
+  guarantee_waived: boolean;
+  room_number: string | null;
+}
+
 export interface CreateTravellerInput {
   first_name: string;
   middle_name?: string;
@@ -642,6 +1107,13 @@ export interface UpdateTravellerContactInput {
   traveller_contact_status_id?: string;
 }
 
+export interface RegistrationListFilters {
+  search?: string;
+  traveller_id?: string;
+  package_version_id?: string;
+  status_id?: string;
+}
+
 export interface CreateRegistrationInput {
   traveller_id: string;
   package_version_id: string;
@@ -654,6 +1126,10 @@ export interface UpdateRegistrationInput {
   expected_departure_date?: string | null;
   expected_return_date?: string | null;
   remarks?: string | null;
+}
+
+export interface CancelRegistrationInput {
+  cancellation_reason?: string;
 }
 
 // ---- Finance ----
@@ -891,6 +1367,257 @@ export interface AllocatePaymentInput {
   allocations: AllocationInput[];
 }
 
+// ---- Expenses ----
+
+export interface ExpenseListItem {
+  id: string;
+  expense_number: string;
+  amount: string | number;
+  expense_date: string;
+  description: string | null;
+  payee_name: string | null;
+  attribution_scope: string;
+  category: { id: string; code: string; name: string } | null;
+  source: { id: string; code: string; name: string } | null;
+  status: { id: string; code: string; name: string } | null;
+  traveller_id: string | null;
+  registration_id: string | null;
+  travel_group_id: string | null;
+  package_version_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Expense {
+  id: string;
+  expense_number: string;
+  expense_category_id: string;
+  expense_source_id: string;
+  expense_status_id: string;
+  amount: string | number;
+  original_amount: string | null;
+  original_currency_id: string | null;
+  exchange_rate: string | null;
+  expense_date: string;
+  description: string | null;
+  notes: string | null;
+  vendor_id: string | null;
+  payee_name: string | null;
+  attribution_scope: string;
+  traveller_id: string | null;
+  registration_id: string | null;
+  travel_group_id: string | null;
+  package_version_id: string | null;
+  allocations: ExpenseAllocation[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ExpenseAllocation {
+  id: string;
+  traveller_id: string | null;
+  registration_id: string | null;
+  allocated_amount: string | number;
+  notes: string | null;
+}
+
+export interface PaginatedExpenses {
+  data: ExpenseListItem[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export interface CreateExpenseInput {
+  expense_category_id: string;
+  expense_source_id: string;
+  amount: number;
+  expense_date: string;
+  description?: string;
+  notes?: string;
+  vendor_id?: string;
+  payee_name?: string;
+  attribution_scope: 'TRAVELER' | 'GROUP' | 'GENERAL';
+  traveller_id?: string;
+  registration_id?: string;
+  travel_group_id?: string;
+  package_version_id?: string;
+  original_amount?: number;
+  original_currency_id?: string;
+  exchange_rate?: number;
+}
+
+export interface UpdateExpenseInput {
+  expense_category_id?: string;
+  amount?: number;
+  expense_date?: string;
+  description?: string;
+  notes?: string;
+  vendor_id?: string;
+  payee_name?: string;
+  traveller_id?: string;
+  registration_id?: string;
+  travel_group_id?: string;
+  package_version_id?: string;
+}
+
+// ---- Finance Exceptions (Authorized Credit) ----
+
+export interface FinanceExceptionListItem {
+  id: string;
+  exception_number: string;
+  registration_id: string;
+  authorized_amount: string | number;
+  reason: string;
+  approved_by: string;
+  approved_at: string;
+  due_date: string | null;
+  status: { id: string; code: string; name: string } | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FinanceException {
+  id: string;
+  exception_number: string;
+  registration_id: string;
+  authorized_amount: string | number;
+  reason: string;
+  approved_by: string;
+  approved_at: string;
+  due_date: string | null;
+  finance_exception_status_id: string;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PaginatedFinanceExceptions {
+  data: FinanceExceptionListItem[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export interface CreateFinanceExceptionInput {
+  registration_id: string;
+  authorized_amount: number;
+  reason: string;
+  due_date?: string;
+  notes?: string;
+}
+
+export interface UpdateFinanceExceptionInput {
+  authorized_amount?: number;
+  reason?: string;
+  due_date?: string;
+  notes?: string;
+}
+
+// ---- Refunds ----
+
+export interface RefundListItem {
+  id: string;
+  refund_number: string;
+  payment_id: string;
+  payer_id: string;
+  amount: string | number;
+  reason: string;
+  refund_date: string;
+  approved_at: string;
+  registration_id: string | null;
+  status: { id: string; code: string; name: string } | null;
+  payment: {
+    id: string;
+    payment_number: string;
+    amount: string | number;
+  } | null;
+  payer: {
+    id: string;
+    payer_number: string;
+    organization_name: string | null;
+    contact_name: string | null;
+  } | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Refund {
+  id: string;
+  refund_number: string;
+  payment_id: string;
+  payer_id: string;
+  amount: string | number;
+  reason: string;
+  refund_date: string;
+  approved_by: string;
+  approved_at: string;
+  refund_status_id: string;
+  registration_id: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PaginatedRefunds {
+  data: RefundListItem[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export interface CreateRefundInput {
+  payment_id: string;
+  amount: number;
+  reason: string;
+  refund_date: string;
+  registration_id?: string;
+  notes?: string;
+}
+
+// ---- Finance Reporting ----
+
+export interface FinanceDashboardSummary {
+  total_revenue: number;
+  total_collected: number;
+  outstanding: number;
+  total_expenses: number;
+  profit_loss: number;
+  total_refunds: number;
+  authorized_credit: number;
+}
+
+export interface RegistrationFinanceDetail {
+  registration_id: string;
+  total_invoiced: number;
+  total_paid: number;
+  outstanding: number;
+  authorized_credit: number;
+  direct_expenses: number;
+  allocated_group_expenses: number;
+  total_cost: number;
+  refunds: number;
+  profit_loss: number;
+}
+
+export interface TravelGroupFinanceSummary {
+  travel_group_id: string;
+  group_revenue: number;
+  group_collected: number;
+  outstanding: number;
+  actual_group_expenses: number;
+  profit_loss: number;
+}
+
+export interface PackageVersionFinanceSummary {
+  package_version_id: string;
+  total_revenue: number;
+  total_collected: number;
+  outstanding: number;
+  total_expenses: number;
+  profit_loss: number;
+}
+
 export interface TravelGroupStatus {
   id: string;
   status_code: string;
@@ -913,6 +1640,9 @@ export interface TravelGroupListItem {
   return_date: string | null;
   maximum_capacity: number;
   current_capacity: number;
+  active_member_count: number;
+  ready_member_count: number;
+  preparation_ready: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -971,6 +1701,14 @@ export interface PaginatedTravelGroups {
   page_size: number;
 }
 
+export interface TravelGroupListFilters {
+  search?: string;
+  package_version_id?: string;
+  status_id?: string;
+  departure_from?: string;
+  departure_to?: string;
+}
+
 export interface CreateTravelGroupInput {
   package_version_id: string;
   name: string;
@@ -990,15 +1728,9 @@ export interface UpdateTravelGroupInput {
   remarks?: string;
 }
 
-export interface ChangeTravelGroupStatusInput {
-  travel_group_status_id: string;
-}
-
 export interface CreateGroupMembershipInput {
   travel_group_id: string;
   registration_id: string;
-  guarantee_required?: boolean;
-  guarantee_waived?: boolean;
   remarks?: string;
 }
 
@@ -1008,7 +1740,6 @@ export interface UpdateGroupMembershipStatusInput {
 
 export interface TransferGroupMembershipInput {
   target_travel_group_id: string;
-  guarantee_waived?: boolean;
   remarks?: string;
 }
 
@@ -1020,9 +1751,10 @@ export interface WaiveGuaranteeInput {
 export interface Guarantee {
   id: string;
   guarantee_number: string;
-  group_membership_id: string;
+  group_membership_id: string | null;
   registration_id: string;
-  guarantee_type: 'PERSON' | 'CASH_DEPOSIT' | 'CPO' | 'BANK_GUARANTEE';
+  guarantee_type:
+    'PERSON' | 'CASH_DEPOSIT' | 'CPO' | 'BANK_GUARANTEE' | 'OTHER';
   guarantee_status: string;
   contact_person_id: string | undefined;
   contact_person: { id: string; full_name: string | undefined } | null;
@@ -1041,9 +1773,10 @@ export interface Guarantee {
 }
 
 export interface CreateGuaranteeInput {
-  group_membership_id: string;
+  group_membership_id?: string;
   registration_id: string;
-  guarantee_type: 'PERSON' | 'CASH_DEPOSIT' | 'CPO' | 'BANK_GUARANTEE';
+  guarantee_type:
+    'PERSON' | 'CASH_DEPOSIT' | 'CPO' | 'BANK_GUARANTEE' | 'OTHER';
   contact_person_id?: string;
   instrument_reference?: string;
   amount?: number;
@@ -1055,7 +1788,8 @@ export interface CreateGuaranteeInput {
 }
 
 export interface UpdateGuaranteeInput {
-  guarantee_type?: 'PERSON' | 'CASH_DEPOSIT' | 'CPO' | 'BANK_GUARANTEE';
+  guarantee_type?:
+    'PERSON' | 'CASH_DEPOSIT' | 'CPO' | 'BANK_GUARANTEE' | 'OTHER';
   contact_person_id?: string;
   instrument_reference?: string;
   amount?: number;
@@ -1067,7 +1801,8 @@ export interface UpdateGuaranteeInput {
 }
 
 export interface ReplaceGuaranteeInput {
-  guarantee_type: 'PERSON' | 'CASH_DEPOSIT' | 'CPO' | 'BANK_GUARANTEE';
+  guarantee_type:
+    'PERSON' | 'CASH_DEPOSIT' | 'CPO' | 'BANK_GUARANTEE' | 'OTHER';
   contact_person_id?: string;
   instrument_reference?: string;
   amount?: number;
@@ -1300,10 +2035,13 @@ export const api = {
     });
   },
 
-  async archivePackageTemplate(id: string): Promise<void> {
-    await request(`/api/admin/package-templates/${id}/archive`, {
-      method: 'POST',
-    });
+  async archivePackageTemplate(id: string): Promise<PackageTemplate> {
+    return request<PackageTemplate>(
+      `/api/admin/package-templates/${id}/archive`,
+      {
+        method: 'POST',
+      },
+    );
   },
 
   async listPackageVersions(
@@ -1358,8 +2096,14 @@ export const api = {
     );
   },
 
-  async archivePackageVersion(id: string): Promise<void> {
-    await request(`/api/admin/package-versions/${id}/archive`, {
+  async closePackageVersion(id: string): Promise<PackageVersion> {
+    return request<PackageVersion>(`/api/admin/package-versions/${id}/close`, {
+      method: 'POST',
+    });
+  },
+
+  async cancelPackageVersion(id: string): Promise<PackageVersion> {
+    return request<PackageVersion>(`/api/admin/package-versions/${id}/cancel`, {
       method: 'POST',
     });
   },
@@ -1571,23 +2315,60 @@ export const api = {
     );
   },
 
+  // ---- Dashboard ----
+
+  async getDashboard(): Promise<DashboardSummary> {
+    return request<DashboardSummary>('/api/admin/dashboard');
+  },
+
   // ---- Registrations ----
 
   async listRegistrations(
     page = 1,
     pageSize = 25,
-    search?: string,
+    filters: RegistrationListFilters = {},
   ): Promise<PaginatedRegistrations> {
     const qs = new URLSearchParams({
       page: String(page),
       page_size: String(pageSize),
     });
-    if (search) qs.set('search', search);
+    if (filters.search) qs.set('search', filters.search);
+    if (filters.traveller_id) qs.set('traveller_id', filters.traveller_id);
+    if (filters.package_version_id) {
+      qs.set('package_version_id', filters.package_version_id);
+    }
+    if (filters.status_id) qs.set('status_id', filters.status_id);
     return request(`/api/admin/registrations?${qs.toString()}`);
   },
 
   async getRegistration(id: string): Promise<Registration> {
     return request<Registration>(`/api/admin/registrations/${id}`);
+  },
+
+  async getRegistrationOperationalSummary(
+    id: string,
+  ): Promise<RegistrationOperationalSummary> {
+    return request<RegistrationOperationalSummary>(
+      `/api/admin/registrations/${id}/operational-summary`,
+    );
+  },
+
+  async getBlockedFromReadyQueue(): Promise<RegistrationQueueItem[]> {
+    return request<RegistrationQueueItem[]>(
+      '/api/admin/registrations/queue/blocked-from-ready',
+    );
+  },
+
+  async getUnpaidRegistrationQueue(): Promise<RegistrationQueueItem[]> {
+    return request<RegistrationQueueItem[]>(
+      '/api/admin/registrations/queue/unpaid',
+    );
+  },
+
+  async getReadyForGroupQueue(): Promise<RegistrationQueueItem[]> {
+    return request<RegistrationQueueItem[]>(
+      '/api/admin/registrations/queue/ready-for-group',
+    );
   },
 
   async createRegistration(
@@ -1609,18 +2390,70 @@ export const api = {
     });
   },
 
-  async updateRegistrationStatus(
+  async startRegistrationProcessing(id: string): Promise<Registration> {
+    return request<Registration>(
+      `/api/admin/registrations/${id}/start-processing`,
+      {
+        method: 'POST',
+      },
+    );
+  },
+
+  async confirmRegistrationReady(id: string): Promise<Registration> {
+    return request<Registration>(
+      `/api/admin/registrations/${id}/confirm-ready`,
+      {
+        method: 'POST',
+      },
+    );
+  },
+
+  async cancelRegistration(
     id: string,
-    registration_status_id: string,
+    input: CancelRegistrationInput = {},
   ): Promise<Registration> {
-    return request<Registration>(`/api/admin/registrations/${id}/status`, {
+    return request<Registration>(`/api/admin/registrations/${id}/cancel`, {
       method: 'POST',
-      body: JSON.stringify({ registration_status_id }),
+      body: JSON.stringify(input),
     });
   },
 
   async archiveRegistration(id: string): Promise<void> {
     await request(`/api/admin/registrations/${id}/archive`, { method: 'POST' });
+  },
+
+  async createRegistrationGuarantee(
+    registrationId: string,
+    input: Omit<
+      CreateGuaranteeInput,
+      'registration_id' | 'group_membership_id'
+    >,
+  ): Promise<Guarantee> {
+    return request<Guarantee>(
+      `/api/admin/registrations/${registrationId}/guarantees`,
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+    );
+  },
+
+  async listRegistrationGuarantees(
+    registrationId: string,
+  ): Promise<Guarantee[]> {
+    return request<Guarantee[]>(
+      `/api/admin/registrations/${registrationId}/guarantees`,
+    );
+  },
+
+  async attachDocumentToRegistration(
+    documentId: string,
+    registrationId: string,
+  ): Promise<unknown> {
+    return request(`/api/admin/documents/${documentId}/attach`, {
+      method: 'POST',
+      body: JSON.stringify({ registration_id: registrationId }),
+    });
   },
 
   // ---- Finance reference data ----
@@ -1749,7 +2582,9 @@ export const api = {
   ): Promise<Invoice> {
     return request<Invoice>(
       `/api/admin/invoices/${invoiceId}/line-items/${lineItemId}/archive`,
-      { method: 'POST' },
+      {
+        method: 'POST',
+      },
     );
   },
 
@@ -1847,6 +2682,241 @@ export const api = {
     await request(`/api/admin/payments/${id}/archive`, { method: 'POST' });
   },
 
+  async reverseAllocation(
+    paymentId: string,
+    allocationId: string,
+  ): Promise<Payment> {
+    return request<Payment>(
+      `/api/admin/payments/${paymentId}/allocations/${allocationId}/reverse`,
+      { method: 'POST' },
+    );
+  },
+
+  async cancelPayment(id: string): Promise<Payment> {
+    return request<Payment>(`/api/admin/payments/${id}/cancel`, {
+      method: 'POST',
+    });
+  },
+
+  // ---- Expenses ----
+
+  async listExpenses(
+    page = 1,
+    pageSize = 25,
+    search?: string,
+  ): Promise<PaginatedExpenses> {
+    const qs = new URLSearchParams({
+      page: String(page),
+      page_size: String(pageSize),
+    });
+    if (search) qs.set('search', search);
+    return request(`/api/admin/expenses?${qs.toString()}`);
+  },
+
+  async getExpense(id: string): Promise<Expense> {
+    return request<Expense>(`/api/admin/expenses/${id}`);
+  },
+
+  async createExpense(input: CreateExpenseInput): Promise<Expense> {
+    return request<Expense>('/api/admin/expenses', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
+
+  async updateExpense(id: string, input: UpdateExpenseInput): Promise<Expense> {
+    return request<Expense>(`/api/admin/expenses/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    });
+  },
+
+  async allocateGroupExpense(
+    id: string,
+    travellerIds: string[],
+  ): Promise<Expense> {
+    return request<Expense>(`/api/admin/expenses/${id}/allocate`, {
+      method: 'POST',
+      body: JSON.stringify({ traveller_ids: travellerIds }),
+    });
+  },
+
+  async archiveExpense(id: string): Promise<void> {
+    await request(`/api/admin/expenses/${id}/archive`, { method: 'POST' });
+  },
+
+  // ---- Finance Exceptions ----
+
+  async listFinanceExceptions(
+    page = 1,
+    pageSize = 25,
+    registrationId?: string,
+  ): Promise<PaginatedFinanceExceptions> {
+    const qs = new URLSearchParams({
+      page: String(page),
+      page_size: String(pageSize),
+    });
+    if (registrationId) qs.set('registration_id', registrationId);
+    return request(`/api/admin/finance-exceptions?${qs.toString()}`);
+  },
+
+  async getFinanceException(id: string): Promise<FinanceException> {
+    return request<FinanceException>(`/api/admin/finance-exceptions/${id}`);
+  },
+
+  async createFinanceException(
+    input: CreateFinanceExceptionInput,
+  ): Promise<FinanceException> {
+    return request<FinanceException>('/api/admin/finance-exceptions', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
+
+  async updateFinanceException(
+    id: string,
+    input: UpdateFinanceExceptionInput,
+  ): Promise<FinanceException> {
+    return request<FinanceException>(`/api/admin/finance-exceptions/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    });
+  },
+
+  async revokeFinanceException(id: string): Promise<FinanceException> {
+    return request<FinanceException>(
+      `/api/admin/finance-exceptions/${id}/revoke`,
+      { method: 'POST' },
+    );
+  },
+
+  async archiveFinanceException(id: string): Promise<void> {
+    await request(`/api/admin/finance-exceptions/${id}/archive`, {
+      method: 'POST',
+    });
+  },
+
+  // ---- Refunds ----
+
+  async listRefunds(page = 1, pageSize = 25): Promise<PaginatedRefunds> {
+    const qs = new URLSearchParams({
+      page: String(page),
+      page_size: String(pageSize),
+    });
+    return request(`/api/admin/refunds?${qs.toString()}`);
+  },
+
+  async getRefund(id: string): Promise<Refund> {
+    return request<Refund>(`/api/admin/refunds/${id}`);
+  },
+
+  async createRefund(input: CreateRefundInput): Promise<Refund> {
+    return request<Refund>('/api/admin/refunds', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
+
+  async completeRefund(id: string): Promise<Refund> {
+    return request<Refund>(`/api/admin/refunds/${id}/complete`, {
+      method: 'POST',
+    });
+  },
+
+  async cancelRefund(id: string): Promise<Refund> {
+    return request<Refund>(`/api/admin/refunds/${id}/cancel`, {
+      method: 'POST',
+    });
+  },
+
+  async archiveRefund(id: string): Promise<void> {
+    await request(`/api/admin/refunds/${id}/archive`, { method: 'POST' });
+  },
+
+  // ---- Finance Reporting ----
+
+  async getFinanceDashboard(): Promise<FinanceDashboardSummary> {
+    return request<FinanceDashboardSummary>('/api/admin/finance/dashboard');
+  },
+
+  async getRegistrationFinanceDetail(
+    registrationId: string,
+  ): Promise<RegistrationFinanceDetail> {
+    return request<RegistrationFinanceDetail>(
+      `/api/admin/finance/registrations/${registrationId}/summary`,
+    );
+  },
+
+  async getTravelGroupFinanceSummary(
+    travelGroupId: string,
+  ): Promise<TravelGroupFinanceSummary> {
+    return request<TravelGroupFinanceSummary>(
+      `/api/admin/finance/travel-groups/${travelGroupId}/summary`,
+    );
+  },
+
+  async getPackageVersionFinanceSummary(
+    packageVersionId: string,
+  ): Promise<PackageVersionFinanceSummary> {
+    return request<PackageVersionFinanceSummary>(
+      `/api/admin/finance/package-versions/${packageVersionId}/summary`,
+    );
+  },
+
+  async getFlexibleReport(filters: {
+    date_from?: string;
+    date_to?: string;
+    traveller_id?: string;
+    registration_id?: string;
+    travel_group_id?: string;
+    package_version_id?: string;
+    expense_category_id?: string;
+    expense_source_id?: string;
+  }): Promise<
+    FinanceDashboardSummary & { unallocated_customer_money: number }
+  > {
+    const qs = new URLSearchParams();
+    if (filters.date_from) qs.set('date_from', filters.date_from);
+    if (filters.date_to) qs.set('date_to', filters.date_to);
+    if (filters.traveller_id) qs.set('traveller_id', filters.traveller_id);
+    if (filters.registration_id)
+      qs.set('registration_id', filters.registration_id);
+    if (filters.travel_group_id)
+      qs.set('travel_group_id', filters.travel_group_id);
+    if (filters.package_version_id)
+      qs.set('package_version_id', filters.package_version_id);
+    if (filters.expense_category_id)
+      qs.set('expense_category_id', filters.expense_category_id);
+    if (filters.expense_source_id)
+      qs.set('expense_source_id', filters.expense_source_id);
+    const queryStr = qs.toString();
+    return request(
+      `/api/admin/finance/report${queryStr ? `?${queryStr}` : ''}`,
+    );
+  },
+
+  // ---- Finance reference data (new) ----
+
+  async listExpenseStatuses(): Promise<LookupOption[]> {
+    return request<LookupOption[]>('/api/admin/expense-statuses');
+  },
+
+  async listExpenseCategories(): Promise<LookupOption[]> {
+    return request<LookupOption[]>('/api/admin/expense-categories');
+  },
+
+  async listExpenseSources(): Promise<LookupOption[]> {
+    return request<LookupOption[]>('/api/admin/expense-sources');
+  },
+
+  async listFinanceExceptionStatuses(): Promise<LookupOption[]> {
+    return request<LookupOption[]>('/api/admin/finance-exception-statuses');
+  },
+
+  async listRefundStatuses(): Promise<LookupOption[]> {
+    return request<LookupOption[]>('/api/admin/refund-statuses');
+  },
+
   // ---- Operations ----
 
   // ---- Travel groups ----
@@ -1854,18 +2924,211 @@ export const api = {
   async listTravelGroups(
     page = 1,
     pageSize = 25,
-    search?: string,
+    filters: TravelGroupListFilters = {},
   ): Promise<PaginatedTravelGroups> {
     const qs = new URLSearchParams({
       page: String(page),
       page_size: String(pageSize),
     });
-    if (search) qs.set('search', search);
+    if (filters.search) qs.set('search', filters.search);
+    if (filters.package_version_id) {
+      qs.set('package_version_id', filters.package_version_id);
+    }
+    if (filters.status_id) qs.set('status_id', filters.status_id);
+    if (filters.departure_from)
+      qs.set('departure_from', filters.departure_from);
+    if (filters.departure_to) qs.set('departure_to', filters.departure_to);
     return request(`/api/admin/travel-groups?${qs.toString()}`);
   },
 
   async getTravelGroup(id: string): Promise<TravelGroup> {
     return request<TravelGroup>(`/api/admin/travel-groups/${id}`);
+  },
+
+  async getTravelGroupOperationalSummary(
+    id: string,
+  ): Promise<TravelGroupOperationalSummary> {
+    return request<TravelGroupOperationalSummary>(
+      `/api/admin/travel-groups/${id}/operational-summary`,
+    );
+  },
+
+  async getTravelGroupTravellers(id: string): Promise<TravelGroupTraveller[]> {
+    return request<TravelGroupTraveller[]>(
+      `/api/admin/travel-groups/${id}/travellers`,
+    );
+  },
+
+  async listLogisticsCities(countryId?: string): Promise<LogisticsCity[]> {
+    const params = new URLSearchParams();
+    if (countryId) params.set('country_id', countryId);
+    const qs = params.toString();
+    return request<LogisticsCity[]>(
+      qs ? `/api/admin/cities?${qs}` : '/api/admin/cities',
+    );
+  },
+
+  async listGroupHotelStayStatuses(): Promise<LookupOption[]> {
+    return request<LookupOption[]>('/api/admin/group-hotel-stay-statuses');
+  },
+
+  async listTransportSegmentStatuses(): Promise<LookupOption[]> {
+    return request<LookupOption[]>('/api/admin/transport-segment-statuses');
+  },
+
+  async listRoomStatuses(): Promise<LookupOption[]> {
+    return request<LookupOption[]>('/api/admin/room-statuses');
+  },
+
+  async listRoomTypes(): Promise<LookupOption[]> {
+    return request<LookupOption[]>('/api/admin/room-types');
+  },
+
+  async listGroupHotelStays(groupId: string): Promise<TravelGroupHotelStay[]> {
+    const result = await request<{ data: TravelGroupHotelStay[] }>(
+      `/api/admin/travel-groups/${groupId}/stays?page=1&page_size=100`,
+    );
+    return result.data;
+  },
+
+  async createGroupHotelStay(
+    groupId: string,
+    input: CreateGroupHotelStayInput,
+  ): Promise<TravelGroupHotelStay> {
+    return request<TravelGroupHotelStay>(
+      `/api/admin/travel-groups/${groupId}/stays`,
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+    );
+  },
+
+  async updateGroupHotelStay(
+    id: string,
+    input: Partial<CreateGroupHotelStayInput>,
+  ): Promise<TravelGroupHotelStay> {
+    return request<TravelGroupHotelStay>(`/api/admin/group-hotel-stays/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    });
+  },
+
+  async deleteGroupHotelStay(id: string): Promise<void> {
+    await request(`/api/admin/group-hotel-stays/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  async getAccommodationCoverage(groupId: string): Promise<{
+    stays: StayCoverage[];
+    accommodation_ready: boolean;
+    total_confirmed_stays: number;
+  }> {
+    return request(
+      `/api/admin/travel-groups/${groupId}/accommodation-coverage`,
+    );
+  },
+
+  async autoAssignRoomsForStay(stayId: string): Promise<{
+    assigned_count: number;
+    unassigned_count: number;
+    assigned: {
+      id: string;
+      group_membership_id: string;
+      room_number: string;
+    }[];
+    unassigned_members: {
+      group_membership_id: string;
+      traveller_name: string;
+      reason: string;
+    }[];
+  }> {
+    return request(`/api/admin/stays/${stayId}/auto-assign`, {
+      method: 'POST',
+    });
+  },
+
+  async createTransportSegment(
+    groupId: string,
+    input: CreateTransportSegmentInput,
+  ): Promise<TravelGroupTransportSegment> {
+    return request<TravelGroupTransportSegment>(
+      `/api/admin/travel-groups/${groupId}/transport-segments`,
+      { method: 'POST', body: JSON.stringify(input) },
+    );
+  },
+
+  async updateTransportSegment(
+    id: string,
+    input: Partial<CreateTransportSegmentInput>,
+  ): Promise<TravelGroupTransportSegment> {
+    return request<TravelGroupTransportSegment>(
+      `/api/admin/transport-segments/${id}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      },
+    );
+  },
+
+  async listRooms(groupHotelStayId: string): Promise<Room[]> {
+    const result = await request<{ data: Room[] }>(
+      `/api/admin/stays/${groupHotelStayId}/rooms?page=1&page_size=100`,
+    );
+    return result.data;
+  },
+
+  async createRoom(
+    groupHotelStayId: string,
+    input: CreateRoomInput,
+  ): Promise<Room> {
+    return request<Room>(`/api/admin/stays/${groupHotelStayId}/rooms`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
+
+  async deleteRoom(roomId: string): Promise<void> {
+    await request(`/api/admin/rooms/${roomId}`, { method: 'DELETE' });
+  },
+
+  async updateRoom(
+    roomId: string,
+    input: Partial<CreateRoomInput>,
+  ): Promise<Room> {
+    return request<Room>(`/api/admin/rooms/${roomId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    });
+  },
+
+  async createRoomAssignment(
+    input: CreateRoomAssignmentInput,
+  ): Promise<TravelGroupRoomAssignment> {
+    return request<TravelGroupRoomAssignment>('/api/admin/room-assignments', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
+
+  async releaseRoomAssignment(id: string): Promise<void> {
+    await request(`/api/admin/room-assignments/${id}/release`, {
+      method: 'PATCH',
+    });
+  },
+
+  async reassignRoomAssignment(
+    assignmentId: string,
+    roomId: string,
+  ): Promise<TravelGroupRoomAssignment> {
+    return request<TravelGroupRoomAssignment>(
+      `/api/admin/room-assignments/${assignmentId}/reassign`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ room_id: roomId }),
+      },
+    );
   },
 
   async createTravelGroup(input: CreateTravelGroupInput): Promise<TravelGroup> {
@@ -1889,17 +3152,25 @@ export const api = {
     await request(`/api/admin/travel-groups/${id}`, { method: 'DELETE' });
   },
 
-  async changeTravelGroupStatus(
-    id: string,
-    input: ChangeTravelGroupStatusInput,
-  ): Promise<TravelGroup> {
+  async confirmTravelGroupPrepared(id: string): Promise<TravelGroup> {
     return request<TravelGroup>(
-      `/api/admin/travel-groups/${id}/change-status`,
+      `/api/admin/travel-groups/${id}/confirm-travel-prepared`,
       {
         method: 'POST',
-        body: JSON.stringify(input),
       },
     );
+  },
+
+  async departTravelGroup(id: string): Promise<TravelGroup> {
+    return request<TravelGroup>(`/api/admin/travel-groups/${id}/depart`, {
+      method: 'POST',
+    });
+  },
+
+  async completeTravelGroup(id: string): Promise<TravelGroup> {
+    return request<TravelGroup>(`/api/admin/travel-groups/${id}/complete`, {
+      method: 'POST',
+    });
   },
 
   async listTravelGroupStatuses(): Promise<TravelGroupStatus[]> {

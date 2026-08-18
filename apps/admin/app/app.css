@@ -1,4 +1,4 @@
- /* @import '../../../packages/ui/src/styles/base.css'; */
+/* @import '../../../packages/ui/src/styles/base.css'; */
 
 /* @source ".*.{ts,tsx}"; */
 /*
@@ -66,7 +66,7 @@
 
  */
 
- @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@400;500;600;700;800&display=swap');
 
 @import '../../../packages/ui/src/styles/base.css';
 
@@ -98,6 +98,16 @@
 
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+
+  --color-stale: var(--stale);
+  --color-stale-foreground: var(--stale-foreground);
 
   --color-border: var(--border);
   --color-input: var(--input);
@@ -158,6 +168,22 @@
   --destructive: hsl(0 84% 60%);
   --destructive-foreground: hsl(0 0% 100%);
 
+  /* Success - emerald (ready, confirmed, satisfied) */
+  --success: hsl(152 60% 38%);
+  --success-foreground: hsl(0 0% 100%);
+
+  /* Warning - amber (needs review, not recorded) */
+  --warning: hsl(38 92% 45%);
+  --warning-foreground: hsl(0 0% 100%);
+
+  /* Info - blue (in progress, informational) */
+  --info: hsl(217 91% 50%);
+  --info-foreground: hsl(0 0% 100%);
+
+  /* Stale - zinc/gray (draft, inactive, pending) */
+  --stale: hsl(240 5% 64%);
+  --stale-foreground: hsl(0 0% 100%);
+
   /* Borders and inputs */
   --border: hsl(150 15% 90%);
   --input: hsl(150 15% 90%);
@@ -206,6 +232,22 @@
   /* Destructive - error states */
   --destructive: hsl(0 62% 50%);
   --destructive-foreground: hsl(0 0% 100%);
+
+  /* Success - emerald (ready, confirmed, satisfied) */
+  --success: hsl(152 60% 50%);
+  --success-foreground: hsl(0 0% 100%);
+
+  /* Warning - amber (needs review, not recorded) */
+  --warning: hsl(38 92% 55%);
+  --warning-foreground: hsl(0 0% 100%);
+
+  /* Info - blue (in progress, informational) */
+  --info: hsl(217 91% 60%);
+  --info-foreground: hsl(0 0% 100%);
+
+  /* Stale - zinc/gray (draft, inactive, pending) */
+  --stale: hsl(240 5% 55%);
+  --stale-foreground: hsl(0 0% 100%);
 
   /* Borders and inputs */
   --border: hsl(150 25% 18%);
@@ -279,11 +321,15 @@ h6 {
   }
 
   .glow-emerald {
-    box-shadow: 0 0 60px rgba(0, 84, 48, 0.15), 0 0 100px rgba(0, 84, 48, 0.1);
+    box-shadow:
+      0 0 60px rgba(0, 84, 48, 0.15),
+      0 0 100px rgba(0, 84, 48, 0.1);
   }
 
   .glow-emerald-strong {
-    box-shadow: 0 0 80px rgba(0, 84, 48, 0.25), 0 0 120px rgba(0, 84, 48, 0.15);
+    box-shadow:
+      0 0 80px rgba(0, 84, 48, 0.25),
+      0 0 120px rgba(0, 84, 48, 0.15);
   }
 }
 

@@ -1,10 +1,13 @@
 import {
   BadRequestException,
+  ConflictException,
   Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { randomBytes } from 'node:crypto';
+import { extname } from 'node:path';
 import { MySql2Database } from 'drizzle-orm/mysql2';
 import { and, asc, desc, eq, like, or, sql } from 'drizzle-orm';
 import { ulid } from 'ulid';
@@ -20,6 +23,9 @@ import {
   ChangeDocumentStatusDto,
   ChangeDocumentVerificationDto,
   CreateDocumentDto,
+  DOCUMENT_ALLOWED_EXTENSIONS,
+  DOCUMENT_ALLOWED_MIME_TYPES,
+  DOCUMENT_MAX_FILE_SIZE,
   DocumentFiltersDto,
   UpdateDocumentDto,
 } from '../dto/documents.dto.js';
@@ -113,9 +119,11 @@ export class DocumentsService {
       conditions.push(
         or(
           like(schema.documents.document_number, term),
+          like(schema.documents.display_name, term),
           like(schema.documents.original_filename, term),
           like(schema.travellers.traveller_number, term),
           like(schema.travellers.last_name, term),
+          like(schema.travellers.first_name, term),
           like(schema.registrations.registration_number, term),
         )!,
       );
@@ -155,7 +163,15 @@ export class DocumentsService {
       this.db
         .select({ count: sql<number>`count(*)` })
         .from(schema.documents)
-        .where(eq(schema.documents.is_deleted, false))
+        .leftJoin(
+          schema.travellers,
+          eq(schema.documents.traveller_id, schema.travellers.id),
+        )
+        .leftJoin(
+          schema.registrations,
+          eq(schema.documents.registration_id, schema.registrations.id),
+        )
+        .where(and(...conditions)!)
         .then((r) => r[0]?.count ?? 0),
     ]);
 
@@ -220,9 +236,8 @@ export class DocumentsService {
     actorId: string,
   ) {
     this.assertOwner(dto);
-    if (!file) throw new BadRequestException('File is required');
-    if (file.size < 0)
-      throw new BadRequestException('File size must be non-negative');
+    this.validateFile(file);
+    await this.validateOwnerReferences(dto);
 
     const documentType = await this.findDocumentType(dto.document_type_id);
     if (!documentType) throw new NotFoundException('Document type not found');
@@ -234,16 +249,24 @@ export class DocumentsService {
 
     const id = ulid();
     const documentNumber = await this.numbers.generateDocumentNumber();
-    const storageKey = this.generateStorageKey(id, file.originalname);
+    const originalFilename = this.sanitizeOriginalFilename(file.originalname);
+    const storageKey = this.generateStorageKey(id, originalFilename);
     const storagePath = await this.storage.save(file.buffer, storageKey);
+
+    const owner = await this.resolveDocumentOwner(dto);
+    const displayName = this.generateDisplayName(
+      owner.first_name,
+      documentType.type_code,
+    );
 
     await this.db.insert(schema.documents).values({
       id,
       document_number: documentNumber,
+      display_name: displayName,
       traveller_id: dto.traveller_id ?? null,
       registration_id: dto.registration_id ?? null,
       document_type_id: dto.document_type_id,
-      original_filename: file.originalname,
+      original_filename: originalFilename,
       stored_filename: storageKey,
       mime_type: file.mimetype,
       file_size: file.size,
@@ -369,7 +392,7 @@ export class DocumentsService {
       })
       .where(eq(schema.documents.id, id));
 
-    return this.getDocument(id);
+    return { id, is_deleted: true };
   }
 
   async download(id: string) {
@@ -383,7 +406,198 @@ export class DocumentsService {
     };
   }
 
+  async attachDocumentToRegistration(
+    documentId: string,
+    registrationId: string,
+    actorId: string,
+  ) {
+    const [document] = await this.db
+      .select({
+        id: schema.documents.id,
+        traveller_id: schema.documents.traveller_id,
+        registration_id: schema.documents.registration_id,
+      })
+      .from(schema.documents)
+      .where(
+        and(
+          eq(schema.documents.id, documentId),
+          eq(schema.documents.is_deleted, false),
+        ),
+      )
+      .limit(1);
+    if (!document) throw new NotFoundException('Document not found');
+
+    const [registration] = await this.db
+      .select({
+        id: schema.registrations.id,
+        traveller_id: schema.registrations.traveller_id,
+      })
+      .from(schema.registrations)
+      .where(
+        and(
+          eq(schema.registrations.id, registrationId),
+          eq(schema.registrations.is_deleted, false),
+        ),
+      )
+      .limit(1);
+    if (!registration) throw new BadRequestException('Registration not found');
+
+    if (document.traveller_id !== registration.traveller_id) {
+      throw new BadRequestException(
+        "Document does not belong to the registration's traveller",
+      );
+    }
+    if (
+      document.registration_id &&
+      document.registration_id !== registration.id
+    ) {
+      throw new ConflictException(
+        'Document is already attached to another registration',
+      );
+    }
+
+    await this.db
+      .update(schema.documents)
+      .set({
+        registration_id: registration.id,
+        updated_by: actorId,
+        updated_at: new Date(),
+      })
+      .where(eq(schema.documents.id, document.id));
+
+    return this.getDocument(document.id);
+  }
+
+  private async resolveDocumentOwner(dto: {
+    traveller_id?: string | null;
+    registration_id?: string | null;
+  }) {
+    if (dto.traveller_id) {
+      const [traveller] = await this.db
+        .select({ first_name: schema.travellers.first_name })
+        .from(schema.travellers)
+        .where(
+          and(
+            eq(schema.travellers.id, dto.traveller_id),
+            eq(schema.travellers.is_deleted, false),
+          ),
+        )
+        .limit(1);
+      if (traveller) return { first_name: traveller.first_name ?? 'Unknown' };
+    }
+
+    if (dto.registration_id) {
+      const [registration] = await this.db
+        .select({
+          first_name: schema.travellers.first_name,
+        })
+        .from(schema.registrations)
+        .innerJoin(
+          schema.travellers,
+          eq(schema.registrations.traveller_id, schema.travellers.id),
+        )
+        .where(
+          and(
+            eq(schema.registrations.id, dto.registration_id),
+            eq(schema.registrations.is_deleted, false),
+            eq(schema.travellers.is_deleted, false),
+          ),
+        )
+        .limit(1);
+      if (registration)
+        return { first_name: registration.first_name ?? 'Unknown' };
+    }
+
+    return { first_name: 'Unknown' };
+  }
+
+  private generateDisplayName(firstName: string, documentTypeCode: string) {
+    const safeFirst = firstName.replace(/[^a-zA-Z0-9]/g, '');
+    const safeType = documentTypeCode.replace(/[^a-zA-Z0-9]/g, '');
+    const shortId = randomBytes(2).toString('hex').toUpperCase();
+    return `${safeFirst}_${safeType}_${shortId}`;
+  }
+
   // ---- Private helpers ----
+
+  private validateFile(file: {
+    buffer: Buffer;
+    mimetype: string;
+    originalname: string;
+    size: number;
+  }) {
+    if (!file) throw new BadRequestException('File is required');
+    if (file.size > DOCUMENT_MAX_FILE_SIZE) {
+      throw new BadRequestException('File size must not exceed 5 MB');
+    }
+    const extension = extname(file.originalname).toLowerCase();
+    if (
+      !DOCUMENT_ALLOWED_MIME_TYPES.includes(
+        file.mimetype as (typeof DOCUMENT_ALLOWED_MIME_TYPES)[number],
+      ) ||
+      !DOCUMENT_ALLOWED_EXTENSIONS.includes(
+        extension as (typeof DOCUMENT_ALLOWED_EXTENSIONS)[number],
+      )
+    ) {
+      throw new BadRequestException(
+        'Only PDF, JPG, and JPEG files are allowed',
+      );
+    }
+
+    const isPdf =
+      file.mimetype === 'application/pdf' &&
+      file.buffer.subarray(0, 5).toString() === '%PDF-';
+    const isJpeg =
+      file.mimetype === 'image/jpeg' &&
+      file.buffer.subarray(0, 3).equals(Buffer.from([0xff, 0xd8, 0xff]));
+    if (!isPdf && !isJpeg) {
+      throw new BadRequestException(
+        'File content does not match its declared type',
+      );
+    }
+  }
+
+  private async validateOwnerReferences(dto: {
+    traveller_id?: string | null;
+    registration_id?: string | null;
+  }) {
+    if (dto.traveller_id) {
+      const [traveller] = await this.db
+        .select({ id: schema.travellers.id })
+        .from(schema.travellers)
+        .where(
+          and(
+            eq(schema.travellers.id, dto.traveller_id),
+            eq(schema.travellers.is_deleted, false),
+          ),
+        )
+        .limit(1);
+      if (!traveller) throw new BadRequestException('Traveller not found');
+    }
+
+    if (dto.registration_id) {
+      const [registration] = await this.db
+        .select({
+          id: schema.registrations.id,
+          traveller_id: schema.registrations.traveller_id,
+        })
+        .from(schema.registrations)
+        .where(
+          and(
+            eq(schema.registrations.id, dto.registration_id),
+            eq(schema.registrations.is_deleted, false),
+          ),
+        )
+        .limit(1);
+      if (!registration)
+        throw new BadRequestException('Registration not found');
+      if (dto.traveller_id && registration.traveller_id !== dto.traveller_id) {
+        throw new BadRequestException(
+          'Registration does not belong to traveller',
+        );
+      }
+    }
+  }
 
   private assertOwner(dto: {
     traveller_id?: string | null;
@@ -418,9 +632,12 @@ export class DocumentsService {
     return row as { id: string; status_code: string };
   }
 
+  private sanitizeOriginalFilename(originalName: string) {
+    return originalName.replace(/[^a-zA-Z0-9_. -]/g, '_').slice(0, 255);
+  }
+
   private generateStorageKey(id: string, originalName: string) {
-    const safe = originalName.replace(/[^a-zA-Z0-9_.-]/g, '_');
-    return `DOC-${id}-${safe}`;
+    return `DOC-${id}-${originalName}`;
   }
 
   private mapListRow(row: any) {
@@ -428,6 +645,7 @@ export class DocumentsService {
     return {
       id: document.id,
       document_number: document.document_number,
+      display_name: document.display_name,
       traveller: row.travellers
         ? {
             id: row.travellers.id,
@@ -442,25 +660,25 @@ export class DocumentsService {
             registration_number: row.registrations.registration_number,
           }
         : null,
-      document_type: row.documentTypes
+      document_type: row.document_types
         ? {
-            id: row.documentTypes.id,
-            type_code: row.documentTypes.type_code,
-            name: row.documentTypes.name,
+            id: row.document_types.id,
+            type_code: row.document_types.type_code,
+            name: row.document_types.name,
           }
         : null,
-      document_status: row.documentStatuses
+      document_status: row.document_statuses
         ? {
-            id: row.documentStatuses.id,
-            status_code: row.documentStatuses.status_code,
-            name: row.documentStatuses.name,
+            id: row.document_statuses.id,
+            status_code: row.document_statuses.status_code,
+            name: row.document_statuses.name,
           }
         : null,
-      verification_status: row.verificationStatuses
+      verification_status: row.verification_statuses
         ? {
-            id: row.verificationStatuses.id,
-            status_code: row.verificationStatuses.status_code,
-            name: row.verificationStatuses.name,
+            id: row.verification_statuses.id,
+            status_code: row.verification_statuses.status_code,
+            name: row.verification_statuses.name,
           }
         : null,
       original_filename: document.original_filename,
@@ -478,6 +696,7 @@ export class DocumentsService {
     return {
       id: document.id,
       document_number: document.document_number,
+      display_name: document.display_name,
       traveller: row.travellers
         ? {
             id: row.travellers.id,
@@ -493,25 +712,25 @@ export class DocumentsService {
             registration_number: row.registrations.registration_number,
           }
         : null,
-      document_type: row.documentTypes
+      document_type: row.document_types
         ? {
-            id: row.documentTypes.id,
-            type_code: row.documentTypes.type_code,
-            name: row.documentTypes.name,
+            id: row.document_types.id,
+            type_code: row.document_types.type_code,
+            name: row.document_types.name,
           }
         : null,
-      document_status: row.documentStatuses
+      document_status: row.document_statuses
         ? {
-            id: row.documentStatuses.id,
-            status_code: row.documentStatuses.status_code,
-            name: row.documentStatuses.name,
+            id: row.document_statuses.id,
+            status_code: row.document_statuses.status_code,
+            name: row.document_statuses.name,
           }
         : null,
-      verification_status: row.verificationStatuses
+      verification_status: row.verification_statuses
         ? {
-            id: row.verificationStatuses.id,
-            status_code: row.verificationStatuses.status_code,
-            name: row.verificationStatuses.name,
+            id: row.verification_statuses.id,
+            status_code: row.verification_statuses.status_code,
+            name: row.verification_statuses.name,
           }
         : null,
       verified_by: row.users

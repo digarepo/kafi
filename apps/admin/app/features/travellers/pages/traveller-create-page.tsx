@@ -1,15 +1,15 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router';
-import { TravellerForm } from '../components/traveller-form';
-import { TravellerDuplicatesAlert } from '../components/traveller-duplicates-alert';
-import type { TravellerFormOutput } from '../types/travellers.types';
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router";
+import { TravellerForm } from "../components/traveller-form";
+import { TravellerDuplicatesAlert } from "../components/traveller-duplicates-alert";
+import type { TravellerFormOutput } from "../types/travellers.types";
 import {
   api,
   type Country,
   type Language,
   type LookupOption,
   type Traveller,
-} from '../../../lib/api.js';
+} from "../../../lib/api.js";
 
 export function TravellerCreatePage() {
   const navigate = useNavigate();
@@ -35,9 +35,7 @@ export function TravellerCreatePage() {
         setSources(src);
         setStatuses(s);
       } catch (err) {
-        setError(
-          err instanceof Error ? err.message : 'Failed to load reference data',
-        );
+        setError(err instanceof Error ? err.message : "Failed to load reference data");
       } finally {
         setLoading(false);
       }
@@ -48,12 +46,10 @@ export function TravellerCreatePage() {
   async function handleSubmit(values: TravellerFormOutput) {
     setError(null);
     try {
-      await api.createTraveller(values);
-      navigate('/travellers');
+      const traveller = await api.createTraveller(values);
+      navigate(`/travellers/${traveller.id}`);
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'Failed to create traveller',
-      );
+      setError(err instanceof Error ? err.message : "Failed to create traveller");
     }
   }
 
@@ -63,15 +59,11 @@ export function TravellerCreatePage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Create traveller</h1>
-        <p className="text-muted-foreground">
-          Add a new master traveller record.
-        </p>
+        <p className="text-muted-foreground">Add a new master traveller record.</p>
       </div>
 
       {error && (
-        <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-          {error}
-        </div>
+        <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>
       )}
 
       <TravellerDuplicatesAlert matches={duplicateMatches} />

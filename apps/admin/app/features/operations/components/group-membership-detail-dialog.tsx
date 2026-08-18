@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
+import { usePermissions } from '../../../core/permissions';
 import {
   Button,
-  Checkbox,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -26,7 +26,7 @@ import { displayDate } from '../lib/date';
 import { GuaranteeFormDialog } from './guarantee-form-dialog';
 import { GuaranteeList } from './guarantee-list';
 
-type ActiveAction = 'transfer' | 'status' | 'waive' | null;
+type ActiveAction = 'transfer' | 'status' | null;
 
 interface GroupMembershipDetailDialogProps {
   membership: GroupMembership | null;
@@ -41,6 +41,8 @@ export function GroupMembershipDetailDialog({
   onOpenChange,
   onChanged,
 }: GroupMembershipDetailDialogProps) {
+  const { can } = usePermissions();
+  const canManage = can('TRAVEL_GROUP_MANAGE');
   const [statuses, setStatuses] = useState<GroupMembershipStatus[]>([]);
   const [travelGroups, setTravelGroups] = useState<TravelGroupListItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -49,10 +51,7 @@ export function GroupMembershipDetailDialog({
 
   const [statusId, setStatusId] = useState('');
   const [targetGroupId, setTargetGroupId] = useState('');
-  const [waived, setWaived] = useState(false);
-  const [waiveRemarks, setWaiveRemarks] = useState('');
   const [transferRemarks, setTransferRemarks] = useState('');
-  const [transferWaived, setTransferWaived] = useState(false);
 
   const [guaranteeOpen, setGuaranteeOpen] = useState(false);
   const [guaranteeMode, setGuaranteeMode] = useState<'create' | 'replace'>(
@@ -100,18 +99,12 @@ export function GroupMembershipDetailDialog({
       setActiveAction(null);
       setStatusId('');
       setTargetGroupId('');
-      setWaived(false);
-      setWaiveRemarks('');
       setTransferRemarks('');
-      setTransferWaived(false);
       return;
     }
     setStatusId(membership.status?.id ?? '');
-    setWaived(membership.guarantee_waived);
     setTargetGroupId('');
-    setWaiveRemarks('');
     setTransferRemarks('');
-    setTransferWaived(false);
   }, [membership, open]);
 
   async function handleStatusChange() {
@@ -139,7 +132,6 @@ export function GroupMembershipDetailDialog({
     try {
       await api.transferGroupMembership(membership.id, {
         target_travel_group_id: targetGroupId,
-        guarantee_waived: transferWaived,
         remarks: transferRemarks.trim() || undefined,
       });
       setActiveAction(null);
@@ -147,25 +139,6 @@ export function GroupMembershipDetailDialog({
       onChanged();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Transfer failed');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleWaive() {
-    if (!membership) return;
-    setLoading(true);
-    setError(null);
-    try {
-      await api.waiveGuarantee(membership.id, {
-        waived,
-        remarks: waiveRemarks.trim() || undefined,
-      });
-      setActiveAction(null);
-      onOpenChange(false);
-      onChanged();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Waiver update failed');
     } finally {
       setLoading(false);
     }
@@ -252,39 +225,34 @@ export function GroupMembershipDetailDialog({
           )}
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setActiveAction('transfer')}
-          >
-            Transfer
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setActiveAction('status')}
-          >
-            Change status
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setActiveAction('waive')}
-          >
-            Waive
-          </Button>
-          <Button size="sm" onClick={() => openGuarantee('create', null)}>
-            Add guarantee
-          </Button>
-          <Button
-            size="sm"
-            variant="destructive"
-            onClick={() => void handleDelete()}
-          >
-            Remove
-          </Button>
-        </div>
+        {canManage && (
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setActiveAction('transfer')}
+            >
+              Transfer
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setActiveAction('status')}
+            >
+              Change status
+            </Button>
+            <Button size="sm" onClick={() => openGuarantee('create', null)}>
+              Add guarantee
+            </Button>
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={() => void handleDelete()}
+            >
+              Remove
+            </Button>
+          </div>
+        )}
 
         {activeAction === 'transfer' && (
           <div className="space-y-3 rounded-md border p-3">
@@ -304,16 +272,6 @@ export function GroupMembershipDetailDialog({
                 ))}
               </SelectContent>
             </Select>
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id="transfer-waive"
-                checked={transferWaived}
-                onCheckedChange={(v) => setTransferWaived(v === true)}
-              />
-              <Label htmlFor="transfer-waive" className="text-sm font-normal">
-                Waive guarantee for new membership
-              </Label>
-            </div>
             <Textarea
               value={transferRemarks}
               onChange={(e) => setTransferRemarks(e.target.value)}
@@ -377,47 +335,12 @@ export function GroupMembershipDetailDialog({
           </div>
         )}
 
-        {activeAction === 'waive' && (
-          <div className="space-y-3 rounded-md border p-3">
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id="waive-check"
-                checked={waived}
-                onCheckedChange={(v) => setWaived(v === true)}
-              />
-              <Label htmlFor="waive-check" className="text-sm font-normal">
-                Guarantee waived
-              </Label>
-            </div>
-            <Textarea
-              value={waiveRemarks}
-              onChange={(e) => setWaiveRemarks(e.target.value)}
-              placeholder="Optional remarks"
-            />
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                onClick={() => void handleWaive()}
-                disabled={loading}
-              >
-                {loading ? 'Saving…' : 'Save waiver'}
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setActiveAction(null)}
-              >
-                Cancel
-              </Button>
-            </div>
-          </div>
-        )}
-
         <div className="space-y-2">
           <h3 className="font-semibold">Guarantees</h3>
           <GuaranteeList
             key={guaranteeVersion}
             membership={membership}
+            canManage={canManage}
             onReplace={(g) => openGuarantee('replace', g)}
             onChanged={() => setGuaranteeVersion((v) => v + 1)}
           />

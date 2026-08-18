@@ -1,24 +1,30 @@
 import {
   BadRequestException,
-  ConflictException,
   Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { MySql2Database } from 'drizzle-orm/mysql2';
-import { and, asc, desc, eq, sql } from 'drizzle-orm';
+import { and, asc, eq, sql } from 'drizzle-orm';
 import { ulid } from 'ulid';
 import { DATABASE } from '../../../../shared/infrastructure/database/database.provider.js';
 import * as schema from '@kafi/database';
 import { BusinessNumberService } from './business-number.service.js';
+import { assertGroupAllowsAccommodationChange } from './group-state-guard.js';
 import {
   CreateTransportSegmentDto,
   TransportSegmentFiltersDto,
   UpdateTransportSegmentDto,
 } from '../dto/operations.dto.js';
+import { ExpensesService } from '../../../finance/application/services/expenses.service.js';
+import { ExpenseAdjustmentsService } from '../../../finance/application/services/expense-adjustments.service.js';
 
 /**
- * Ground transport segment planning for travel groups.
+ * Ground transport segment recording for travel groups.
+ *
+ * Transport is a lightweight confirmation record — Kafi records a segment
+ * only after the Saudi partner has confirmed the arrangement. Segments are
+ * created directly as CONFIRMED. There is no PLANNED workflow for MVP.
  */
 @Injectable()
 export class TransportSegmentsService {
@@ -26,6 +32,8 @@ export class TransportSegmentsService {
     @Inject(DATABASE)
     private readonly db: MySql2Database<typeof schema>,
     private readonly numbers: BusinessNumberService,
+    private readonly expenses: ExpensesService,
+    private readonly adjustments: ExpenseAdjustmentsService,
   ) {}
 
   async listSegments(filters: TransportSegmentFiltersDto) {
@@ -120,46 +128,85 @@ export class TransportSegmentsService {
     const travelGroup = await this.findTravelGroup(dto.travel_group_id);
     if (!travelGroup) throw new NotFoundException('Travel group not found');
 
-    await this.assertVendorExists(dto.vendor_id);
-    await this.assertDateWindow(
-      travelGroup,
-      dto.departure_datetime,
-      dto.arrival_datetime,
-    );
-    await this.assertArrivalAfterDeparture(
-      dto.departure_datetime,
-      dto.arrival_datetime,
+    // Group-state guard — block mutations in protected states
+    await assertGroupAllowsAccommodationChange(
+      this.db,
+      dto.travel_group_id,
+      'create transport segment',
     );
 
-    const statusId =
-      dto.transport_segment_status_id ?? (await this.statusIdFor('PLANNED'));
+    if (dto.vendor_id) {
+      await this.assertVendorExists(dto.vendor_id);
+    }
+
+    // Segments are always created as CONFIRMED — Kafi records a segment only
+    // after the Saudi partner has confirmed the arrangement.
+    // Transport cost is required — a confirmed segment is a financially
+    // complete operational event.
+    const transportCost = Number(dto.transport_cost ?? 0);
+    if (!transportCost || transportCost <= 0) {
+      throw new BadRequestException(
+        'Transport cost is required to create a confirmed transport segment',
+      );
+    }
+
+    const statusId = await this.statusIdFor('CONFIRMED');
     const number = await this.numbers.generateTransportSegmentNumber();
 
+    // Auto-assign segment_order if not provided
+    const segmentOrder =
+      dto.segment_order ?? (await this.nextSegmentOrder(dto.travel_group_id));
+
     const id = ulid();
-    await this.db.insert(schema.transportSegments).values({
-      id,
-      transport_segment_number: number,
-      travel_group_id: dto.travel_group_id,
-      vendor_id: dto.vendor_id,
-      transport_type: dto.transport_type,
-      segment_order: dto.segment_order,
-      origin_location: dto.origin_location,
-      destination_location: dto.destination_location,
-      origin_type: dto.origin_type ?? null,
-      destination_type: dto.destination_type ?? null,
-      departure_datetime: dto.departure_datetime
-        ? new Date(dto.departure_datetime)
-        : null,
-      arrival_datetime: dto.arrival_datetime
-        ? new Date(dto.arrival_datetime)
-        : null,
-      vehicle_identifier: dto.vehicle_identifier ?? null,
-      driver_name: dto.driver_name ?? null,
-      driver_phone_number: dto.driver_phone_number ?? null,
-      transport_segment_status_id: statusId,
-      notes: dto.notes ?? null,
-      created_by: actorId,
-      updated_by: actorId,
+    // Use a transaction so the transport segment insert and the Finance
+    // expense creation are atomic.
+    await this.db.transaction(async (tx) => {
+      await tx.insert(schema.transportSegments).values({
+        id,
+        transport_segment_number: number,
+        travel_group_id: dto.travel_group_id,
+        vendor_id: dto.vendor_id ?? null,
+        transport_type: dto.transport_type ?? null,
+        segment_order: segmentOrder,
+        origin_location: dto.origin_location,
+        destination_location: dto.destination_location,
+        origin_type: dto.origin_type ?? null,
+        destination_type: dto.destination_type ?? null,
+        departure_datetime: dto.departure_datetime
+          ? new Date(dto.departure_datetime)
+          : null,
+        arrival_datetime: dto.arrival_datetime
+          ? new Date(dto.arrival_datetime)
+          : null,
+        vehicle_identifier: dto.vehicle_identifier ?? null,
+        driver_name: dto.driver_name ?? null,
+        driver_phone_number: dto.driver_phone_number ?? null,
+        transport_segment_status_id: statusId,
+        transport_cost: String(transportCost),
+        notes: dto.notes ?? null,
+        created_by: actorId,
+        updated_by: actorId,
+      });
+
+      // Auto-create a Finance expense for the transport cost, linked to
+      // the originating transport segment. Group-scoped because transport
+      // is a shared group expense.
+      await this.expenses.createExpenseFromOperational(
+        {
+          expense_category_code: 'TRANSPORT',
+          expense_source_code: 'TRANSPORT_SEGMENT',
+          amount: transportCost,
+          expense_date: dto.departure_datetime
+            ? new Date(dto.departure_datetime)
+            : new Date(),
+          description: `Transport cost for ${number}`,
+          attribution_scope: 'GROUP',
+          travel_group_id: dto.travel_group_id,
+          source_transport_segment_id: id,
+          actorId,
+        },
+        tx,
+      );
     });
 
     return this.getSegment(id);
@@ -171,13 +218,13 @@ export class TransportSegmentsService {
     actorId: string,
   ) {
     const existing = await this.getSegment(id);
-    const travelGroup = await this.findTravelGroup(existing.travel_group_id);
 
-    const departure = dto.departure_datetime ?? existing.departure_datetime;
-    const arrival = dto.arrival_datetime ?? existing.arrival_datetime;
-
-    await this.assertDateWindow(travelGroup, departure, arrival);
-    await this.assertArrivalAfterDeparture(departure, arrival);
+    // Group-state guard — block mutations in protected states
+    await assertGroupAllowsAccommodationChange(
+      this.db,
+      existing.travel_group_id,
+      'update transport segment',
+    );
 
     if (dto.vendor_id) {
       await this.assertVendorExists(dto.vendor_id);
@@ -186,9 +233,11 @@ export class TransportSegmentsService {
     await this.db
       .update(schema.transportSegments)
       .set({
-        ...(dto.vendor_id !== undefined && { vendor_id: dto.vendor_id }),
+        ...(dto.vendor_id !== undefined && {
+          vendor_id: dto.vendor_id ?? null,
+        }),
         ...(dto.transport_type !== undefined && {
-          transport_type: dto.transport_type,
+          transport_type: dto.transport_type ?? null,
         }),
         ...(dto.segment_order !== undefined && {
           segment_order: dto.segment_order,
@@ -206,7 +255,9 @@ export class TransportSegmentsService {
           destination_type: dto.destination_type ?? null,
         }),
         ...(dto.departure_datetime !== undefined && {
-          departure_datetime: new Date(dto.departure_datetime),
+          departure_datetime: dto.departure_datetime
+            ? new Date(dto.departure_datetime)
+            : null,
         }),
         ...(dto.arrival_datetime !== undefined && {
           arrival_datetime: dto.arrival_datetime
@@ -225,6 +276,10 @@ export class TransportSegmentsService {
         ...(dto.transport_segment_status_id !== undefined && {
           transport_segment_status_id: dto.transport_segment_status_id,
         }),
+        ...(dto.transport_cost !== undefined && {
+          transport_cost:
+            dto.transport_cost !== null ? String(dto.transport_cost) : null,
+        }),
         ...(dto.notes !== undefined && { notes: dto.notes ?? null }),
         updated_at: new Date(),
         updated_by: actorId,
@@ -235,17 +290,56 @@ export class TransportSegmentsService {
   }
 
   async deleteSegment(id: string, actorId: string) {
-    await this.getSegment(id);
+    const existing = await this.getSegment(id);
 
+    // Group-state guard — block mutations in protected states
+    await assertGroupAllowsAccommodationChange(
+      this.db,
+      existing.travel_group_id,
+      'delete transport segment',
+    );
+
+    // Hard delete: soft-deleted rows would block re-creation due to the
+    // unique constraint (travel_group_id, segment_order).
+    // The original Finance expense is NOT deleted — it remains as a
+    // historical cost. Record an explicit adjustment for the supplier
+    // refund (negative — recovery of transport cost).
+    const transportCost = Number(existing.transport_cost ?? 0);
     await this.db
-      .update(schema.transportSegments)
-      .set({
-        is_deleted: true,
-        deleted_at: new Date(),
-        updated_at: new Date(),
-        updated_by: actorId,
-      })
+      .delete(schema.transportSegments)
       .where(eq(schema.transportSegments.id, id));
+
+    if (transportCost > 0) {
+      const [expense] = await this.db
+        .select({ id: schema.expenses.id })
+        .from(schema.expenses)
+        .where(
+          and(
+            eq(schema.expenses.source_transport_segment_id, id),
+            eq(schema.expenses.is_deleted, false),
+          ),
+        )
+        .limit(1);
+      if (expense) {
+        try {
+          await this.adjustments.createAdjustment(
+            {
+              expense_id: expense.id,
+              adjustment_type: 'SUPPLIER_REFUND',
+              amount: -transportCost,
+              adjustment_date: new Date(),
+              reason: 'Transport segment deleted — supplier refund',
+              source_record_type: 'TRANSPORT_SEGMENT',
+              source_record_id: id,
+              source_record_number: existing.transport_segment_number,
+            } as any,
+            actorId,
+          );
+        } catch {
+          // Adjustment may already exist — acceptable.
+        }
+      }
+    }
   }
 
   private async findTravelGroup(id: string) {
@@ -284,50 +378,21 @@ export class TransportSegmentsService {
     return row.id;
   }
 
-  private assertDateWindow(
-    travelGroup: any,
-    departure: string | null | undefined,
-    arrival: string | null | undefined,
-  ) {
-    const ret = travelGroup.return_date
-      ? new Date(travelGroup.return_date)
-      : null;
-    const start = travelGroup.departure_date
-      ? new Date(travelGroup.departure_date)
-      : null;
-
-    if (departure) {
-      const dep = new Date(departure);
-      if (start && dep < start) {
-        throw new BadRequestException(
-          'Departure cannot be before travel group departure',
-        );
-      }
-    }
-    if (arrival) {
-      const arr = new Date(arrival);
-      if (departure) {
-        const dep = new Date(departure);
-        if (arr < dep) {
-          throw new BadRequestException('Arrival cannot be before departure');
-        }
-      }
-      if (ret && arr > ret) {
-        throw new BadRequestException(
-          'Arrival cannot be after travel group return',
-        );
-      }
-    }
-  }
-
-  private assertArrivalAfterDeparture(
-    departure: string | null | undefined,
-    arrival: string | null | undefined,
-  ) {
-    if (!departure || !arrival) return;
-    if (new Date(arrival) <= new Date(departure)) {
-      throw new BadRequestException('Arrival must be after departure');
-    }
+  private async nextSegmentOrder(travelGroupId: string): Promise<number> {
+    const rows = await this.db
+      .select({
+        segment_order: schema.transportSegments.segment_order,
+      })
+      .from(schema.transportSegments)
+      .where(
+        and(
+          eq(schema.transportSegments.travel_group_id, travelGroupId),
+          eq(schema.transportSegments.is_deleted, false),
+        ),
+      )
+      .orderBy(asc(schema.transportSegments.segment_order));
+    if (rows.length === 0) return 1;
+    return Math.max(...rows.map((r) => r.segment_order)) + 1;
   }
 
   private mapRow(row: any) {
@@ -359,6 +424,7 @@ export class TransportSegmentsService {
       driver_name: segment.driver_name,
       driver_phone_number: segment.driver_phone_number,
       transport_segment_status_id: segment.transport_segment_status_id,
+      transport_cost: segment.transport_cost ?? null,
       status: row.transport_segment_statuses
         ? {
             id: row.transport_segment_statuses.id,

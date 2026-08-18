@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, count, eq, gte, lt, not, sql } from 'drizzle-orm';
+import { and, count, eq, gte, isNull, lt, ne, not, or, sql } from 'drizzle-orm';
 import { MySql2Database } from 'drizzle-orm/mysql2';
 import { DATABASE } from '../../../../shared/infrastructure/database/database.provider.js';
 import * as schema from '@kafi/database';
@@ -24,6 +24,7 @@ export class DashboardService {
     const [
       registrationsNeedingProcessing,
       registrationsReadyForTravel,
+      registrationsReadyForGroup,
       registrationsWithOutstandingBalance,
       groupsRequiringPreparation,
       groupsReadyToDepart,
@@ -31,6 +32,7 @@ export class DashboardService {
     ] = await Promise.all([
       this.countRegistrationsByStatus('DRAFT'),
       this.countRegistrationsByStatus('READY_FOR_TRAVEL'),
+      this.countRegistrationsReadyForGroup(),
       this.countRegistrationsWithOutstandingBalance(),
       this.countGroupsByStatus('PLANNING'),
       this.countGroupsByStatus('TRAVEL_PREPARED'),
@@ -40,6 +42,7 @@ export class DashboardService {
     return {
       registrations_needing_processing: registrationsNeedingProcessing,
       registrations_ready_for_travel: registrationsReadyForTravel,
+      registrations_ready_for_group: registrationsReadyForGroup,
       registrations_with_outstanding_balance:
         registrationsWithOutstandingBalance,
       groups_requiring_preparation: groupsRequiringPreparation,
@@ -64,6 +67,48 @@ export class DashboardService {
         and(
           eq(schema.registrations.is_deleted, false),
           eq(schema.registrationStatuses.status_code, statusCode),
+        ),
+      );
+    return row?.value ?? 0;
+  }
+
+  /**
+   * Registrations that are READY_FOR_TRAVEL and have no ACTIVE group
+   * membership — the queue of travellers waiting for group assignment.
+   */
+  private async countRegistrationsReadyForGroup() {
+    const [row] = await this.db
+      .select({ value: count() })
+      .from(schema.registrations)
+      .innerJoin(
+        schema.registrationStatuses,
+        eq(
+          schema.registrations.registration_status_id,
+          schema.registrationStatuses.id,
+        ),
+      )
+      .leftJoin(
+        schema.groupMemberships,
+        and(
+          eq(schema.groupMemberships.registration_id, schema.registrations.id),
+          eq(schema.groupMemberships.is_deleted, false),
+        ),
+      )
+      .leftJoin(
+        schema.groupMembershipStatuses,
+        eq(
+          schema.groupMemberships.group_membership_status_id,
+          schema.groupMembershipStatuses.id,
+        ),
+      )
+      .where(
+        and(
+          eq(schema.registrations.is_deleted, false),
+          eq(schema.registrationStatuses.status_code, 'READY_FOR_TRAVEL'),
+          or(
+            isNull(schema.groupMembershipStatuses.status_code),
+            ne(schema.groupMembershipStatuses.status_code, 'ACTIVE'),
+          ),
         ),
       );
     return row?.value ?? 0;

@@ -6,27 +6,30 @@
  *   because the API only allows updating dates and remarks.
  */
 
-import { useEffect, useMemo } from 'react';
-import { AnyFieldApi, useForm, useSelector } from '@tanstack/react-form';
+import { useEffect, useMemo, useState } from "react";
+import { AnyFieldApi, useForm, useSelector } from "@tanstack/react-form";
+import type { DateRange } from "react-day-picker";
 
-import { Button, Input, Label } from '@kafi/ui';
+import { Button, Checkbox, Input, Label } from "@kafi/ui";
 
-import { DatePicker } from '../components/date-picker';
-import { FieldError } from '../../../shared/field-error';
-import { LookupSelect } from '../components/lookup-select';
-import { registrationFormSchema } from '../validation/travellers.schema';
+import { FieldError } from "../../../shared/field-error";
+import { LookupSelect } from "../components/lookup-select";
+import { AsyncLookupSelect } from "../components/async-lookup-select";
+import { DateRangePicker } from "../../packages/components/date-range-picker";
+import { parseYmd, toYmd } from "../lib/date";
+import { registrationFormSchema } from "../validation/travellers.schema";
 import type {
   RegistrationFormOutput,
   RegistrationFormProps,
   RegistrationFormValues,
-} from '../types/travellers.types';
+} from "../types/travellers.types";
 
 const emptyValues: RegistrationFormValues = {
-  traveller_id: '',
-  package_version_id: '',
-  expected_departure_date: '',
-  expected_return_date: '',
-  remarks: '',
+  traveller_id: "",
+  package_version_id: "",
+  expected_departure_date: "",
+  expected_return_date: "",
+  remarks: "",
 };
 
 /**
@@ -37,19 +40,36 @@ const emptyValues: RegistrationFormValues = {
  * @returns The default values for the form.
  */
 function buildDefaultValues(
-  mode: RegistrationFormProps['mode'],
-  registration: RegistrationFormProps['registration'],
+  mode: RegistrationFormProps["mode"],
+  registration: RegistrationFormProps["registration"]
 ): RegistrationFormValues {
-  if (mode === 'edit' && registration) {
+  if (mode === "edit" && registration) {
     return {
-      traveller_id: registration.traveller?.id ?? '',
-      package_version_id: registration.package_version?.id ?? '',
-      expected_departure_date: registration.expected_departure_date ?? '',
-      expected_return_date: registration.expected_return_date ?? '',
-      remarks: registration.remarks ?? '',
+      traveller_id: registration.traveller?.id ?? "",
+      package_version_id: registration.package_version?.id ?? "",
+      expected_departure_date: registration.expected_departure_date ?? "",
+      expected_return_date: registration.expected_return_date ?? "",
+      remarks: registration.remarks ?? "",
     };
   }
   return emptyValues;
+}
+
+function packageDateString(date: string | Date | null | undefined): string {
+  if (!date) return "";
+  if (typeof date === "string") {
+    const match = date.match(/^\d{4}-\d{2}-\d{2}/);
+    if (match) return match[0];
+    const parsed = new Date(date);
+    if (!Number.isNaN(parsed.getTime())) {
+      return toYmd(parsed) ?? "";
+    }
+    return "";
+  }
+  if (date instanceof Date && !Number.isNaN(date.getTime())) {
+    return toYmd(date) ?? "";
+  }
+  return "";
 }
 
 export function RegistrationForm({
@@ -58,11 +78,13 @@ export function RegistrationForm({
   travellers,
   packageVersions,
   onSubmit,
+  onTravellerSearch,
+  travellerLookupLoading,
   submitLabel,
 }: RegistrationFormProps) {
   const defaultValues = useMemo<RegistrationFormValues>(
     () => buildDefaultValues(mode, registration),
-    [mode, registration],
+    [mode, registration]
   );
 
   const form = useForm({
@@ -79,7 +101,6 @@ export function RegistrationForm({
         remarks: value.remarks || undefined,
       };
       await onSubmit(output);
-      form.reset();
     },
   });
 
@@ -89,12 +110,28 @@ export function RegistrationForm({
 
   const isSubmitting = useSelector(form.store, (state) => state.isSubmitting);
 
-  const selectedTraveller = travellers.find(
-    (t) => t.id === form.getFieldValue('traveller_id'),
-  );
+  const selectedTraveller = travellers.find((t) => t.id === form.getFieldValue("traveller_id"));
   const selectedPackage = packageVersions.find(
-    (p) => p.id === form.getFieldValue('package_version_id'),
+    (p) => p.id === form.getFieldValue("package_version_id")
   );
+
+  const values = useSelector(form.store, (state) => state.values);
+  const [manualDates, setManualDates] = useState(mode === "edit");
+
+  const dateRange = useMemo<DateRange | undefined>(() => {
+    const from = parseYmd(values.expected_departure_date);
+    const to = parseYmd(values.expected_return_date);
+    return from ? { from, to } : undefined;
+  }, [values.expected_departure_date, values.expected_return_date]);
+
+  useEffect(() => {
+    if (manualDates || !selectedPackage) return;
+    form.setFieldValue(
+      "expected_departure_date",
+      packageDateString(selectedPackage.departure_date)
+    );
+    form.setFieldValue("expected_return_date", packageDateString(selectedPackage.return_date));
+  }, [form, manualDates, selectedPackage]);
 
   return (
     <form
@@ -104,14 +141,14 @@ export function RegistrationForm({
       }}
       className="space-y-6"
     >
-      {mode === 'edit' && registration ? (
+      {mode === "edit" && registration ? (
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
             <Label className="text-sm font-medium">Traveller</Label>
             <p className="text-sm text-muted-foreground">
               {selectedTraveller
                 ? `${selectedTraveller.first_name} ${selectedTraveller.last_name}`
-                : '-'}
+                : "-"}
             </p>
           </div>
           <div className="space-y-2">
@@ -119,9 +156,9 @@ export function RegistrationForm({
             <p className="text-sm text-muted-foreground">
               {selectedPackage
                 ? `${selectedPackage.version_name} (${
-                    selectedPackage.package_template?.name ?? '-'
+                    selectedPackage.package_template?.name ?? "-"
                   })`
-                : '-'}
+                : "-"}
             </p>
           </div>
         </div>
@@ -131,16 +168,35 @@ export function RegistrationForm({
             {(field: AnyFieldApi) => (
               <div className="space-y-2 md:col-span-2">
                 <Label className="text-sm font-medium">Traveller</Label>
-                <LookupSelect
-                  value={field.state.value}
-                  options={travellers.map((t) => ({
-                    value: t.id,
-                    label: `${t.first_name} ${t.last_name} (${t.phone_number})`,
-                  }))}
-                  placeholder="Select traveller"
-                  onChange={(value) => field.handleChange(value)}
-                  aria-invalid={field.state.meta.errors.length > 0}
-                />
+                {onTravellerSearch ? (
+                  <AsyncLookupSelect
+                    value={field.state.value}
+                    selectedLabel={
+                      selectedTraveller
+                        ? `${selectedTraveller.first_name} ${selectedTraveller.last_name} (${selectedTraveller.phone_number})`
+                        : undefined
+                    }
+                    options={travellers.map((t) => ({
+                      value: t.id,
+                      label: `${t.first_name} ${t.last_name} (${t.phone_number})`,
+                    }))}
+                    placeholder="Select traveller"
+                    onChange={(value) => field.handleChange(value)}
+                    onSearch={onTravellerSearch}
+                    loading={travellerLookupLoading}
+                  />
+                ) : (
+                  <LookupSelect
+                    value={field.state.value}
+                    options={travellers.map((t) => ({
+                      value: t.id,
+                      label: `${t.first_name} ${t.last_name} (${t.phone_number})`,
+                    }))}
+                    placeholder="Select traveller"
+                    onChange={(value) => field.handleChange(value)}
+                    aria-invalid={field.state.meta.errors.length > 0}
+                  />
+                )}
                 <FieldError field={field} />
               </div>
             )}
@@ -154,9 +210,7 @@ export function RegistrationForm({
                   value={field.state.value}
                   options={packageVersions.map((p) => ({
                     value: p.id,
-                    label: `${p.version_name} (${
-                      p.package_template?.name ?? '-'
-                    })`,
+                    label: `${p.version_name} (${p.package_template?.name ?? "-"})`,
                   }))}
                   placeholder="Select package version"
                   onChange={(value) => field.handleChange(value)}
@@ -169,42 +223,36 @@ export function RegistrationForm({
         </div>
       )}
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <form.Field name="expected_departure_date">
-          {(field: AnyFieldApi) => (
-            <div className="space-y-2">
-              <Label
-                htmlFor="expected_departure_date"
-                className="text-sm font-medium"
-              >
-                Expected departure
-              </Label>
-              <DatePicker
-                id="expected_departure_date"
-                value={field.state.value}
-                onChange={(value) => field.handleChange(value)}
-              />
-            </div>
-          )}
-        </form.Field>
-
-        <form.Field name="expected_return_date">
-          {(field: AnyFieldApi) => (
-            <div className="space-y-2">
-              <Label
-                htmlFor="expected_return_date"
-                className="text-sm font-medium"
-              >
-                Expected return
-              </Label>
-              <DatePicker
-                id="expected_return_date"
-                value={field.state.value}
-                onChange={(value) => field.handleChange(value)}
-              />
-            </div>
-          )}
-        </form.Field>
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <Label className="text-sm font-medium">Travel dates</Label>
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="manual_dates"
+              checked={manualDates}
+              onCheckedChange={(v) => setManualDates(v === true)}
+              disabled={!selectedPackage}
+            />
+            <Label htmlFor="manual_dates" className="text-sm font-normal">
+              Override package dates
+            </Label>
+          </div>
+        </div>
+        <DateRangePicker
+          value={dateRange}
+          onChange={(range) => {
+            form.setFieldValue(
+              "expected_departure_date",
+              range?.from ? (toYmd(range.from) ?? "") : ""
+            );
+            form.setFieldValue("expected_return_date", range?.to ? (toYmd(range.to) ?? "") : "");
+          }}
+          disabled={!manualDates || !selectedPackage}
+          placeholder="Select package version to set travel dates"
+        />
+        <p className="text-xs text-muted-foreground">
+          Travel dates are filled from the selected package version unless you override them.
+        </p>
       </div>
 
       <form.Field name="remarks">
@@ -215,7 +263,7 @@ export function RegistrationForm({
             </Label>
             <Input
               id="remarks"
-              value={field.state.value ?? ''}
+              value={field.state.value ?? ""}
               onChange={(e) => field.handleChange(e.target.value)}
               onBlur={field.handleBlur}
               className="h-9 w-full"
@@ -232,11 +280,10 @@ export function RegistrationForm({
           className="h-9 flex-1 sm:flex-none"
         >
           {isSubmitting
-            ? mode === 'edit'
-              ? 'Saving…'
-              : 'Creating…'
-            : (submitLabel ??
-              (mode === 'edit' ? 'Save changes' : 'Create registration'))}
+            ? mode === "edit"
+              ? "Saving…"
+              : "Creating…"
+            : (submitLabel ?? (mode === "edit" ? "Save changes" : "Create registration"))}
         </Button>
       </div>
     </form>

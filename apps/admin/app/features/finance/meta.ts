@@ -8,7 +8,16 @@
  * - Navigation is grouped under Operations, ordered after Booking.
  */
 
-import { Banknote, CreditCard, Landmark, Users } from 'lucide-react';
+import {
+  Banknote,
+  CreditCard,
+  Landmark,
+  Receipt,
+  RotateCcw,
+  ShieldCheck,
+  TrendingUp,
+  Users,
+} from 'lucide-react';
 import type { RouteMeta } from '../../shell/routing';
 
 export const financeMeta: RouteMeta[] = [
@@ -23,6 +32,18 @@ export const financeMeta: RouteMeta[] = [
       isGroup: true,
     },
     breadcrumb: { label: 'Finance', hidden: true },
+  },
+  {
+    path: '/finance/dashboard',
+    title: 'Finance Dashboard',
+    navigation: {
+      label: 'Dashboard',
+      icon: TrendingUp,
+      order: 30,
+      parent: '/finance',
+    },
+    breadcrumb: { label: 'Dashboard' },
+    permission: 'FINANCE_VIEW',
   },
   {
     path: '/invoices',
@@ -75,6 +96,92 @@ export const financeMeta: RouteMeta[] = [
     breadcrumb: { label: 'Detail' },
     permission: 'FINANCE_VIEW',
     navigation: { label: 'Detail', parent: '/payments', hidden: true },
+  },
+  {
+    path: '/expenses',
+    title: 'Expenses',
+    navigation: {
+      label: 'Expenses',
+      icon: Receipt,
+      order: 35,
+      parent: '/finance',
+    },
+    breadcrumb: { label: 'Expenses' },
+    permission: 'FINANCE_VIEW',
+  },
+  {
+    path: '/expenses/new',
+    title: 'Record expense',
+    breadcrumb: { label: 'Create' },
+    permission: 'FINANCE_VIEW',
+    navigation: { label: 'Create', parent: '/expenses', hidden: true },
+  },
+  {
+    path: '/expenses/:id',
+    title: 'Expense detail',
+    breadcrumb: { label: 'Detail' },
+    permission: 'FINANCE_VIEW',
+    navigation: { label: 'Detail', parent: '/expenses', hidden: true },
+  },
+  {
+    path: '/finance-exceptions',
+    title: 'Finance Exceptions',
+    navigation: {
+      label: 'Credit Exceptions',
+      icon: ShieldCheck,
+      order: 36,
+      parent: '/finance',
+    },
+    breadcrumb: { label: 'Finance Exceptions' },
+    permission: 'FINANCE_VIEW',
+  },
+  {
+    path: '/finance-exceptions/new',
+    title: 'Authorize credit',
+    breadcrumb: { label: 'Create' },
+    permission: 'FINANCE_VIEW',
+    navigation: {
+      label: 'Create',
+      parent: '/finance-exceptions',
+      hidden: true,
+    },
+  },
+  {
+    path: '/finance-exceptions/:id',
+    title: 'Exception detail',
+    breadcrumb: { label: 'Detail' },
+    permission: 'FINANCE_VIEW',
+    navigation: {
+      label: 'Detail',
+      parent: '/finance-exceptions',
+      hidden: true,
+    },
+  },
+  {
+    path: '/refunds',
+    title: 'Refunds',
+    navigation: {
+      label: 'Refunds',
+      icon: RotateCcw,
+      order: 37,
+      parent: '/finance',
+    },
+    breadcrumb: { label: 'Refunds' },
+    permission: 'FINANCE_VIEW',
+  },
+  {
+    path: '/refunds/new',
+    title: 'Create refund',
+    breadcrumb: { label: 'Create' },
+    permission: 'FINANCE_VIEW',
+    navigation: { label: 'Create', parent: '/refunds', hidden: true },
+  },
+  {
+    path: '/refunds/:id',
+    title: 'Refund detail',
+    breadcrumb: { label: 'Detail' },
+    permission: 'FINANCE_VIEW',
+    navigation: { label: 'Detail', parent: '/refunds', hidden: true },
   },
   {
     path: '/payers',

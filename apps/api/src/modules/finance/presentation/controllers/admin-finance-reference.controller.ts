@@ -66,6 +66,36 @@ export class AdminFinanceReferenceController {
     return this.referenceData.listPaymentMethods();
   }
 
+  @Get('expense-statuses')
+  @RequirePermissions('FINANCE_VIEW')
+  listExpenseStatuses() {
+    return this.referenceData.listExpenseStatuses();
+  }
+
+  @Get('expense-categories')
+  @RequirePermissions('FINANCE_VIEW')
+  listExpenseCategories() {
+    return this.referenceData.listExpenseCategories();
+  }
+
+  @Get('expense-sources')
+  @RequirePermissions('FINANCE_VIEW')
+  listExpenseSources() {
+    return this.referenceData.listExpenseSources();
+  }
+
+  @Get('finance-exception-statuses')
+  @RequirePermissions('FINANCE_VIEW')
+  listFinanceExceptionStatuses() {
+    return this.referenceData.listFinanceExceptionStatuses();
+  }
+
+  @Get('refund-statuses')
+  @RequirePermissions('FINANCE_VIEW')
+  listRefundStatuses() {
+    return this.referenceData.listRefundStatuses();
+  }
+
   @Post('payment-methods')
   @RequirePermissions('FINANCE_CREATE')
   createPaymentMethod(@Body() dto: CreatePaymentMethodDto) {

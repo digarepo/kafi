@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
-import { useParams } from 'react-router';
-import { Button } from '@kafi/ui';
+import { useEffect, useState } from "react";
+import { useParams } from "react-router";
+import { Button } from "@kafi/ui";
 
-import { usePermissions } from '../../../core/permissions';
-import { documentsApi, type DocumentDetail } from '../lib/api';
+import { usePermissions } from "../../../core/permissions";
+import { documentsApi, type DocumentDetail } from "../lib/api";
 
 export function DocumentDetailPage() {
   const { can } = usePermissions();
@@ -21,10 +21,7 @@ export function DocumentDetailPage() {
         const res = await documentsApi.getDocument(id!);
         if (!cancelled) setDoc(res);
       } catch (err) {
-        if (!cancelled)
-          setError(
-            err instanceof Error ? err.message : 'Failed to load document',
-          );
+        if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load document");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -37,10 +34,18 @@ export function DocumentDetailPage() {
 
   async function handleDownload() {
     if (!id || !doc?.storage_path) return;
-    const a = window.document.createElement('a');
-    a.href = `/api/admin/documents/${id}/download`;
-    a.download = doc.original_filename ?? 'document';
-    a.click();
+    setError(null);
+    try {
+      const { blob, filename } = await documentsApi.downloadDocument(id);
+      const url = URL.createObjectURL(blob);
+      const anchor = window.document.createElement("a");
+      anchor.href = url;
+      anchor.download = filename;
+      anchor.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Download failed");
+    }
   }
 
   if (loading) return <p>Loading...</p>;
@@ -50,36 +55,34 @@ export function DocumentDetailPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">
-          {doc.document_number}
-        </h1>
+        <h1 className="text-2xl font-bold tracking-tight">{doc.document_number}</h1>
         <p className="text-muted-foreground">
-          {doc.document_type?.name} for{' '}
+          {doc.document_type?.name} for{" "}
           {doc.traveller
             ? `${doc.traveller.first_name} ${doc.traveller.last_name}`
-            : (doc.registration?.registration_number ?? 'unknown')}
+            : (doc.registration?.registration_number ?? "unknown")}
         </p>
       </div>
 
       <div className="space-y-2 rounded border p-4">
         <p>
-          <strong>Status:</strong> {doc.document_status?.name ?? '-'}
+          <strong>Status:</strong> {doc.document_status?.name ?? "-"}
         </p>
         <p>
-          <strong>Verification:</strong> {doc.verification_status?.name ?? '-'}
+          <strong>Verification:</strong> {doc.verification_status?.name ?? "-"}
         </p>
         <p>
-          <strong>Verified by:</strong> {doc.verified_by?.full_name ?? '-'}
+          <strong>Verified by:</strong> {doc.verified_by?.full_name ?? "-"}
         </p>
         <p>
-          <strong>Expiry:</strong> {doc.expiry_date ?? '-'}
-          {doc.is_expired && ' (expired)'}
+          <strong>Expiry:</strong> {doc.expiry_date ?? "-"}
+          {doc.is_expired && " (expired)"}
         </p>
         <p>
-          <strong>Original filename:</strong> {doc.original_filename ?? '-'}
+          <strong>Original filename:</strong> {doc.original_filename ?? "-"}
         </p>
         <p>
-          <strong>Mime type:</strong> {doc.mime_type ?? '-'}
+          <strong>Mime type:</strong> {doc.mime_type ?? "-"}
         </p>
         <p>
           <strong>Size:</strong> {doc.file_size} bytes
@@ -93,15 +96,15 @@ export function DocumentDetailPage() {
 
       <div className="flex gap-2">
         <Button onClick={handleDownload}>Download</Button>
-        {can('DOCUMENT_MANAGE') && (
+        {can("DOCUMENT_MANAGE") && (
           <Button
             variant="destructive"
             onClick={async () => {
-              if (!confirm('Delete this document?')) return;
+              if (!confirm("Delete this document?")) return;
               try {
                 await documentsApi.deleteDocument(doc.id);
               } catch (err) {
-                setError(err instanceof Error ? err.message : 'Delete failed');
+                setError(err instanceof Error ? err.message : "Delete failed");
               }
             }}
           >

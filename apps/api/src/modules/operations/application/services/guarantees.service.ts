@@ -76,6 +76,29 @@ export class GuaranteesService {
     return rows.map((row) => this.mapRow(row));
   }
 
+  async listGuaranteesForRegistration(registrationId: string) {
+    const rows = await this.db
+      .select()
+      .from(schema.guarantees)
+      .leftJoin(
+        schema.contactPersons,
+        eq(schema.guarantees.contact_person_id, schema.contactPersons.id),
+      )
+      .leftJoin(
+        schema.currencies,
+        eq(schema.guarantees.currency_id, schema.currencies.id),
+      )
+      .where(
+        and(
+          eq(schema.guarantees.registration_id, registrationId),
+          eq(schema.guarantees.is_deleted, false),
+        ),
+      )
+      .orderBy(desc(schema.guarantees.created_at));
+
+    return rows.map((row) => this.mapRow(row));
+  }
+
   async getGuarantee(id: string) {
     const [row] = await this.db
       .select()
@@ -107,17 +130,30 @@ export class GuaranteesService {
   // ---- Mutations ----
 
   async createGuarantee(dto: CreateGuaranteeDto, actorId: string) {
-    await this.assertGroupAllowsGuaranteeChanges(dto.group_membership_id);
     this.validateTypeRules(dto);
     this.assertDateOrder(dto.effective_date, dto.expiry_date);
 
-    const membership = await this.findMembership(dto.group_membership_id);
-    if (!membership) throw new NotFoundException('Group membership not found');
+    if (!dto.group_membership_id && !dto.registration_id) {
+      throw new BadRequestException(
+        'Either registration_id or group_membership_id is required',
+      );
+    }
 
-    await this.assertNoActiveGuaranteeForMembership(
-      dto.group_membership_id,
-      undefined,
-    );
+    if (dto.group_membership_id) {
+      await this.assertGroupAllowsGuaranteeChanges(dto.group_membership_id);
+      const membership = await this.findMembership(dto.group_membership_id);
+      if (!membership)
+        throw new NotFoundException('Group membership not found');
+      await this.assertNoActiveGuaranteeForMembership(
+        dto.group_membership_id,
+        undefined,
+      );
+    } else {
+      await this.assertNoActiveGuaranteeForRegistration(
+        dto.registration_id!,
+        undefined,
+      );
+    }
 
     const id = ulid();
     const number = await this.numbers.generateGuaranteeNumber();
@@ -125,8 +161,8 @@ export class GuaranteesService {
     await this.db.insert(schema.guarantees).values({
       id,
       guarantee_number: number,
-      group_membership_id: dto.group_membership_id,
-      registration_id: dto.registration_id,
+      group_membership_id: dto.group_membership_id ?? null,
+      registration_id: dto.registration_id!,
       guarantee_type: dto.guarantee_type,
       guarantee_status: 'ACTIVE',
       contact_person_id: dto.contact_person_id ?? null,
@@ -354,6 +390,32 @@ export class GuaranteesService {
     if (row) {
       throw new ConflictException(
         'An active guarantee already exists for this membership',
+      );
+    }
+  }
+
+  private async assertNoActiveGuaranteeForRegistration(
+    registrationId: string,
+    excludeId?: string,
+  ) {
+    const conditions = [
+      eq(schema.guarantees.registration_id, registrationId),
+      eq(schema.guarantees.guarantee_status, 'ACTIVE'),
+      eq(schema.guarantees.is_deleted, false),
+    ];
+    if (excludeId) {
+      conditions.push(sql`${schema.guarantees.id} <> ${excludeId}`);
+    }
+
+    const [row] = await this.db
+      .select()
+      .from(schema.guarantees)
+      .where(and(...conditions))
+      .limit(1);
+
+    if (row) {
+      throw new ConflictException(
+        'An active guarantee already exists for this registration',
       );
     }
   }

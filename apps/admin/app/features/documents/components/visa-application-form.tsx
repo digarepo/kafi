@@ -1,10 +1,12 @@
 /**
- * Visa application form.
+ * Visa application create form.
  *
  * @remarks
  * - Uses TanStack Form with a Zod validator for client-side validation.
- * - A registration is required; status defaults to PENDING when left blank.
- * - Optional date fields are mapped to `undefined` before submit.
+ * - A registration is required; the status is fixed to SUBMITTED by the backend.
+ * - submission_date defaults to today.
+ * - Result fields (approval, rejection, cancellation) are collected via
+ *   the RecordVisaResultDialog, not this form.
  */
 
 import { useEffect, useMemo } from 'react';
@@ -14,7 +16,6 @@ import { Button, Input, Label, Textarea } from '@kafi/ui';
 
 import { DatePicker } from './date-picker';
 import { FieldError } from '../../../shared/field-error';
-import { LookupSelect } from './lookup-select';
 import { visaApplicationFormSchema } from '../validation/documents.schema';
 import type {
   VisaApplicationFormOutput,
@@ -22,13 +23,14 @@ import type {
   VisaApplicationFormValues,
 } from '../types/documents.types';
 
+function todayISO(): string {
+  return new Date().toISOString().split('T')[0];
+}
+
 const emptyValues: VisaApplicationFormValues = {
   registration_id: '',
-  visa_application_status_id: '',
   submission_date: '',
-  approval_date: '',
-  expiry_date: '',
-  visa_number: '',
+  visa_cost: '',
   notes: '',
 };
 
@@ -40,8 +42,13 @@ const emptyValues: VisaApplicationFormValues = {
  */
 function buildDefaultValues(
   _mode: VisaApplicationFormProps['mode'],
+  registration: VisaApplicationFormProps['registration'],
 ): VisaApplicationFormValues {
-  return emptyValues;
+  return {
+    ...emptyValues,
+    registration_id: registration?.id ?? '',
+    submission_date: todayISO(),
+  };
 }
 
 /**
@@ -52,13 +59,13 @@ function buildDefaultValues(
  */
 export function VisaApplicationForm({
   mode,
-  visaApplicationStatuses,
+  registration,
   onSubmit,
   submitLabel = 'Create',
 }: VisaApplicationFormProps) {
   const defaultValues = useMemo<VisaApplicationFormValues>(
-    () => buildDefaultValues(mode),
-    [mode],
+    () => buildDefaultValues(mode, registration),
+    [mode, registration],
   );
 
   const form = useForm({
@@ -67,18 +74,17 @@ export function VisaApplicationForm({
       onSubmit: visaApplicationFormSchema,
     },
     onSubmit: async ({ value }) => {
+      const costNum = Number(value.visa_cost);
       const output: VisaApplicationFormOutput = {
         registration_id: value.registration_id,
-        visa_application_status_id:
-          value.visa_application_status_id.trim() || undefined,
         submission_date: value.submission_date.trim() || undefined,
-        approval_date: value.approval_date.trim() || undefined,
-        expiry_date: value.expiry_date.trim() || undefined,
-        visa_number: value.visa_number.trim() || undefined,
+        visa_cost:
+          value.visa_cost.trim() && !isNaN(costNum) && costNum > 0
+            ? costNum
+            : undefined,
         notes: value.notes.trim() || undefined,
       };
       await onSubmit(output);
-      form.reset();
     },
   });
 
@@ -87,15 +93,6 @@ export function VisaApplicationForm({
   }, [defaultValues, form]);
 
   const isSubmitting = useSelector(form.store, (state) => state.isSubmitting);
-
-  const statusOptions = useMemo(
-    () =>
-      visaApplicationStatuses.map((status) => ({
-        value: status.id,
-        label: status.name,
-      })),
-    [visaApplicationStatuses],
-  );
 
   return (
     <form
@@ -107,48 +104,48 @@ export function VisaApplicationForm({
     >
       <div className="grid gap-4 md:grid-cols-2">
         <form.Field name="registration_id">
-          {(field: AnyFieldApi) => (
-            <div className="space-y-2">
-              <Label htmlFor="registration_id" className="text-sm font-medium">
-                Registration ID
-              </Label>
-              <Input
-                id="registration_id"
-                value={field.state.value}
-                onChange={(e) => field.handleChange(e.target.value)}
-                onBlur={field.handleBlur}
-                placeholder="ULID"
-                aria-invalid={field.state.meta.errors.length > 0}
-                className="h-9 w-full"
-              />
-              <FieldError field={field} />
-            </div>
-          )}
+          {(field: AnyFieldApi) =>
+            registration ? (
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Registration</Label>
+                <p className="text-sm font-medium">
+                  {registration.registration_number}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {registration.traveller?.full_name ?? 'Traveller unavailable'}
+                </p>
+                <Input
+                  id="registration_id"
+                  type="hidden"
+                  value={field.state.value}
+                  onChange={(e) => field.handleChange(e.target.value)}
+                  onBlur={field.handleBlur}
+                />
+                <FieldError field={field} />
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label
+                  htmlFor="registration_id"
+                  className="text-sm font-medium"
+                >
+                  Registration ID
+                </Label>
+                <Input
+                  id="registration_id"
+                  value={field.state.value}
+                  onChange={(e) => field.handleChange(e.target.value)}
+                  onBlur={field.handleBlur}
+                  placeholder="ULID"
+                  aria-invalid={field.state.meta.errors.length > 0}
+                  className="h-9 w-full"
+                />
+                <FieldError field={field} />
+              </div>
+            )
+          }
         </form.Field>
 
-        <form.Field name="visa_application_status_id">
-          {(field: AnyFieldApi) => (
-            <div className="space-y-2">
-              <Label
-                htmlFor="visa_application_status_id"
-                className="text-sm font-medium"
-              >
-                Status
-              </Label>
-              <LookupSelect
-                value={field.state.value}
-                options={statusOptions}
-                onChange={(value) => field.handleChange(value)}
-                aria-invalid={field.state.meta.errors.length > 0}
-                placeholder="Default (PENDING)"
-              />
-              <FieldError field={field} />
-            </div>
-          )}
-        </form.Field>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-3">
         <form.Field name="submission_date">
           {(field: AnyFieldApi) => (
             <div className="space-y-2">
@@ -166,57 +163,28 @@ export function VisaApplicationForm({
             </div>
           )}
         </form.Field>
-
-        <form.Field name="approval_date">
-          {(field: AnyFieldApi) => (
-            <div className="space-y-2">
-              <Label htmlFor="approval_date" className="text-sm font-medium">
-                Approval date
-              </Label>
-              <DatePicker
-                id="approval_date"
-                value={field.state.value}
-                onChange={(value) => field.handleChange(value)}
-                aria-invalid={field.state.meta.errors.length > 0}
-                placeholder="Select approval date"
-              />
-              <FieldError field={field} />
-            </div>
-          )}
-        </form.Field>
-
-        <form.Field name="expiry_date">
-          {(field: AnyFieldApi) => (
-            <div className="space-y-2">
-              <Label htmlFor="expiry_date" className="text-sm font-medium">
-                Expiry date
-              </Label>
-              <DatePicker
-                id="expiry_date"
-                value={field.state.value}
-                onChange={(value) => field.handleChange(value)}
-                aria-invalid={field.state.meta.errors.length > 0}
-                placeholder="Select expiry date"
-              />
-              <FieldError field={field} />
-            </div>
-          )}
-        </form.Field>
       </div>
 
-      <form.Field name="visa_number">
+      <form.Field name="visa_cost">
         {(field: AnyFieldApi) => (
           <div className="space-y-2">
-            <Label htmlFor="visa_number" className="text-sm font-medium">
-              Visa number
+            <Label htmlFor="visa_cost" className="text-sm font-medium">
+              Visa cost{' '}
+              <span className="text-muted-foreground">
+                (ETB — optional now, required before approval)
+              </span>
             </Label>
             <Input
-              id="visa_number"
+              id="visa_cost"
+              type="number"
+              min={0}
+              step="0.01"
               value={field.state.value}
               onChange={(e) => field.handleChange(e.target.value)}
               onBlur={field.handleBlur}
+              placeholder="e.g. 1500"
               aria-invalid={field.state.meta.errors.length > 0}
-              className="h-9 w-full"
+              className="h-9 w-full sm:max-w-xs"
             />
             <FieldError field={field} />
           </div>

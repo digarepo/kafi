@@ -1,27 +1,32 @@
-import { useEffect, useState } from 'react';
-import type { ColumnDef } from '@tanstack/react-table';
-import { Button } from '@kafi/ui';
+import { useEffect, useState } from "react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { Button } from "@kafi/ui";
 
-import { usePermissions } from '../../../core/permissions';
-import { DeleteDialog } from '../../../shared/delete-dialog';
-import { DataTable, DataTableToolbar } from '../../../shared/data-table';
-import { actionsColumn, textColumn } from '../../../shared/data-table/columns';
+import { usePermissions } from "../../../core/permissions";
+import { DeleteDialog } from "../../../shared/delete-dialog";
+import { DataTable, DataTableToolbar } from "../../../shared/data-table";
+import { actionsColumn, textColumn } from "../../../shared/data-table/columns";
 import {
   api,
   type CreatePayerInput,
   type LookupOption,
   type Payer,
   type UpdatePayerInput,
-} from '../../../lib/api.js';
-import { PayerDialog } from '../components/payer-dialog';
-import type { PayerFormOutput } from '../types/finance.types';
+} from "../../../lib/api.js";
+import { PayerDialog } from "../components/payer-dialog";
+import type { PayerFormOutput } from "../types/finance.types";
 
 export function PayersPage() {
   const { can } = usePermissions();
   const [payers, setPayers] = useState<Payer[]>([]);
   const [payerTypes, setPayerTypes] = useState<LookupOption[]>([]);
   const [loading, setLoading] = useState(false);
-  const [globalFilter, setGlobalFilter] = useState('');
+  const [globalFilter, setGlobalFilter] = useState("");
+  const [pagination, setPagination] = useState({
+    pageIndex: 0,
+    pageSize: 25,
+    total: 0,
+  });
   const [createOpen, setCreateOpen] = useState(false);
   const [editingPayer, setEditingPayer] = useState<Payer | null>(null);
   const [deletingPayer, setDeletingPayer] = useState<Payer | null>(null);
@@ -29,8 +34,13 @@ export function PayersPage() {
   const [error, setError] = useState<string | null>(null);
 
   async function reload() {
-    const res = await api.listPayers(1, 100);
+    const res = await api.listPayers(
+      pagination.pageIndex + 1,
+      pagination.pageSize,
+      globalFilter || undefined
+    );
     setPayers(res.data);
+    setPagination((current) => ({ ...current, total: res.total }));
   }
 
   useEffect(() => {
@@ -39,18 +49,16 @@ export function PayersPage() {
       setLoading(true);
       try {
         const [payerRes, types] = await Promise.all([
-          api.listPayers(1, 100),
+          api.listPayers(pagination.pageIndex + 1, pagination.pageSize, globalFilter || undefined),
           api.listPayerTypes(),
         ]);
         if (!cancelled) {
           setPayers(payerRes.data);
+          setPagination((current) => ({ ...current, total: payerRes.total }));
           setPayerTypes(types);
         }
       } catch (err) {
-        if (!cancelled)
-          setError(
-            err instanceof Error ? err.message : 'Failed to load payers',
-          );
+        if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load payers");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -59,7 +67,7 @@ export function PayersPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [globalFilter, pagination.pageIndex, pagination.pageSize]);
 
   async function handleCreate(output: PayerFormOutput) {
     setError(null);
@@ -68,7 +76,7 @@ export function PayersPage() {
       await reload();
       setCreateOpen(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create payer');
+      setError(err instanceof Error ? err.message : "Failed to create payer");
     }
   }
 
@@ -80,7 +88,7 @@ export function PayersPage() {
       await reload();
       setEditingPayer(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update payer');
+      setError(err instanceof Error ? err.message : "Failed to update payer");
     }
   }
 
@@ -91,7 +99,7 @@ export function PayersPage() {
       await api.archivePayer(deletingPayer.id);
       await reload();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to archive payer');
+      setError(err instanceof Error ? err.message : "Failed to archive payer");
     } finally {
       setDeleteLoading(false);
       setDeletingPayer(null);
@@ -99,38 +107,37 @@ export function PayersPage() {
   }
 
   const columns: ColumnDef<Payer>[] = [
-    textColumn<Payer>({ accessorKey: 'payer_number', header: 'Payer #' }),
+    textColumn<Payer>({ accessorKey: "payer_number", header: "Payer #" }),
     {
-      id: 'name',
-      header: 'Name',
+      id: "name",
+      header: "Name",
       enableSorting: false,
-      cell: ({ row }) =>
-        row.original.organization_name ?? row.original.contact_name ?? '-',
+      cell: ({ row }) => row.original.organization_name ?? row.original.contact_name ?? "-",
     },
     {
-      id: 'type',
-      header: 'Type',
+      id: "type",
+      header: "Type",
       enableSorting: false,
-      cell: ({ row }) => row.original.payer_type?.name ?? '-',
+      cell: ({ row }) => row.original.payer_type?.name ?? "-",
     },
-    textColumn<Payer>({ accessorKey: 'phone_number', header: 'Phone' }),
+    textColumn<Payer>({ accessorKey: "phone_number", header: "Phone" }),
     {
-      id: 'status',
-      header: 'Status',
+      id: "status",
+      header: "Status",
       enableSorting: false,
-      cell: ({ row }) => row.original.status?.name ?? '-',
+      cell: ({ row }) => row.original.status?.name ?? "-",
     },
     actionsColumn<Payer>({
       actions: [
         {
-          label: 'Edit',
+          label: "Edit",
           onClick: (p) => setEditingPayer(p),
-          disabled: () => !can('FINANCE_EDIT'),
+          disabled: () => !can("FINANCE_EDIT"),
         },
         {
-          label: 'Archive',
+          label: "Archive",
           onClick: (p) => setDeletingPayer(p),
-          disabled: () => !can('FINANCE_DELETE'),
+          disabled: () => !can("FINANCE_DELETE"),
         },
       ],
     }),
@@ -146,9 +153,7 @@ export function PayersPage() {
       </div>
 
       {error && (
-        <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-          {error}
-        </div>
+        <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>
       )}
 
       <PayerDialog
@@ -173,11 +178,7 @@ export function PayersPage() {
       <DeleteDialog
         open={deletingPayer !== null}
         onOpenChange={(open) => !open && setDeletingPayer(null)}
-        name={
-          deletingPayer?.organization_name ??
-          deletingPayer?.contact_name ??
-          undefined
-        }
+        name={deletingPayer?.organization_name ?? deletingPayer?.contact_name ?? undefined}
         itemName="payer"
         onConfirm={handleDeleteConfirm}
         loading={deleteLoading}
@@ -185,14 +186,15 @@ export function PayersPage() {
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-xl font-semibold tracking-tight">All payers</h2>
-        {can('FINANCE_CREATE') && (
-          <Button onClick={() => setCreateOpen(true)}>+ Add payer</Button>
-        )}
+        {can("FINANCE_CREATE") && <Button onClick={() => setCreateOpen(true)}>+ Add payer</Button>}
       </div>
 
       <DataTableToolbar
         filter={globalFilter}
-        onFilterChange={setGlobalFilter}
+        onFilterChange={(value) => {
+          setGlobalFilter(value);
+          setPagination((current) => ({ ...current, pageIndex: 0 }));
+        }}
       />
       <DataTable
         columns={columns}
@@ -200,6 +202,8 @@ export function PayersPage() {
         loading={loading}
         globalFilter={globalFilter}
         onGlobalFilterChange={setGlobalFilter}
+        pagination={pagination}
+        onPaginationChange={setPagination}
       />
     </div>
   );

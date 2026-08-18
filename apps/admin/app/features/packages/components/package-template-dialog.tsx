@@ -1,5 +1,4 @@
 import {
-  Button,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -23,8 +22,6 @@ interface PackageTemplateDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (values: PackageTemplateFormOutput) => Promise<void>;
-  error?: string | null;
-  success?: string | null;
 }
 
 export function PackageTemplateDialog({
@@ -35,8 +32,6 @@ export function PackageTemplateDialog({
   open,
   onOpenChange,
   onSubmit,
-  error,
-  success,
 }: PackageTemplateDialogProps) {
   const title = mode === 'create' ? 'Create template' : 'Edit template';
   const description =
@@ -53,31 +48,14 @@ export function PackageTemplateDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          {error && (
-            <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-              {error}
-            </div>
-          )}
-          {success && (
-            <div className="rounded-md bg-green-500/10 p-3 text-sm text-green-700">
-              {success}
-            </div>
-          )}
-
-          {success ? (
-            <div className="flex justify-end">
-              <Button onClick={() => onOpenChange(false)}>Close</Button>
-            </div>
-          ) : (
-            <PackageTemplateForm
-              mode={mode}
-              template={template}
-              categories={categories}
-              pilgrimageTypes={pilgrimageTypes}
-              onSubmit={onSubmit}
-              submitLabel={mode === 'create' ? 'Create template' : 'Save changes'}
-            />
-          )}
+          <PackageTemplateForm
+            mode={mode}
+            template={template}
+            categories={categories}
+            pilgrimageTypes={pilgrimageTypes}
+            onSubmit={onSubmit}
+            submitLabel={mode === 'create' ? 'Create template' : 'Save changes'}
+          />
         </div>
       </DialogContent>
     </Dialog>

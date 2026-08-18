@@ -4,6 +4,7 @@ import { MySql2Database } from 'drizzle-orm/mysql2';
 import { DATABASE } from '../../../../shared/infrastructure/database/database.provider.js';
 import * as schema from '@kafi/database';
 import { InvoicesService } from '../../../finance/application/services/invoices.service.js';
+import { FinanceExceptionsService } from '../../../finance/application/services/finance-exceptions.service.js';
 
 const REQUIRED_DOCUMENT_TYPE_CODES = ['PASSPORT', 'PHOTO'] as const;
 
@@ -13,6 +14,7 @@ export class RegistrationReadinessService {
     @Inject(DATABASE)
     private readonly db: MySql2Database<typeof schema>,
     private readonly invoices: InvoicesService,
+    private readonly financeExceptions: FinanceExceptionsService,
   ) {}
 
   /**
@@ -82,7 +84,7 @@ export class RegistrationReadinessService {
 
     if (!primaryContact) return false;
 
-    const docsSatisfied = await this.hasRequiredVerifiedDocuments(
+    const docsSatisfied = await this.hasRequiredUploadedDocuments(
       registration.traveller_id,
     );
     if (!docsSatisfied) return false;
@@ -90,6 +92,9 @@ export class RegistrationReadinessService {
     const paymentSatisfied =
       await this.isPaymentRequirementSatisfied(registrationId);
     if (!paymentSatisfied) return false;
+
+    const hasGuarantee = await this.hasActiveGuarantee(registrationId);
+    if (!hasGuarantee) return false;
 
     return true;
   }
@@ -102,6 +107,7 @@ export class RegistrationReadinessService {
    * - payment outstanding balance <= 0 (Finance remains the source of truth)
    * - required documents still verified, valid, and non-expired
    * - at least one approved visa application for the registration
+   * - at least one confirmed flight booking for the registration
    */
   async isReadyForTravel(registrationId: string): Promise<boolean> {
     const [registration] = await this.db
@@ -131,16 +137,30 @@ export class RegistrationReadinessService {
     const balance =
       await this.invoices.getOutstandingBalanceForRegistration(registrationId);
 
-    const [paymentOk, docsOk, visaOk] = await Promise.all([
-      Promise.resolve(balance <= 0),
-      this.hasRequiredVerifiedDocuments(registration.traveller_id),
+    // If there is an outstanding balance, check whether an authorized
+    // credit exception covers it. The exception does not modify the
+    // balance; it only satisfies the readiness gate.
+    let paymentOk = balance <= 0;
+    if (!paymentOk && balance > 0) {
+      const exception =
+        await this.financeExceptions.getActiveExceptionForRegistration(
+          registrationId,
+        );
+      if (exception && exception.authorized_amount >= balance) {
+        paymentOk = true;
+      }
+    }
+
+    const [docsOk, visaOk, flightOk] = await Promise.all([
+      this.hasRequiredUploadedDocuments(registration.traveller_id),
       this.hasApprovedVisa(registrationId),
+      this.hasConfirmedFlight(registrationId),
     ]);
 
-    return paymentOk && docsOk && visaOk;
+    return paymentOk && docsOk && visaOk && flightOk;
   }
 
-  private async hasRequiredVerifiedDocuments(
+  private async hasRequiredUploadedDocuments(
     travellerId: string,
   ): Promise<boolean> {
     const validDocs = await this.db
@@ -153,13 +173,6 @@ export class RegistrationReadinessService {
         eq(schema.documents.document_type_id, schema.documentTypes.id),
       )
       .innerJoin(
-        schema.verificationStatuses,
-        eq(
-          schema.documents.verification_status_id,
-          schema.verificationStatuses.id,
-        ),
-      )
-      .innerJoin(
         schema.documentStatuses,
         eq(schema.documents.document_status_id, schema.documentStatuses.id),
       )
@@ -170,7 +183,6 @@ export class RegistrationReadinessService {
           inArray(schema.documentTypes.type_code, [
             ...REQUIRED_DOCUMENT_TYPE_CODES,
           ]),
-          eq(schema.verificationStatuses.status_code, 'VERIFIED'),
           not(
             inArray(schema.documentStatuses.status_code, [
               'REJECTED',
@@ -211,6 +223,29 @@ export class RegistrationReadinessService {
     return !!visa;
   }
 
+  private async hasConfirmedFlight(registrationId: string): Promise<boolean> {
+    const [flight] = await this.db
+      .select({ id: schema.flightBookings.id })
+      .from(schema.flightBookings)
+      .innerJoin(
+        schema.flightBookingStatuses,
+        eq(
+          schema.flightBookings.flight_booking_status_id,
+          schema.flightBookingStatuses.id,
+        ),
+      )
+      .where(
+        and(
+          eq(schema.flightBookings.registration_id, registrationId),
+          eq(schema.flightBookings.is_deleted, false),
+          eq(schema.flightBookingStatuses.status_code, 'CONFIRMED'),
+        ),
+      )
+      .limit(1);
+
+    return !!flight;
+  }
+
   private async isPaymentRequirementSatisfied(
     registrationId: string,
   ): Promise<boolean> {
@@ -234,6 +269,21 @@ export class RegistrationReadinessService {
     const balance =
       await this.invoices.getOutstandingBalanceForRegistration(registrationId);
     return balance <= 0;
+  }
+
+  private async hasActiveGuarantee(registrationId: string): Promise<boolean> {
+    const [guarantee] = await this.db
+      .select({ id: schema.guarantees.id })
+      .from(schema.guarantees)
+      .where(
+        and(
+          eq(schema.guarantees.registration_id, registrationId),
+          eq(schema.guarantees.is_deleted, false),
+          eq(schema.guarantees.guarantee_status, 'ACTIVE'),
+        ),
+      )
+      .limit(1);
+    return !!guarantee;
   }
 
   /**
@@ -308,10 +358,11 @@ export class RegistrationReadinessService {
       )
       .limit(1);
 
-    const docsSatisfied = await this.hasRequiredVerifiedDocuments(
+    const docsUploaded = await this.hasRequiredUploadedDocuments(
       registration.traveller_id,
     );
     const visaSatisfied = await this.hasApprovedVisa(registration.id);
+    const flightSatisfied = await this.hasConfirmedFlight(registration.id);
     const finance = await this.invoices.getRegistrationFinanceSummaries([
       registration.id,
     ]);
@@ -321,35 +372,53 @@ export class RegistrationReadinessService {
       outstanding_balance: 0,
     };
 
+    // Check for authorized credit exception
+    const creditException =
+      await this.financeExceptions.getActiveExceptionForRegistration(
+        registration.id,
+      );
+    const authorizedCredit = creditException?.authorized_amount ?? 0;
+    const hasAuthorizedCredit = authorizedCredit > 0;
+
     const packagePublished = pkg?.status === 'PUBLISHED';
     const hasPrimaryContact = !!primaryContact;
     const hasPaymentForIntake =
       summary.total_invoiced > 0 && summary.outstanding_balance <= 0;
-    const hasPaymentForReady = summary.outstanding_balance <= 0;
+    // Ready-for-travel payment: either balance is zero, or an authorized
+    // credit exception covers the outstanding balance.
+    const hasPaymentForReady =
+      summary.outstanding_balance <= 0 ||
+      (hasAuthorizedCredit && authorizedCredit >= summary.outstanding_balance);
+    const hasGuarantee = await this.hasActiveGuarantee(registration.id);
 
+    // Intake (DRAFT -> PROCESSING): documents only need to be uploaded
     const canStartProcessing =
       registration.status === 'DRAFT' &&
       packagePublished &&
       hasPrimaryContact &&
-      docsSatisfied &&
-      hasPaymentForIntake;
+      docsUploaded &&
+      hasPaymentForIntake &&
+      hasGuarantee;
 
+    // Ready for travel (PROCESSING -> READY_FOR_TRAVEL): payment, documents, visa, flight
     const canConfirmReady =
       registration.status === 'PROCESSING' &&
       hasPaymentForReady &&
-      docsSatisfied &&
-      visaSatisfied;
+      docsUploaded &&
+      visaSatisfied &&
+      flightSatisfied;
 
     const blockers: string[] = [];
     if (registration.status === 'DRAFT') {
       if (!packagePublished) blockers.push('PACKAGE_NOT_PUBLISHED');
       if (!hasPrimaryContact) blockers.push('NO_PRIMARY_CONTACT');
-      if (!docsSatisfied) blockers.push('MISSING_REQUIRED_DOCUMENTS');
+      if (!docsUploaded) blockers.push('MISSING_REQUIRED_DOCUMENTS');
       if (!hasPaymentForIntake) blockers.push('UNPAID_OR_MISSING_INVOICE');
+      if (!hasGuarantee) blockers.push('MISSING_GUARANTEE');
     } else if (registration.status === 'PROCESSING') {
       if (!hasPaymentForReady) blockers.push('OUTSTANDING_BALANCE');
-      if (!docsSatisfied) blockers.push('MISSING_REQUIRED_DOCUMENTS');
       if (!visaSatisfied) blockers.push('VISA_NOT_APPROVED');
+      if (!flightSatisfied) blockers.push('FLIGHT_NOT_CONFIRMED');
     }
 
     return {
@@ -357,10 +426,15 @@ export class RegistrationReadinessService {
       status: registration.status,
       package_published: packagePublished,
       has_primary_contact: hasPrimaryContact,
-      required_documents_verified: docsSatisfied,
+      required_documents_verified: docsUploaded,
       visa_approved: visaSatisfied,
+      flight_confirmed: flightSatisfied,
       payment_satisfied: hasPaymentForReady,
       intake_payment_satisfied: hasPaymentForIntake,
+      has_guarantee: hasGuarantee,
+      has_authorized_credit: hasAuthorizedCredit,
+      authorized_credit_amount: authorizedCredit,
+      outstanding_balance: summary.outstanding_balance,
       can_start_processing: canStartProcessing,
       can_confirm_ready: canConfirmReady,
       ready_for_travel: canConfirmReady,
@@ -476,13 +550,6 @@ export class RegistrationReadinessService {
           eq(schema.documents.document_type_id, schema.documentTypes.id),
         )
         .innerJoin(
-          schema.verificationStatuses,
-          eq(
-            schema.documents.verification_status_id,
-            schema.verificationStatuses.id,
-          ),
-        )
-        .innerJoin(
           schema.documentStatuses,
           eq(schema.documents.document_status_id, schema.documentStatuses.id),
         )
@@ -493,7 +560,6 @@ export class RegistrationReadinessService {
             inArray(schema.documentTypes.type_code, [
               ...REQUIRED_DOCUMENT_TYPE_CODES,
             ]),
-            eq(schema.verificationStatuses.status_code, 'VERIFIED'),
             not(
               inArray(schema.documentStatuses.status_code, [
                 'REJECTED',
@@ -540,6 +606,44 @@ export class RegistrationReadinessService {
       approvedVisas.add(row.registration_id);
     }
 
+    const activeGuarantees = await this.db
+      .select({ registration_id: schema.guarantees.registration_id })
+      .from(schema.guarantees)
+      .where(
+        and(
+          inArray(schema.guarantees.registration_id, registrationIdsValid),
+          eq(schema.guarantees.is_deleted, false),
+          eq(schema.guarantees.guarantee_status, 'ACTIVE'),
+        ),
+      );
+    const guaranteedRegistrations = new Set(
+      activeGuarantees.map((g) => g.registration_id),
+    );
+
+    const confirmedFlights = new Set<string>();
+    const flightRows = await this.db
+      .select({
+        registration_id: schema.flightBookings.registration_id,
+      })
+      .from(schema.flightBookings)
+      .innerJoin(
+        schema.flightBookingStatuses,
+        eq(
+          schema.flightBookings.flight_booking_status_id,
+          schema.flightBookingStatuses.id,
+        ),
+      )
+      .where(
+        and(
+          inArray(schema.flightBookings.registration_id, registrationIdsValid),
+          eq(schema.flightBookings.is_deleted, false),
+          eq(schema.flightBookingStatuses.status_code, 'CONFIRMED'),
+        ),
+      );
+    for (const row of flightRows) {
+      confirmedFlights.add(row.registration_id);
+    }
+
     const finance =
       await this.invoices.getRegistrationFinanceSummaries(registrationIdsValid);
 
@@ -549,11 +653,12 @@ export class RegistrationReadinessService {
       const hasPrimaryContact = primaryContactTravellers.has(
         registration.traveller_id,
       );
-      const docsSatisfied =
+      const docsUploaded =
         REQUIRED_DOCUMENT_TYPE_CODES.every((code) =>
           docsByTraveller.get(registration.traveller_id)?.has(code),
         ) ?? false;
       const visaSatisfied = approvedVisas.has(registration.id);
+      const flightSatisfied = confirmedFlights.has(registration.id);
       const summary = finance.get(registration.id) ?? {
         total_invoiced: 0,
         total_paid: 0,
@@ -563,30 +668,36 @@ export class RegistrationReadinessService {
       const hasPaymentForIntake =
         summary.total_invoiced > 0 && summary.outstanding_balance <= 0;
       const hasPaymentForReady = summary.outstanding_balance <= 0;
+      const hasGuarantee = guaranteedRegistrations.has(registration.id);
 
+      // Intake (DRAFT -> PROCESSING): documents only need to be uploaded
       const canStartProcessing =
         registration.status === 'DRAFT' &&
         packagePublished &&
         hasPrimaryContact &&
-        docsSatisfied &&
-        hasPaymentForIntake;
+        docsUploaded &&
+        hasPaymentForIntake &&
+        hasGuarantee;
 
+      // Ready for travel (PROCESSING -> READY_FOR_TRAVEL): payment, documents, visa, flight
       const canConfirmReady =
         registration.status === 'PROCESSING' &&
         hasPaymentForReady &&
-        docsSatisfied &&
-        visaSatisfied;
+        docsUploaded &&
+        visaSatisfied &&
+        flightSatisfied;
 
       const blockers: string[] = [];
       if (registration.status === 'DRAFT') {
         if (!packagePublished) blockers.push('PACKAGE_NOT_PUBLISHED');
         if (!hasPrimaryContact) blockers.push('NO_PRIMARY_CONTACT');
-        if (!docsSatisfied) blockers.push('MISSING_REQUIRED_DOCUMENTS');
+        if (!docsUploaded) blockers.push('MISSING_REQUIRED_DOCUMENTS');
         if (!hasPaymentForIntake) blockers.push('UNPAID_OR_MISSING_INVOICE');
+        if (!hasGuarantee) blockers.push('MISSING_GUARANTEE');
       } else if (registration.status === 'PROCESSING') {
         if (!hasPaymentForReady) blockers.push('OUTSTANDING_BALANCE');
-        if (!docsSatisfied) blockers.push('MISSING_REQUIRED_DOCUMENTS');
         if (!visaSatisfied) blockers.push('VISA_NOT_APPROVED');
+        if (!flightSatisfied) blockers.push('FLIGHT_NOT_CONFIRMED');
       }
 
       result.set(registration.id, {
@@ -594,10 +705,15 @@ export class RegistrationReadinessService {
         status: registration.status,
         package_published: packagePublished,
         has_primary_contact: hasPrimaryContact,
-        required_documents_verified: docsSatisfied,
+        required_documents_verified: docsUploaded,
         visa_approved: visaSatisfied,
+        flight_confirmed: flightSatisfied,
         payment_satisfied: hasPaymentForReady,
         intake_payment_satisfied: hasPaymentForIntake,
+        has_guarantee: hasGuarantee,
+        has_authorized_credit: false,
+        authorized_credit_amount: 0,
+        outstanding_balance: summary.outstanding_balance,
         can_start_processing: canStartProcessing,
         can_confirm_ready: canConfirmReady,
         ready_for_travel: canConfirmReady,

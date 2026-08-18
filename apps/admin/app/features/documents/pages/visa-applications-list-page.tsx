@@ -1,31 +1,47 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { ColumnDef } from '@tanstack/react-table';
-import { useNavigate } from 'react-router';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 import { Button } from '@kafi/ui';
 
 import { usePermissions } from '../../../core/permissions';
 import { DataTable, DataTableToolbar } from '../../../shared/data-table';
 import { actionsColumn, textColumn } from '../../../shared/data-table/columns';
-import {
-  documentsApi,
-  type VisaApplicationListItem,
-} from '../lib/api';
+import { WorkflowStatusBadge } from '../../../shared/operational-ui';
+import { displayDate } from '../../operations/lib/date';
+import { documentsApi, type VisaApplicationListItem } from '../lib/api';
+import { useDebouncedValue } from '../../../shared/hooks/use-debounced-value';
 
 export function VisaApplicationsListPage() {
   const { can } = usePermissions();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const registrationId = searchParams.get('registration_id') ?? undefined;
   const [visas, setVisas] = useState<VisaApplicationListItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [globalFilter, setGlobalFilter] = useState('');
+  const debouncedFilter = useDebouncedValue(globalFilter);
+  const [pagination, setPagination] = useState({
+    pageIndex: 0,
+    pageSize: 25,
+    total: 0,
+  });
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
       setLoading(true);
       try {
-        const res = await documentsApi.listVisaApplications(1, 100, globalFilter);
-        if (!cancelled) setVisas(res.data);
+        const res = await documentsApi.listVisaApplications(
+          pagination.pageIndex + 1,
+          pagination.pageSize,
+          debouncedFilter,
+          { registration_id: registrationId },
+        );
+        if (!cancelled) {
+          setVisas(res.data);
+          setPagination((current) => ({ ...current, total: res.total }));
+        }
       } catch (err) {
         if (!cancelled)
           setError(err instanceof Error ? err.message : 'Failed to load visas');
@@ -37,15 +53,38 @@ export function VisaApplicationsListPage() {
     return () => {
       cancelled = true;
     };
-  }, [globalFilter]);
+  }, [
+    debouncedFilter,
+    pagination.pageIndex,
+    pagination.pageSize,
+    registrationId,
+  ]);
+
+  const contextRegistration = useMemo(() => {
+    return (
+      visas.find((v) => v.registration?.id === registrationId)?.registration ??
+      null
+    );
+  }, [visas, registrationId]);
+
+  async function reload() {
+    const res = await documentsApi.listVisaApplications(
+      pagination.pageIndex + 1,
+      pagination.pageSize,
+      debouncedFilter,
+      { registration_id: registrationId },
+    );
+    setVisas(res.data);
+    setPagination((current) => ({ ...current, total: res.total }));
+  }
 
   async function handleDelete(id: string) {
     if (!confirm('Delete this visa application?')) return;
     try {
       await documentsApi.deleteVisaApplication(id);
-      const res = await documentsApi.listVisaApplications(1, 100, globalFilter);
-      setVisas(res.data);
-    } catch (err) {
+      await reload();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (err: any) {
       setError(err instanceof Error ? err.message : 'Delete failed');
     }
   }
@@ -71,25 +110,39 @@ export function VisaApplicationsListPage() {
     {
       id: 'status',
       header: 'Status',
-      cell: ({ row }) => row.original.status?.name ?? '-',
+      cell: ({ row }) => (
+        <WorkflowStatusBadge status={row.original.status?.status_code} />
+      ),
     },
     {
       id: 'submission_date',
       header: 'Submitted',
-      cell: ({ row }) => row.original.submission_date ?? '-',
+      cell: ({ row }) => displayDate(row.original.submission_date) ?? '-',
     },
     {
-      id: 'approval_date',
-      header: 'Approved',
-      cell: ({ row }) => row.original.approval_date ?? '-',
+      id: 'result_date',
+      header: 'Result',
+      cell: ({ row }) => {
+        const v = row.original;
+        if (v.approval_date) return displayDate(v.approval_date) ?? '-';
+        if (v.rejection_date) return displayDate(v.rejection_date) ?? '-';
+        if (v.cancellation_date) return displayDate(v.cancellation_date) ?? '-';
+        return '-';
+      },
     },
     actionsColumn<VisaApplicationListItem>({
       actions: [
-        { label: 'View', onClick: (v) => navigate(`/visa-applications/${v.id}`) },
+        {
+          label: can('VISA_MANAGE') ? 'Process' : 'View',
+          onClick: (v) => navigate(`/visa-applications/${v.id}`),
+        },
         {
           label: 'Delete',
           onClick: (v) => void handleDelete(v.id),
-          disabled: () => !can('VISA_MANAGE'),
+          disabled: (v) =>
+            !can('VISA_MANAGE') ||
+            (v.status?.status_code !== 'SUBMITTED' &&
+              v.status?.status_code !== 'CANCELLED'),
         },
       ],
     }),
@@ -110,22 +163,56 @@ export function VisaApplicationsListPage() {
         </div>
       )}
 
+      {registrationId && (
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-muted-foreground">
+            {contextRegistration
+              ? `Showing visa applications for registration ${contextRegistration.registration_number}.`
+              : 'Showing visa applications for the selected registration.'}
+          </p>
+          <div className="flex gap-2">
+            <Link
+              to={`/registrations/${registrationId}`}
+              className="text-sm font-medium text-primary hover:underline"
+            >
+              Back to registration
+            </Link>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-xl font-semibold tracking-tight">All visas</h2>
         {can('VISA_MANAGE') && (
-          <Button onClick={() => navigate('/visa-applications/new')}>
-            + Create visa
+          <Button
+            onClick={() =>
+              navigate(
+                registrationId
+                  ? `/visa-applications/new?registration_id=${registrationId}`
+                  : '/visa-applications/new',
+              )
+            }
+          >
+            + Add visa application
           </Button>
         )}
       </div>
 
-      <DataTableToolbar filter={globalFilter} onFilterChange={setGlobalFilter} />
+      <DataTableToolbar
+        filter={globalFilter}
+        onFilterChange={(value) => {
+          setGlobalFilter(value);
+          setPagination((current) => ({ ...current, pageIndex: 0 }));
+        }}
+      />
       <DataTable
         columns={columns}
         data={visas}
         loading={loading}
         globalFilter={globalFilter}
         onGlobalFilterChange={setGlobalFilter}
+        pagination={pagination}
+        onPaginationChange={setPagination}
       />
     </div>
   );

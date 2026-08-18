@@ -64,6 +64,41 @@ export class ReferenceDataService {
       .where(eq(schema.invoiceLineItemTypes.is_deleted, false));
   }
 
+  listExpenseStatuses() {
+    return this.db
+      .select()
+      .from(schema.expenseStatuses)
+      .where(eq(schema.expenseStatuses.is_deleted, false));
+  }
+
+  listExpenseCategories() {
+    return this.db
+      .select()
+      .from(schema.expenseCategories)
+      .where(eq(schema.expenseCategories.is_deleted, false));
+  }
+
+  listExpenseSources() {
+    return this.db
+      .select()
+      .from(schema.expenseSources)
+      .where(eq(schema.expenseSources.is_deleted, false));
+  }
+
+  listFinanceExceptionStatuses() {
+    return this.db
+      .select()
+      .from(schema.financeExceptionStatuses)
+      .where(eq(schema.financeExceptionStatuses.is_deleted, false));
+  }
+
+  listRefundStatuses() {
+    return this.db
+      .select()
+      .from(schema.refundStatuses)
+      .where(eq(schema.refundStatuses.is_deleted, false));
+  }
+
   async listPaymentMethods() {
     const rows = await this.db
       .select()

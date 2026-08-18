@@ -7,12 +7,41 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { describe, expect, it, vi } from 'vitest';
 
 import { RegistrationsService } from './registrations.service.js';
-import { UpdateRegistrationDto } from '../dto/registrations.dto.js';
+import {
+  CreateRegistrationDto,
+  UpdateRegistrationDto,
+} from '../dto/registrations.dto.js';
 import { createMockDb } from './mock-db.js';
 
 const readiness = {
   isRegistrationComplete: vi.fn(),
   isReadyForTravel: vi.fn(),
+};
+
+const packages = {
+  assertAvailableForRegistration: vi.fn(),
+};
+
+const expenses = {
+  createExpenseFromOperational: vi.fn().mockResolvedValue({ id: 'EXP-1' }),
+};
+
+const financeReporting = {
+  getRegistrationFinanceSummary: vi.fn().mockResolvedValue({
+    total_paid: 0,
+    total_invoiced: 0,
+    outstanding: 0,
+    authorized_credit: 0,
+    direct_expenses: 0,
+    allocated_group_expenses: 0,
+    total_cost: 0,
+    refunds: 0,
+    profit_loss: 0,
+  }),
+};
+
+const refunds = {
+  createRefund: vi.fn(),
 };
 
 function registrationRow(statusCode: string) {
@@ -38,29 +67,29 @@ function registrationRow(statusCode: string) {
         gender: 'Male',
       },
       countries: { id: 'CT', name: 'Ethiopia' },
-      travellerStatuses: { id: 'TS', name: 'Active' },
-      registrationStatuses: {
+      traveller_statuses: { id: 'TS', name: 'Active' },
+      registration_statuses: {
         id: 'RS',
         status_code: statusCode,
         name: statusCode,
       },
-      packageVersions: {
+      package_versions: {
         id: 'PV',
         package_version_code: 'PKG-001-v1',
         version_name: 'Version 1',
         base_price: '1000.00',
         max_capacity: 10,
       },
-      packageTemplates: { id: 'PT', name: 'Hajj Premium' },
-      packageVersionStatuses: {
+      package_templates: { id: 'PT', name: 'Hajj Premium' },
+      package_version_statuses: {
         id: 'PVS',
         status_code: 'PUBLISHED',
         name: 'Published',
       },
       currencies: { id: 'CUR', currency_code: 'ETB', name: 'Ethiopian Birr' },
       seasons: null,
-      travellerContacts: null,
-      contactPersons: null,
+      traveller_contacts: null,
+      contact_persons: null,
     },
   ];
 }
@@ -74,6 +103,10 @@ describe('RegistrationsService', () => {
         db as any,
         emitter as any,
         readiness as any,
+        packages as any,
+        expenses as any,
+        financeReporting as any,
+        refunds as any,
       );
       const number = await (service as any).generateRegistrationNumber();
       expect(number).toMatch(/^REG-\d{4}-000001$/);
@@ -86,59 +119,81 @@ describe('RegistrationsService', () => {
         db as any,
         emitter as any,
         readiness as any,
+        packages as any,
+        expenses as any,
+        financeReporting as any,
+        refunds as any,
       );
       const number = await (service as any).generateRegistrationNumber();
       expect(number).toBe('REG-2026-000010');
     });
   });
 
-  describe('published package version validation', () => {
-    it('throws when the package version is not published', async () => {
-      const db = createMockDb([[]]);
+  describe('package availability integration', () => {
+    it('rejects registration when the package version is not available', async () => {
+      packages.assertAvailableForRegistration.mockRejectedValue(
+        new ConflictException('Package version is not available'),
+      );
+
+      const db = createMockDb([[{ id: '01KZ4TRV', is_deleted: false }]]);
       const emitter = new EventEmitter2();
       const service = new RegistrationsService(
         db as any,
         emitter as any,
         readiness as any,
+        packages as any,
+        expenses as any,
+        financeReporting as any,
+        refunds as any,
       );
 
       await expect(
-        (service as any).getPublishedPackageVersion('package-version-id'),
-      ).rejects.toThrow(NotFoundException);
+        service.createRegistration(
+          Object.assign(new CreateRegistrationDto(), {
+            traveller_id: '01KZ4TRV',
+            package_version_id: 'PV',
+          }),
+          'actor',
+        ),
+      ).rejects.toThrow(ConflictException);
     });
 
-    it('returns the package version when it is published', async () => {
+    it('creates a registration using the available package version', async () => {
+      packages.assertAvailableForRegistration.mockResolvedValue({
+        id: 'PV',
+        package_version_code: 'PKG-001-v1',
+      });
+
       const db = createMockDb([
-        [{ package_versions: { id: 'package-version-id' } }],
+        [{ id: '01KZ4TRV', is_deleted: false }],
+        [{ id: 'RS-DRAFT', status_code: 'DRAFT' }],
+        [{ max: null }],
+        [],
+        registrationRow('DRAFT'),
       ]);
-      const emitter = new EventEmitter2();
+      const emitter = { emit: vi.fn() };
       const service = new RegistrationsService(
         db as any,
         emitter as any,
         readiness as any,
+        packages as any,
+        expenses as any,
+        financeReporting as any,
+        refunds as any,
       );
 
-      const result = await (service as any).getPublishedPackageVersion(
-        'package-version-id',
-      );
-      expect(result.id).toBe('package-version-id');
-    });
-  });
-
-  describe('capacity limit validation', () => {
-    it('counts only active lifecycle registrations (excludes CANCELLED and DRAFT)', async () => {
-      const db = createMockDb([[{ count: 5 }]]);
-      const emitter = new EventEmitter2();
-      const service = new RegistrationsService(
-        db as any,
-        emitter as any,
-        readiness as any,
+      const result = await service.createRegistration(
+        Object.assign(new CreateRegistrationDto(), {
+          traveller_id: '01KZ4TRV',
+          package_version_id: 'PV',
+        }),
+        'actor',
       );
 
-      const active = await (service as any).countActiveRegistrations('PV');
-      expect(active).toBe(5);
-      expect(db.calls).toContain('innerJoin');
-      expect(db.calls).toContain('where');
+      expect(result.package_version?.id).toBe('PV');
+      expect(packages.assertAvailableForRegistration).toHaveBeenCalledWith(
+        'PV',
+      );
     });
   });
 
@@ -150,6 +205,10 @@ describe('RegistrationsService', () => {
         db as any,
         emitter as any,
         readiness as any,
+        packages as any,
+        expenses as any,
+        financeReporting as any,
+        refunds as any,
       );
 
       await expect(
@@ -172,6 +231,10 @@ describe('RegistrationsService', () => {
         db as any,
         emitter as any,
         readiness as any,
+        packages as any,
+        expenses as any,
+        financeReporting as any,
+        refunds as any,
       );
 
       await expect(
@@ -195,6 +258,10 @@ describe('RegistrationsService', () => {
         db as any,
         emitter as any,
         readiness as any,
+        packages as any,
+        expenses as any,
+        financeReporting as any,
+        refunds as any,
       );
 
       await expect(
@@ -215,6 +282,10 @@ describe('RegistrationsService', () => {
         db as any,
         emitter as any,
         readiness as any,
+        packages as any,
+        expenses as any,
+        financeReporting as any,
+        refunds as any,
       );
 
       const result = await service.startProcessing('01KZ4REG', 'actor');
@@ -229,6 +300,10 @@ describe('RegistrationsService', () => {
         db as any,
         emitter as any,
         readiness as any,
+        packages as any,
+        expenses as any,
+        financeReporting as any,
+        refunds as any,
       );
 
       await expect(
@@ -243,6 +318,10 @@ describe('RegistrationsService', () => {
         db as any,
         emitter as any,
         readiness as any,
+        packages as any,
+        expenses as any,
+        financeReporting as any,
+        refunds as any,
       );
 
       await expect(
@@ -258,6 +337,10 @@ describe('RegistrationsService', () => {
         db as any,
         emitter as any,
         readiness as any,
+        packages as any,
+        expenses as any,
+        financeReporting as any,
+        refunds as any,
       );
 
       await expect(
@@ -278,6 +361,10 @@ describe('RegistrationsService', () => {
         db as any,
         emitter as any,
         readiness as any,
+        packages as any,
+        expenses as any,
+        financeReporting as any,
+        refunds as any,
       );
 
       const result = await service.confirmReadyForTravel('01KZ4REG', 'actor');
@@ -291,6 +378,10 @@ describe('RegistrationsService', () => {
         db as any,
         emitter as any,
         readiness as any,
+        packages as any,
+        expenses as any,
+        financeReporting as any,
+        refunds as any,
       );
 
       await expect(
@@ -312,6 +403,10 @@ describe('RegistrationsService', () => {
         db as any,
         emitter as any,
         readiness as any,
+        packages as any,
+        expenses as any,
+        financeReporting as any,
+        refunds as any,
       );
 
       await expect(
@@ -327,16 +422,23 @@ describe('RegistrationsService', () => {
       readiness.isRegistrationComplete.mockReset();
       const db = createMockDb([
         registrationRow('DRAFT'),
-        [],
+        [], // active membership check (none)
+        [], // hotel stay check (none)
+        [], // visa cost query (none)
+        [], // flight cancellation fee query (none)
         [{ id: 'RS-CANCEL', status_code: 'CANCELLED' }],
-        [],
-        registrationRow('CANCELLED'),
+        [], // expense insert (mocked, no return needed)
+        registrationRow('CANCELLED'), // final getRegistration
       ]);
       const emitter = { emit: vi.fn() };
       const service = new RegistrationsService(
         db as any,
         emitter as any,
         readiness as any,
+        packages as any,
+        expenses as any,
+        financeReporting as any,
+        refunds as any,
       );
 
       const result = await service.cancelRegistration(
@@ -353,6 +455,181 @@ describe('RegistrationsService', () => {
         updated_by: 'actor',
       });
       expect(emitter.emit).toHaveBeenCalledOnce();
+    });
+
+    it('cancelRegistration blocks when a hotel booking exists', async () => {
+      const db = createMockDb([
+        registrationRow('PROCESSING'),
+        [], // active membership check (none)
+        [{ id: 'HOTEL-1' }], // hotel stay found → blocks cancellation
+      ]);
+      const emitter = { emit: vi.fn() };
+      const service = new RegistrationsService(
+        db as any,
+        emitter as any,
+        readiness as any,
+        packages as any,
+        expenses as any,
+        financeReporting as any,
+        refunds as any,
+      );
+
+      await expect(
+        service.cancelRegistration(
+          '01KZ4REG',
+          { cancellation_reason: 'Customer withdrawal' } as any,
+          'actor',
+        ),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('cancelRegistration proceeds when no hotel booking exists', async () => {
+      readiness.isRegistrationComplete.mockReset();
+      const db = createMockDb([
+        registrationRow('DRAFT'),
+        [], // active membership check (none)
+        [], // hotel stay check (none)
+        [], // visa cost query (none)
+        [], // flight cancellation fee query (none)
+        [{ id: 'RS-CANCEL', status_code: 'CANCELLED' }],
+        [], // expense insert
+        registrationRow('CANCELLED'), // final getRegistration
+      ]);
+      const emitter = { emit: vi.fn() };
+      const service = new RegistrationsService(
+        db as any,
+        emitter as any,
+        readiness as any,
+        packages as any,
+        expenses as any,
+        financeReporting as any,
+        refunds as any,
+      );
+
+      const result = await service.cancelRegistration(
+        '01KZ4REG',
+        { cancellation_reason: 'Customer withdrawal' } as any,
+        'actor',
+      );
+
+      expect(result.status).toBe('CANCELLED');
+    });
+
+    // ---- Round 7: Cancellation accounting ----
+
+    it('cancelRegistration records ONLY the service charge as an expense, not visa/flight costs', async () => {
+      readiness.isRegistrationComplete.mockReset();
+      const localExpenses = {
+        createExpenseFromOperational: vi
+          .fn()
+          .mockResolvedValue({ id: 'EXP-1' }),
+      };
+      const localFinanceReporting = {
+        getRegistrationFinanceSummary: vi.fn().mockResolvedValue({
+          total_paid: 50000,
+          total_invoiced: 50000,
+          outstanding: 0,
+          authorized_credit: 0,
+          direct_expenses: 0,
+          allocated_group_expenses: 0,
+          total_cost: 0,
+          refunds: 0,
+          profit_loss: 0,
+        }),
+      };
+      const db = createMockDb([
+        registrationRow('DRAFT'),
+        [], // active membership check (none)
+        [], // hotel stay check (none)
+        [{ visa_cost: '3000' }], // visa cost query — visa was processed
+        [{ cancellation_fee: '2000', supplier_cost: '8000' }], // flight cancellation fee
+        [{ id: 'RS-CANCEL', status_code: 'CANCELLED' }],
+        [], // tx.update (registration status)
+        registrationRow('CANCELLED'), // final getRegistration
+      ]);
+      const emitter = { emit: vi.fn() };
+      const service = new RegistrationsService(
+        db as any,
+        emitter as any,
+        readiness as any,
+        packages as any,
+        localExpenses as any,
+        localFinanceReporting as any,
+        refunds as any,
+      );
+
+      const result = await service.cancelRegistration(
+        '01KZ4REG',
+        { cancellation_reason: 'Customer withdrawal' } as any,
+        'actor',
+      );
+
+      expect(result.status).toBe('CANCELLED');
+      // The expense should be called exactly once with the service charge
+      expect(localExpenses.createExpenseFromOperational).toHaveBeenCalledOnce();
+      const callArgs =
+        localExpenses.createExpenseFromOperational.mock.calls[0][0];
+      expect(callArgs.expense_category_code).toBe('CANCELLATION_CHARGE');
+      expect(callArgs.expense_source_code).toBe('CANCELLATION');
+      // The amount should be ONLY the service charge (15000), NOT
+      // service_charge + visa_cost + flight_cancellation_fee (which would
+      // be 20000 and would double-count the original visa/flight expenses)
+      expect(callArgs.amount).toBe(15000);
+    });
+
+    it('cancelRegistration returns financials with visa cost and flight fee for customer-side accounting', async () => {
+      readiness.isRegistrationComplete.mockReset();
+      const localFinanceReporting = {
+        getRegistrationFinanceSummary: vi.fn().mockResolvedValue({
+          total_paid: 50000,
+          total_invoiced: 50000,
+          outstanding: 0,
+          authorized_credit: 0,
+          direct_expenses: 0,
+          allocated_group_expenses: 0,
+          total_cost: 0,
+          refunds: 0,
+          profit_loss: 0,
+        }),
+      };
+      const db = createMockDb([
+        registrationRow('DRAFT'),
+        [], // active membership
+        [], // hotel stay
+        [{ visa_cost: '3000' }], // visa cost
+        [{ cancellation_fee: '2000', supplier_cost: '8000' }], // flight
+        [{ id: 'RS-CANCEL', status_code: 'CANCELLED' }],
+        [], // tx.update
+        registrationRow('CANCELLED'),
+      ]);
+      const emitter = { emit: vi.fn() };
+      const service = new RegistrationsService(
+        db as any,
+        emitter as any,
+        readiness as any,
+        packages as any,
+        expenses as any,
+        localFinanceReporting as any,
+        refunds as any,
+      );
+
+      const result = await service.cancelRegistration(
+        '01KZ4REG',
+        { cancellation_reason: 'Customer withdrawal' } as any,
+        'actor',
+      );
+
+      // The financials should still show visa cost and flight fee for
+      // customer-side accounting, even though they're not recorded as
+      // new expenses
+      expect(result.cancellation_financials).toMatchObject({
+        service_charge: 15000,
+        visa_cost: 3000,
+        flight_cancellation_fee: 2000,
+        total_charge: 20000, // 15000 + 3000 + 2000
+        total_paid: 50000,
+        refundable_amount: 30000, // 50000 - 20000
+      });
     });
   });
 });

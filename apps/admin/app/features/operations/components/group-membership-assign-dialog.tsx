@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   Button,
-  Checkbox,
+  Input,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -19,6 +19,7 @@ import {
 import {
   api,
   type GroupMembership,
+  type LookupOption,
   type Registration,
   type TravelGroup,
 } from '../../../lib/api.js';
@@ -37,12 +38,29 @@ export function GroupMembershipAssignDialog({
   onCreated,
 }: GroupMembershipAssignDialogProps) {
   const [registrations, setRegistrations] = useState<Registration[]>([]);
+  const [registrationStatuses, setRegistrationStatuses] = useState<
+    LookupOption[]
+  >([]);
   const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [registrationId, setRegistrationId] = useState('');
-  const [waived, setWaived] = useState(false);
   const [remarks, setRemarks] = useState('');
+
+  useEffect(() => {
+    if (!open) return;
+    setSearch('');
+    setPage(1);
+    setRegistrationId('');
+    setRemarks('');
+    void api
+      .listRegistrationStatuses()
+      .then(setRegistrationStatuses)
+      .catch(() => undefined);
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -50,12 +68,21 @@ export function GroupMembershipAssignDialog({
     async function load() {
       setLoading(true);
       setError(null);
-      setRegistrationId('');
-      setWaived(false);
-      setRemarks('');
       try {
-        const res = await api.listRegistrations(1, 100);
-        if (!cancelled) setRegistrations(res.data);
+        const readyStatusId = registrationStatuses.find(
+          (status) => status.code === 'READY_FOR_TRAVEL',
+        )?.id;
+        const result = await api.listRegistrations(page, 25, {
+          search: search || undefined,
+          package_version_id: group.package_version?.id,
+          status_id: readyStatusId,
+        });
+        if (!cancelled) {
+          setRegistrations((current) =>
+            page === 1 ? result.data : [...current, ...result.data],
+          );
+          setHasMore(page * result.page_size < result.total);
+        }
       } catch (err) {
         if (!cancelled)
           setError(
@@ -69,13 +96,13 @@ export function GroupMembershipAssignDialog({
     return () => {
       cancelled = true;
     };
-  }, [open]);
+  }, [group.package_version?.id, open, page, registrationStatuses, search]);
 
   const options = useMemo(() => {
     const existing = new Set(group.members.map((m) => m.registration_id));
     return registrations.filter(
       (r) =>
-        r.status === 'CONFIRMED' &&
+        r.status === 'READY_FOR_TRAVEL' &&
         r.package_version?.id === group.package_version?.id &&
         !existing.has(r.id),
     );
@@ -89,7 +116,6 @@ export function GroupMembershipAssignDialog({
       const membership = await api.createGroupMembership({
         travel_group_id: group.id,
         registration_id: registrationId,
-        guarantee_waived: waived,
         remarks: remarks.trim() || undefined,
       });
       onCreated(membership);
@@ -107,7 +133,7 @@ export function GroupMembershipAssignDialog({
         <DialogHeader>
           <DialogTitle>Assign member</DialogTitle>
           <DialogDescription>
-            Add a confirmed registration to {group.name}.
+            Add a ready-for-travel registration to {group.name}.
           </DialogDescription>
         </DialogHeader>
 
@@ -118,6 +144,22 @@ export function GroupMembershipAssignDialog({
         )}
 
         <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="registration-search">
+              Search eligible registrations
+            </Label>
+            <Input
+              id="registration-search"
+              value={search}
+              onChange={(event) => {
+                setSearch(event.target.value);
+                setPage(1);
+              }}
+              placeholder="Registration number, traveller, or phone"
+              disabled={loading}
+            />
+          </div>
+
           <div className="space-y-2">
             <Label>Registration</Label>
             <Select
@@ -139,17 +181,17 @@ export function GroupMembershipAssignDialog({
                 ))}
               </SelectContent>
             </Select>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Checkbox
-              id="waive"
-              checked={waived}
-              onCheckedChange={(v) => setWaived(v === true)}
-            />
-            <Label htmlFor="waive" className="text-sm font-normal">
-              Waive guarantee requirement
-            </Label>
+            {hasMore && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((current) => current + 1)}
+                disabled={loading}
+              >
+                Load more eligible registrations
+              </Button>
+            )}
           </div>
 
           <div className="space-y-2">

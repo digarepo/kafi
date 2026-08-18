@@ -135,9 +135,15 @@ export class AdminPackagesController {
     return this.packages.publishVersion(id, req.user.sub);
   }
 
-  @Post('package-versions/:id/archive')
-  @RequirePermissions('PACKAGE_DELETE')
-  archiveVersion(@Param('id') id: string, @Req() req: any) {
-    return this.packages.archiveVersion(id, req.user.sub);
+  @Post('package-versions/:id/close')
+  @RequirePermissions('PACKAGE_EDIT')
+  closeVersion(@Param('id') id: string, @Req() req: any) {
+    return this.packages.closeVersion(id, req.user.sub);
+  }
+
+  @Post('package-versions/:id/cancel')
+  @RequirePermissions('PACKAGE_EDIT')
+  cancelVersion(@Param('id') id: string, @Req() req: any) {
+    return this.packages.cancelVersion(id, req.user.sub);
   }
 }

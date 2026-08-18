@@ -42,6 +42,8 @@ export async function clientLoader() {
  * The page component lives in the users feature module and handles
  * state, validation, and API calls.
  */
+export { RouteHydrateFallback as HydrateFallback } from '../../shared/route-hydrate-fallback';
+
 export default function UsersRoute() {
   const initial = useLoaderData<typeof clientLoader>();
   return <UsersPage initial={initial} />;

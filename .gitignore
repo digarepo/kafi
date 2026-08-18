@@ -36,4 +36,9 @@ docs/implementation/slice-7-documents-visa-plan.md
 docs/implementation/slice-7-documents-visa-plan-final.md
 docs/database/kafidb-slice4.dbml
 docs/architecture/phase-a-workflow-state-architecture.md
+docs/architecture/kafi-operational-workflow.md
+docs/internal/performance-hardening/
+tmp/phase0-browser/
+tmp/phase0-concurrency/
+tmp/phase0-fixtures/
 docs/implementation/phase-c-operational-views-implementation-report.md

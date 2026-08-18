@@ -47,8 +47,7 @@ export function RegistrationDialog({
   error,
   success,
 }: RegistrationDialogProps) {
-  const title =
-    mode === 'create' ? 'Create registration' : 'Edit registration';
+  const title = mode === 'create' ? 'Create registration' : 'Edit registration';
   const description =
     mode === 'create'
       ? 'Register a traveller for a published package version.'
@@ -69,7 +68,7 @@ export function RegistrationDialog({
             </div>
           )}
           {success && (
-            <div className="rounded-md bg-green-500/10 p-3 text-sm text-green-700">
+            <div className="rounded-md bg-success/10 p-3 text-sm text-success">
               {success}
             </div>
           )}

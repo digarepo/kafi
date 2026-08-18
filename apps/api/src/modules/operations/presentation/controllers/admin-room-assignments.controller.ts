@@ -15,6 +15,7 @@ import { RequirePermissions } from '../../../../shared/application/decorators/re
 import { RoomAssignmentsService } from '../../application/services/room-assignments.service.js';
 import {
   CreateRoomAssignmentDto,
+  ReassignRoomDto,
   RoomAssignmentFiltersDto,
 } from '../../application/dto/operations.dto.js';
 
@@ -45,5 +46,19 @@ export class AdminRoomAssignmentsController {
   @RequirePermissions('TRAVEL_GROUP_MANAGE')
   releaseAssignment(@Param('id') id: string, @Req() req: any) {
     return this.roomAssignments.releaseAssignment(id, req.user.sub);
+  }
+
+  @Patch('room-assignments/:id/reassign')
+  @RequirePermissions('TRAVEL_GROUP_MANAGE')
+  reassignAssignment(
+    @Param('id') id: string,
+    @Body() dto: ReassignRoomDto,
+    @Req() req: any,
+  ) {
+    return this.roomAssignments.reassignAssignment(
+      id,
+      dto.room_id,
+      req.user.sub,
+    );
   }
 }

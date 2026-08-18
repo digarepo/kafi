@@ -60,6 +60,18 @@ export class LogisticsLookupsService {
     );
   }
 
+  async listCities(countryId?: string) {
+    const conditions = [eq(schema.cities.is_deleted, false)];
+    if (countryId) {
+      conditions.push(eq(schema.cities.country_id, countryId));
+    }
+    return this.db
+      .select({ id: schema.cities.id, name: schema.cities.name })
+      .from(schema.cities)
+      .where(and(...conditions))
+      .orderBy(asc(schema.cities.name));
+  }
+
   async listRoomAssignmentStatuses() {
     return this.listActive(
       schema.roomAssignmentStatuses,

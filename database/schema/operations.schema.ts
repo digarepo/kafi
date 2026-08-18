@@ -138,13 +138,14 @@ export const guarantees = mysqlTable(
     guarantee_number: varchar('guarantee_number', { length: 30 })
       .notNull()
       .unique(),
-    group_membership_id: fkUuid('group_membership_id').notNull(),
+    group_membership_id: fkUuid('group_membership_id'),
     registration_id: fkUuid('registration_id').notNull(),
     guarantee_type: mysqlEnum('guarantee_type', [
       'PERSON',
       'CASH_DEPOSIT',
       'CPO',
       'BANK_GUARANTEE',
+      'OTHER',
     ]).notNull(),
     guarantee_status: mysqlEnum('guarantee_status', [
       'PENDING',
@@ -359,6 +360,12 @@ export const vendors = mysqlTable(
 
 /**
  * A hotel stay for one travel group.
+ *
+ * A travel group may have multiple stays (e.g. Makkah, Madinah, Jeddah).
+ * `sequence_order` provides a stable chronological ordering. `hotel_id` is
+ * optional for the MVP — staff may enter `hotel_name` directly without a
+ * pre-existing master catalog record. `city_id` is the geographic source of
+ * truth for the stay location.
  */
 export const groupHotelStays = mysqlTable(
   'group_hotel_stays',
@@ -366,21 +373,34 @@ export const groupHotelStays = mysqlTable(
     id: idColumn,
     stay_number: varchar('stay_number', { length: 30 }).notNull().unique(),
     travel_group_id: fkUuid('travel_group_id').notNull(),
-    hotel_id: fkUuid('hotel_id').notNull(),
+    hotel_id: fkUuid('hotel_id'),
+    hotel_name: varchar('hotel_name', { length: 255 }),
+    booking_reference: varchar('booking_reference', { length: 120 }),
+    sequence_order: int('sequence_order').notNull().default(1),
     city_id: fkUuid('city_id').notNull(),
     check_in_date: date('check_in_date').notNull(),
     check_out_date: date('check_out_date').notNull(),
     group_hotel_stay_status_id: fkUuid('group_hotel_stay_status_id').notNull(),
+    // Round 6: accommodation cost for this stay (supplier cost, not customer charge)
+    accommodation_cost: decimal('accommodation_cost', {
+      precision: 18,
+      scale: 2,
+    }),
     notes: text('notes'),
     ...auditMetadata,
     ...actorMetadata,
     ...softDeleteMetadata,
   },
   (table) => [
+    unique('group_hotel_stays_travel_group_sequence_unique').on(
+      table.travel_group_id,
+      table.sequence_order,
+    ),
     index('group_hotel_stays_travel_group_id_idx').on(table.travel_group_id),
     index('group_hotel_stays_hotel_id_idx').on(table.hotel_id),
     index('group_hotel_stays_city_id_idx').on(table.city_id),
     index('group_hotel_stays_check_in_date_idx').on(table.check_in_date),
+    index('group_hotel_stays_sequence_order_idx').on(table.sequence_order),
   ],
 );
 
@@ -430,6 +450,16 @@ export const roomAssignments = mysqlTable(
     bed_number: varchar('bed_number', { length: 20 }),
     room_assignment_status_id: fkUuid('room_assignment_status_id').notNull(),
     is_active_assignment: boolean('is_active_assignment'),
+    /**
+     * Application-managed column: set to `membershipId|stayId` when the
+     * assignment is active, NULL when released. The unique constraint on
+     * this column enforces one active assignment per (membership, stay)
+     * pair. MariaDB treats NULL as distinct in unique indexes, so released
+     * (inactive) rows with NULL don't conflict.
+     */
+    active_membership_stay_key: varchar('active_membership_stay_key', {
+      length: 79,
+    }),
     notes: text('notes'),
     ...auditMetadata,
     ...actorMetadata,
@@ -444,9 +474,7 @@ export const roomAssignments = mysqlTable(
       table.group_membership_id,
     ),
     unique('room_assignments_active_unique').on(
-      table.group_membership_id,
-      table.group_hotel_stay_id,
-      table.is_active_assignment,
+      table.active_membership_stay_key,
     ),
   ],
 );
@@ -464,7 +492,7 @@ export const transportSegments = mysqlTable(
       .notNull()
       .unique(),
     travel_group_id: fkUuid('travel_group_id').notNull(),
-    vendor_id: fkUuid('vendor_id').notNull(),
+    vendor_id: fkUuid('vendor_id'),
     transport_type: mysqlEnum('transport_type', [
       'BUS',
       'COASTER',
@@ -472,7 +500,7 @@ export const transportSegments = mysqlTable(
       'SEDAN',
       'SUV',
       'OTHER',
-    ]).notNull(),
+    ]),
     segment_order: int('segment_order').notNull(),
     origin_location: varchar('origin_location', { length: 255 }).notNull(),
     destination_location: varchar('destination_location', {
@@ -498,6 +526,8 @@ export const transportSegments = mysqlTable(
     transport_segment_status_id: fkUuid(
       'transport_segment_status_id',
     ).notNull(),
+    // Round 6: transport cost for this segment (supplier cost, not customer charge)
+    transport_cost: decimal('transport_cost', { precision: 18, scale: 2 }),
     notes: text('notes'),
     ...auditMetadata,
     ...actorMetadata,

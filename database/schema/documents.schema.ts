@@ -4,6 +4,7 @@ import {
   boolean,
   date,
   datetime,
+  decimal,
   index,
   int,
   mysqlTable,
@@ -88,6 +89,7 @@ export const documents = mysqlTable(
     document_number: varchar('document_number', { length: 30 })
       .notNull()
       .unique(),
+    display_name: varchar('display_name', { length: 255 }),
     traveller_id: fkUuid('traveller_id'),
     registration_id: fkUuid('registration_id'),
     document_type_id: fkUuid('document_type_id').notNull(),
@@ -120,8 +122,8 @@ export const documents = mysqlTable(
 /**
  * A visa application for a single registration.
  *
- * At most one APPROVED row per registration is enforced by a partial unique
- * on (registration_id, is_approved) where is_approved is set by a trigger.
+ * At most one APPROVED row per registration is enforced at the service level
+ * (assertNoApprovedVisa) per the DBML business rules.
  */
 export const visaApplications = mysqlTable(
   'visa_applications',
@@ -136,17 +138,18 @@ export const visaApplications = mysqlTable(
     expiry_date: date('expiry_date'),
     visa_number: varchar('visa_number', { length: 100 }),
     visa_application_status_id: fkUuid('visa_application_status_id').notNull(),
-    is_approved: boolean('is_approved'),
+    // Round 6: actual visa cost (supplier cost, not customer charge)
+    visa_cost: decimal('visa_cost', { precision: 18, scale: 2 }),
     notes: text('notes'),
+    rejection_date: date('rejection_date'),
+    rejection_reason: text('rejection_reason'),
+    cancellation_date: date('cancellation_date'),
+    cancellation_reason: text('cancellation_reason'),
     ...auditMetadata,
     ...actorMetadata,
     ...softDeleteMetadata,
   },
   (table) => [
-    unique('visa_applications_approved_unique').on(
-      table.registration_id,
-      table.is_approved,
-    ),
     index('visa_applications_registration_id_idx').on(table.registration_id),
     index('visa_applications_status_id_idx').on(
       table.visa_application_status_id,

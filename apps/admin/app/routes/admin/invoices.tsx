@@ -37,6 +37,8 @@ export async function clientLoader() {
  *
  * @returns The invoices layout route element.
  */
+export { RouteHydrateFallback as HydrateFallback } from '../../shared/route-hydrate-fallback';
+
 export default function InvoicesLayout() {
   useLoaderData<typeof clientLoader>();
   return <Outlet />;

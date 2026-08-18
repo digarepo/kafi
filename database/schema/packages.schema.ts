@@ -23,6 +23,18 @@ import { currencies, seasons } from './common.schema.js';
 import { users } from './iam.schema.js';
 
 /**
+ * Package template lifecycle statuses: ACTIVE, ARCHIVED.
+ */
+export const packageTemplateStatuses = mysqlTable('package_template_statuses', {
+  id: idColumn,
+  status_code: codeColumn('status_code'),
+  name: nameColumn(),
+  is_active: boolean('is_active').notNull().default(true),
+  ...auditMetadata,
+  ...softDeleteMetadata,
+});
+
+/**
  * Package version lifecycle statuses: DRAFT, PUBLISHED, CLOSED, CANCELLED.
  */
 export const packageVersionStatuses = mysqlTable('package_version_statuses', {
@@ -74,6 +86,7 @@ export const packageTemplates = mysqlTable(
     pilgrimage_type_id: fkUuid('pilgrimage_type_id').notNull(),
     package_category_id: fkUuid('package_category_id').notNull(),
     default_duration_days: int('default_duration_days').notNull(),
+    package_template_status_id: fkUuid('package_template_status_id').notNull(),
     ...auditMetadata,
     ...actorMetadata,
     ...softDeleteMetadata,
@@ -155,6 +168,10 @@ export const packageTemplatesRelations = relations(
       fields: [packageTemplates.package_category_id],
       references: [packageCategories.id],
     }),
+    packageTemplateStatus: one(packageTemplateStatuses, {
+      fields: [packageTemplates.package_template_status_id],
+      references: [packageTemplateStatuses.id],
+    }),
     createdBy: one(users, {
       fields: [packageTemplates.created_by],
       references: [users.id],
@@ -213,6 +230,13 @@ export const packageVersionInclusionsRelations = relations(
       fields: [packageVersionInclusions.updated_by],
       references: [users.id],
     }),
+  }),
+);
+
+export const packageTemplateStatusesRelations = relations(
+  packageTemplateStatuses,
+  ({ many }) => ({
+    packageTemplates: many(packageTemplates),
   }),
 );
 

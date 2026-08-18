@@ -39,6 +39,16 @@ export default [
       route('new', 'routes/admin/payments/new.tsx'),
       route(':id', 'routes/admin/payments/$id.tsx'),
     ]),
+    route('finance/dashboard', 'routes/admin/finance-dashboard.tsx'),
+    route('expenses', 'routes/admin/expenses.tsx', [
+      index('routes/admin/expenses/index.tsx'),
+    ]),
+    route('finance-exceptions', 'routes/admin/finance-exceptions.tsx', [
+      index('routes/admin/finance-exceptions/index.tsx'),
+    ]),
+    route('refunds', 'routes/admin/refunds.tsx', [
+      index('routes/admin/refunds/index.tsx'),
+    ]),
     route('travel-groups', 'routes/admin/travel-groups.tsx', [
       index('routes/admin/travel-groups/index.tsx'),
       route('new', 'routes/admin/travel-groups/new.tsx'),
@@ -57,6 +67,11 @@ export default [
       index('routes/admin/visa-applications/index.tsx'),
       route('new', 'routes/admin/visa-applications/new.tsx'),
       route(':id', 'routes/admin/visa-applications/$id.tsx'),
+    ]),
+    route('flight-bookings', 'routes/admin/flight-bookings.tsx', [
+      index('routes/admin/flight-bookings/index.tsx'),
+      route('new', 'routes/admin/flight-bookings/new.tsx'),
+      route(':id', 'routes/admin/flight-bookings/$id.tsx'),
     ]),
     route('payers', 'routes/admin/payers.tsx'),
     route('payment-methods', 'routes/admin/payment-methods.tsx'),

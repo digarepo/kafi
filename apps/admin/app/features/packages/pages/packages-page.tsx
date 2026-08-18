@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import type { ColumnDef } from '@tanstack/react-table';
 import { Button, Tabs, TabsList, TabsTrigger, TabsContent } from '@kafi/ui';
 
@@ -43,9 +44,17 @@ export function PackagesPage() {
   const [versions, setVersions] = useState<PackageVersion[]>([]);
 
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
   const [globalFilter, setGlobalFilter] = useState('');
+  const [templatePagination, setTemplatePagination] = useState({
+    pageIndex: 0,
+    pageSize: 25,
+    total: 0,
+  });
+  const [versionPagination, setVersionPagination] = useState({
+    pageIndex: 0,
+    pageSize: 25,
+    total: 0,
+  });
 
   const [createTemplateOpen, setCreateTemplateOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] =
@@ -60,7 +69,7 @@ export function PackagesPage() {
     null,
   );
 
-  async function refreshAll() {
+  const loadPackages = useCallback(async () => {
     setLoading(true);
     try {
       const [cat, pt, cur, sea, tpl, ver] = await Promise.all([
@@ -68,8 +77,17 @@ export function PackagesPage() {
         api.listPilgrimageTypes(),
         api.listCurrencies(),
         api.listSeasons(),
-        api.listPackageTemplates(1, 100),
-        api.listPackageVersions(1, 100),
+        api.listPackageTemplates(
+          templatePagination.pageIndex + 1,
+          templatePagination.pageSize,
+          tab === 'templates' ? globalFilter || undefined : undefined,
+        ),
+        api.listPackageVersions(
+          versionPagination.pageIndex + 1,
+          versionPagination.pageSize,
+          undefined,
+          tab === 'versions' ? globalFilter || undefined : undefined,
+        ),
       ]);
       setCategories(cat);
       setPilgrimageTypes(pt);
@@ -77,27 +95,36 @@ export function PackagesPage() {
       setSeasons(sea);
       setTemplates(tpl.data);
       setVersions(ver.data);
+      setTemplatePagination((current) => ({ ...current, total: tpl.total }));
+      setVersionPagination((current) => ({ ...current, total: ver.total }));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load packages');
+      toast.error(
+        err instanceof Error ? err.message : 'Failed to load packages',
+      );
     } finally {
       setLoading(false);
     }
-  }
+  }, [
+    globalFilter,
+    tab,
+    templatePagination.pageIndex,
+    templatePagination.pageSize,
+    versionPagination.pageIndex,
+    versionPagination.pageSize,
+  ]);
 
   useEffect(() => {
-    void refreshAll();
-  }, []);
+    void loadPackages();
+  }, [loadPackages]);
 
   async function handleCreateTemplate(values: PackageTemplateFormOutput) {
-    setError(null);
-    setSuccess(null);
     try {
       await api.createPackageTemplate(values as CreatePackageTemplateInput);
-      setSuccess('Template created');
+      toast.success('Template created');
       setCreateTemplateOpen(false);
-      await refreshAll();
+      await loadPackages();
     } catch (err) {
-      setError(
+      toast.error(
         err instanceof Error ? err.message : 'Failed to create template',
       );
     }
@@ -105,18 +132,16 @@ export function PackagesPage() {
 
   async function handleUpdateTemplate(values: PackageTemplateFormOutput) {
     if (!editingTemplate) return;
-    setError(null);
-    setSuccess(null);
     try {
       await api.updatePackageTemplate(
         editingTemplate.id,
         values as UpdatePackageTemplateInput,
       );
-      setSuccess('Template updated');
+      toast.success('Template updated');
       setEditingTemplate(null);
-      await refreshAll();
+      await loadPackages();
     } catch (err) {
-      setError(
+      toast.error(
         err instanceof Error ? err.message : 'Failed to update template',
       );
     }
@@ -124,78 +149,86 @@ export function PackagesPage() {
 
   async function handleArchiveTemplate(id: string) {
     if (!confirm('Archive this template?')) return;
-    setError(null);
-    setSuccess(null);
     try {
       await api.archivePackageTemplate(id);
-      setSuccess('Template archived');
-      await refreshAll();
+      toast.success('Template archived');
+      await loadPackages();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Archive failed');
+      toast.error(err instanceof Error ? err.message : 'Archive failed');
     }
   }
 
   async function handleCreateVersion(values: PackageVersionFormOutput) {
-    setError(null);
-    setSuccess(null);
     try {
       await api.createPackageVersion(values as CreatePackageVersionInput);
-      setSuccess('Version created');
+      toast.success('Version created');
       setCreateVersionOpen(false);
-      await refreshAll();
+      await loadPackages();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create version');
+      toast.error(
+        err instanceof Error ? err.message : 'Failed to create version',
+      );
     }
   }
 
   async function handleUpdateVersion(values: PackageVersionFormOutput) {
     if (!editingVersion) return;
-    setError(null);
-    setSuccess(null);
     try {
       await api.updatePackageVersion(editingVersion.id, values);
-      setSuccess('Version updated');
+      toast.success('Version updated');
       setEditingVersion(null);
-      await refreshAll();
+      await loadPackages();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update version');
+      toast.error(
+        err instanceof Error ? err.message : 'Failed to update version',
+      );
     }
   }
 
   async function handlePublishVersion(id: string) {
-    setError(null);
-    setSuccess(null);
     try {
       await api.publishPackageVersion(id);
-      setSuccess('Version published');
-      await refreshAll();
+      toast.success('Version published');
+      await loadPackages();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Publish failed');
+      toast.error(err instanceof Error ? err.message : 'Publish failed');
     }
   }
 
-  async function handleArchiveVersion(id: string) {
-    if (!confirm('Archive this version?')) return;
-    setError(null);
-    setSuccess(null);
+  async function handleCloseVersion(id: string) {
+    if (
+      !confirm(
+        'Close this version early? It will stop accepting registrations.',
+      )
+    )
+      return;
     try {
-      await api.archivePackageVersion(id);
-      setSuccess('Version archived');
-      await refreshAll();
+      await api.closePackageVersion(id);
+      toast.success('Version closed');
+      await loadPackages();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Archive failed');
+      toast.error(err instanceof Error ? err.message : 'Close failed');
+    }
+  }
+
+  async function handleCancelVersion(id: string) {
+    if (!confirm('Cancel this package version?')) return;
+    try {
+      await api.cancelPackageVersion(id);
+      toast.success('Version cancelled');
+      await loadPackages();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Cancellation failed');
     }
   }
 
   async function handleEditVersion(v: PackageVersion) {
-    setError(null);
-    setSuccess(null);
     setLoading(true);
     try {
       const full = await api.getPackageVersion(v.id);
       setEditingVersion(full);
     } catch (err) {
-      setError(
+      toast.error(
         err instanceof Error ? err.message : 'Failed to load version details',
       );
     } finally {
@@ -225,6 +258,10 @@ export function PackagesPage() {
       accessorKey: 'default_duration_days',
       header: 'Duration',
     }),
+    statusColumn<PackageTemplate>({
+      accessorKey: 'status',
+      header: 'Status',
+    }),
     actionsColumn<PackageTemplate>({
       actions: [
         {
@@ -243,7 +280,7 @@ export function PackagesPage() {
         {
           label: 'Archive',
           onClick: (t) => handleArchiveTemplate(t.id),
-          disabled: () => !can('PACKAGE_DELETE'),
+          disabled: (t) => !can('PACKAGE_DELETE') || t.status !== 'ACTIVE',
         },
       ],
     }),
@@ -283,19 +320,25 @@ export function PackagesPage() {
           disabled: () => !can('PACKAGE_VIEW'),
         },
         {
-          label: 'Edit',
+          label: 'Edit draft',
           onClick: (v) => void handleEditVersion(v),
-          disabled: () => !can('PACKAGE_EDIT'),
+          disabled: (v) => !can('PACKAGE_EDIT') || v.status !== 'DRAFT',
         },
         {
           label: 'Publish',
           onClick: (v) => handlePublishVersion(v.id),
-          disabled: (v) => !can('PACKAGE_EDIT') || v.status === 'PUBLISHED',
+          disabled: (v) => !can('PACKAGE_EDIT') || v.status !== 'DRAFT',
         },
         {
-          label: 'Archive',
-          onClick: (v) => handleArchiveVersion(v.id),
-          disabled: () => !can('PACKAGE_DELETE'),
+          label: 'Close early',
+          onClick: (v) => handleCloseVersion(v.id),
+          disabled: (v) => !can('PACKAGE_EDIT') || v.status !== 'PUBLISHED',
+        },
+        {
+          label: 'Cancel',
+          onClick: (v) => handleCancelVersion(v.id),
+          disabled: (v) =>
+            !can('PACKAGE_EDIT') || !['DRAFT', 'PUBLISHED'].includes(v.status),
         },
       ],
     }),
@@ -310,32 +353,13 @@ export function PackagesPage() {
         </p>
       </div>
 
-      {error && (
-        <div className="rounded border border-red-200 bg-red-50 p-3 text-red-800">
-          {error}
-        </div>
-      )}
-      {success && (
-        <div className="rounded border border-green-200 bg-green-50 p-3 text-green-800">
-          {success}
-        </div>
-      )}
-
       <PackageTemplateDialog
         mode="create"
         categories={categories}
         pilgrimageTypes={pilgrimageTypes}
         open={createTemplateOpen}
-        onOpenChange={(open) => {
-          setCreateTemplateOpen(open);
-          if (open) {
-            setError(null);
-            setSuccess(null);
-          }
-        }}
+        onOpenChange={setCreateTemplateOpen}
         onSubmit={handleCreateTemplate}
-        error={createTemplateOpen ? error : null}
-        success={createTemplateOpen ? success : null}
       />
 
       <PackageTemplateDialog
@@ -346,32 +370,18 @@ export function PackagesPage() {
         open={editingTemplate !== null}
         onOpenChange={(open) => {
           if (!open) setEditingTemplate(null);
-          if (open) {
-            setError(null);
-            setSuccess(null);
-          }
         }}
         onSubmit={handleUpdateTemplate}
-        error={editingTemplate !== null ? error : null}
-        success={editingTemplate !== null ? success : null}
       />
 
       <PackageVersionDialog
         mode="create"
-        templates={templates}
+        templates={templates.filter((template) => template.status === 'ACTIVE')}
         currencies={currencies}
         seasons={seasons}
         open={createVersionOpen}
-        onOpenChange={(open) => {
-          setCreateVersionOpen(open);
-          if (open) {
-            setError(null);
-            setSuccess(null);
-          }
-        }}
+        onOpenChange={setCreateVersionOpen}
         onSubmit={handleCreateVersion}
-        error={createVersionOpen ? error : null}
-        success={createVersionOpen ? success : null}
       />
 
       <PackageVersionDialog
@@ -383,14 +393,8 @@ export function PackagesPage() {
         open={editingVersion !== null}
         onOpenChange={(open) => {
           if (!open) setEditingVersion(null);
-          if (open) {
-            setError(null);
-            setSuccess(null);
-          }
         }}
         onSubmit={handleUpdateVersion}
-        error={editingVersion !== null ? error : null}
-        success={editingVersion !== null ? success : null}
       />
 
       <PackageDetailPanel
@@ -427,7 +431,13 @@ export function PackagesPage() {
 
             <DataTableToolbar
               filter={globalFilter}
-              onFilterChange={setGlobalFilter}
+              onFilterChange={(value) => {
+                setGlobalFilter(value);
+                setTemplatePagination((current) => ({
+                  ...current,
+                  pageIndex: 0,
+                }));
+              }}
             />
 
             <DataTable
@@ -436,6 +446,8 @@ export function PackagesPage() {
               loading={loading}
               globalFilter={globalFilter}
               onGlobalFilterChange={setGlobalFilter}
+              pagination={templatePagination}
+              onPaginationChange={setTemplatePagination}
             />
           </div>
         </TabsContent>
@@ -453,7 +465,13 @@ export function PackagesPage() {
 
             <DataTableToolbar
               filter={globalFilter}
-              onFilterChange={setGlobalFilter}
+              onFilterChange={(value) => {
+                setGlobalFilter(value);
+                setVersionPagination((current) => ({
+                  ...current,
+                  pageIndex: 0,
+                }));
+              }}
             />
 
             <DataTable
@@ -462,6 +480,8 @@ export function PackagesPage() {
               loading={loading}
               globalFilter={globalFilter}
               onGlobalFilterChange={setGlobalFilter}
+              pagination={versionPagination}
+              onPaginationChange={setVersionPagination}
             />
           </div>
         </TabsContent>

@@ -61,7 +61,7 @@ export default function ProfilePage() {
       )}
 
       {success && (
-        <div className="rounded-md bg-green-500/10 p-3 text-sm text-green-700">
+        <div className="rounded-md bg-success/10 p-3 text-sm text-success">
           {success}
         </div>
       )}
@@ -75,7 +75,7 @@ export default function ProfilePage() {
             </div>
             <div>
               <div className="text-sm text-muted-foreground">Status</div>
-              <Badge>{profile.status_code}</Badge>
+              <Badge variant="success">{profile.status_code}</Badge>
             </div>
             <div>
               <div className="text-sm text-muted-foreground">Roles</div>

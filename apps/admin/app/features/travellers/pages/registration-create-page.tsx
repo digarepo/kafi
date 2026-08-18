@@ -1,16 +1,11 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router';
-import { RegistrationForm } from '../components/registration-form';
-import type { RegistrationFormOutput } from '../types/travellers.types';
-import {
-  api,
-  type PackageVersion,
-  type Traveller,
-} from '../../../lib/api.js';
+import { useSearchParams } from 'react-router';
+import { RegistrationIntakeWorkflow } from '../components/registration-intake-workflow';
+import { api, type PackageVersion } from '../../../lib/api.js';
 
 export function RegistrationCreatePage() {
-  const navigate = useNavigate();
-  const [travellers, setTravellers] = useState<Traveller[]>([]);
+  const [searchParams] = useSearchParams();
+  const resumeId = searchParams.get('resume') ?? undefined;
   const [packageVersions, setPackageVersions] = useState<PackageVersion[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -18,14 +13,12 @@ export function RegistrationCreatePage() {
   useEffect(() => {
     async function load() {
       try {
-        const [t, p] = await Promise.all([
-          api.listTravellers(1, 100),
-          api.listPackageVersions(1, 100),
-        ]);
-        setTravellers(t.data);
+        const p = await api.listPackageVersions(1, 100);
         setPackageVersions(p.data);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load reference data');
+        setError(
+          err instanceof Error ? err.message : 'Failed to load reference data',
+        );
       } finally {
         setLoading(false);
       }
@@ -33,35 +26,29 @@ export function RegistrationCreatePage() {
     void load();
   }, []);
 
-  async function handleSubmit(values: RegistrationFormOutput) {
-    setError(null);
-    try {
-      await api.createRegistration(values);
-      navigate('/registrations');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create registration');
-    }
-  }
-
   if (loading) return <p className="text-muted-foreground">Loading...</p>;
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Create registration</h1>
-        <p className="text-muted-foreground">Assign a traveller to a published package version.</p>
+        <h1 className="text-2xl font-bold tracking-tight">
+          {resumeId ? 'Resume registration intake' : 'Create registration'}
+        </h1>
+        <p className="text-muted-foreground">
+          Guided intake: traveler, documents, contact, guarantee, payment, and
+          completion.
+        </p>
       </div>
 
       {error && (
-        <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>
+        <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+          {error}
+        </div>
       )}
 
-      <RegistrationForm
-        mode="create"
-        travellers={travellers}
+      <RegistrationIntakeWorkflow
         packageVersions={packageVersions}
-        onSubmit={handleSubmit}
-        submitLabel="Create"
+        registrationId={resumeId}
       />
     </div>
   );

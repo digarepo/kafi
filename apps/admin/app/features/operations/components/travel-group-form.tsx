@@ -92,6 +92,25 @@ export function TravelGroupForm({
 
   const isSubmitting = useSelector(form.store, (state) => state.isSubmitting);
 
+  // Auto-populate travel dates from the selected package version.
+  // Departure and return dates are derived from the package version and
+  // should not be manually changed.
+  const packageVersionId = useSelector(
+    form.store,
+    (state) => state.values.package_version_id,
+  );
+
+  useEffect(() => {
+    if (!packageVersionId) return;
+    const pv = packageVersions.find((p) => p.id === packageVersionId);
+    if (!pv) return;
+    const from = pv.departure_date ? parseYmd(pv.departure_date) : undefined;
+    const to = pv.return_date ? parseYmd(pv.return_date) : undefined;
+    if (from || to) {
+      form.setFieldValue('travelRange', { from, to });
+    }
+  }, [packageVersionId, packageVersions, form]);
+
   return (
     <form
       onSubmit={(e) => {
@@ -153,12 +172,22 @@ export function TravelGroupForm({
         <form.Field name="travelRange">
           {(field: AnyFieldApi) => (
             <div className="space-y-2 md:col-span-2">
-              <Label className="text-sm font-medium">Travel dates</Label>
+              <Label className="text-sm font-medium">
+                Travel dates{' '}
+                <span className="text-xs font-normal text-muted-foreground">
+                  (from package version)
+                </span>
+              </Label>
               <DateRangePicker
                 value={field.state.value}
                 onChange={(range) => field.handleChange(range)}
-                placeholder="Select departure and return dates"
+                placeholder="Select a package version to populate dates"
+                disabled
               />
+              <p className="text-xs text-muted-foreground">
+                Departure and return dates are automatically read from the
+                selected package version.
+              </p>
               <FieldError field={field} />
             </div>
           )}

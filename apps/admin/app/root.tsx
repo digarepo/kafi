@@ -2,6 +2,18 @@ import { Links, Meta, Outlet, Scripts, ScrollRestoration } from 'react-router';
 import type { Route } from './+types/root';
 
 import './app.css';
+import { getPerformanceMode } from './dev/performance-mode';
+
+if (
+  typeof window !== 'undefined' &&
+  getPerformanceMode(
+    import.meta.env.VITE_KAFI_PERF_MODE,
+    import.meta.env.VITE_KAFI_PERF_INSTRUMENTATION,
+  ) !== 'OFF'
+) {
+  void import('./dev/performance-instrumentation');
+}
+
 import {
   ThemeProvider,
   Toaster,
@@ -23,7 +35,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           href="/favicon-96x96.png"
           sizes="96x96"
         />
-        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+        <link rel="icon" type="image/svg+xml" href="/Gold.svg" />
         <link rel="shortcut icon" href="/favicon.ico" />
         <link
           rel="apple-touch-icon"
@@ -39,7 +51,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <ThemeProvider>
             <TooltipProvider>
               {children}
-              <Toaster />
+              <Toaster richColors duration={3000} />
             </TooltipProvider>
           </ThemeProvider>
         </UIConfigProvider>

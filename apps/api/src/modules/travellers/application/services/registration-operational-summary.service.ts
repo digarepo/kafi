@@ -30,23 +30,31 @@ export class RegistrationOperationalSummaryService {
       throw new NotFoundException('Registration not found');
     }
 
-    const [readiness, finance, documents, visas, membership, invoiceList] =
-      await Promise.all([
-        this.readiness.getReadinessDetails(registrationId),
-        this.invoices.getRegistrationFinanceSummaries([registrationId]).then(
-          (m) =>
-            m.get(registrationId) ?? {
-              total_invoiced: 0,
-              total_paid: 0,
-              total_unallocated: 0,
-              outstanding_balance: 0,
-            },
-        ),
-        this.getDocumentsForTraveller(registration.traveller?.id),
-        this.getVisasForRegistration(registrationId),
-        this.getGroupMembership(registrationId),
-        this.getInvoicesForRegistration(registrationId),
-      ]);
+    const [
+      readiness,
+      finance,
+      documents,
+      visas,
+      flights,
+      membership,
+      invoiceList,
+    ] = await Promise.all([
+      this.readiness.getReadinessDetails(registrationId),
+      this.invoices.getRegistrationFinanceSummaries([registrationId]).then(
+        (m) =>
+          m.get(registrationId) ?? {
+            total_invoiced: 0,
+            total_paid: 0,
+            total_unallocated: 0,
+            outstanding_balance: 0,
+          },
+      ),
+      this.getDocumentsForTraveller(registration.traveller?.id),
+      this.getVisasForRegistration(registrationId),
+      this.getFlightsForRegistration(registrationId),
+      this.getGroupMembership(registrationId),
+      this.getInvoicesForRegistration(registrationId),
+    ]);
 
     const room = membership
       ? await this.getRoomForMembership(membership.id)
@@ -72,6 +80,7 @@ export class RegistrationOperationalSummaryService {
       invoices: invoiceList,
       documents,
       visas,
+      flights,
       group_membership: membership,
       room_assignment: room,
       readiness,
@@ -166,11 +175,54 @@ export class RegistrationOperationalSummaryService {
       submission_date: row.visa_applications.submission_date,
       approval_date: row.visa_applications.approval_date,
       expiry_date: row.visa_applications.expiry_date,
+      rejection_date: row.visa_applications.rejection_date,
+      rejection_reason: row.visa_applications.rejection_reason,
+      cancellation_date: row.visa_applications.cancellation_date,
+      cancellation_reason: row.visa_applications.cancellation_reason,
       status: row.visa_application_statuses
         ? {
             id: row.visa_application_statuses.id,
             code: row.visa_application_statuses.status_code,
             name: row.visa_application_statuses.name,
+          }
+        : null,
+    }));
+  }
+
+  private async getFlightsForRegistration(registrationId: string) {
+    const rows = await this.db
+      .select()
+      .from(schema.flightBookings)
+      .leftJoin(
+        schema.flightBookingStatuses,
+        eq(
+          schema.flightBookings.flight_booking_status_id,
+          schema.flightBookingStatuses.id,
+        ),
+      )
+      .where(
+        and(
+          eq(schema.flightBookings.registration_id, registrationId),
+          eq(schema.flightBookings.is_deleted, false),
+        ),
+      )
+      .orderBy(asc(schema.flightBookings.created_at));
+
+    return rows.map((row) => ({
+      id: row.flight_bookings.id,
+      booking_number: row.flight_bookings.booking_number,
+      pnr: row.flight_bookings.pnr,
+      departure_flight_number: row.flight_bookings.departure_flight_number,
+      departure_date: row.flight_bookings.departure_date,
+      return_flight_number: row.flight_bookings.return_flight_number,
+      return_date: row.flight_bookings.return_date,
+      cancellation_date: row.flight_bookings.cancellation_date,
+      cancellation_reason: row.flight_bookings.cancellation_reason,
+      status: row.flight_booking_statuses
+        ? {
+            id: row.flight_booking_statuses.id,
+            code: row.flight_booking_statuses.status_code,
+            name: row.flight_booking_statuses.name,
           }
         : null,
     }));

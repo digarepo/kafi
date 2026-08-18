@@ -108,6 +108,16 @@ export class AdminTravelGroupsController {
     return this.travelGroups.complete(id, req.user.sub);
   }
 
+  @Post('travel-groups/:id/cancel')
+  @RequirePermissions('TRAVEL_GROUP_MANAGE')
+  cancelTravelGroup(
+    @Param('id') id: string,
+    @Body() body: { reason?: string },
+    @Req() req: any,
+  ) {
+    return this.travelGroups.cancelTravelGroup(id, body?.reason, req.user.sub);
+  }
+
   @Get('travel-group-statuses')
   @RequirePermissions('TRAVEL_GROUP_VIEW')
   listStatuses() {

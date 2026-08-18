@@ -8,7 +8,8 @@ const DOCUMENT_TYPES = [
   {
     type_code: 'PASSPORT',
     name: 'Passport',
-    description: 'Traveller-owned personal identity document, reusable across trips.',
+    description:
+      'Traveller-owned personal identity document, reusable across trips.',
   },
   {
     type_code: 'FAYDA_ID',
@@ -38,7 +39,8 @@ const DOCUMENT_TYPES = [
   {
     type_code: 'OTHER',
     name: 'Other',
-    description: 'Context-dependent document; staff decide the owner at upload.',
+    description:
+      'Context-dependent document; staff decide the owner at upload.',
   },
 ];
 
@@ -56,10 +58,14 @@ const VERIFICATION_STATUSES = [
 ];
 
 const VISA_APPLICATION_STATUSES = [
-  { status_code: 'DRAFT', name: 'Draft' },
   { status_code: 'SUBMITTED', name: 'Submitted' },
   { status_code: 'APPROVED', name: 'Approved' },
   { status_code: 'REJECTED', name: 'Rejected' },
+  { status_code: 'CANCELLED', name: 'Cancelled' },
+];
+
+const FLIGHT_BOOKING_STATUSES = [
+  { status_code: 'CONFIRMED', name: 'Confirmed' },
   { status_code: 'CANCELLED', name: 'Cancelled' },
 ];
 
@@ -93,7 +99,8 @@ async function upsertStatusCodes(
   table:
     | (typeof schema)['documentStatuses']
     | (typeof schema)['verificationStatuses']
-    | (typeof schema)['visaApplicationStatuses'],
+    | (typeof schema)['visaApplicationStatuses']
+    | (typeof schema)['flightBookingStatuses'],
   rows: { status_code: string; name: string }[],
 ) {
   for (const row of rows) {
@@ -121,12 +128,21 @@ export async function seedDocuments(db: DocumentsDb) {
   await upsertTypeCodes(db, schema.documentTypes, DOCUMENT_TYPES);
 
   await upsertStatusCodes(db, schema.documentStatuses, DOCUMENT_STATUSES);
-  await upsertStatusCodes(db, schema.verificationStatuses, VERIFICATION_STATUSES);
+  await upsertStatusCodes(
+    db,
+    schema.verificationStatuses,
+    VERIFICATION_STATUSES,
+  );
   await upsertStatusCodes(
     db,
     schema.visaApplicationStatuses,
     VISA_APPLICATION_STATUSES,
   );
+  await upsertStatusCodes(
+    db,
+    schema.flightBookingStatuses,
+    FLIGHT_BOOKING_STATUSES,
+  );
 
-  console.log('Documents and visa lookup data seeded successfully');
+  console.log('Documents, visa, and flight lookup data seeded successfully');
 }

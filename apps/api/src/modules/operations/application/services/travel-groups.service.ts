@@ -3,15 +3,17 @@ import {
   ConflictException,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { MySql2Database } from 'drizzle-orm/mysql2';
-import { and, asc, desc, eq, inArray, like, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, like, lte, or, sql } from 'drizzle-orm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ulid } from 'ulid';
 import { DATABASE } from '../../../../shared/infrastructure/database/database.provider.js';
 import * as schema from '@kafi/database';
 import { BusinessNumberService } from './business-number.service.js';
+import { RoomAssignmentsService } from './room-assignments.service.js';
 import {
   CreateTravelGroupDto,
   TravelGroupFiltersDto,
@@ -28,6 +30,30 @@ function toDateOrNull(value: string | undefined | null): Date | null {
 }
 
 /**
+ * Formats a Date as YYYY-MM-DD using the local timezone.
+ * Avoids toISOString() which shifts the date back a day in timezones
+ * behind UTC.
+ */
+function toDateStr(value: Date | string | null | undefined): string | null {
+  if (!value) return null;
+  const d = typeof value === 'string' ? new Date(value) : value;
+  if (Number.isNaN(d.getTime())) return null;
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+interface TravelGroupListOperationalCounts {
+  active_member_count: number;
+  ready_member_count: number;
+  has_confirmed_hotel_stay: boolean;
+  has_confirmed_transport: boolean;
+  assigned_room_count: number;
+  preparation_ready: boolean;
+}
+
+/**
  * Travel group lifecycle and capacity management.
  *
  * The service owns `travel_groups` and only reads package versions, statuses,
@@ -36,11 +62,14 @@ function toDateOrNull(value: string | undefined | null): Date | null {
  */
 @Injectable()
 export class TravelGroupsService {
+  private readonly logger = new Logger(TravelGroupsService.name);
+
   constructor(
     @Inject(DATABASE)
     private readonly db: MySql2Database<typeof schema>,
     private readonly numbers: BusinessNumberService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly roomAssignments: RoomAssignmentsService,
   ) {}
 
   // ---- List / view ----
@@ -98,12 +127,26 @@ export class TravelGroupsService {
       this.db
         .select({ count: sql<number>`count(*)` })
         .from(schema.travelGroups)
-        .where(eq(schema.travelGroups.is_deleted, false))
+        .leftJoin(
+          schema.packageVersions,
+          eq(schema.travelGroups.package_version_id, schema.packageVersions.id),
+        )
+        .leftJoin(
+          schema.travelGroupStatuses,
+          eq(
+            schema.travelGroups.travel_group_status_id,
+            schema.travelGroupStatuses.id,
+          ),
+        )
+        .where(and(...conditions)!)
         .then((r) => r[0]?.count ?? 0),
     ]);
 
-    const data = await Promise.all(
-      rows.map(async (row) => this.mapListRow(row)),
+    const operationalCounts = await this.listOperationalCounts(
+      rows.map((row) => row.travel_groups.id),
+    );
+    const data = rows.map((row) =>
+      this.mapListRow(row, operationalCounts.get(row.travel_groups.id)),
     );
 
     return {
@@ -195,6 +238,20 @@ export class TravelGroupsService {
     actorId: string,
   ) {
     const existing = await this.getTravelGroup(id);
+
+    // Departure and return dates are derived from the package version and
+    // must not be edited after the group leaves PLANNING. This prevents
+    // date manipulation on prepared/departed/completed groups that would
+    // corrupt auto-transition logic and historical records.
+    if (
+      existing.status_code !== 'PLANNING' &&
+      (dto.departure_date !== undefined || dto.return_date !== undefined)
+    ) {
+      throw new ConflictException(
+        'Travel dates cannot be edited after the group leaves PLANNING status',
+      );
+    }
+
     const departure = toDateOrNull(
       dto.departure_date ?? existing.departure_date,
     );
@@ -256,6 +313,91 @@ export class TravelGroupsService {
       .where(eq(schema.travelGroups.id, id));
   }
 
+  /**
+   * Cancels a travel group that has not yet departed.
+   *
+   * Allowed from PLANNING and TRAVEL_PREPARED only. A departed or completed
+   * group cannot be cancelled — it must follow the normal lifecycle.
+   *
+   * Within a single transaction:
+   * - All ACTIVE memberships are set to CANCELLED with left_at set.
+   * - All active room assignments for those memberships are released.
+   * - The travel group status is set to CANCELLED.
+   *
+   * The cancellation reason is stored in the group's remarks field.
+   * The scheduler never calls this — cancellation is a manual, authorized
+   * action only.
+   */
+  async cancelTravelGroup(
+    id: string,
+    reason: string | undefined,
+    actorId: string,
+  ) {
+    const group = await this.getTravelGroup(id);
+
+    if (!['PLANNING', 'TRAVEL_PREPARED'].includes(group.status_code)) {
+      throw new ConflictException(
+        `Cannot cancel a travel group in ${group.status_code} status`,
+      );
+    }
+
+    const activeMembers = group.members.filter(
+      (m: any) => m.status_code === 'ACTIVE',
+    );
+    const membershipIds = activeMembers.map((m: any) => m.id).filter(Boolean);
+
+    const cancelledGroupStatusId = await this.statusIdFor('CANCELLED');
+    const cancelledMembershipStatusId =
+      await this.membershipStatusIdFor('CANCELLED');
+    const activeMembershipStatusId = await this.membershipStatusIdFor('ACTIVE');
+    const now = new Date();
+
+    await this.db.transaction(async (tx) => {
+      // Cancel all active memberships and release their room assignments.
+      if (membershipIds.length > 0) {
+        await tx
+          .update(schema.groupMemberships)
+          .set({
+            group_membership_status_id: cancelledMembershipStatusId,
+            left_at: now,
+            updated_at: now,
+            updated_by: actorId,
+          })
+          .where(
+            and(
+              inArray(schema.groupMemberships.id, membershipIds),
+              eq(schema.groupMemberships.is_deleted, false),
+              eq(
+                schema.groupMemberships.group_membership_status_id,
+                activeMembershipStatusId,
+              ),
+            ),
+          );
+
+        for (const membershipId of membershipIds) {
+          await this.roomAssignments.releaseAssignmentsForMembership(
+            membershipId,
+            actorId,
+            tx as unknown as MySql2Database<typeof schema>,
+          );
+        }
+      }
+
+      // Set the group to CANCELLED.
+      await tx
+        .update(schema.travelGroups)
+        .set({
+          travel_group_status_id: cancelledGroupStatusId,
+          remarks: reason ?? group.remarks ?? null,
+          updated_at: now,
+          updated_by: actorId,
+        })
+        .where(eq(schema.travelGroups.id, id));
+    });
+
+    return this.getTravelGroup(id);
+  }
+
   async confirmTravelPrepared(id: string, actorId: string) {
     const group = await this.getTravelGroup(id);
     if (group.status_code !== 'PLANNING') {
@@ -286,17 +428,24 @@ export class TravelGroupsService {
       throw new ConflictException('A confirmed group hotel stay is required');
     }
 
-    const confirmedTransport = await this.hasConfirmedTransportSegment(id);
-    if (!confirmedTransport) {
-      throw new ConflictException('A confirmed transport segment is required');
-    }
+    // Transport is NOT a hard blocker for TRAVEL_PREPARED. It remains visible
+    // as an informational/warning item in the preparation summary so staff
+    // know it still needs to be arranged, but it does not prevent the group
+    // from being marked travel-prepared.
 
-    for (const m of activeMembers) {
-      const assigned = await this.hasActiveRoomAssignment(m.id);
-      if (!assigned) {
-        throw new ConflictException(
-          `Active member ${m.id} does not have an assigned room`,
+    // Every active member must have a room assignment in EVERY confirmed stay.
+    const confirmedStayIds = await this.confirmedStayIdsForGroup(id);
+    for (const stayId of confirmedStayIds) {
+      for (const m of activeMembers) {
+        const assigned = await this.hasActiveRoomAssignmentForStay(
+          m.id,
+          stayId,
         );
+        if (!assigned) {
+          throw new ConflictException(
+            `Active member ${m.id} does not have an assigned room in stay ${stayId}`,
+          );
+        }
       }
     }
 
@@ -375,9 +524,14 @@ export class TravelGroupsService {
     const completedGroupStatusId = await this.statusIdFor('COMPLETED');
     const completedRegistrationStatusId =
       await this.registrationStatusIdFor('COMPLETED');
+    const completedMembershipStatusId =
+      await this.membershipStatusIdFor('COMPLETED');
     const readyForTravelStatusId =
       await this.registrationStatusIdFor('READY_FOR_TRAVEL');
+    const activeMembershipStatusId = await this.membershipStatusIdFor('ACTIVE');
     const now = new Date();
+
+    const membershipIds = activeMembers.map((m: any) => m.id).filter(Boolean);
 
     await this.db.transaction(async (tx) => {
       if (registrationIds.length > 0) {
@@ -430,6 +584,40 @@ export class TravelGroupsService {
             ),
           );
       }
+
+      // Complete all active memberships so they don't remain ACTIVE
+      // on a COMPLETED group. This keeps group, registrations, and
+      // memberships transactionally consistent.
+      if (membershipIds.length > 0) {
+        await tx
+          .update(schema.groupMemberships)
+          .set({
+            group_membership_status_id: completedMembershipStatusId,
+            left_at: now,
+            updated_at: now,
+            updated_by: actorId,
+          })
+          .where(
+            and(
+              inArray(schema.groupMemberships.id, membershipIds),
+              eq(schema.groupMemberships.is_deleted, false),
+              eq(
+                schema.groupMemberships.group_membership_status_id,
+                activeMembershipStatusId,
+              ),
+            ),
+          );
+
+        // Release all active room assignments for each completed membership.
+        // This prevents orphaned assignments that would inflate room occupancy.
+        for (const membershipId of membershipIds) {
+          await this.roomAssignments.releaseAssignmentsForMembership(
+            membershipId,
+            actorId,
+            tx as unknown as MySql2Database<typeof schema>,
+          );
+        }
+      }
     });
 
     const event = createTravelGroupCompletedEvent({
@@ -441,6 +629,173 @@ export class TravelGroupsService {
     this.eventEmitter.emit(event.type, event);
 
     return this.getTravelGroup(id);
+  }
+
+  /**
+   * Automatically transitions the travel group status based on the
+   * departure and return dates.
+   *
+   * - TRAVEL_PREPARED → DEPARTED when today >= departure_date
+   * - DEPARTED → COMPLETED when today >= return_date
+   *
+   * This replaces the manual "Depart" and "Complete" button clicks.
+   * The transition only fires if the group's preparation requirements
+   * are still satisfied (members READY_FOR_TRAVEL, etc.).
+   *
+   * Errors are caught and logged so that an incomplete group does not
+   * break the operational summary endpoint. The tick endpoint collects
+   * warnings for groups that fail to transition.
+   */
+  async autoTransitionByDates(id: string): Promise<void> {
+    try {
+      const group = await this.getTravelGroup(id);
+
+      if (group.status_code === 'TRAVEL_PREPARED' && group.departure_date) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const departure = new Date(group.departure_date);
+        departure.setHours(0, 0, 0, 0);
+
+        if (today >= departure) {
+          await this.depart(id, 'SYSTEM');
+        }
+      }
+
+      // Re-fetch in case we just transitioned to DEPARTED
+      const updated = await this.getTravelGroup(id);
+      if (updated.status_code === 'DEPARTED' && updated.return_date) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const returnDate = new Date(updated.return_date);
+        returnDate.setHours(0, 0, 0, 0);
+
+        if (today >= returnDate) {
+          await this.complete(id, 'SYSTEM');
+        }
+      }
+    } catch (err) {
+      // Log the error so operators can see which groups failed to
+      // auto-transition and why. The error is not re-thrown so the
+      // operational summary endpoint remains usable.
+      this.logger.warn(
+        `Auto-transition failed for travel group ${id}: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+
+  /**
+   * Finds all travel groups that are due for an automatic status transition
+   * based on their departure/return dates.
+   *
+   * Used by the internal workflow tick endpoint (called by EasyCron).
+   *
+   * - TRAVEL_PREPARED groups with departure_date <= today
+   * - DEPARTED groups with return_date <= today
+   *
+   * Returns the IDs grouped by the transition that should occur.
+   */
+  async findGroupsDueForTransition(): Promise<{
+    due_departure: { id: string; group_number: string }[];
+    due_completion: { id: string; group_number: string }[];
+  }> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayStr = toDateStr(today);
+
+    const travelPreparedStatusId = await this.statusIdFor('TRAVEL_PREPARED');
+    const departedStatusId = await this.statusIdFor('DEPARTED');
+
+    const dueDeparture = await this.db
+      .select({
+        id: schema.travelGroups.id,
+        group_number: schema.travelGroups.group_number,
+      })
+      .from(schema.travelGroups)
+      .where(
+        and(
+          eq(
+            schema.travelGroups.travel_group_status_id,
+            travelPreparedStatusId,
+          ),
+          eq(schema.travelGroups.is_deleted, false),
+          lte(sql`DATE(${schema.travelGroups.departure_date})`, todayStr),
+        ),
+      );
+
+    const dueCompletion = await this.db
+      .select({
+        id: schema.travelGroups.id,
+        group_number: schema.travelGroups.group_number,
+      })
+      .from(schema.travelGroups)
+      .where(
+        and(
+          eq(schema.travelGroups.travel_group_status_id, departedStatusId),
+          eq(schema.travelGroups.is_deleted, false),
+          lte(sql`DATE(${schema.travelGroups.return_date})`, todayStr),
+        ),
+      );
+
+    return {
+      due_departure: dueDeparture,
+      due_completion: dueCompletion,
+    };
+  }
+
+  /**
+   * Processes all due travel-group transitions in a single tick.
+   *
+   * Called by the internal workflow tick endpoint. Each group is processed
+   * independently — a failure for one group does not abort the batch.
+   * Returns a summary of what was transitioned and what failed.
+   */
+  async processScheduledTransitions(): Promise<{
+    departed: { id: string; group_number: string }[];
+    completed: { id: string; group_number: string }[];
+    warnings: { id: string; group_number: string; reason: string }[];
+  }> {
+    const { due_departure, due_completion } =
+      await this.findGroupsDueForTransition();
+
+    const departed: { id: string; group_number: string }[] = [];
+    const completed: { id: string; group_number: string }[] = [];
+    const warnings: { id: string; group_number: string; reason: string }[] = [];
+
+    for (const group of due_departure) {
+      try {
+        await this.depart(group.id, 'SYSTEM');
+        departed.push(group);
+      } catch (err) {
+        const reason = err instanceof Error ? err.message : 'Departure failed';
+        this.logger.warn(
+          `Scheduled departure failed for ${group.group_number} (${group.id}): ${reason}`,
+        );
+        warnings.push({
+          id: group.id,
+          group_number: group.group_number,
+          reason,
+        });
+      }
+    }
+
+    for (const group of due_completion) {
+      try {
+        await this.complete(group.id, 'SYSTEM');
+        completed.push(group);
+      } catch (err) {
+        const reason = err instanceof Error ? err.message : 'Completion failed';
+        this.logger.warn(
+          `Scheduled completion failed for ${group.group_number} (${group.id}): ${reason}`,
+        );
+        warnings.push({
+          id: group.id,
+          group_number: group.group_number,
+          reason,
+        });
+      }
+    }
+
+    return { departed, completed, warnings };
   }
 
   // ---- Helpers ----
@@ -484,14 +839,14 @@ export class TravelGroupsService {
       travel_group_id: row.group_memberships.travel_group_id,
       registration_id: row.group_memberships.registration_id,
       registration_number: row.registrations?.registration_number ?? null,
-      registration_status: row.registrationStatuses
+      registration_status: row.registration_statuses
         ? {
-            id: row.registrationStatuses.id,
-            status_code: row.registrationStatuses.status_code,
-            name: row.registrationStatuses.name,
+            id: row.registration_statuses.id,
+            status_code: row.registration_statuses.status_code,
+            name: row.registration_statuses.name,
           }
         : null,
-      registration_status_code: row.registrationStatuses?.status_code ?? null,
+      registration_status_code: row.registration_statuses?.status_code ?? null,
       traveller: row.travellers
         ? {
             id: row.travellers.id,
@@ -550,6 +905,17 @@ export class TravelGroupsService {
     return row.id;
   }
 
+  private async membershipStatusIdFor(code: string) {
+    const [row] = await this.db
+      .select()
+      .from(schema.groupMembershipStatuses)
+      .where(eq(schema.groupMembershipStatuses.status_code, code))
+      .limit(1);
+    if (!row)
+      throw new NotFoundException(`Membership status ${code} not found`);
+    return row.id;
+  }
+
   private async hasConfirmedHotelStay(groupId: string) {
     const [row] = await this.db
       .select({ id: schema.groupHotelStays.id })
@@ -572,6 +938,54 @@ export class TravelGroupsService {
     return !!row;
   }
 
+  private async confirmedStayIdsForGroup(groupId: string): Promise<string[]> {
+    const rows = await this.db
+      .select({ id: schema.groupHotelStays.id })
+      .from(schema.groupHotelStays)
+      .innerJoin(
+        schema.groupHotelStayStatuses,
+        eq(
+          schema.groupHotelStays.group_hotel_stay_status_id,
+          schema.groupHotelStayStatuses.id,
+        ),
+      )
+      .where(
+        and(
+          eq(schema.groupHotelStays.travel_group_id, groupId),
+          eq(schema.groupHotelStays.is_deleted, false),
+          eq(schema.groupHotelStayStatuses.status_code, 'CONFIRMED'),
+        ),
+      );
+    return rows.map((r) => r.id);
+  }
+
+  private async hasActiveRoomAssignmentForStay(
+    groupMembershipId: string,
+    stayId: string,
+  ) {
+    const [row] = await this.db
+      .select({ id: schema.roomAssignments.id })
+      .from(schema.roomAssignments)
+      .innerJoin(
+        schema.roomAssignmentStatuses,
+        eq(
+          schema.roomAssignments.room_assignment_status_id,
+          schema.roomAssignmentStatuses.id,
+        ),
+      )
+      .where(
+        and(
+          eq(schema.roomAssignments.group_membership_id, groupMembershipId),
+          eq(schema.roomAssignments.group_hotel_stay_id, stayId),
+          eq(schema.roomAssignments.is_active_assignment, true),
+          eq(schema.roomAssignments.is_deleted, false),
+          eq(schema.roomAssignmentStatuses.status_code, 'ASSIGNED'),
+        ),
+      )
+      .limit(1);
+    return !!row;
+  }
+
   private async hasConfirmedTransportSegment(groupId: string) {
     const [row] = await this.db
       .select({ id: schema.transportSegments.id })
@@ -588,29 +1002,6 @@ export class TravelGroupsService {
           eq(schema.transportSegments.travel_group_id, groupId),
           eq(schema.transportSegments.is_deleted, false),
           eq(schema.transportSegmentStatuses.status_code, 'CONFIRMED'),
-        ),
-      )
-      .limit(1);
-    return !!row;
-  }
-
-  private async hasActiveRoomAssignment(groupMembershipId: string) {
-    const [row] = await this.db
-      .select({ id: schema.roomAssignments.id })
-      .from(schema.roomAssignments)
-      .innerJoin(
-        schema.roomAssignmentStatuses,
-        eq(
-          schema.roomAssignments.room_assignment_status_id,
-          schema.roomAssignmentStatuses.id,
-        ),
-      )
-      .where(
-        and(
-          eq(schema.roomAssignments.group_membership_id, groupMembershipId),
-          eq(schema.roomAssignments.is_active_assignment, true),
-          eq(schema.roomAssignments.is_deleted, false),
-          eq(schema.roomAssignmentStatuses.status_code, 'ASSIGNED'),
         ),
       )
       .limit(1);
@@ -641,18 +1032,6 @@ export class TravelGroupsService {
     return row;
   }
 
-  private allowedTransitions(from: string): string[] {
-    const map: Record<string, string[]> = {
-      PLANNING: ['OPEN', 'CANCELLED'],
-      OPEN: ['CLOSED', 'CANCELLED'],
-      CLOSED: ['DEPARTED', 'CANCELLED'],
-      DEPARTED: ['COMPLETED', 'CANCELLED'],
-      COMPLETED: ['CANCELLED'],
-      CANCELLED: [],
-    };
-    return map[from] ?? [];
-  }
-
   private assertDateOrder(
     departure: string | undefined | null,
     returnDate: string | undefined | null,
@@ -664,22 +1043,168 @@ export class TravelGroupsService {
     }
   }
 
-  private async mapListRow(row: any) {
-    const group = row.travel_groups;
-    const activeStatus = await this.activeMembershipStatus();
-    const [count] = await this.db
-      .select({ count: sql<number>`count(*)` })
-      .from(schema.groupMemberships)
-      .where(
-        and(
-          eq(schema.groupMemberships.travel_group_id, group.id),
-          eq(
-            schema.groupMemberships.group_membership_status_id,
-            activeStatus.id,
+  private async listOperationalCounts(groupIds: string[]) {
+    const result = new Map<string, TravelGroupListOperationalCounts>();
+    if (groupIds.length === 0) return result;
+
+    const [membershipRows, hotelRows, transportRows, roomRows] =
+      await Promise.all([
+        this.db
+          .select({
+            travel_group_id: schema.groupMemberships.travel_group_id,
+            membership_status: schema.groupMembershipStatuses.status_code,
+            registration_status: schema.registrationStatuses.status_code,
+          })
+          .from(schema.groupMemberships)
+          .leftJoin(
+            schema.groupMembershipStatuses,
+            eq(
+              schema.groupMemberships.group_membership_status_id,
+              schema.groupMembershipStatuses.id,
+            ),
+          )
+          .leftJoin(
+            schema.registrations,
+            eq(
+              schema.groupMemberships.registration_id,
+              schema.registrations.id,
+            ),
+          )
+          .leftJoin(
+            schema.registrationStatuses,
+            eq(
+              schema.registrations.registration_status_id,
+              schema.registrationStatuses.id,
+            ),
+          )
+          .where(
+            and(
+              inArray(schema.groupMemberships.travel_group_id, groupIds),
+              eq(schema.groupMemberships.is_deleted, false),
+            ),
           ),
-          eq(schema.groupMemberships.is_deleted, false),
-        ),
+        this.db
+          .select({ travel_group_id: schema.groupHotelStays.travel_group_id })
+          .from(schema.groupHotelStays)
+          .innerJoin(
+            schema.groupHotelStayStatuses,
+            eq(
+              schema.groupHotelStays.group_hotel_stay_status_id,
+              schema.groupHotelStayStatuses.id,
+            ),
+          )
+          .where(
+            and(
+              inArray(schema.groupHotelStays.travel_group_id, groupIds),
+              eq(schema.groupHotelStays.is_deleted, false),
+              eq(schema.groupHotelStayStatuses.status_code, 'CONFIRMED'),
+            ),
+          ),
+        this.db
+          .select({ travel_group_id: schema.transportSegments.travel_group_id })
+          .from(schema.transportSegments)
+          .innerJoin(
+            schema.transportSegmentStatuses,
+            eq(
+              schema.transportSegments.transport_segment_status_id,
+              schema.transportSegmentStatuses.id,
+            ),
+          )
+          .where(
+            and(
+              inArray(schema.transportSegments.travel_group_id, groupIds),
+              eq(schema.transportSegments.is_deleted, false),
+              eq(schema.transportSegmentStatuses.status_code, 'CONFIRMED'),
+            ),
+          ),
+        this.db
+          .select({ travel_group_id: schema.groupMemberships.travel_group_id })
+          .from(schema.roomAssignments)
+          .innerJoin(
+            schema.groupMemberships,
+            eq(
+              schema.roomAssignments.group_membership_id,
+              schema.groupMemberships.id,
+            ),
+          )
+          .innerJoin(
+            schema.roomAssignmentStatuses,
+            eq(
+              schema.roomAssignments.room_assignment_status_id,
+              schema.roomAssignmentStatuses.id,
+            ),
+          )
+          .innerJoin(
+            schema.groupMembershipStatuses,
+            eq(
+              schema.groupMemberships.group_membership_status_id,
+              schema.groupMembershipStatuses.id,
+            ),
+          )
+          .where(
+            and(
+              inArray(schema.groupMemberships.travel_group_id, groupIds),
+              eq(schema.roomAssignments.is_deleted, false),
+              eq(schema.roomAssignments.is_active_assignment, true),
+              eq(schema.roomAssignmentStatuses.status_code, 'ASSIGNED'),
+              eq(schema.groupMembershipStatuses.status_code, 'ACTIVE'),
+            ),
+          ),
+      ]);
+
+    for (const groupId of groupIds) {
+      const memberships = membershipRows.filter(
+        (row) => row.travel_group_id === groupId,
       );
+      const activeMemberCount = memberships.filter(
+        (row) => row.membership_status === 'ACTIVE',
+      ).length;
+      const readyMemberCount = memberships.filter(
+        (row) =>
+          row.membership_status === 'ACTIVE' &&
+          row.registration_status === 'READY_FOR_TRAVEL',
+      ).length;
+      const hasConfirmedHotelStay = hotelRows.some(
+        (row) => row.travel_group_id === groupId,
+      );
+      const hasConfirmedTransport = transportRows.some(
+        (row) => row.travel_group_id === groupId,
+      );
+      const assignedRoomCount = roomRows.filter(
+        (row) => row.travel_group_id === groupId,
+      ).length;
+
+      result.set(groupId, {
+        active_member_count: activeMemberCount,
+        ready_member_count: readyMemberCount,
+        has_confirmed_hotel_stay: hasConfirmedHotelStay,
+        has_confirmed_transport: hasConfirmedTransport,
+        assigned_room_count: assignedRoomCount,
+        preparation_ready:
+          activeMemberCount > 0 &&
+          readyMemberCount === activeMemberCount &&
+          hasConfirmedHotelStay &&
+          assignedRoomCount >= activeMemberCount,
+      });
+    }
+
+    // Note: The list-level preparation_ready flag is a quick approximation.
+    // The authoritative multi-stay room coverage check is performed by the
+    // operational summary service and confirmTravelPrepared.
+
+    return result;
+  }
+
+  private mapListRow(row: any, operational?: TravelGroupListOperationalCounts) {
+    const group = row.travel_groups;
+    const counts = operational ?? {
+      active_member_count: 0,
+      ready_member_count: 0,
+      has_confirmed_hotel_stay: false,
+      has_confirmed_transport: false,
+      assigned_room_count: 0,
+      preparation_ready: false,
+    };
 
     return {
       id: group.id,
@@ -698,10 +1223,13 @@ export class TravelGroupsService {
             name: row.travel_group_statuses.name,
           }
         : null,
-      departure_date: group.departure_date,
-      return_date: group.return_date,
+      departure_date: toDateStr(group.departure_date),
+      return_date: toDateStr(group.return_date),
       maximum_capacity: group.maximum_capacity,
-      current_capacity: count.count,
+      current_capacity: counts.active_member_count,
+      active_member_count: counts.active_member_count,
+      ready_member_count: counts.ready_member_count,
+      preparation_ready: counts.preparation_ready,
       created_at: group.created_at,
       updated_at: group.updated_at,
       is_deleted: group.is_deleted,
@@ -732,8 +1260,8 @@ export class TravelGroupsService {
           }
         : null,
       status_code: status?.status_code ?? null,
-      departure_date: group.departure_date,
-      return_date: group.return_date,
+      departure_date: toDateStr(group.departure_date),
+      return_date: toDateStr(group.return_date),
       maximum_capacity: group.maximum_capacity,
       current_capacity: currentCapacity,
       remarks: group.remarks,

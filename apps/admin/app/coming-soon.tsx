@@ -17,9 +17,9 @@ const statusItems: StatusItem[] = [
 function StatusBadge({ status }: { status: StatusItem['status'] }) {
   if (status === 'complete') {
     return (
-      <div className="w-5 h-5 rounded-full bg-brand-primary/10 dark:bg-brand-primary/20 flex items-center justify-center">
+      <div className="w-5 h-5 rounded-full bg-success/10 flex items-center justify-center">
         <svg
-          className="w-3 h-3 text-brand-primary"
+          className="w-3 h-3 text-success"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -37,8 +37,8 @@ function StatusBadge({ status }: { status: StatusItem['status'] }) {
 
   if (status === 'progress') {
     return (
-      <div className="w-5 h-5 rounded-full bg-brand-gold/10 dark:bg-brand-gold/20 flex items-center justify-center">
-        <Loader2 className="w-3 h-3 text-brand-gold animate-spin" />
+      <div className="w-5 h-5 rounded-full bg-warning/10 flex items-center justify-center">
+        <Loader2 className="w-3 h-3 text-warning animate-spin" />
       </div>
     );
   }

@@ -40,6 +40,7 @@ export interface RegistrationOwner {
 export interface DocumentListItem {
   id: string;
   document_number: string;
+  display_name: string | null;
   traveller: TravellerOwner | null;
   registration: RegistrationOwner | null;
   document_type: DocumentType | null;
@@ -70,6 +71,10 @@ export interface VisaApplicationListItem {
   approval_date: string | null;
   expiry_date: string | null;
   visa_number: string | null;
+  rejection_date: string | null;
+  rejection_reason: string | null;
+  cancellation_date: string | null;
+  cancellation_reason: string | null;
   registration: RegistrationOwner | null;
   traveller: TravellerOwner | null;
   status: VisaApplicationStatus | null;
@@ -80,6 +85,7 @@ export interface VisaApplicationListItem {
 
 export interface VisaApplicationDetail extends VisaApplicationListItem {
   notes: string | null;
+  visa_cost: number | null;
 }
 
 export interface Paginated<T> {
@@ -102,15 +108,32 @@ export type UpdateDocumentInput = Partial<CreateDocumentInput>;
 
 export type CreateVisaApplicationInput = {
   registration_id: string;
-  visa_application_status_id?: string;
   submission_date?: string;
-  approval_date?: string;
-  expiry_date?: string;
-  visa_number?: string;
+  visa_cost?: number;
   notes?: string;
 };
 
-export type UpdateVisaApplicationInput = Partial<Omit<CreateVisaApplicationInput, 'registration_id'>>;
+export type UpdateVisaApplicationInput = Partial<
+  Omit<CreateVisaApplicationInput, 'registration_id'>
+> & {
+  submission_date?: string;
+  visa_cost?: number;
+  notes?: string;
+};
+
+export type RecordVisaResultInput = {
+  visa_application_status_id: string;
+  // APPROVED fields
+  visa_number?: string;
+  approval_date?: string;
+  expiry_date?: string;
+  // REJECTED fields
+  rejection_date?: string;
+  rejection_reason?: string;
+  // CANCELLED fields
+  cancellation_date?: string;
+  cancellation_reason?: string;
+};
 
 const API_BASE_URL = (() => {
   if (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) {
@@ -154,6 +177,34 @@ export const documentsApi = {
     return request<DocumentDetail>(`/api/admin/documents/${id}`);
   },
 
+  async downloadDocument(
+    id: string,
+  ): Promise<{ blob: Blob; filename: string }> {
+    const token = getAccessToken();
+    const headers: Record<string, string> = {};
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const response = await fetch(
+      `${API_BASE_URL}/api/admin/documents/${id}/download`,
+      {
+        headers,
+      },
+    );
+    if (!response.ok) {
+      const body = await response
+        .json()
+        .catch(() => ({ message: 'Download failed' }));
+      throw new ApiError(
+        response.status,
+        body.message ?? 'Download failed',
+        body,
+      );
+    }
+    const disposition = response.headers.get('Content-Disposition');
+    const filename =
+      disposition?.match(/filename="([^"]+)"/)?.[1] ?? 'document';
+    return { blob: await response.blob(), filename };
+  },
+
   async uploadDocument(input: CreateDocumentInput): Promise<DocumentDetail> {
     const formData = new FormData();
     formData.append('file', input.file);
@@ -162,8 +213,7 @@ export const documentsApi = {
     if (input.registration_id)
       formData.append('registration_id', input.registration_id);
     if (input.expiry_date) formData.append('expiry_date', input.expiry_date);
-    if (input.remarks !== undefined)
-      formData.append('remarks', input.remarks);
+    if (input.remarks !== undefined) formData.append('remarks', input.remarks);
 
     const token = getAccessToken();
     const headers: Record<string, string> = {};
@@ -176,8 +226,14 @@ export const documentsApi = {
     });
 
     if (!response.ok) {
-      const body = await response.json().catch(() => ({ message: 'Upload failed' }));
-      throw new ApiError(response.status, body.message ?? 'Upload failed', body);
+      const body = await response
+        .json()
+        .catch(() => ({ message: 'Upload failed' }));
+      throw new ApiError(
+        response.status,
+        body.message ?? 'Upload failed',
+        body,
+      );
     }
     return response.json();
   },
@@ -223,11 +279,21 @@ export const documentsApi = {
     id: string,
     document_status_id: string,
   ): Promise<DocumentDetail> {
+    return request<DocumentDetail>(`/api/admin/documents/${id}/change-status`, {
+      method: 'POST',
+      body: JSON.stringify({ document_status_id }),
+    });
+  },
+
+  async attachDocumentToRegistration(
+    documentId: string,
+    registrationId: string,
+  ): Promise<DocumentDetail> {
     return request<DocumentDetail>(
-      `/api/admin/documents/${id}/change-status`,
+      `/api/admin/documents/${documentId}/attach`,
       {
         method: 'POST',
-        body: JSON.stringify({ document_status_id }),
+        body: JSON.stringify({ registration_id: registrationId }),
       },
     );
   },
@@ -286,24 +352,21 @@ export const documentsApi = {
         body: JSON.stringify({
           ...input,
           submission_date: input.submission_date ?? null,
-          approval_date: input.approval_date ?? null,
-          expiry_date: input.expiry_date ?? null,
-          visa_number: input.visa_number ?? null,
           notes: input.notes ?? null,
         }),
       },
     );
   },
 
-  async changeVisaStatus(
+  async recordVisaResult(
     id: string,
-    visa_application_status_id: string,
+    input: RecordVisaResultInput,
   ): Promise<VisaApplicationDetail> {
     return request<VisaApplicationDetail>(
-      `/api/admin/visa-applications/${id}/change-status`,
+      `/api/admin/visa-applications/${id}/record-result`,
       {
         method: 'POST',
-        body: JSON.stringify({ visa_application_status_id }),
+        body: JSON.stringify(input),
       },
     );
   },
@@ -313,7 +376,9 @@ export const documentsApi = {
   },
 
   async listVisaStatuses(): Promise<VisaApplicationStatus[]> {
-    return request<VisaApplicationStatus[]>('/api/admin/visa-application-statuses');
+    return request<VisaApplicationStatus[]>(
+      '/api/admin/visa-application-statuses',
+    );
   },
 
   async listTravellerDocuments(

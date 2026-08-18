@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Inject } from '@nestjs/common';
-import { and, asc, eq, inArray, not } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, not } from 'drizzle-orm';
 import { MySql2Database } from 'drizzle-orm/mysql2';
 import { DATABASE } from '../../../../shared/infrastructure/database/database.provider.js';
 import * as schema from '@kafi/database';
@@ -219,5 +219,101 @@ export class RegistrationQueuesService {
         finance.get(r.registrations.id)?.outstanding_balance ?? 0,
       blockers: ['OUTSTANDING_BALANCE'],
     }));
+  }
+
+  /**
+   * Registrations that are READY_FOR_TRAVEL and have no ACTIVE group
+   * membership. These are the travellers waiting to be assigned to a
+   * compatible travel group.
+   */
+  async getReadyForGroupQueue(): Promise<RegistrationQueueItem[]> {
+    const readyStatus = await this.db
+      .select({ id: schema.registrationStatuses.id })
+      .from(schema.registrationStatuses)
+      .where(eq(schema.registrationStatuses.status_code, 'READY_FOR_TRAVEL'))
+      .limit(1);
+    if (readyStatus.length === 0) return [];
+
+    const rows = await this.db
+      .select()
+      .from(schema.registrations)
+      .innerJoin(
+        schema.registrationStatuses,
+        eq(
+          schema.registrations.registration_status_id,
+          schema.registrationStatuses.id,
+        ),
+      )
+      .innerJoin(
+        schema.travellers,
+        eq(schema.registrations.traveller_id, schema.travellers.id),
+      )
+      .innerJoin(
+        schema.packageVersions,
+        eq(schema.registrations.package_version_id, schema.packageVersions.id),
+      )
+      .leftJoin(
+        schema.groupMemberships,
+        and(
+          eq(schema.groupMemberships.registration_id, schema.registrations.id),
+          eq(schema.groupMemberships.is_deleted, false),
+        ),
+      )
+      .leftJoin(
+        schema.groupMembershipStatuses,
+        eq(
+          schema.groupMemberships.group_membership_status_id,
+          schema.groupMembershipStatuses.id,
+        ),
+      )
+      .where(
+        and(
+          eq(schema.registrations.is_deleted, false),
+          eq(schema.registrations.registration_status_id, readyStatus[0].id),
+        ),
+      )
+      .orderBy(asc(schema.registrations.created_at));
+
+    // Filter to registrations with no ACTIVE membership. A registration may
+    // have historical CANCELLED/TRANSFERRED memberships but must not have a
+    // current ACTIVE one.
+    return rows
+      .filter((r) => {
+        const membershipStatus = r.group_membership_statuses?.status_code;
+        return membershipStatus !== 'ACTIVE';
+      })
+      .map((r) => ({
+        id: r.registrations.id,
+        registration_number: r.registrations.registration_number,
+        registration_date: r.registrations.registration_date,
+        expected_departure_date: r.registrations.expected_departure_date,
+        expected_return_date: r.registrations.expected_return_date,
+        status: r.registration_statuses
+          ? {
+              id: r.registration_statuses.id,
+              code: r.registration_statuses.status_code,
+              name: r.registration_statuses.name,
+            }
+          : null,
+        traveller: r.travellers
+          ? {
+              id: r.travellers.id,
+              first_name: r.travellers.first_name,
+              last_name: r.travellers.last_name,
+              full_name:
+                `${r.travellers.first_name} ${r.travellers.last_name}`.trim(),
+              traveller_number: r.travellers.traveller_number,
+              phone_number: r.travellers.phone_number,
+            }
+          : null,
+        package_version: r.package_versions
+          ? {
+              id: r.package_versions.id,
+              version_name: r.package_versions.version_name,
+            }
+          : null,
+        outstanding_balance: 0,
+        blockers: [],
+      }));
   }
 }
