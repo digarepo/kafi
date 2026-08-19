@@ -153,6 +153,7 @@ async function login(page: Page) {
   await page.locator('#password').fill(benchmarkPassword);
   await page.getByRole('button', { name: /sign in|log in/i }).click();
   await page.waitForURL(/\/$/, { waitUntil: 'domcontentloaded' });
+  await page.waitForLoadState('networkidle');
 }
 
 function routeName(route: string) {
@@ -192,48 +193,55 @@ async function captureRoute(
   testInfo: TestInfo,
 ) {
   const requests: Array<Record<string, unknown>> = [];
+  const apiRequestsById = new Map<string, Record<string, unknown>>();
+  const browserRequests = new Map<
+    import('@playwright/test').Request,
+    Record<string, unknown>
+  >();
   const consoleErrors: string[] = [];
   const startedAt = Date.now();
 
   const onRequest = (request: import('@playwright/test').Request) => {
     const url = new URL(request.url());
     url.search = '';
-    requests.push({
+    const requestId = request.headers()['x-request-id'] ?? null;
+    const record = {
       timestamp: new Date().toISOString(),
       method: request.method(),
       path: url.pathname,
       resourceType: request.resourceType(),
-      requestId: request.headers()['x-request-id'] ?? null,
+      requestId,
       startOffsetMs: Date.now() - startedAt,
-    });
+    };
+    requests.push(record);
+    if (requestId) apiRequestsById.set(requestId, record);
+    else browserRequests.set(request, record);
   };
   const onResponse = async (response: import('@playwright/test').Response) => {
     const request = response.request();
-    const url = new URL(response.url());
-    url.search = '';
     const requestId =
       response.headers()['x-request-id'] ??
       request.headers()['x-request-id'] ??
       null;
-    requests.push({
-      timestamp: new Date().toISOString(),
-      method: request.method(),
-      path: url.pathname,
-      resourceType: request.resourceType(),
+    const record = requestId
+      ? apiRequestsById.get(requestId)
+      : browserRequests.get(request);
+    if (!record) return;
+    Object.assign(record, {
       status: response.status(),
       requestId,
       contentLength: response.headers()['content-length'] ?? null,
+      durationMs: Number((Date.now() - startedAt).toFixed(3)),
     });
   };
   const onRequestFailed = (request: import('@playwright/test').Request) => {
-    const url = new URL(request.url());
-    url.search = '';
-    requests.push({
-      timestamp: new Date().toISOString(),
-      method: request.method(),
-      path: url.pathname,
-      resourceType: request.resourceType(),
-      requestId: request.headers()['x-request-id'] ?? null,
+    const requestId = request.headers()['x-request-id'] ?? null;
+    const record = requestId
+      ? apiRequestsById.get(requestId)
+      : browserRequests.get(request);
+    if (!record) return;
+    Object.assign(record, {
+      requestId,
       failed: request.failure()?.errorText ?? 'unknown',
     });
   };

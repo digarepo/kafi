@@ -41,4 +41,7 @@ docs/internal/performance-hardening/
 tmp/phase0-browser/
 tmp/phase0-concurrency/
 tmp/phase0-fixtures/
+apps/admin/tmp/phase0-browser/
+apps/admin/tmp/phase0-lighthouse-profile*/
+apps/admin/test-results/
 docs/implementation/phase-c-operational-views-implementation-report.md

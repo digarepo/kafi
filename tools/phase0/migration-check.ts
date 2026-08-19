@@ -1,5 +1,6 @@
 import 'dotenv/config';
 
+import { createHash } from 'node:crypto';
 import { readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import mysql from 'mysql2/promise';
@@ -15,13 +16,22 @@ async function main() {
   const journal = JSON.parse(readFileSync(journalPath, 'utf8')) as {
     entries: Array<{ idx: number; tag: string; when: number }>;
   };
-  const migrationFiles = readdirSync(migrationDir)
+  const migrationFileNames = readdirSync(migrationDir)
     .filter((name) => /^\d{4}_.*\.sql$/.test(name))
-    .map((name) => name.replace(/\.sql$/, ''))
     .sort();
+  const migrationFiles = migrationFileNames.map((name) => {
+    const tag = name.replace(/\.sql$/, '');
+    const hash = createHash('sha256')
+      .update(readFileSync(resolve(migrationDir, name)))
+      .digest('hex');
+    return { tag, hash };
+  });
   const journalTags = journal.entries.map((entry) => entry.tag);
   const journalTagSet = new Set(journalTags);
-  const fileSet = new Set(migrationFiles);
+  const fileSet = new Set(migrationFiles.map((file) => file.tag));
+  const fileByHash = new Map(
+    migrationFiles.map((file) => [file.hash, file.tag]),
+  );
   const connection = await mysql.createConnection({
     host: process.env.DATABASE_HOST ?? 'localhost',
     port: Number(process.env.DATABASE_PORT ?? '3306'),
@@ -34,6 +44,18 @@ async function main() {
     const [migrationRows] = await connection.query<mysql.RowDataPacket[]>(
       'SELECT id, hash, created_at FROM __drizzle_migrations ORDER BY id',
     );
+    const appliedHashes = new Set(migrationRows.map((row) => String(row.hash)));
+    const journalFilesNotApplied = journalTags.filter((tag) => {
+      const file = migrationFiles.find((candidate) => candidate.tag === tag);
+      return file ? !appliedHashes.has(file.hash) : false;
+    });
+    const appliedHashMismatches = migrationRows
+      .filter((row) => !fileByHash.has(String(row.hash)))
+      .map((row) => ({
+        id: row.id,
+        hash: row.hash,
+        created_at: row.created_at,
+      }));
     const report = {
       database: databaseName,
       journalPath,
@@ -41,22 +63,27 @@ async function main() {
       journalTags,
       appliedCount: migrationRows.length,
       journalEntryCount: journal.entries.length,
-      filesMissingFromJournal: migrationFiles.filter(
-        (tag) => !journalTagSet.has(tag),
-      ),
+      filesMissingFromJournal: migrationFiles
+        .map((file) => file.tag)
+        .filter((tag) => !journalTagSet.has(tag)),
       journalEntriesMissingFiles: journalTags.filter(
         (tag) => !fileSet.has(tag),
       ),
+      journalFilesNotApplied,
+      appliedHashMismatches,
       appliedMigrationRows: migrationRows.map((row) => ({
         id: row.id,
         hash: row.hash,
+        matchingCurrentFile: fileByHash.get(String(row.hash)) ?? null,
         created_at: row.created_at,
       })),
       status: 'ok' as 'ok' | 'drift',
     };
     if (
       report.filesMissingFromJournal.length ||
-      report.journalEntriesMissingFiles.length
+      report.journalEntriesMissingFiles.length ||
+      report.journalFilesNotApplied.length ||
+      report.appliedHashMismatches.length
     ) {
       report.status = 'drift';
     }

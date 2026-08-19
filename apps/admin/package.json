@@ -8,7 +8,8 @@
     "build": "react-router build",
     "start": "react-router-serve ./build/server/index.js",
     "typecheck": "react-router typegen && tsc --noEmit",
-    "perf:browser": "playwright test performance/benchmark.spec.ts --config performance/playwright.config.ts"
+    "perf:browser": "playwright test performance/benchmark.spec.ts --config performance/playwright.config.ts",
+    "perf:lighthouse": "tsx performance/lighthouse-authenticated.ts"
   },
   "dependencies": {
     "@kafi/ui": "*",
