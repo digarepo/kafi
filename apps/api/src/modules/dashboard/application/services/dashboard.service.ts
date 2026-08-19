@@ -3,7 +3,6 @@ import { and, count, eq, gte, isNull, lt, ne, not, or, sql } from 'drizzle-orm';
 import { MySql2Database } from 'drizzle-orm/mysql2';
 import { DATABASE } from '../../../../shared/infrastructure/database/database.provider.js';
 import * as schema from '@kafi/database';
-import { InvoicesService } from '../../../finance/application/services/invoices.service.js';
 
 /**
  * Thin read-only aggregation service for the staff dashboard.
@@ -17,7 +16,6 @@ export class DashboardService {
   constructor(
     @Inject(DATABASE)
     private readonly db: MySql2Database<typeof schema>,
-    private readonly invoices: InvoicesService,
   ) {}
 
   async getDashboard() {
@@ -115,32 +113,42 @@ export class DashboardService {
   }
 
   private async countRegistrationsWithOutstandingBalance() {
+    const allocationsByInvoice = this.db
+      .select({
+        invoiceId: schema.paymentAllocations.invoice_id,
+        allocated:
+          sql<number>`coalesce(sum(${schema.paymentAllocations.allocated_amount}), 0)`.as(
+            'allocated',
+          ),
+      })
+      .from(schema.paymentAllocations)
+      .where(eq(schema.paymentAllocations.is_deleted, false))
+      .groupBy(schema.paymentAllocations.invoice_id)
+      .as('allocations_by_invoice');
+
     const rows = await this.db
-      .select({ id: schema.registrations.id })
-      .from(schema.registrations)
+      .select({ registrationId: schema.invoices.registration_id })
+      .from(schema.invoices)
       .innerJoin(
-        schema.registrationStatuses,
-        eq(
-          schema.registrations.registration_status_id,
-          schema.registrationStatuses.id,
-        ),
+        schema.invoiceStatuses,
+        eq(schema.invoices.invoice_status_id, schema.invoiceStatuses.id),
+      )
+      .leftJoin(
+        allocationsByInvoice,
+        eq(allocationsByInvoice.invoiceId, schema.invoices.id),
       )
       .where(
         and(
-          eq(schema.registrations.is_deleted, false),
-          not(eq(schema.registrationStatuses.status_code, 'CANCELLED')),
+          eq(schema.invoices.is_deleted, false),
+          not(eq(schema.invoiceStatuses.status_code, 'CANCELLED')),
         ),
+      )
+      .groupBy(schema.invoices.registration_id)
+      .having(
+        sql`sum(${schema.invoices.total_amount}) > coalesce(sum(${allocationsByInvoice.allocated}), 0)`,
       );
 
-    const ids = rows.map((r) => r.id);
-    if (ids.length === 0) return 0;
-
-    const finance = await this.invoices.getRegistrationFinanceSummaries(ids);
-    return ids.reduce(
-      (total, id) =>
-        (finance.get(id)?.outstanding_balance ?? 0) > 0 ? total + 1 : total,
-      0,
-    );
+    return rows.length;
   }
 
   private async countGroupsByStatus(statusCode: string) {

@@ -30,102 +30,106 @@ export class FinanceReportingService {
    * Returns the overall finance dashboard summary.
    */
   async getDashboardSummary() {
-    const [revenueRow] = await this.db
-      .select({
-        total: sql<number>`coalesce(sum(${schema.invoices.total_amount}), 0)`,
-      })
-      .from(schema.invoices)
-      .innerJoin(
-        schema.invoiceStatuses,
-        eq(schema.invoices.invoice_status_id, schema.invoiceStatuses.id),
-      )
-      .where(
-        and(
-          eq(schema.invoices.is_deleted, false),
-          sql`${schema.invoiceStatuses.status_code} != 'CANCELLED'`,
+    const [
+      [revenueRow],
+      [collectedRow],
+      [expenseRow],
+      [adjustmentRow],
+      [refundRow],
+      [creditRow],
+    ] = await Promise.all([
+      this.db
+        .select({
+          total: sql<number>`coalesce(sum(${schema.invoices.total_amount}), 0)`,
+        })
+        .from(schema.invoices)
+        .innerJoin(
+          schema.invoiceStatuses,
+          eq(schema.invoices.invoice_status_id, schema.invoiceStatuses.id),
+        )
+        .where(
+          and(
+            eq(schema.invoices.is_deleted, false),
+            sql`${schema.invoiceStatuses.status_code} != 'CANCELLED'`,
+          ),
         ),
-      );
-
-    const [collectedRow] = await this.db
-      .select({
-        total: sql<number>`coalesce(sum(${schema.paymentAllocations.allocated_amount}), 0)`,
-      })
-      .from(schema.paymentAllocations)
-      .innerJoin(
-        schema.payments,
-        eq(schema.paymentAllocations.payment_id, schema.payments.id),
-      )
-      .innerJoin(
-        schema.paymentStatuses,
-        eq(schema.payments.payment_status_id, schema.paymentStatuses.id),
-      )
-      .where(
-        and(
-          eq(schema.paymentAllocations.is_deleted, false),
-          eq(schema.payments.is_deleted, false),
-          sql`${schema.paymentStatuses.status_code} != 'CANCELLED'`,
+      this.db
+        .select({
+          total: sql<number>`coalesce(sum(${schema.paymentAllocations.allocated_amount}), 0)`,
+        })
+        .from(schema.paymentAllocations)
+        .innerJoin(
+          schema.payments,
+          eq(schema.paymentAllocations.payment_id, schema.payments.id),
+        )
+        .innerJoin(
+          schema.paymentStatuses,
+          eq(schema.payments.payment_status_id, schema.paymentStatuses.id),
+        )
+        .where(
+          and(
+            eq(schema.paymentAllocations.is_deleted, false),
+            eq(schema.payments.is_deleted, false),
+            sql`${schema.paymentStatuses.status_code} != 'CANCELLED'`,
+          ),
         ),
-      );
-
-    const [expenseRow] = await this.db
-      .select({
-        total: sql<number>`coalesce(sum(${schema.expenses.amount}), 0)`,
-      })
-      .from(schema.expenses)
-      .innerJoin(
-        schema.expenseStatuses,
-        eq(schema.expenses.expense_status_id, schema.expenseStatuses.id),
-      )
-      .where(
-        and(
-          eq(schema.expenses.is_deleted, false),
-          eq(schema.expenseStatuses.status_code, 'CONFIRMED'),
+      this.db
+        .select({
+          total: sql<number>`coalesce(sum(${schema.expenses.amount}), 0)`,
+        })
+        .from(schema.expenses)
+        .innerJoin(
+          schema.expenseStatuses,
+          eq(schema.expenses.expense_status_id, schema.expenseStatuses.id),
+        )
+        .where(
+          and(
+            eq(schema.expenses.is_deleted, false),
+            eq(schema.expenseStatuses.status_code, 'CONFIRMED'),
+          ),
         ),
-      );
-
-    // Expense adjustments (supplier refunds, cancellation fees, etc.)
-    // Positive = additional cost. Negative = recovery.
-    const [adjustmentRow] = await this.db
-      .select({
-        total: sql<number>`coalesce(sum(${schema.expenseAdjustments.amount}), 0)`,
-      })
-      .from(schema.expenseAdjustments)
-      .where(eq(schema.expenseAdjustments.is_deleted, false));
-
-    const [refundRow] = await this.db
-      .select({
-        total: sql<number>`coalesce(sum(${schema.refunds.amount}), 0)`,
-      })
-      .from(schema.refunds)
-      .innerJoin(
-        schema.refundStatuses,
-        eq(schema.refunds.refund_status_id, schema.refundStatuses.id),
-      )
-      .where(
-        and(
-          eq(schema.refunds.is_deleted, false),
-          sql`${schema.refundStatuses.status_code} IN ('APPROVED', 'COMPLETED')`,
+      // Expense adjustments (supplier refunds, cancellation fees, etc.)
+      // Positive = additional cost. Negative = recovery.
+      this.db
+        .select({
+          total: sql<number>`coalesce(sum(${schema.expenseAdjustments.amount}), 0)`,
+        })
+        .from(schema.expenseAdjustments)
+        .where(eq(schema.expenseAdjustments.is_deleted, false)),
+      this.db
+        .select({
+          total: sql<number>`coalesce(sum(${schema.refunds.amount}), 0)`,
+        })
+        .from(schema.refunds)
+        .innerJoin(
+          schema.refundStatuses,
+          eq(schema.refunds.refund_status_id, schema.refundStatuses.id),
+        )
+        .where(
+          and(
+            eq(schema.refunds.is_deleted, false),
+            sql`${schema.refundStatuses.status_code} IN ('APPROVED', 'COMPLETED')`,
+          ),
         ),
-      );
-
-    const [creditRow] = await this.db
-      .select({
-        total: sql<number>`coalesce(sum(${schema.financeExceptions.authorized_amount}), 0)`,
-      })
-      .from(schema.financeExceptions)
-      .innerJoin(
-        schema.financeExceptionStatuses,
-        eq(
-          schema.financeExceptions.finance_exception_status_id,
-          schema.financeExceptionStatuses.id,
+      this.db
+        .select({
+          total: sql<number>`coalesce(sum(${schema.financeExceptions.authorized_amount}), 0)`,
+        })
+        .from(schema.financeExceptions)
+        .innerJoin(
+          schema.financeExceptionStatuses,
+          eq(
+            schema.financeExceptions.finance_exception_status_id,
+            schema.financeExceptionStatuses.id,
+          ),
+        )
+        .where(
+          and(
+            eq(schema.financeExceptions.is_deleted, false),
+            eq(schema.financeExceptionStatuses.status_code, 'ACTIVE'),
+          ),
         ),
-      )
-      .where(
-        and(
-          eq(schema.financeExceptions.is_deleted, false),
-          eq(schema.financeExceptionStatuses.status_code, 'ACTIVE'),
-        ),
-      );
+    ]);
 
     const totalRevenue = toTwoDecimals(Number(revenueRow?.total ?? 0));
     const totalCollected = toTwoDecimals(Number(collectedRow?.total ?? 0));

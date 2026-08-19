@@ -1,9 +1,14 @@
-import { ConflictException, Inject, Injectable, NotFoundException } from "@nestjs/common";
-import { MySql2Database } from "drizzle-orm/mysql2";
-import { and, desc, eq, inArray, like, max, not, or, sql } from "drizzle-orm";
-import { ulid } from "ulid";
-import { DATABASE } from "../../../../shared/infrastructure/database/database.provider.js";
-import * as schema from "@kafi/database";
+import {
+  ConflictException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { MySql2Database } from 'drizzle-orm/mysql2';
+import { and, desc, eq, inArray, like, max, not, or, sql } from 'drizzle-orm';
+import { ulid } from 'ulid';
+import { DATABASE } from '../../../../shared/infrastructure/database/database.provider.js';
+import * as schema from '@kafi/database';
 import {
   CreateInvoiceDto,
   CreateLineItemDto,
@@ -11,14 +16,17 @@ import {
   InvoiceLineItemInputDto,
   UpdateInvoiceDto,
   UpdateLineItemDto,
-} from "../dto/invoices.dto.js";
-import { ReferenceDataService } from "./reference-data.service.js";
+} from '../dto/invoices.dto.js';
+import { ReferenceDataService } from './reference-data.service.js';
 
 function toTwoDecimals(value: number): number {
   return Math.round(value * 100) / 100;
 }
 
-function lineItemTotal(item: { quantity: number | string; unit_price: number | string }): number {
+function lineItemTotal(item: {
+  quantity: number | string;
+  unit_price: number | string;
+}): number {
   return toTwoDecimals(Number(item.quantity) * Number(item.unit_price));
 }
 
@@ -40,20 +48,22 @@ export class InvoicesService {
   constructor(
     @Inject(DATABASE)
     private readonly db: MySql2Database<typeof schema>,
-    private readonly referenceData: ReferenceDataService
+    private readonly referenceData: ReferenceDataService,
   ) {}
 
   async listInvoices(dto: InvoiceFiltersDto) {
     const { page, page_size, search, registration_id, invoice_status_id } = dto;
     const filters = [eq(schema.invoices.is_deleted, false)];
-    if (registration_id) filters.push(eq(schema.invoices.registration_id, registration_id));
-    if (invoice_status_id) filters.push(eq(schema.invoices.invoice_status_id, invoice_status_id));
+    if (registration_id)
+      filters.push(eq(schema.invoices.registration_id, registration_id));
+    if (invoice_status_id)
+      filters.push(eq(schema.invoices.invoice_status_id, invoice_status_id));
     if (search) {
       filters.push(
         or(
           like(schema.invoices.invoice_number, `%${search}%`),
-          like(schema.registrations.registration_number, `%${search}%`)
-        ) as any
+          like(schema.registrations.registration_number, `%${search}%`),
+        ) as any,
       );
     }
 
@@ -63,11 +73,11 @@ export class InvoicesService {
         .from(schema.invoices)
         .innerJoin(
           schema.registrations,
-          eq(schema.invoices.registration_id, schema.registrations.id)
+          eq(schema.invoices.registration_id, schema.registrations.id),
         )
         .leftJoin(
           schema.invoiceStatuses,
-          eq(schema.invoices.invoice_status_id, schema.invoiceStatuses.id)
+          eq(schema.invoices.invoice_status_id, schema.invoiceStatuses.id),
         )
         .where(and(...filters))
         .orderBy(desc(schema.invoices.created_at))
@@ -78,7 +88,7 @@ export class InvoicesService {
         .from(schema.invoices)
         .innerJoin(
           schema.registrations,
-          eq(schema.invoices.registration_id, schema.registrations.id)
+          eq(schema.invoices.registration_id, schema.registrations.id),
         )
         .where(and(...filters))
         .then((r) => r[0]?.count ?? 0),
@@ -95,7 +105,10 @@ export class InvoicesService {
   async getInvoice(id: string) {
     const invoice = await this.getInvoiceOrThrow(id);
     const lineItems = await this.listLineItems(id);
-    const balance = await this.computeOutstandingBalance(id, invoice.total_amount);
+    const balance = await this.computeOutstandingBalance(
+      id,
+      invoice.total_amount,
+    );
     return {
       ...this.mapInvoiceRow(invoice),
       line_items: lineItems,
@@ -105,17 +118,21 @@ export class InvoicesService {
 
   async getOutstandingBalance(id: string) {
     const invoice = await this.getInvoiceOrThrow(id);
-    const balance = await this.computeOutstandingBalance(id, invoice.total_amount);
+    const balance = await this.computeOutstandingBalance(
+      id,
+      invoice.total_amount,
+    );
     return { invoice_id: id, outstanding_balance: balance };
   }
 
   async createInvoice(dto: CreateInvoiceDto, actorId: string) {
     const registration = await this.getActiveRegistration(dto.registration_id);
     const currency = await this.getEtbCurrency();
-    const draftStatus = await this.referenceData.getInvoiceStatusByCode("DRAFT");
+    const draftStatus =
+      await this.referenceData.getInvoiceStatusByCode('DRAFT');
 
     const subtotal = toTwoDecimals(
-      dto.line_items.reduce((sum, item) => sum + lineItemTotal(item), 0)
+      dto.line_items.reduce((sum, item) => sum + lineItemTotal(item), 0),
     );
     const totalAmount = toTwoDecimals(subtotal - dto.discount_amount);
 
@@ -150,7 +167,9 @@ export class InvoicesService {
       dto.discount_amount !== undefined
         ? dto.discount_amount
         : Number(invoice.subtotal) - Number(invoice.total_amount);
-    const totalAmount = toTwoDecimals(Number(invoice.subtotal) - discountAmount);
+    const totalAmount = toTwoDecimals(
+      Number(invoice.subtotal) - discountAmount,
+    );
 
     // Prevent reducing total below allocated amount
     if (dto.discount_amount !== undefined) {
@@ -162,13 +181,13 @@ export class InvoicesService {
         .where(
           and(
             eq(schema.paymentAllocations.invoice_id, id),
-            eq(schema.paymentAllocations.is_deleted, false)
-          )
+            eq(schema.paymentAllocations.is_deleted, false),
+          ),
         );
       const allocated = Number(allocRow?.allocated ?? 0);
       if (totalAmount < allocated) {
         throw new ConflictException(
-          `Cannot reduce invoice total (${totalAmount}) below the allocated amount (${allocated})`
+          `Cannot reduce invoice total (${totalAmount}) below the allocated amount (${allocated})`,
         );
       }
     }
@@ -202,12 +221,12 @@ export class InvoicesService {
       .where(
         and(
           eq(schema.paymentAllocations.invoice_id, id),
-          eq(schema.paymentAllocations.is_deleted, false)
-        )
+          eq(schema.paymentAllocations.is_deleted, false),
+        ),
       );
     if (Number(allocRow?.count ?? 0) > 0) {
       throw new ConflictException(
-        "Cannot archive an invoice with active payment allocations; reverse allocations first"
+        'Cannot archive an invoice with active payment allocations; reverse allocations first',
       );
     }
 
@@ -228,13 +247,16 @@ export class InvoicesService {
       .from(schema.invoiceLineItems)
       .leftJoin(
         schema.invoiceLineItemTypes,
-        eq(schema.invoiceLineItems.line_item_type_id, schema.invoiceLineItemTypes.id)
+        eq(
+          schema.invoiceLineItems.line_item_type_id,
+          schema.invoiceLineItemTypes.id,
+        ),
       )
       .where(
         and(
           eq(schema.invoiceLineItems.invoice_id, invoiceId),
-          eq(schema.invoiceLineItems.is_deleted, false)
-        )
+          eq(schema.invoiceLineItems.is_deleted, false),
+        ),
       )
       .orderBy(desc(schema.invoiceLineItems.created_at));
 
@@ -255,7 +277,11 @@ export class InvoicesService {
     }));
   }
 
-  async addLineItem(invoiceId: string, dto: CreateLineItemDto, actorId: string) {
+  async addLineItem(
+    invoiceId: string,
+    dto: CreateLineItemDto,
+    actorId: string,
+  ) {
     await this.getInvoiceOrThrow(invoiceId);
     // Use a transaction so the line item insert and the invoice total
     // recalculation are atomic.
@@ -270,7 +296,7 @@ export class InvoicesService {
     invoiceId: string,
     lineItemId: string,
     dto: UpdateLineItemDto,
-    actorId: string
+    actorId: string,
   ) {
     const lineItem = await this.getLineItemOrThrow(invoiceId, lineItemId);
     const quantity = dto.quantity ?? Number(lineItem.quantity);
@@ -308,7 +334,11 @@ export class InvoicesService {
     return this.getInvoice(invoiceId);
   }
 
-  async archiveLineItem(invoiceId: string, lineItemId: string, actorId: string) {
+  async archiveLineItem(
+    invoiceId: string,
+    lineItemId: string,
+    actorId: string,
+  ) {
     await this.getLineItemOrThrow(invoiceId, lineItemId);
 
     // Check if removing this line item would reduce total below allocated
@@ -320,8 +350,8 @@ export class InvoicesService {
       .where(
         and(
           eq(schema.paymentAllocations.invoice_id, invoiceId),
-          eq(schema.paymentAllocations.is_deleted, false)
-        )
+          eq(schema.paymentAllocations.is_deleted, false),
+        ),
       );
     const allocated = Number(allocRow?.allocated ?? 0);
 
@@ -332,11 +362,13 @@ export class InvoicesService {
       .limit(1);
 
     const invoice = await this.getInvoiceOrThrow(invoiceId);
-    const newTotal = toTwoDecimals(Number(invoice.total_amount) - Number(lineItem.total_price));
+    const newTotal = toTwoDecimals(
+      Number(invoice.total_amount) - Number(lineItem.total_price),
+    );
 
     if (newTotal < allocated) {
       throw new ConflictException(
-        `Cannot remove line item; resulting invoice total (${newTotal}) would be below the allocated amount (${allocated})`
+        `Cannot remove line item; resulting invoice total (${newTotal}) would be below the allocated amount (${allocated})`,
       );
     }
 
@@ -381,18 +413,18 @@ export class InvoicesService {
       .from(schema.invoices)
       .innerJoin(
         schema.invoiceStatuses,
-        eq(schema.invoices.invoice_status_id, schema.invoiceStatuses.id)
+        eq(schema.invoices.invoice_status_id, schema.invoiceStatuses.id),
       )
       .where(
         and(
           eq(schema.invoices.registration_id, registrationId),
           eq(schema.invoices.is_deleted, false),
-          not(eq(schema.invoiceStatuses.status_code, "CANCELLED"))
-        )
+          not(eq(schema.invoiceStatuses.status_code, 'CANCELLED')),
+        ),
       );
 
     const totalInvoiced = toTwoDecimals(
-      invoiceRows.reduce((sum, row) => sum + Number(row.total_amount), 0)
+      invoiceRows.reduce((sum, row) => sum + Number(row.total_amount), 0),
     );
 
     const invoiceIds = invoiceRows.map((row) => row.id);
@@ -415,21 +447,31 @@ export class InvoicesService {
       .where(
         and(
           inArray(schema.paymentAllocations.invoice_id, invoiceIds),
-          eq(schema.paymentAllocations.is_deleted, false)
-        )
+          eq(schema.paymentAllocations.is_deleted, false),
+        ),
       );
 
     const totalPaid = toTwoDecimals(
-      allocationRows.reduce((sum, row) => sum + Number(row.allocated_amount), 0)
+      allocationRows.reduce(
+        (sum, row) => sum + Number(row.allocated_amount),
+        0,
+      ),
     );
 
-    const paymentIds = [...new Set(allocationRows.map((row) => row.payment_id))];
+    const paymentIds = [
+      ...new Set(allocationRows.map((row) => row.payment_id)),
+    ];
     let totalUnallocated = 0;
     if (paymentIds.length > 0) {
       const paymentRows = await this.db
         .select({ id: schema.payments.id, amount: schema.payments.amount })
         .from(schema.payments)
-        .where(and(inArray(schema.payments.id, paymentIds), eq(schema.payments.is_deleted, false)));
+        .where(
+          and(
+            inArray(schema.payments.id, paymentIds),
+            eq(schema.payments.is_deleted, false),
+          ),
+        );
       const allAllocationRows = await this.db
         .select({
           payment_id: schema.paymentAllocations.payment_id,
@@ -439,8 +481,8 @@ export class InvoicesService {
         .where(
           and(
             inArray(schema.paymentAllocations.payment_id, paymentIds),
-            eq(schema.paymentAllocations.is_deleted, false)
-          )
+            eq(schema.paymentAllocations.is_deleted, false),
+          ),
         );
 
       totalUnallocated = toTwoDecimals(
@@ -449,7 +491,7 @@ export class InvoicesService {
             .filter((row) => row.payment_id === payment.id)
             .reduce((s, row) => s + Number(row.allocated_amount), 0);
           return sum + Math.max(Number(payment.amount) - allocated, 0);
-        }, 0)
+        }, 0),
       );
     }
 
@@ -496,14 +538,14 @@ export class InvoicesService {
       .from(schema.invoices)
       .innerJoin(
         schema.invoiceStatuses,
-        eq(schema.invoices.invoice_status_id, schema.invoiceStatuses.id)
+        eq(schema.invoices.invoice_status_id, schema.invoiceStatuses.id),
       )
       .where(
         and(
           inArray(schema.invoices.registration_id, registrationIds),
           eq(schema.invoices.is_deleted, false),
-          not(eq(schema.invoiceStatuses.status_code, "CANCELLED"))
-        )
+          not(eq(schema.invoiceStatuses.status_code, 'CANCELLED')),
+        ),
       );
 
     const result = new Map<
@@ -541,35 +583,42 @@ export class InvoicesService {
       .where(
         and(
           inArray(schema.paymentAllocations.invoice_id, invoiceIds),
-          eq(schema.paymentAllocations.is_deleted, false)
-        )
+          eq(schema.paymentAllocations.is_deleted, false),
+        ),
       );
 
-    const paymentIds = [...new Set(allocationRows.map((row) => row.payment_id))];
+    const paymentIds = [
+      ...new Set(allocationRows.map((row) => row.payment_id)),
+    ];
 
     let unallocatedByPayment = new Map<string, number>();
     if (paymentIds.length > 0) {
-      const paymentRows = await this.db
-        .select({ id: schema.payments.id, amount: schema.payments.amount })
-        .from(schema.payments)
-        .where(and(inArray(schema.payments.id, paymentIds), eq(schema.payments.is_deleted, false)));
-
-      const allAllocationRows = await this.db
+      const paymentAllocationRows = await this.db
         .select({
           payment_id: schema.paymentAllocations.payment_id,
           allocated_amount: schema.paymentAllocations.allocated_amount,
+          payment_amount: schema.payments.amount,
         })
         .from(schema.paymentAllocations)
+        .innerJoin(
+          schema.payments,
+          eq(schema.paymentAllocations.payment_id, schema.payments.id),
+        )
         .where(
           and(
             inArray(schema.paymentAllocations.payment_id, paymentIds),
-            eq(schema.paymentAllocations.is_deleted, false)
-          )
+            eq(schema.paymentAllocations.is_deleted, false),
+            eq(schema.payments.is_deleted, false),
+          ),
         );
 
-      const paymentAmountById = new Map(paymentRows.map((p) => [p.id, Number(p.amount)]));
-
-      const allocatedByPayment = allAllocationRows.reduce((map, row) => {
+      const paymentAmountById = new Map(
+        paymentAllocationRows.map((row) => [
+          row.payment_id,
+          Number(row.payment_amount),
+        ]),
+      );
+      const allocatedByPayment = paymentAllocationRows.reduce((map, row) => {
         const current = map.get(row.payment_id) ?? 0;
         map.set(row.payment_id, current + Number(row.allocated_amount));
         return map;
@@ -578,8 +627,12 @@ export class InvoicesService {
       unallocatedByPayment = new Map(
         paymentIds.map((id) => [
           id,
-          Math.max((paymentAmountById.get(id) ?? 0) - (allocatedByPayment.get(id) ?? 0), 0),
-        ])
+          Math.max(
+            (paymentAmountById.get(id) ?? 0) -
+              (allocatedByPayment.get(id) ?? 0),
+            0,
+          ),
+        ]),
       );
     }
 
@@ -592,7 +645,7 @@ export class InvoicesService {
       const current = totalInvoicedByReg.get(invoice.registration_id) ?? 0;
       totalInvoicedByReg.set(
         invoice.registration_id,
-        toTwoDecimals(current + Number(invoice.total_amount))
+        toTwoDecimals(current + Number(invoice.total_amount)),
       );
     }
 
@@ -603,10 +656,11 @@ export class InvoicesService {
       const currentPaid = totalPaidByReg.get(invoice.registration_id) ?? 0;
       totalPaidByReg.set(
         invoice.registration_id,
-        toTwoDecimals(currentPaid + Number(alloc.allocated_amount))
+        toTwoDecimals(currentPaid + Number(alloc.allocated_amount)),
       );
 
-      const paymentSet = paymentIdsByReg.get(invoice.registration_id) ?? new Set<string>();
+      const paymentSet =
+        paymentIdsByReg.get(invoice.registration_id) ?? new Set<string>();
       paymentSet.add(alloc.payment_id);
       paymentIdsByReg.set(invoice.registration_id, paymentSet);
     }
@@ -637,9 +691,14 @@ export class InvoicesService {
     const [row] = await this.db
       .select()
       .from(schema.registrations)
-      .where(and(eq(schema.registrations.id, id), eq(schema.registrations.is_deleted, false)))
+      .where(
+        and(
+          eq(schema.registrations.id, id),
+          eq(schema.registrations.is_deleted, false),
+        ),
+      )
       .limit(1);
-    if (!row) throw new NotFoundException("Registration not found");
+    if (!row) throw new NotFoundException('Registration not found');
     return row;
   }
 
@@ -648,10 +707,13 @@ export class InvoicesService {
       .select()
       .from(schema.currencies)
       .where(
-        and(eq(schema.currencies.currency_code, "ETB"), eq(schema.currencies.is_deleted, false))
+        and(
+          eq(schema.currencies.currency_code, 'ETB'),
+          eq(schema.currencies.is_deleted, false),
+        ),
       )
       .limit(1);
-    if (!row) throw new NotFoundException("ETB currency not seeded");
+    if (!row) throw new NotFoundException('ETB currency not seeded');
     return row;
   }
 
@@ -659,9 +721,11 @@ export class InvoicesService {
     const [row] = await this.db
       .select()
       .from(schema.invoices)
-      .where(and(eq(schema.invoices.id, id), eq(schema.invoices.is_deleted, false)))
+      .where(
+        and(eq(schema.invoices.id, id), eq(schema.invoices.is_deleted, false)),
+      )
       .limit(1);
-    if (!row) throw new NotFoundException("Invoice not found");
+    if (!row) throw new NotFoundException('Invoice not found');
     return row;
   }
 
@@ -673,18 +737,18 @@ export class InvoicesService {
         and(
           eq(schema.invoiceLineItems.id, lineItemId),
           eq(schema.invoiceLineItems.invoice_id, invoiceId),
-          eq(schema.invoiceLineItems.is_deleted, false)
-        )
+          eq(schema.invoiceLineItems.is_deleted, false),
+        ),
       )
       .limit(1);
-    if (!row) throw new NotFoundException("Invoice line item not found");
+    if (!row) throw new NotFoundException('Invoice line item not found');
     return row;
   }
 
   private async insertLineItems(
     invoiceId: string,
     items: InvoiceLineItemInputDto[],
-    actorId: string
+    actorId: string,
   ) {
     return this.insertLineItemsWithTx(this.db, invoiceId, items, actorId);
   }
@@ -693,7 +757,7 @@ export class InvoicesService {
     dbh: any,
     invoiceId: string,
     items: InvoiceLineItemInputDto[],
-    actorId: string
+    actorId: string,
   ) {
     await dbh.insert(schema.invoiceLineItems).values(
       items.map((item) => ({
@@ -707,7 +771,7 @@ export class InvoicesService {
         notes: item.notes ?? null,
         created_by: actorId,
         updated_by: actorId,
-      }))
+      })),
     );
   }
 
@@ -722,13 +786,22 @@ export class InvoicesService {
     return this.recalculateInvoiceTotalsWithTx(this.db, invoiceId, actorId);
   }
 
-  private async recalculateInvoiceTotalsWithTx(dbh: any, invoiceId: string, actorId: string) {
+  private async recalculateInvoiceTotalsWithTx(
+    dbh: any,
+    invoiceId: string,
+    actorId: string,
+  ) {
     const [invoice] = await dbh
       .select()
       .from(schema.invoices)
-      .where(and(eq(schema.invoices.id, invoiceId), eq(schema.invoices.is_deleted, false)))
+      .where(
+        and(
+          eq(schema.invoices.id, invoiceId),
+          eq(schema.invoices.is_deleted, false),
+        ),
+      )
       .limit(1);
-    if (!invoice) throw new NotFoundException("Invoice not found");
+    if (!invoice) throw new NotFoundException('Invoice not found');
 
     const lineItems = await dbh
       .select({ total_price: schema.invoiceLineItems.total_price })
@@ -736,17 +809,20 @@ export class InvoicesService {
       .where(
         and(
           eq(schema.invoiceLineItems.invoice_id, invoiceId),
-          eq(schema.invoiceLineItems.is_deleted, false)
-        )
+          eq(schema.invoiceLineItems.is_deleted, false),
+        ),
       );
 
     const subtotal = toTwoDecimals(
       lineItems.reduce(
-        (sum: number, row: { total_price: string | number }) => sum + Number(row.total_price),
-        0
-      )
+        (sum: number, row: { total_price: string | number }) =>
+          sum + Number(row.total_price),
+        0,
+      ),
     );
-    const totalAmount = toTwoDecimals(subtotal - Number(invoice.discount_amount));
+    const totalAmount = toTwoDecimals(
+      subtotal - Number(invoice.discount_amount),
+    );
 
     await dbh
       .update(schema.invoices)
@@ -759,7 +835,10 @@ export class InvoicesService {
       .where(eq(schema.invoices.id, invoiceId));
   }
 
-  private async computeOutstandingBalance(invoiceId: string, totalAmount: string | number) {
+  private async computeOutstandingBalance(
+    invoiceId: string,
+    totalAmount: string | number,
+  ) {
     const [row] = await this.db
       .select({
         allocated: sql<number>`coalesce(sum(${schema.paymentAllocations.allocated_amount}), 0)`,
@@ -768,8 +847,8 @@ export class InvoicesService {
       .where(
         and(
           eq(schema.paymentAllocations.invoice_id, invoiceId),
-          eq(schema.paymentAllocations.is_deleted, false)
-        )
+          eq(schema.paymentAllocations.is_deleted, false),
+        ),
       );
     const allocated = Number(row?.allocated ?? 0);
     return toTwoDecimals(Number(totalAmount) - allocated);
@@ -783,10 +862,10 @@ export class InvoicesService {
       .where(like(schema.invoices.invoice_number, `INV-${year}-%`));
     let next = 1;
     if (row?.max) {
-      const parts = row.max.split("-");
+      const parts = row.max.split('-');
       next = Number(parts[parts.length - 1]) + 1;
     }
-    return `INV-${year}-${String(next).padStart(6, "0")}`;
+    return `INV-${year}-${String(next).padStart(6, '0')}`;
   }
 
   private mapInvoiceRow(row: typeof schema.invoices.$inferSelect) {

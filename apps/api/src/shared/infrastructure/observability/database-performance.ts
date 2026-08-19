@@ -2,7 +2,11 @@ import {
   currentPerformanceRequestId,
   isVerbosePerformanceInstrumentationEnabled,
   recordDatabaseQuery,
+  recordPoolMetrics,
+  type PoolMetrics,
 } from './performance-context.js';
+
+let instrumentedPool: object | null = null;
 
 function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
   return (
@@ -37,6 +41,32 @@ function resultRowCount(value: unknown): number | null {
   return null;
 }
 
+function collectionLength(value: unknown): number | null {
+  if (typeof value !== 'object' || value === null || !('length' in value)) {
+    return null;
+  }
+  const length = (value as { length?: unknown }).length;
+  return typeof length === 'number' ? length : null;
+}
+
+export function currentDatabasePoolMetrics(): PoolMetrics | null {
+  if (!instrumentedPool) return null;
+  const pool = ((instrumentedPool as { pool?: object }).pool ??
+    instrumentedPool) as Record<string, unknown>;
+  const totalConnections = collectionLength(pool._allConnections);
+  const freeConnections = collectionLength(pool._freeConnections);
+  const waitingRequests = collectionLength(pool._connectionQueue);
+  return {
+    totalConnections,
+    freeConnections,
+    activeConnections:
+      totalConnections !== null && freeConnections !== null
+        ? Math.max(totalConnections - freeConnections, 0)
+        : null,
+    waitingRequests,
+  };
+}
+
 function recordQuery(
   label: string,
   args: unknown[],
@@ -46,6 +76,7 @@ function recordQuery(
 ): void {
   const durationMs = Number(process.hrtime.bigint() - startedAt) / 1_000_000;
   recordDatabaseQuery(durationMs);
+  recordPoolMetrics(currentDatabasePoolMetrics());
   if (!isVerbosePerformanceInstrumentationEnabled()) return;
 
   console.info(
@@ -116,5 +147,6 @@ function wrapClient<T extends object>(client: T, label: string): T {
 }
 
 export function instrumentDatabasePool<T extends object>(pool: T): T {
+  instrumentedPool = pool;
   return wrapClient(pool, 'pool');
 }

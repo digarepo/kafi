@@ -6,6 +6,7 @@ import {
   isVerbosePerformanceInstrumentationEnabled,
   performanceRequestContext,
 } from './performance-context.js';
+import { currentDatabasePoolMetrics } from './database-performance.js';
 
 export function performanceMiddleware(
   request: Request,
@@ -25,6 +26,7 @@ export function performanceMiddleware(
     route: request.originalUrl.split('?')[0],
     databaseDurationMs: 0,
     databaseQueryCount: 0,
+    peakPoolMetrics: currentDatabasePoolMetrics(),
   };
 
   response.setHeader('x-request-id', requestId);
@@ -53,6 +55,7 @@ export function performanceMiddleware(
         nonDatabaseDurationMs: Number(nonDatabaseDurationMs.toFixed(3)),
         serializationDurationMs: null,
         responseBytes: response.getHeader('content-length') ?? null,
+        pool: requestContext.peakPoolMetrics,
       }),
     );
   });
