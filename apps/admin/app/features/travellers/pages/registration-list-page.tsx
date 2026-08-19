@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { DateRange } from 'react-day-picker';
 import type { ColumnDef } from '@tanstack/react-table';
 import { useNavigate, useSearchParams } from 'react-router';
+import { useRenderProfile } from '../../../dev/render-profile';
 import {
   Button,
   Select,
@@ -114,6 +115,7 @@ function matchesDateRange(
 }
 
 export function RegistrationListPage() {
+  useRenderProfile('RegistrationListPage');
   const { can } = usePermissions();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -302,7 +304,7 @@ export function RegistrationListPage() {
     resetPage();
   }
 
-  async function handleArchive(id: string) {
+  const handleArchive = useCallback(async (id: string) => {
     if (!confirm('Archive this registration?')) return;
     try {
       await api.archiveRegistration(id);
@@ -314,93 +316,96 @@ export function RegistrationListPage() {
         err instanceof Error ? err.message : 'Registration archive failed',
       );
     }
-  }
+  }, []);
 
-  const columns: ColumnDef<RegistrationWorkItem>[] = [
-    textColumn<RegistrationWorkItem>({
-      accessorKey: 'registration_number',
-      header: 'Registration',
-    }),
-    textColumn<RegistrationWorkItem>({
-      accessorKey: 'traveller_name',
-      header: 'Traveller',
-    }),
-    textColumn<RegistrationWorkItem>({
-      accessorKey: 'package_name',
-      header: 'Package/version',
-    }),
-    {
-      id: 'status',
-      header: 'Status',
-      enableSorting: false,
-      cell: ({ row }) => <WorkflowStatusBadge status={row.original.status} />,
-    },
-    {
-      id: 'departure',
-      header: 'Departure',
-      enableSorting: false,
-      cell: ({ row }) => (
-        <span>{displayDate(row.original.expected_departure_date)}</span>
-      ),
-    },
-    {
-      id: 'balance',
-      header: 'Outstanding',
-      enableSorting: false,
-      cell: ({ row }) =>
-        row.original.outstanding_balance === null
-          ? '—'
-          : `${row.original.outstanding_balance.toFixed(2)} ETB`,
-    },
-    {
-      id: 'readiness',
-      header: 'Readiness',
-      enableSorting: false,
-      cell: ({ row }) =>
-        row.original.blockers.length > 0
-          ? `${row.original.blockers.length} blocker${row.original.blockers.length === 1 ? '' : 's'}`
-          : row.original.outstanding_balance !== null
-            ? 'No blockers'
-            : 'Open detail',
-    },
-    {
-      id: 'group',
-      header: 'Group / room',
-      enableSorting: false,
-      cell: ({ row }) =>
-        row.original.group_name
-          ? `${row.original.group_name}${row.original.room_number ? ` · ${row.original.room_number}` : ''}`
-          : 'Not assigned',
-    },
-    actionsColumn<RegistrationWorkItem>({
-      actions: [
-        {
-          label: 'View',
-          onClick: (registration) =>
-            navigate(`/registrations/${registration.id}`),
-        },
-        {
-          label: 'Resume intake',
-          onClick: (registration) =>
-            navigate(`/registrations/new?resume=${registration.id}`),
-          disabled: (registration) =>
-            registration.status !== 'DRAFT' || !can('REGISTRATION_EDIT'),
-        },
-        {
-          label: 'Edit',
-          onClick: (registration) =>
-            navigate(`/registrations/${registration.id}/edit`),
-          disabled: (registration) =>
-            registration.status === 'DRAFT' || !can('REGISTRATION_EDIT'),
-        },
-        {
-          label: 'Archive',
-          onClick: (registration) => void handleArchive(registration.id),
-          disabled: () => !can('REGISTRATION_DELETE'),
-        },
-      ],
-    }),
-  ];
+  const columns = useMemo<ColumnDef<RegistrationWorkItem>[]>(
+    () => [
+      textColumn<RegistrationWorkItem>({
+        accessorKey: 'registration_number',
+        header: 'Registration',
+      }),
+      textColumn<RegistrationWorkItem>({
+        accessorKey: 'traveller_name',
+        header: 'Traveller',
+      }),
+      textColumn<RegistrationWorkItem>({
+        accessorKey: 'package_name',
+        header: 'Package/version',
+      }),
+      {
+        id: 'status',
+        header: 'Status',
+        enableSorting: false,
+        cell: ({ row }) => <WorkflowStatusBadge status={row.original.status} />,
+      },
+      {
+        id: 'departure',
+        header: 'Departure',
+        enableSorting: false,
+        cell: ({ row }) => (
+          <span>{displayDate(row.original.expected_departure_date)}</span>
+        ),
+      },
+      {
+        id: 'balance',
+        header: 'Outstanding',
+        enableSorting: false,
+        cell: ({ row }) =>
+          row.original.outstanding_balance === null
+            ? '—'
+            : `${row.original.outstanding_balance.toFixed(2)} ETB`,
+      },
+      {
+        id: 'readiness',
+        header: 'Readiness',
+        enableSorting: false,
+        cell: ({ row }) =>
+          row.original.blockers.length > 0
+            ? `${row.original.blockers.length} blocker${row.original.blockers.length === 1 ? '' : 's'}`
+            : row.original.outstanding_balance !== null
+              ? 'No blockers'
+              : 'Open detail',
+      },
+      {
+        id: 'group',
+        header: 'Group / room',
+        enableSorting: false,
+        cell: ({ row }) =>
+          row.original.group_name
+            ? `${row.original.group_name}${row.original.room_number ? ` · ${row.original.room_number}` : ''}`
+            : 'Not assigned',
+      },
+      actionsColumn<RegistrationWorkItem>({
+        actions: [
+          {
+            label: 'View',
+            onClick: (registration) =>
+              navigate(`/registrations/${registration.id}`),
+          },
+          {
+            label: 'Resume intake',
+            onClick: (registration) =>
+              navigate(`/registrations/new?resume=${registration.id}`),
+            disabled: (registration) =>
+              registration.status !== 'DRAFT' || !can('REGISTRATION_EDIT'),
+          },
+          {
+            label: 'Edit',
+            onClick: (registration) =>
+              navigate(`/registrations/${registration.id}/edit`),
+            disabled: (registration) =>
+              registration.status === 'DRAFT' || !can('REGISTRATION_EDIT'),
+          },
+          {
+            label: 'Archive',
+            onClick: (registration) => void handleArchive(registration.id),
+            disabled: () => !can('REGISTRATION_DELETE'),
+          },
+        ],
+      }),
+    ],
+    [can, handleArchive, navigate],
+  );
 
   const selectedQueueLabel = queueOptions.find(
     (option) => option.value === queue,

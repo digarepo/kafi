@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from 'react';
 import {
   flexRender,
   getCoreRowModel,
@@ -9,17 +9,30 @@ import {
   type Updater,
   type VisibilityState,
   useReactTable,
-} from "@tanstack/react-table";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Button } from "@kafi/ui";
-import { cn } from "@kafi/ui";
-import { Trash2 } from "lucide-react";
+} from '@tanstack/react-table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Button,
+} from '@kafi/ui';
+import { cn } from '@kafi/ui';
+import { Trash2 } from 'lucide-react';
 
-import { CaretUpIcon, CaretUpDownIcon, CaretDownIcon } from "@phosphor-icons/react";
+import {
+  CaretUpIcon,
+  CaretUpDownIcon,
+  CaretDownIcon,
+} from '@phosphor-icons/react';
 
-import type { DataTableProps } from "./data-table.types";
-import { DataTablePaginationControls } from "./data-table-pagination";
-import { DataTableViewOptions } from "./data-table-view-options";
-import { selectionColumn } from "./columns/selection-column";
+import type { DataTableProps } from './data-table.types';
+import { DataTablePaginationControls } from './data-table-pagination';
+import { DataTableViewOptions } from './data-table-view-options';
+import { selectionColumn } from './columns/selection-column';
+import { recordRender } from '../../dev/render-profile';
 
 /**
  * Reusable TanStack Table wrapper with sorting, filtering, pagination and
@@ -45,13 +58,15 @@ export function DataTable<TData, TValue>({
   onDeleteSelected,
   enableRowSelection = false,
 }: DataTableProps<TData, TValue>) {
+  const renderStartedAt = performance.now();
   const [internalSorting, setInternalSorting] = useState<SortingState>([]);
   const [internalPagination, setInternalPagination] = useState({
     pageIndex: 0,
     pageSize: 10,
   });
-  const [internalColumnVisibility, setInternalColumnVisibility] = useState<VisibilityState>({});
-  const [internalGlobalFilter, setInternalGlobalFilter] = useState("");
+  const [internalColumnVisibility, setInternalColumnVisibility] =
+    useState<VisibilityState>({});
+  const [internalGlobalFilter, setInternalGlobalFilter] = useState('');
 
   const isControlledPagination =
     externalPagination !== undefined && onPaginationChange !== undefined;
@@ -66,11 +81,15 @@ export function DataTable<TData, TValue>({
   const columnVisibility = externalColumnVisibility ?? internalColumnVisibility;
   const globalFilter = externalGlobalFilter ?? internalGlobalFilter;
   const selectionEnabled = enableRowSelection || !!onDeleteSelected;
-  const visibleColumnCount = selectionEnabled ? columns.length + 1 : columns.length;
+  const visibleColumnCount = selectionEnabled
+    ? columns.length + 1
+    : columns.length;
 
   const table = useReactTable({
     data,
-    columns: selectionEnabled ? [selectionColumn<TData>(), ...columns] : columns,
+    columns: selectionEnabled
+      ? [selectionColumn<TData>(), ...columns]
+      : columns,
     pageCount: isControlledPagination
       ? Math.ceil(pagination.total / pagination.pageSize)
       : undefined,
@@ -84,12 +103,12 @@ export function DataTable<TData, TValue>({
       globalFilter,
     },
     onSortingChange: (updater: Updater<SortingState>) => {
-      const next = typeof updater === "function" ? updater(sorting) : updater;
+      const next = typeof updater === 'function' ? updater(sorting) : updater;
       onSortingChange ? onSortingChange(next) : setInternalSorting(next);
     },
     onPaginationChange: (updater) => {
       const next =
-        typeof updater === "function"
+        typeof updater === 'function'
           ? updater({
               pageIndex: pagination.pageIndex,
               pageSize: pagination.pageSize,
@@ -107,22 +126,44 @@ export function DataTable<TData, TValue>({
       }
     },
     onColumnVisibilityChange: (updater: Updater<VisibilityState>) => {
-      const next = typeof updater === "function" ? updater(columnVisibility) : updater;
-      onColumnVisibilityChange ? onColumnVisibilityChange(next) : setInternalColumnVisibility(next);
+      const next =
+        typeof updater === 'function' ? updater(columnVisibility) : updater;
+      onColumnVisibilityChange
+        ? onColumnVisibilityChange(next)
+        : setInternalColumnVisibility(next);
     },
     onGlobalFilterChange: (updater: Updater<string>) => {
-      const next = typeof updater === "function" ? updater(globalFilter) : updater;
-      onGlobalFilterChange ? onGlobalFilterChange(next) : setInternalGlobalFilter(next);
+      const next =
+        typeof updater === 'function' ? updater(globalFilter) : updater;
+      onGlobalFilterChange
+        ? onGlobalFilterChange(next)
+        : setInternalGlobalFilter(next);
     },
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    getPaginationRowModel: isControlledPagination ? undefined : getPaginationRowModel(),
-    getFilteredRowModel: isControlledPagination ? undefined : getFilteredRowModel(),
+    getPaginationRowModel: isControlledPagination
+      ? undefined
+      : getPaginationRowModel(),
+    getFilteredRowModel: isControlledPagination
+      ? undefined
+      : getFilteredRowModel(),
     manualPagination: isControlledPagination,
     manualFiltering: isControlledPagination,
     autoResetPageIndex: false,
     enableRowSelection: selectionEnabled,
     enableMultiRowSelection: selectionEnabled,
+  });
+  const rowModelStartedAt = performance.now();
+  const rowModel = table.getRowModel();
+  const rowModelDurationMs = performance.now() - rowModelStartedAt;
+
+  useEffect(() => {
+    recordRender(
+      'DataTable',
+      performance.now() - renderStartedAt,
+      rowModelDurationMs,
+      rowModel.rows.length,
+    );
   });
 
   const selectedRows = selectionEnabled
@@ -147,7 +188,7 @@ export function DataTable<TData, TValue>({
         <DataTableViewOptions table={table} />
       </div>
 
-      <div className={cn("overflow-x-auto rounded-md border bg-background")}>
+      <div className={cn('overflow-x-auto rounded-md border bg-background')}>
         <Table className="min-w-max">
           <TableHeader className="bg-muted">
             {table.getHeaderGroups().map((headerGroup) => (
@@ -155,7 +196,10 @@ export function DataTable<TData, TValue>({
                 {headerGroup.headers.map((header) => (
                   <TableHead
                     key={header.id}
-                    className={cn(header.column.getCanSort() && "cursor-pointer select-none")}
+                    className={cn(
+                      header.column.getCanSort() &&
+                        'cursor-pointer select-none',
+                    )}
                     onClick={
                       header.column.getCanSort()
                         ? header.column.getToggleSortingHandler()
@@ -164,15 +208,18 @@ export function DataTable<TData, TValue>({
                   >
                     {header.isPlaceholder ? null : (
                       <div className="flex items-center gap-2">
-                        {flexRender(header.column.columnDef.header, header.getContext())}
+                        {flexRender(
+                          header.column.columnDef.header,
+                          header.getContext(),
+                        )}
 
                         {header.column.getCanSort() && (
                           <>
-                            {header.column.getIsSorted() === "asc" && (
+                            {header.column.getIsSorted() === 'asc' && (
                               <CaretUpIcon className="h-4 w-4" />
                             )}
 
-                            {header.column.getIsSorted() === "desc" && (
+                            {header.column.getIsSorted() === 'desc' && (
                               <CaretDownIcon className="h-4 w-4" />
                             )}
 
@@ -191,23 +238,35 @@ export function DataTable<TData, TValue>({
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={visibleColumnCount} className="h-24 text-center">
+                <TableCell
+                  colSpan={visibleColumnCount}
+                  className="h-24 text-center"
+                >
                   Loading…
                 </TableCell>
               </TableRow>
-            ) : table.getRowModel().rows.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id} data-state={row.getIsSelected() ? "selected" : undefined}>
+            ) : rowModel.rows.length ? (
+              rowModel.rows.map((row) => (
+                <TableRow
+                  key={row.id}
+                  data-state={row.getIsSelected() ? 'selected' : undefined}
+                >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext(),
+                      )}
                     </TableCell>
                   ))}
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={visibleColumnCount} className="h-24 text-center">
+                <TableCell
+                  colSpan={visibleColumnCount}
+                  className="h-24 text-center"
+                >
                   No results.
                 </TableCell>
               </TableRow>
@@ -216,7 +275,9 @@ export function DataTable<TData, TValue>({
         </Table>
       </div>
 
-      {!hidePagination && table.getPageCount() > 1 && <DataTablePaginationControls table={table} />}
+      {!hidePagination && table.getPageCount() > 1 && (
+        <DataTablePaginationControls table={table} />
+      )}
     </div>
   );
 }

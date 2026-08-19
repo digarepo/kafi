@@ -26,6 +26,7 @@ type BenchmarkWindow = Window & {
     invalidations: number;
     lastEvent?: { type: string; key: string; timestamp: string };
   };
+  __KAFI_RENDER_PROFILE__?: Record<string, Record<string, number>>;
 };
 
 const benchmarkEmail = process.env.KAFI_BENCHMARK_EMAIL;
@@ -263,6 +264,7 @@ async function captureRoute(
 
   await page.evaluate(() => {
     (window as BenchmarkWindow).__KAFI_BENCHMARK__?.reset();
+    (window as BenchmarkWindow).__KAFI_RENDER_PROFILE__ = {};
   });
   await page.goto(route, { waitUntil: 'networkidle' });
   await page.waitForTimeout(
@@ -274,6 +276,7 @@ async function captureRoute(
     return {
       ...(benchmark?.snapshot() ?? {}),
       cacheStats: (window as BenchmarkWindow).__KAFI_CACHE__ ?? null,
+      renderProfile: (window as BenchmarkWindow).__KAFI_RENDER_PROFILE__ ?? {},
     };
   });
   const apiRequests = requests.filter((request) =>

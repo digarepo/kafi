@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { DateRange } from 'react-day-picker';
 import type { ColumnDef } from '@tanstack/react-table';
 import { useNavigate, useSearchParams } from 'react-router';
+import { useRenderProfile } from '../../../dev/render-profile';
 import {
   Button,
   Select,
@@ -29,6 +30,7 @@ import {
 type TravelGroupWorkItem = TravelGroupListItem;
 
 export function TravelGroupListPage() {
+  useRenderProfile('TravelGroupListPage');
   const { can } = usePermissions();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -159,7 +161,7 @@ export function TravelGroupListPage() {
     resetPage();
   }
 
-  async function handleDelete(id: string) {
+  const handleDelete = useCallback(async (id: string) => {
     if (!confirm('Delete this travel group?')) return;
     try {
       await api.deleteTravelGroup(id);
@@ -169,78 +171,81 @@ export function TravelGroupListPage() {
         err instanceof Error ? err.message : 'Travel-group deletion failed',
       );
     }
-  }
+  }, []);
 
-  const columns: ColumnDef<TravelGroupWorkItem>[] = [
-    textColumn<TravelGroupWorkItem>({
-      accessorKey: 'group_number',
-      header: 'Group',
-    }),
-    textColumn<TravelGroupWorkItem>({ accessorKey: 'name', header: 'Name' }),
-    {
-      id: 'package',
-      header: 'Package/version',
-      enableSorting: false,
-      cell: ({ row }) => row.original.package_version?.name ?? '—',
-    },
-    {
-      id: 'status',
-      header: 'Status',
-      enableSorting: false,
-      cell: ({ row }) => (
-        <WorkflowStatusBadge status={row.original.status?.status_code} />
-      ),
-    },
-    textColumn<TravelGroupWorkItem>({
-      accessorKey: 'departure_date',
-      header: 'Departure',
-    }),
-    textColumn<TravelGroupWorkItem>({
-      accessorKey: 'return_date',
-      header: 'Return',
-    }),
-    {
-      id: 'capacity',
-      header: 'Capacity',
-      enableSorting: false,
-      cell: ({ row }) =>
-        `${row.original.current_capacity} / ${row.original.maximum_capacity}`,
-    },
-    {
-      id: 'members',
-      header: 'Members',
-      enableSorting: false,
-      cell: ({ row }) =>
-        `${row.original.active_member_count} active · ${row.original.ready_member_count ?? '—'} ready`,
-    },
-    {
-      id: 'preparation',
-      header: 'Preparation',
-      enableSorting: false,
-      cell: ({ row }) => {
-        if (row.original.preparation_ready) return 'Ready';
-        return 'Open detail';
+  const columns = useMemo<ColumnDef<TravelGroupWorkItem>[]>(
+    () => [
+      textColumn<TravelGroupWorkItem>({
+        accessorKey: 'group_number',
+        header: 'Group',
+      }),
+      textColumn<TravelGroupWorkItem>({ accessorKey: 'name', header: 'Name' }),
+      {
+        id: 'package',
+        header: 'Package/version',
+        enableSorting: false,
+        cell: ({ row }) => row.original.package_version?.name ?? '—',
       },
-    },
-    actionsColumn<TravelGroupWorkItem>({
-      actions: [
-        {
-          label: 'View',
-          onClick: (group) => navigate(`/travel-groups/${group.id}`),
+      {
+        id: 'status',
+        header: 'Status',
+        enableSorting: false,
+        cell: ({ row }) => (
+          <WorkflowStatusBadge status={row.original.status?.status_code} />
+        ),
+      },
+      textColumn<TravelGroupWorkItem>({
+        accessorKey: 'departure_date',
+        header: 'Departure',
+      }),
+      textColumn<TravelGroupWorkItem>({
+        accessorKey: 'return_date',
+        header: 'Return',
+      }),
+      {
+        id: 'capacity',
+        header: 'Capacity',
+        enableSorting: false,
+        cell: ({ row }) =>
+          `${row.original.current_capacity} / ${row.original.maximum_capacity}`,
+      },
+      {
+        id: 'members',
+        header: 'Members',
+        enableSorting: false,
+        cell: ({ row }) =>
+          `${row.original.active_member_count} active · ${row.original.ready_member_count ?? '—'} ready`,
+      },
+      {
+        id: 'preparation',
+        header: 'Preparation',
+        enableSorting: false,
+        cell: ({ row }) => {
+          if (row.original.preparation_ready) return 'Ready';
+          return 'Open detail';
         },
-        {
-          label: 'Edit',
-          onClick: (group) => navigate(`/travel-groups/${group.id}/edit`),
-          disabled: () => !can('TRAVEL_GROUP_MANAGE'),
-        },
-        {
-          label: 'Delete',
-          onClick: (group) => void handleDelete(group.id),
-          disabled: () => !can('TRAVEL_GROUP_MANAGE'),
-        },
-      ],
-    }),
-  ];
+      },
+      actionsColumn<TravelGroupWorkItem>({
+        actions: [
+          {
+            label: 'View',
+            onClick: (group) => navigate(`/travel-groups/${group.id}`),
+          },
+          {
+            label: 'Edit',
+            onClick: (group) => navigate(`/travel-groups/${group.id}/edit`),
+            disabled: () => !can('TRAVEL_GROUP_MANAGE'),
+          },
+          {
+            label: 'Delete',
+            onClick: (group) => void handleDelete(group.id),
+            disabled: () => !can('TRAVEL_GROUP_MANAGE'),
+          },
+        ],
+      }),
+    ],
+    [can, handleDelete, navigate],
+  );
 
   const emptyTitle =
     statusFilter === 'PLANNING'

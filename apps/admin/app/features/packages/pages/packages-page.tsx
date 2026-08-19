@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import type { ColumnDef } from '@tanstack/react-table';
 import { Button, Tabs, TabsList, TabsTrigger, TabsContent } from '@kafi/ui';
 
 import { usePermissions } from '../../../core/permissions';
+import { useRenderProfile } from '../../../dev/render-profile';
 import { DataTable, DataTableToolbar } from '../../../shared/data-table';
 import {
   actionsColumn,
@@ -33,6 +34,7 @@ import type {
 type Tab = 'templates' | 'versions';
 
 export function PackagesPage() {
+  useRenderProfile('PackagesPage');
   const { can } = usePermissions();
   const [tab, setTab] = useState<Tab>('templates');
 
@@ -178,16 +180,19 @@ export function PackagesPage() {
     }
   }
 
-  async function handleArchiveTemplate(id: string) {
-    if (!confirm('Archive this template?')) return;
-    try {
-      await api.archivePackageTemplate(id);
-      toast.success('Template archived');
-      await loadPackages('templates');
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Archive failed');
-    }
-  }
+  const handleArchiveTemplate = useCallback(
+    async (id: string) => {
+      if (!confirm('Archive this template?')) return;
+      try {
+        await api.archivePackageTemplate(id);
+        toast.success('Template archived');
+        await loadPackages('templates');
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Archive failed');
+      }
+    },
+    [loadPackages],
+  );
 
   async function handleCreateVersion(values: PackageVersionFormOutput) {
     try {
@@ -216,44 +221,53 @@ export function PackagesPage() {
     }
   }
 
-  async function handlePublishVersion(id: string) {
-    try {
-      await api.publishPackageVersion(id);
-      toast.success('Version published');
-      await loadPackages('versions');
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Publish failed');
-    }
-  }
+  const handlePublishVersion = useCallback(
+    async (id: string) => {
+      try {
+        await api.publishPackageVersion(id);
+        toast.success('Version published');
+        await loadPackages('versions');
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Publish failed');
+      }
+    },
+    [loadPackages],
+  );
 
-  async function handleCloseVersion(id: string) {
-    if (
-      !confirm(
-        'Close this version early? It will stop accepting registrations.',
+  const handleCloseVersion = useCallback(
+    async (id: string) => {
+      if (
+        !confirm(
+          'Close this version early? It will stop accepting registrations.',
+        )
       )
-    )
-      return;
-    try {
-      await api.closePackageVersion(id);
-      toast.success('Version closed');
-      await loadPackages('versions');
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Close failed');
-    }
-  }
+        return;
+      try {
+        await api.closePackageVersion(id);
+        toast.success('Version closed');
+        await loadPackages('versions');
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Close failed');
+      }
+    },
+    [loadPackages],
+  );
 
-  async function handleCancelVersion(id: string) {
-    if (!confirm('Cancel this package version?')) return;
-    try {
-      await api.cancelPackageVersion(id);
-      toast.success('Version cancelled');
-      await loadPackages('versions');
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Cancellation failed');
-    }
-  }
+  const handleCancelVersion = useCallback(
+    async (id: string) => {
+      if (!confirm('Cancel this package version?')) return;
+      try {
+        await api.cancelPackageVersion(id);
+        toast.success('Version cancelled');
+        await loadPackages('versions');
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Cancellation failed');
+      }
+    },
+    [loadPackages],
+  );
 
-  async function handleEditVersion(v: PackageVersion) {
+  const handleEditVersion = useCallback(async (v: PackageVersion) => {
     setLoading(true);
     try {
       const full = await api.getPackageVersion(v.id);
@@ -265,115 +279,131 @@ export function PackagesPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
-  const templateColumns: ColumnDef<PackageTemplate>[] = [
-    textColumn<PackageTemplate>({
-      accessorKey: 'package_template_code',
-      header: 'Code',
-    }),
-    textColumn<PackageTemplate>({ accessorKey: 'name', header: 'Name' }),
-    {
-      id: 'category',
-      header: 'Category',
-      enableSorting: false,
-      cell: ({ row }) => row.original.package_category?.name ?? '-',
-    },
-    {
-      id: 'type',
-      header: 'Type',
-      enableSorting: false,
-      cell: ({ row }) => row.original.pilgrimage_type?.name ?? '-',
-    },
-    textColumn<PackageTemplate>({
-      accessorKey: 'default_duration_days',
-      header: 'Duration',
-    }),
-    statusColumn<PackageTemplate>({
-      accessorKey: 'status',
-      header: 'Status',
-    }),
-    actionsColumn<PackageTemplate>({
-      actions: [
-        {
-          label: 'View',
-          onClick: (t) => {
-            setViewingTemplate(t);
-            setViewingVersion(null);
+  const templateColumns = useMemo<ColumnDef<PackageTemplate>[]>(
+    () => [
+      textColumn<PackageTemplate>({
+        accessorKey: 'package_template_code',
+        header: 'Code',
+      }),
+      textColumn<PackageTemplate>({ accessorKey: 'name', header: 'Name' }),
+      {
+        id: 'category',
+        header: 'Category',
+        enableSorting: false,
+        cell: ({ row }) => row.original.package_category?.name ?? '-',
+      },
+      {
+        id: 'type',
+        header: 'Type',
+        enableSorting: false,
+        cell: ({ row }) => row.original.pilgrimage_type?.name ?? '-',
+      },
+      textColumn<PackageTemplate>({
+        accessorKey: 'default_duration_days',
+        header: 'Duration',
+      }),
+      statusColumn<PackageTemplate>({
+        accessorKey: 'status',
+        header: 'Status',
+      }),
+      actionsColumn<PackageTemplate>({
+        actions: [
+          {
+            label: 'View',
+            onClick: (t) => {
+              setViewingTemplate(t);
+              setViewingVersion(null);
+            },
+            disabled: () => !can('PACKAGE_VIEW'),
           },
-          disabled: () => !can('PACKAGE_VIEW'),
-        },
-        {
-          label: 'Edit',
-          onClick: (t) => setEditingTemplate(t),
-          disabled: () => !can('PACKAGE_EDIT'),
-        },
-        {
-          label: 'Archive',
-          onClick: (t) => handleArchiveTemplate(t.id),
-          disabled: (t) => !can('PACKAGE_DELETE') || t.status !== 'ACTIVE',
-        },
-      ],
-    }),
-  ];
+          {
+            label: 'Edit',
+            onClick: (t) => setEditingTemplate(t),
+            disabled: () => !can('PACKAGE_EDIT'),
+          },
+          {
+            label: 'Archive',
+            onClick: (t) => handleArchiveTemplate(t.id),
+            disabled: (t) => !can('PACKAGE_DELETE') || t.status !== 'ACTIVE',
+          },
+        ],
+      }),
+    ],
+    [can, handleArchiveTemplate],
+  );
 
-  const versionColumns: ColumnDef<PackageVersion>[] = [
-    textColumn<PackageVersion>({
-      accessorKey: 'package_version_code',
-      header: 'Code',
-    }),
-    textColumn<PackageVersion>({ accessorKey: 'version_name', header: 'Name' }),
-    {
-      id: 'template',
-      header: 'Template',
-      enableSorting: false,
-      cell: ({ row }) => row.original.package_template?.name ?? '-',
-    },
-    textColumn<PackageVersion>({ accessorKey: 'slug', header: 'Slug' }),
-    statusColumn<PackageVersion>({
-      accessorKey: 'status',
-      header: 'Status',
-    }),
-    {
-      id: 'price',
-      header: 'Price',
-      enableSorting: false,
-      cell: ({ row }) => row.original.base_price,
-    },
-    actionsColumn<PackageVersion>({
-      actions: [
-        {
-          label: 'View',
-          onClick: (v) => {
-            setViewingVersion(v);
-            setViewingTemplate(null);
+  const versionColumns = useMemo<ColumnDef<PackageVersion>[]>(
+    () => [
+      textColumn<PackageVersion>({
+        accessorKey: 'package_version_code',
+        header: 'Code',
+      }),
+      textColumn<PackageVersion>({
+        accessorKey: 'version_name',
+        header: 'Name',
+      }),
+      {
+        id: 'template',
+        header: 'Template',
+        enableSorting: false,
+        cell: ({ row }) => row.original.package_template?.name ?? '-',
+      },
+      textColumn<PackageVersion>({ accessorKey: 'slug', header: 'Slug' }),
+      statusColumn<PackageVersion>({
+        accessorKey: 'status',
+        header: 'Status',
+      }),
+      {
+        id: 'price',
+        header: 'Price',
+        enableSorting: false,
+        cell: ({ row }) => row.original.base_price,
+      },
+      actionsColumn<PackageVersion>({
+        actions: [
+          {
+            label: 'View',
+            onClick: (v) => {
+              setViewingVersion(v);
+              setViewingTemplate(null);
+            },
+            disabled: () => !can('PACKAGE_VIEW'),
           },
-          disabled: () => !can('PACKAGE_VIEW'),
-        },
-        {
-          label: 'Edit draft',
-          onClick: (v) => void handleEditVersion(v),
-          disabled: (v) => !can('PACKAGE_EDIT') || v.status !== 'DRAFT',
-        },
-        {
-          label: 'Publish',
-          onClick: (v) => handlePublishVersion(v.id),
-          disabled: (v) => !can('PACKAGE_EDIT') || v.status !== 'DRAFT',
-        },
-        {
-          label: 'Close early',
-          onClick: (v) => handleCloseVersion(v.id),
-          disabled: (v) => !can('PACKAGE_EDIT') || v.status !== 'PUBLISHED',
-        },
-        {
-          label: 'Cancel',
-          onClick: (v) => handleCancelVersion(v.id),
-          disabled: (v) =>
-            !can('PACKAGE_EDIT') || !['DRAFT', 'PUBLISHED'].includes(v.status),
-        },
-      ],
-    }),
-  ];
+          {
+            label: 'Edit draft',
+            onClick: (v) => void handleEditVersion(v),
+            disabled: (v) => !can('PACKAGE_EDIT') || v.status !== 'DRAFT',
+          },
+          {
+            label: 'Publish',
+            onClick: (v) => handlePublishVersion(v.id),
+            disabled: (v) => !can('PACKAGE_EDIT') || v.status !== 'DRAFT',
+          },
+          {
+            label: 'Close early',
+            onClick: (v) => handleCloseVersion(v.id),
+            disabled: (v) => !can('PACKAGE_EDIT') || v.status !== 'PUBLISHED',
+          },
+          {
+            label: 'Cancel',
+            onClick: (v) => handleCancelVersion(v.id),
+            disabled: (v) =>
+              !can('PACKAGE_EDIT') ||
+              !['DRAFT', 'PUBLISHED'].includes(v.status),
+          },
+        ],
+      }),
+    ],
+    [
+      can,
+      handleCancelVersion,
+      handleCloseVersion,
+      handleEditVersion,
+      handlePublishVersion,
+    ],
+  );
 
   return (
     <div className="space-y-6">
