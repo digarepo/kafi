@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-import { test, type Page, type TestInfo } from '@playwright/test';
+import { expect, test, type Page, type TestInfo } from '@playwright/test';
 
 type RunCapture = {
   route: string;
@@ -278,6 +278,13 @@ async function captureRoute(
   const duplicateApiRequests = [...grouped.entries()]
     .filter(([, count]) => count > 1)
     .map(([request, count]) => ({ request, count }));
+
+  if (
+    cacheState === 'cold' &&
+    ['/registrations', '/travel-groups'].includes(route)
+  ) {
+    expect(duplicateApiRequests).toEqual([]);
+  }
 
   const capture: RunCapture = {
     route,

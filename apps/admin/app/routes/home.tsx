@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, redirect, useLoaderData } from 'react-router';
+import { Link, useRouteLoaderData } from 'react-router';
 import {
   buttonVariants,
   Card,
@@ -22,26 +22,10 @@ import {
   type RegistrationQueueItem,
   type TravelGroupListItem,
 } from '../lib/api.js';
+import { RequirePermission } from '../core/permissions';
 
 export function meta() {
   return [{ title: 'Dashboard | Kafi Admin' }];
-}
-
-export async function clientLoader() {
-  let user;
-  try {
-    user = await api.me();
-  } catch {
-    api.logout();
-    throw redirect('/login');
-  }
-
-  const permissions = user.permissions ?? [];
-  if (!permissions.includes('DASHBOARD_VIEW')) {
-    throw redirect('/forbidden');
-  }
-
-  return { permissions };
 }
 
 export function HydrateFallback() {
@@ -85,8 +69,10 @@ function getUpcomingWindow() {
   };
 }
 
-export default function Home() {
-  const { permissions } = useLoaderData<typeof clientLoader>();
+function HomeContent() {
+  const adminData = useRouteLoaderData('routes/admin') as
+    { user?: { permissions?: string[] } } | undefined;
+  const permissions = adminData?.user?.permissions ?? [];
   const canViewRegistrations = permissions.includes('REGISTRATION_VIEW');
   const canViewGroups = permissions.includes('TRAVEL_GROUP_VIEW');
 
@@ -504,5 +490,13 @@ export default function Home() {
         </AsyncState>
       </section>
     </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <RequirePermission permission="DASHBOARD_VIEW">
+      <HomeContent />
+    </RequirePermission>
   );
 }

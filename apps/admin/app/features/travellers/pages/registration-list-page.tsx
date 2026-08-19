@@ -127,6 +127,7 @@ export function RegistrationListPage() {
   const [referenceLoading, setReferenceLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [referenceError, setReferenceError] = useState<string | null>(null);
+  const [retryNonce, setRetryNonce] = useState(0);
   const [globalFilter, setGlobalFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [packageFilter, setPackageFilter] = useState('');
@@ -243,6 +244,7 @@ export function RegistrationListPage() {
     pagination.pageSize,
     queue,
     requiredStatusId,
+    retryNonce,
     statusFilter,
   ]);
 
@@ -518,7 +520,7 @@ export function RegistrationListPage() {
       <AsyncState
         loading={loading}
         error={error}
-        onRetry={() => window.location.reload()}
+        onRetry={() => setRetryNonce((value) => value + 1)}
         isEmpty={!loading && !error && visibleRegistrations.length === 0}
         emptyTitle={
           selectedQueueLabel === 'Blocked from ready'

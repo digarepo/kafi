@@ -1,5 +1,6 @@
-import { redirect, useLoaderData } from 'react-router';
+import { useLoaderData } from 'react-router';
 
+import { RequirePermission } from '../../core/permissions';
 import { UsersPage } from '../../features/users';
 import { api } from '../../lib/api.js';
 
@@ -11,29 +12,12 @@ export function meta() {
  * Lists staff users.
  */
 export async function clientLoader() {
-  let user;
-  try {
-    user = await api.me();
-  } catch {
-    api.logout();
-    throw redirect('/login');
-  }
-
-  if (!user.permissions?.includes('USER_VIEW')) {
-    throw redirect('/forbidden');
-  }
-
-  try {
-    const [users, roles, statuses] = await Promise.all([
-      api.listUsers(),
-      api.listRoles(),
-      api.listUserStatuses(),
-    ]);
-    return { users, roles, statuses };
-  } catch {
-    api.logout();
-    throw redirect('/login');
-  }
+  const [users, roles, statuses] = await Promise.all([
+    api.listUsers(),
+    api.listRoles(),
+    api.listUserStatuses(),
+  ]);
+  return { users, roles, statuses };
 }
 
 /**
@@ -46,5 +30,9 @@ export { RouteHydrateFallback as HydrateFallback } from '../../shared/route-hydr
 
 export default function UsersRoute() {
   const initial = useLoaderData<typeof clientLoader>();
-  return <UsersPage initial={initial} />;
+  return (
+    <RequirePermission permission="USER_VIEW">
+      <UsersPage initial={initial} />
+    </RequirePermission>
+  );
 }

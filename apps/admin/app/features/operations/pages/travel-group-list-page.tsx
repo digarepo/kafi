@@ -38,6 +38,7 @@ export function TravelGroupListPage() {
   const [loading, setLoading] = useState(true);
   const [referenceLoading, setReferenceLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [retryNonce, setRetryNonce] = useState(0);
   const [referenceError, setReferenceError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState(
@@ -50,6 +51,9 @@ export function TravelGroupListPage() {
     pageSize: 25,
     total: 0,
   });
+  const selectedStatusId = statuses.find(
+    (status) => status.code === statusFilter,
+  )?.id;
 
   useEffect(() => {
     let cancelled = false;
@@ -105,8 +109,7 @@ export function TravelGroupListPage() {
           {
             search: search || undefined,
             package_version_id: packageFilter || undefined,
-            status_id: statuses.find((status) => status.code === statusFilter)
-              ?.id,
+            status_id: selectedStatusId,
             departure_from: toYmd(departureRange?.from),
             departure_to: toYmd(departureRange?.to),
           },
@@ -138,8 +141,9 @@ export function TravelGroupListPage() {
     pagination.pageIndex,
     pagination.pageSize,
     search,
+    selectedStatusId,
     statusFilter,
-    statuses,
+    retryNonce,
   ]);
 
   function resetPage() {
@@ -328,7 +332,7 @@ export function TravelGroupListPage() {
       <AsyncState
         loading={loading}
         error={error}
-        onRetry={() => window.location.reload()}
+        onRetry={() => setRetryNonce((value) => value + 1)}
         isEmpty={!loading && !error && groups.length === 0}
         emptyTitle={emptyTitle}
         emptyDescription="Try another status, package, or departure range."

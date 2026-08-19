@@ -3,14 +3,14 @@
  *
  * Loads the current user and wraps the shell with auth/permission contexts.
  */
-import { redirect, useLoaderData } from "react-router";
-import { Skeleton } from "@kafi/ui";
-import { api } from "../lib/api";
-import { AppLayout } from "../shell/layouts/app-layout";
-import { AuthProvider } from "../core/auth";
+import { redirect, useLoaderData } from 'react-router';
+import { Skeleton } from '@kafi/ui';
+import { api } from '../lib/api';
+import { AppLayout } from '../shell/layouts/app-layout';
+import { AuthProvider } from '../core/auth';
 
 export function meta() {
-  return [{ title: "Admin | Kafi" }];
+  return [{ title: 'Admin | Kafi' }];
 }
 
 export async function clientLoader() {
@@ -20,8 +20,27 @@ export async function clientLoader() {
     return { user };
   } catch {
     api.logout();
-    throw redirect("/login");
+    throw redirect('/login');
   }
+}
+
+export function shouldRevalidate({
+  currentUrl,
+  nextUrl,
+  defaultShouldRevalidate,
+}: {
+  currentUrl: URL;
+  nextUrl: URL;
+  defaultShouldRevalidate: boolean;
+}) {
+  if (
+    currentUrl.pathname === nextUrl.pathname &&
+    currentUrl.search !== nextUrl.search
+  ) {
+    return false;
+  }
+
+  return defaultShouldRevalidate;
 }
 
 export function HydrateFallback() {

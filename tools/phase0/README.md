@@ -138,3 +138,18 @@ Checks include:
 - Admin document;
 - one generated static asset;
 - optional authenticated `/api/auth/me` smoke.
+
+## Phase 3 mutation regression
+
+Run only against a dedicated isolated fixture database. The test creates a uniquely named package template and archives it through an authenticated cleanup request; it does not reset or mutate normal development data.
+
+```bash
+KAFI_ADMIN_URL=http://localhost:3000 \
+KAFI_API_URL=http://localhost:4000 \
+KAFI_BENCHMARK_EMAIL=... \
+KAFI_BENCHMARK_PASSWORD=... \
+KAFI_MUTATION_REGRESSION=true \
+  npm -w @kafi/admin run perf:mutation
+```
+
+If the test fails after creating a record, rerun the isolated fixture reset before another attempt.

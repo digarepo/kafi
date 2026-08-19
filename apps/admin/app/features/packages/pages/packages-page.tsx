@@ -69,49 +69,80 @@ export function PackagesPage() {
     null,
   );
 
-  const loadPackages = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [cat, pt, cur, sea, tpl, ver] = await Promise.all([
-        api.listPackageCategories(),
-        api.listPilgrimageTypes(),
-        api.listCurrencies(),
-        api.listSeasons(),
-        api.listPackageTemplates(
-          templatePagination.pageIndex + 1,
-          templatePagination.pageSize,
-          tab === 'templates' ? globalFilter || undefined : undefined,
-        ),
-        api.listPackageVersions(
-          versionPagination.pageIndex + 1,
-          versionPagination.pageSize,
-          undefined,
-          tab === 'versions' ? globalFilter || undefined : undefined,
-        ),
-      ]);
-      setCategories(cat);
-      setPilgrimageTypes(pt);
-      setCurrencies(cur);
-      setSeasons(sea);
-      setTemplates(tpl.data);
-      setVersions(ver.data);
-      setTemplatePagination((current) => ({ ...current, total: tpl.total }));
-      setVersionPagination((current) => ({ ...current, total: ver.total }));
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : 'Failed to load packages',
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [
-    globalFilter,
-    tab,
-    templatePagination.pageIndex,
-    templatePagination.pageSize,
-    versionPagination.pageIndex,
-    versionPagination.pageSize,
-  ]);
+  const loadPackages = useCallback(
+    async (scope: 'all' | 'templates' | 'versions' = 'all') => {
+      setLoading(true);
+      try {
+        const referencesPromise =
+          scope === 'all'
+            ? Promise.all([
+                api.listPackageCategories(),
+                api.listPilgrimageTypes(),
+                api.listCurrencies(),
+                api.listSeasons(),
+              ])
+            : Promise.resolve(null);
+        const templatesPromise =
+          scope === 'all' || scope === 'templates'
+            ? api.listPackageTemplates(
+                templatePagination.pageIndex + 1,
+                templatePagination.pageSize,
+                tab === 'templates' ? globalFilter || undefined : undefined,
+              )
+            : Promise.resolve(null);
+        const versionsPromise =
+          scope === 'all' || scope === 'versions'
+            ? api.listPackageVersions(
+                versionPagination.pageIndex + 1,
+                versionPagination.pageSize,
+                undefined,
+                tab === 'versions' ? globalFilter || undefined : undefined,
+              )
+            : Promise.resolve(null);
+        const [references, tpl, ver] = await Promise.all([
+          referencesPromise,
+          templatesPromise,
+          versionsPromise,
+        ]);
+
+        if (references) {
+          const [cat, pt, cur, sea] = references;
+          setCategories(cat);
+          setPilgrimageTypes(pt);
+          setCurrencies(cur);
+          setSeasons(sea);
+        }
+        if (tpl) {
+          setTemplates(tpl.data);
+          setTemplatePagination((current) => ({
+            ...current,
+            total: tpl.total,
+          }));
+        }
+        if (ver) {
+          setVersions(ver.data);
+          setVersionPagination((current) => ({
+            ...current,
+            total: ver.total,
+          }));
+        }
+      } catch (err) {
+        toast.error(
+          err instanceof Error ? err.message : 'Failed to load packages',
+        );
+      } finally {
+        setLoading(false);
+      }
+    },
+    [
+      globalFilter,
+      tab,
+      templatePagination.pageIndex,
+      templatePagination.pageSize,
+      versionPagination.pageIndex,
+      versionPagination.pageSize,
+    ],
+  );
 
   useEffect(() => {
     void loadPackages();
@@ -122,7 +153,7 @@ export function PackagesPage() {
       await api.createPackageTemplate(values as CreatePackageTemplateInput);
       toast.success('Template created');
       setCreateTemplateOpen(false);
-      await loadPackages();
+      await loadPackages('templates');
     } catch (err) {
       toast.error(
         err instanceof Error ? err.message : 'Failed to create template',
@@ -139,7 +170,7 @@ export function PackagesPage() {
       );
       toast.success('Template updated');
       setEditingTemplate(null);
-      await loadPackages();
+      await loadPackages('templates');
     } catch (err) {
       toast.error(
         err instanceof Error ? err.message : 'Failed to update template',
@@ -152,7 +183,7 @@ export function PackagesPage() {
     try {
       await api.archivePackageTemplate(id);
       toast.success('Template archived');
-      await loadPackages();
+      await loadPackages('templates');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Archive failed');
     }
@@ -163,7 +194,7 @@ export function PackagesPage() {
       await api.createPackageVersion(values as CreatePackageVersionInput);
       toast.success('Version created');
       setCreateVersionOpen(false);
-      await loadPackages();
+      await loadPackages('versions');
     } catch (err) {
       toast.error(
         err instanceof Error ? err.message : 'Failed to create version',
@@ -177,7 +208,7 @@ export function PackagesPage() {
       await api.updatePackageVersion(editingVersion.id, values);
       toast.success('Version updated');
       setEditingVersion(null);
-      await loadPackages();
+      await loadPackages('versions');
     } catch (err) {
       toast.error(
         err instanceof Error ? err.message : 'Failed to update version',
@@ -189,7 +220,7 @@ export function PackagesPage() {
     try {
       await api.publishPackageVersion(id);
       toast.success('Version published');
-      await loadPackages();
+      await loadPackages('versions');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Publish failed');
     }
@@ -205,7 +236,7 @@ export function PackagesPage() {
     try {
       await api.closePackageVersion(id);
       toast.success('Version closed');
-      await loadPackages();
+      await loadPackages('versions');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Close failed');
     }
@@ -216,7 +247,7 @@ export function PackagesPage() {
     try {
       await api.cancelPackageVersion(id);
       toast.success('Version cancelled');
-      await loadPackages();
+      await loadPackages('versions');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Cancellation failed');
     }

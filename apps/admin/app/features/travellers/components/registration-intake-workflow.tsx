@@ -482,45 +482,44 @@ export function RegistrationIntakeWorkflow({
   // ---- Load registration documents and intake data ----
   const loadRegistrationIntakeData = useCallback(async () => {
     if (!registration) return;
-    // Load independently so a failure in one doesn't block the others
-    try {
-      const docsResult = await documentsApi.listRegistrationDocuments(
-        registration.id,
-        1,
-        100,
+    const results = await Promise.allSettled([
+      documentsApi.listRegistrationDocuments(registration.id, 1, 100),
+      api.listRegistrationGuarantees(registration.id),
+      api.getRegistrationFinanceSummary(registration.id),
+      api.getRegistrationOperationalSummary(registration.id),
+    ]);
+
+    const [documentsResult, guaranteesResult, financeResult, summaryResult] =
+      results;
+    if (documentsResult.status === 'fulfilled') {
+      setRegistrationDocuments(documentsResult.value.data);
+    } else {
+      console.error(
+        'Failed to load registration documents',
+        documentsResult.reason,
       );
-      setRegistrationDocuments(docsResult.data);
-    } catch (err) {
-      console.error('Failed to load registration documents', err);
-      toast.error(
-        err instanceof Error
-          ? `Failed to load registration documents: ${err.message}`
-          : 'Failed to load registration documents',
+      toast.error('Failed to load registration documents');
+    }
+    if (guaranteesResult.status === 'fulfilled') {
+      setGuarantees(guaranteesResult.value);
+    } else {
+      console.error(
+        'Failed to load registration guarantees',
+        guaranteesResult.reason,
       );
     }
-    try {
-      const guaranteesResult = await api.listRegistrationGuarantees(
-        registration.id,
+    if (financeResult.status === 'fulfilled') {
+      setFinanceSummary(financeResult.value);
+    } else {
+      console.error(
+        'Failed to load registration finance',
+        financeResult.reason,
       );
-      setGuarantees(guaranteesResult);
-    } catch (err) {
-      console.error('Failed to load registration guarantees', err);
     }
-    try {
-      const financeRes = await api.getRegistrationFinanceSummary(
-        registration.id,
-      );
-      setFinanceSummary(financeRes);
-    } catch (err) {
-      console.error('Failed to load registration finance', err);
-    }
-    try {
-      const summary = await api.getRegistrationOperationalSummary(
-        registration.id,
-      );
-      setOperationalSummary(summary);
-    } catch (err) {
-      console.error('Failed to load operational summary', err);
+    if (summaryResult.status === 'fulfilled') {
+      setOperationalSummary(summaryResult.value);
+    } else {
+      console.error('Failed to load operational summary', summaryResult.reason);
     }
   }, [registration]);
 
@@ -542,10 +541,10 @@ export function RegistrationIntakeWorkflow({
   }, [registration]);
 
   useEffect(() => {
-    if (stepIndex >= 5) {
+    if (stepIndex >= 5 && !operationalSummary) {
       void loadOperationalSummary();
     }
-  }, [stepIndex, loadOperationalSummary]);
+  }, [operationalSummary, stepIndex, loadOperationalSummary]);
 
   // ---- Load payers for finance step ----
   useEffect(() => {

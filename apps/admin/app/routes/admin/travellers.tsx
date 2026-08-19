@@ -6,9 +6,9 @@
  * - Redirects to `/forbidden` if the actor lacks `TRAVELLER_VIEW`.
  */
 
-import { Outlet, redirect, useLoaderData } from 'react-router';
+import { Outlet } from 'react-router';
 
-import { api } from '../../lib/api.js';
+import { RequirePermission } from '../../core/permissions';
 
 export function meta() {
   return [{ title: 'Travellers | Kafi Admin' }];
@@ -19,19 +19,6 @@ export function meta() {
  *
  * @returns Empty loader data on success.
  */
-export async function clientLoader() {
-  try {
-    const user = await api.me();
-    if (!user.permissions?.includes('TRAVELLER_VIEW')) {
-      throw redirect('/forbidden');
-    }
-    return {};
-  } catch {
-    api.logout();
-    throw redirect('/login');
-  }
-}
-
 /**
  * Render the travellers layout with nested child routes.
  *
@@ -40,6 +27,9 @@ export async function clientLoader() {
 export { RouteHydrateFallback as HydrateFallback } from '../../shared/route-hydrate-fallback';
 
 export default function TravellersLayout() {
-  useLoaderData<typeof clientLoader>();
-  return <Outlet />;
+  return (
+    <RequirePermission permission="TRAVELLER_VIEW">
+      <Outlet />
+    </RequirePermission>
+  );
 }
