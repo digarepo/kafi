@@ -76,6 +76,10 @@ test.describe('Phase 3 mutation revalidation', () => {
     expect(requestPaths).toContain('GET /api/admin/package-templates');
     expect(requestPaths).not.toContain('GET /api/admin/package-versions');
 
+    await page.getByRole('tab', { name: 'Versions' }).click();
+    await page.waitForTimeout(500);
+    expect(requestPaths).toContain('GET /api/admin/package-versions');
+
     page.off('request', onRequest);
 
     const accessToken = await page.evaluate(

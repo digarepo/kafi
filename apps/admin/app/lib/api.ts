@@ -1813,6 +1813,136 @@ export interface ReplaceGuaranteeInput {
   notes?: string;
 }
 
+type CacheEntry = {
+  value: unknown;
+  expiresAt: number;
+};
+
+const STABLE_REFERENCE_TTL_MS = 15 * 60 * 1000;
+const SEMI_STABLE_REFERENCE_TTL_MS = 60 * 1000;
+const responseCache = new Map<string, CacheEntry>();
+const inFlightCache = new Map<string, Promise<unknown>>();
+const cacheStats = { hits: 0, misses: 0, invalidations: 0 };
+const SESSION_CACHE_PREFIX = 'kafi:reference-cache:';
+
+function readSessionCache(key: string): CacheEntry | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = sessionStorage.getItem(`${SESSION_CACHE_PREFIX}${key}`);
+    if (!raw) return null;
+    const entry = JSON.parse(raw) as CacheEntry;
+    if (entry.expiresAt <= Date.now()) {
+      sessionStorage.removeItem(`${SESSION_CACHE_PREFIX}${key}`);
+      return null;
+    }
+    return entry;
+  } catch {
+    return null;
+  }
+}
+
+function writeSessionCache(key: string, entry: CacheEntry) {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.setItem(
+      `${SESSION_CACHE_PREFIX}${key}`,
+      JSON.stringify(entry),
+    );
+  } catch {
+    // Session storage is an optimization; memory caching still applies.
+  }
+}
+
+function recordCacheEvent(type: 'hit' | 'miss' | 'invalidation', key: string) {
+  if (type === 'hit') cacheStats.hits += 1;
+  if (type === 'miss') cacheStats.misses += 1;
+  if (type === 'invalidation') cacheStats.invalidations += 1;
+
+  if (typeof window !== 'undefined') {
+    const cacheWindow = window as Window & {
+      __KAFI_CACHE__?: typeof cacheStats & {
+        lastEvent: { type: string; key: string; timestamp: string };
+      };
+    };
+    cacheWindow.__KAFI_CACHE__ = {
+      ...cacheStats,
+      lastEvent: { type, key, timestamp: new Date().toISOString() },
+    };
+  }
+}
+
+async function cachedRequest<T>(
+  key: string,
+  ttlMs: number,
+  loader: () => Promise<T>,
+): Promise<T> {
+  const cached = responseCache.get(key) ?? readSessionCache(key);
+  if (cached && cached.expiresAt > Date.now()) {
+    responseCache.set(key, cached);
+    recordCacheEvent('hit', key);
+    return cached.value as T;
+  }
+  if (cached) responseCache.delete(key);
+
+  const inFlight = inFlightCache.get(key);
+  if (inFlight) {
+    recordCacheEvent('hit', `${key}:in-flight`);
+    return inFlight as Promise<T>;
+  }
+
+  recordCacheEvent('miss', key);
+  const promise = loader().then((value) => {
+    const entry = { value, expiresAt: Date.now() + ttlMs };
+    responseCache.set(key, entry);
+    writeSessionCache(key, entry);
+    return value;
+  });
+  inFlightCache.set(key, promise);
+  try {
+    return await promise;
+  } finally {
+    inFlightCache.delete(key);
+  }
+}
+
+export function invalidateApiCache(keys?: string[]) {
+  if (!keys || keys.length === 0) {
+    responseCache.clear();
+    if (typeof window !== 'undefined') {
+      try {
+        for (let index = sessionStorage.length - 1; index >= 0; index -= 1) {
+          const key = sessionStorage.key(index);
+          if (key?.startsWith(SESSION_CACHE_PREFIX)) {
+            sessionStorage.removeItem(key);
+          }
+        }
+      } catch {
+        // Session storage is optional.
+      }
+    }
+    recordCacheEvent('invalidation', '*');
+    return;
+  }
+  for (const key of keys) {
+    const prefix = key.endsWith('*') ? key.slice(0, -1) : key;
+    for (const cachedKey of responseCache.keys()) {
+      if (
+        key.endsWith('*') ? cachedKey.startsWith(prefix) : cachedKey === key
+      ) {
+        responseCache.delete(cachedKey);
+        if (typeof window !== 'undefined') {
+          try {
+            sessionStorage.removeItem(`${SESSION_CACHE_PREFIX}${cachedKey}`);
+          } catch {
+            // Session storage is optional.
+          }
+        }
+      }
+    }
+    recordCacheEvent('invalidation', key);
+  }
+}
+
 export const api = {
   isLoggedIn(): boolean {
     return !!getAccessToken();
@@ -1979,19 +2109,33 @@ export const api = {
   },
 
   async listPackageCategories(): Promise<PackageCategory[]> {
-    return request<PackageCategory[]>('/api/admin/package-categories');
+    return cachedRequest(
+      'reference:package-categories',
+      STABLE_REFERENCE_TTL_MS,
+      () => request<PackageCategory[]>('/api/admin/package-categories'),
+    );
   },
 
   async listPilgrimageTypes(): Promise<PilgrimageType[]> {
-    return request<PilgrimageType[]>('/api/admin/pilgrimage-types');
+    return cachedRequest(
+      'reference:pilgrimage-types',
+      STABLE_REFERENCE_TTL_MS,
+      () => request<PilgrimageType[]>('/api/admin/pilgrimage-types'),
+    );
   },
 
   async listCurrencies(): Promise<Currency[]> {
-    return request<Currency[]>('/api/admin/currencies');
+    return cachedRequest('reference:currencies', STABLE_REFERENCE_TTL_MS, () =>
+      request<Currency[]>('/api/admin/currencies'),
+    );
   },
 
   async listSeasons(): Promise<Season[]> {
-    return request<Season[]>('/api/admin/seasons');
+    return cachedRequest(
+      'reference:seasons',
+      SEMI_STABLE_REFERENCE_TTL_MS,
+      () => request<Season[]>('/api/admin/seasons'),
+    );
   },
 
   async listPackageTemplates(
@@ -2019,29 +2163,39 @@ export const api = {
   async createPackageTemplate(
     input: CreatePackageTemplateInput,
   ): Promise<PackageTemplate> {
-    return request<PackageTemplate>('/api/admin/package-templates', {
-      method: 'POST',
-      body: JSON.stringify(input),
-    });
+    const result = await request<PackageTemplate>(
+      '/api/admin/package-templates',
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+    );
+    invalidateApiCache(['catalog:package-versions:*']);
+    return result;
   },
 
   async updatePackageTemplate(
     id: string,
     input: UpdatePackageTemplateInput,
   ): Promise<PackageTemplate> {
-    return request<PackageTemplate>(`/api/admin/package-templates/${id}`, {
-      method: 'PATCH',
-      body: JSON.stringify(input),
-    });
+    const result = await request<PackageTemplate>(
+      `/api/admin/package-templates/${id}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      },
+    );
+    invalidateApiCache(['catalog:package-versions:*']);
+    return result;
   },
 
   async archivePackageTemplate(id: string): Promise<PackageTemplate> {
-    return request<PackageTemplate>(
+    const result = await request<PackageTemplate>(
       `/api/admin/package-templates/${id}/archive`,
-      {
-        method: 'POST',
-      },
+      { method: 'POST' },
     );
+    invalidateApiCache(['catalog:package-versions:*']);
+    return result;
   },
 
   async listPackageVersions(
@@ -2061,7 +2215,12 @@ export const api = {
     });
     if (templateId) qs.set('templateId', templateId);
     if (search) qs.set('search', search);
-    return request(`/api/admin/package-versions?${qs.toString()}`);
+    const path = `/api/admin/package-versions?${qs.toString()}`;
+    return cachedRequest(
+      `catalog:package-versions:${path}`,
+      SEMI_STABLE_REFERENCE_TTL_MS,
+      () => request(path),
+    );
   },
 
   async getPackageVersion(id: string): Promise<PackageVersion> {
@@ -2071,41 +2230,57 @@ export const api = {
   async createPackageVersion(
     input: CreatePackageVersionInput,
   ): Promise<PackageVersion> {
-    return request<PackageVersion>('/api/admin/package-versions', {
-      method: 'POST',
-      body: JSON.stringify(input),
-    });
+    const result = await request<PackageVersion>(
+      '/api/admin/package-versions',
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+    );
+    invalidateApiCache(['catalog:package-versions:*']);
+    return result;
   },
 
   async updatePackageVersion(
     id: string,
     input: UpdatePackageVersionInput,
   ): Promise<PackageVersion> {
-    return request<PackageVersion>(`/api/admin/package-versions/${id}`, {
-      method: 'PATCH',
-      body: JSON.stringify(input),
-    });
+    const result = await request<PackageVersion>(
+      `/api/admin/package-versions/${id}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      },
+    );
+    invalidateApiCache(['catalog:package-versions:*']);
+    return result;
   },
 
   async publishPackageVersion(id: string): Promise<PackageVersion> {
-    return request<PackageVersion>(
+    const result = await request<PackageVersion>(
       `/api/admin/package-versions/${id}/publish`,
-      {
-        method: 'POST',
-      },
+      { method: 'POST' },
     );
+    invalidateApiCache(['catalog:package-versions:*']);
+    return result;
   },
 
   async closePackageVersion(id: string): Promise<PackageVersion> {
-    return request<PackageVersion>(`/api/admin/package-versions/${id}/close`, {
-      method: 'POST',
-    });
+    const result = await request<PackageVersion>(
+      `/api/admin/package-versions/${id}/close`,
+      { method: 'POST' },
+    );
+    invalidateApiCache(['catalog:package-versions:*']);
+    return result;
   },
 
   async cancelPackageVersion(id: string): Promise<PackageVersion> {
-    return request<PackageVersion>(`/api/admin/package-versions/${id}/cancel`, {
-      method: 'POST',
-    });
+    const result = await request<PackageVersion>(
+      `/api/admin/package-versions/${id}/cancel`,
+      { method: 'POST' },
+    );
+    invalidateApiCache(['catalog:package-versions:*']);
+    return result;
   },
 
   async listPublicPackages(
@@ -2129,41 +2304,74 @@ export const api = {
   // ---- Travellers reference data ----
 
   async listTravellerStatuses(): Promise<LookupOption[]> {
-    return request<LookupOption[]>('/api/admin/traveller-statuses');
+    return cachedRequest(
+      'reference:traveller-statuses',
+      STABLE_REFERENCE_TTL_MS,
+      () => request<LookupOption[]>('/api/admin/traveller-statuses'),
+    );
   },
 
   async listTravellerSources(): Promise<LookupOption[]> {
-    return request<LookupOption[]>('/api/admin/traveller-sources');
+    return cachedRequest(
+      'reference:traveller-sources',
+      STABLE_REFERENCE_TTL_MS,
+      () => request<LookupOption[]>('/api/admin/traveller-sources'),
+    );
   },
 
   async listRelationshipTypes(): Promise<LookupOption[]> {
-    return request<LookupOption[]>('/api/admin/relationship-types');
+    return cachedRequest(
+      'reference:relationship-types',
+      STABLE_REFERENCE_TTL_MS,
+      () => request<LookupOption[]>('/api/admin/relationship-types'),
+    );
   },
 
   async listContactPersonStatuses(): Promise<LookupOption[]> {
-    return request<LookupOption[]>('/api/admin/contact-person-statuses');
+    return cachedRequest(
+      'reference:contact-person-statuses',
+      STABLE_REFERENCE_TTL_MS,
+      () => request<LookupOption[]>('/api/admin/contact-person-statuses'),
+    );
   },
 
   async listTravellerContactStatuses(): Promise<LookupOption[]> {
-    return request<LookupOption[]>('/api/admin/traveller-contact-statuses');
+    return cachedRequest(
+      'reference:traveller-contact-statuses',
+      STABLE_REFERENCE_TTL_MS,
+      () => request<LookupOption[]>('/api/admin/traveller-contact-statuses'),
+    );
   },
 
   async listRegistrationStatuses(): Promise<LookupOption[]> {
-    return request<LookupOption[]>('/api/admin/registration-statuses');
+    return cachedRequest(
+      'reference:registration-statuses',
+      STABLE_REFERENCE_TTL_MS,
+      () => request<LookupOption[]>('/api/admin/registration-statuses'),
+    );
   },
 
   async listCountries(): Promise<Country[]> {
-    return request<Country[]>('/api/admin/countries');
+    return cachedRequest('reference:countries', STABLE_REFERENCE_TTL_MS, () =>
+      request<Country[]>('/api/admin/countries'),
+    );
   },
 
   async listRegions(countryId?: string): Promise<Region[]> {
     const qs = new URLSearchParams();
     if (countryId) qs.set('countryId', countryId);
-    return request<Region[]>(`/api/admin/regions?${qs.toString()}`);
+    const path = `/api/admin/regions?${qs.toString()}`;
+    return cachedRequest(
+      `reference:regions:${countryId ?? 'all'}`,
+      STABLE_REFERENCE_TTL_MS,
+      () => request<Region[]>(path),
+    );
   },
 
   async listLanguages(): Promise<Language[]> {
-    return request<Language[]>('/api/admin/languages');
+    return cachedRequest('reference:languages', STABLE_REFERENCE_TTL_MS, () =>
+      request<Language[]>('/api/admin/languages'),
+    );
   },
 
   // ---- Travellers ----
@@ -2459,52 +2667,82 @@ export const api = {
   // ---- Finance reference data ----
 
   async listInvoiceStatuses(): Promise<LookupOption[]> {
-    return request<LookupOption[]>('/api/admin/invoice-statuses');
+    return cachedRequest(
+      'reference:invoice-statuses',
+      STABLE_REFERENCE_TTL_MS,
+      () => request<LookupOption[]>('/api/admin/invoice-statuses'),
+    );
   },
 
   async listPaymentStatuses(): Promise<LookupOption[]> {
-    return request<LookupOption[]>('/api/admin/payment-statuses');
+    return cachedRequest(
+      'reference:payment-statuses',
+      STABLE_REFERENCE_TTL_MS,
+      () => request<LookupOption[]>('/api/admin/payment-statuses'),
+    );
   },
 
   async listPayerTypes(): Promise<LookupOption[]> {
-    return request<LookupOption[]>('/api/admin/payer-types');
+    return cachedRequest('reference:payer-types', STABLE_REFERENCE_TTL_MS, () =>
+      request<LookupOption[]>('/api/admin/payer-types'),
+    );
   },
 
   async listPayerStatuses(): Promise<LookupOption[]> {
-    return request<LookupOption[]>('/api/admin/payer-statuses');
+    return cachedRequest(
+      'reference:payer-statuses',
+      STABLE_REFERENCE_TTL_MS,
+      () => request<LookupOption[]>('/api/admin/payer-statuses'),
+    );
   },
 
   async listInvoiceLineItemTypes(): Promise<LookupOption[]> {
-    return request<LookupOption[]>('/api/admin/invoice-line-item-types');
+    return cachedRequest(
+      'reference:invoice-line-item-types',
+      STABLE_REFERENCE_TTL_MS,
+      () => request<LookupOption[]>('/api/admin/invoice-line-item-types'),
+    );
   },
 
   async listPaymentMethods(): Promise<PaymentMethod[]> {
-    return request<PaymentMethod[]>('/api/admin/payment-methods');
+    return cachedRequest(
+      'reference:payment-methods',
+      STABLE_REFERENCE_TTL_MS,
+      () => request<PaymentMethod[]>('/api/admin/payment-methods'),
+    );
   },
 
   async createPaymentMethod(
     input: CreatePaymentMethodInput,
   ): Promise<PaymentMethod> {
-    return request<PaymentMethod>('/api/admin/payment-methods', {
+    const result = await request<PaymentMethod>('/api/admin/payment-methods', {
       method: 'POST',
       body: JSON.stringify(input),
     });
+    invalidateApiCache(['reference:payment-methods']);
+    return result;
   },
 
   async updatePaymentMethod(
     id: string,
     input: UpdatePaymentMethodInput,
   ): Promise<PaymentMethod> {
-    return request<PaymentMethod>(`/api/admin/payment-methods/${id}`, {
-      method: 'PATCH',
-      body: JSON.stringify(input),
-    });
+    const result = await request<PaymentMethod>(
+      `/api/admin/payment-methods/${id}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      },
+    );
+    invalidateApiCache(['reference:payment-methods']);
+    return result;
   },
 
   async archivePaymentMethod(id: string): Promise<void> {
     await request(`/api/admin/payment-methods/${id}/archive`, {
       method: 'POST',
     });
+    invalidateApiCache(['reference:payment-methods']);
   },
 
   // ---- Invoices ----
@@ -2969,19 +3207,33 @@ export const api = {
   },
 
   async listGroupHotelStayStatuses(): Promise<LookupOption[]> {
-    return request<LookupOption[]>('/api/admin/group-hotel-stay-statuses');
+    return cachedRequest(
+      'reference:group-hotel-stay-statuses',
+      STABLE_REFERENCE_TTL_MS,
+      () => request<LookupOption[]>('/api/admin/group-hotel-stay-statuses'),
+    );
   },
 
   async listTransportSegmentStatuses(): Promise<LookupOption[]> {
-    return request<LookupOption[]>('/api/admin/transport-segment-statuses');
+    return cachedRequest(
+      'reference:transport-segment-statuses',
+      STABLE_REFERENCE_TTL_MS,
+      () => request<LookupOption[]>('/api/admin/transport-segment-statuses'),
+    );
   },
 
   async listRoomStatuses(): Promise<LookupOption[]> {
-    return request<LookupOption[]>('/api/admin/room-statuses');
+    return cachedRequest(
+      'reference:room-statuses',
+      STABLE_REFERENCE_TTL_MS,
+      () => request<LookupOption[]>('/api/admin/room-statuses'),
+    );
   },
 
   async listRoomTypes(): Promise<LookupOption[]> {
-    return request<LookupOption[]>('/api/admin/room-types');
+    return cachedRequest('reference:room-types', STABLE_REFERENCE_TTL_MS, () =>
+      request<LookupOption[]>('/api/admin/room-types'),
+    );
   },
 
   async listGroupHotelStays(groupId: string): Promise<TravelGroupHotelStay[]> {
@@ -3174,14 +3426,23 @@ export const api = {
   },
 
   async listTravelGroupStatuses(): Promise<TravelGroupStatus[]> {
-    return request<TravelGroupStatus[]>('/api/admin/travel-group-statuses');
+    return cachedRequest(
+      'reference:travel-group-statuses',
+      STABLE_REFERENCE_TTL_MS,
+      () => request<TravelGroupStatus[]>('/api/admin/travel-group-statuses'),
+    );
   },
 
   // ---- Group memberships ----
 
   async listGroupMembershipStatuses(): Promise<GroupMembershipStatus[]> {
-    return request<GroupMembershipStatus[]>(
-      '/api/admin/group-membership-statuses',
+    return cachedRequest(
+      'reference:group-membership-statuses',
+      STABLE_REFERENCE_TTL_MS,
+      () =>
+        request<GroupMembershipStatus[]>(
+          '/api/admin/group-membership-statuses',
+        ),
     );
   },
 

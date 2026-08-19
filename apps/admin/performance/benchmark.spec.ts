@@ -20,6 +20,12 @@ type BrowserCaptureApi = {
 
 type BenchmarkWindow = Window & {
   __KAFI_BENCHMARK__?: BrowserCaptureApi;
+  __KAFI_CACHE__?: {
+    hits: number;
+    misses: number;
+    invalidations: number;
+    lastEvent?: { type: string; key: string; timestamp: string };
+  };
 };
 
 const benchmarkEmail = process.env.KAFI_BENCHMARK_EMAIL;
@@ -263,9 +269,13 @@ async function captureRoute(
     Number(process.env.KAFI_BENCHMARK_SETTLE_MS ?? 750),
   );
 
-  const metrics = await page.evaluate(
-    () => (window as BenchmarkWindow).__KAFI_BENCHMARK__?.snapshot() ?? {},
-  );
+  const metrics = await page.evaluate(() => {
+    const benchmark = (window as BenchmarkWindow).__KAFI_BENCHMARK__;
+    return {
+      ...(benchmark?.snapshot() ?? {}),
+      cacheStats: (window as BenchmarkWindow).__KAFI_CACHE__ ?? null,
+    };
+  });
   const apiRequests = requests.filter((request) =>
     String(request.path).startsWith('/api/'),
   );
