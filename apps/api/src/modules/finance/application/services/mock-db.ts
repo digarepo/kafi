@@ -26,89 +26,93 @@ export class MockDb {
 
   then(onFulfilled?: (value: unknown) => unknown, onRejected?: unknown) {
     const value = this.queue.shift();
-    if (typeof onFulfilled === "function") {
+    if (typeof onFulfilled === 'function') {
       onFulfilled(value);
     }
   }
 
   select(..._args: unknown[]) {
-    return this.logCall("select");
+    return this.logCall('select');
   }
 
   insert(..._args: unknown[]) {
     this.insertValues.length = 0;
-    return this.logCall("insert");
+    return this.logCall('insert');
   }
 
   update(..._args: unknown[]) {
     this.updateSets.length = 0;
-    return this.logCall("update");
+    return this.logCall('update');
   }
 
   delete(..._args: unknown[]) {
-    return this.logCall("delete");
+    return this.logCall('delete');
   }
 
   from(..._args: unknown[]) {
-    return this.logCall("from");
+    return this.logCall('from');
   }
 
   values(...args: unknown[]) {
     this.insertValues.push(args[0]);
-    return this.logCall("values");
+    return this.logCall('values');
   }
 
   set(...args: unknown[]) {
     this.updateSets.push(args[0]);
-    return this.logCall("set");
+    return this.logCall('set');
   }
 
   where(..._args: unknown[]) {
-    return this.logCall("where");
+    return this.logCall('where');
   }
 
   and(..._args: unknown[]) {
-    return this.logCall("and");
+    return this.logCall('and');
   }
 
   or(..._args: unknown[]) {
-    return this.logCall("or");
+    return this.logCall('or');
   }
 
   eq(..._args: unknown[]) {
-    return this.logCall("eq");
+    return this.logCall('eq');
   }
 
   like(..._args: unknown[]) {
-    return this.logCall("like");
+    return this.logCall('like');
   }
 
   max(..._args: unknown[]) {
-    return this.logCall("max");
+    return this.logCall('max');
   }
 
   innerJoin(..._args: unknown[]) {
-    return this.logCall("innerJoin");
+    return this.logCall('innerJoin');
   }
 
   leftJoin(..._args: unknown[]) {
-    return this.logCall("leftJoin");
+    return this.logCall('leftJoin');
   }
 
   orderBy(..._args: unknown[]) {
-    return this.logCall("orderBy");
+    return this.logCall('orderBy');
   }
 
   limit(..._args: unknown[]) {
-    return this.logCall("limit");
+    return this.logCall('limit');
   }
 
   offset(..._args: unknown[]) {
-    return this.logCall("offset");
+    return this.logCall('offset');
+  }
+
+  groupBy(..._args: unknown[]) {
+    return this.logCall('groupBy');
   }
 
   $dynamic(..._args: unknown[]) {
-    return this.logCall("$dynamic");
+    return this.logCall('$dynamic');
   }
 
   async transaction<T>(callback: (db: MockDb) => Promise<T> | T): Promise<T> {
