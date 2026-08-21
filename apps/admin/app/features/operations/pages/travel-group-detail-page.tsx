@@ -7,7 +7,15 @@ import {
 } from 'react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { Link, useNavigate, useParams } from 'react-router';
-import { Plus } from 'lucide-react';
+import {
+  ArrowLeft,
+  ArrowRight,
+  CalendarDays,
+  MoreVertical,
+  Pencil,
+  Plus,
+  Trash2,
+} from 'lucide-react';
 import {
   Button,
   Card,
@@ -15,6 +23,12 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  Skeleton,
+  buttonVariants,
 } from '@kafi/ui';
 import { usePermissions } from '../../../core/permissions';
 import {
@@ -222,12 +236,124 @@ function OperationalMembersTable({
   ];
 
   return (
-    <DataTable
-      columns={columns}
-      data={members}
-      loading={false}
-      hidePagination
-    />
+    <>
+      <div className="divide-y rounded-md border md:hidden">
+        {members.map((member) => {
+          const finance = financeByRegistration.get(member.registration_id);
+          return (
+            <article key={member.id} className="space-y-3 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  {member.traveller ? (
+                    <Link
+                      to={`/travellers/${member.traveller.id}`}
+                      className="break-words text-sm font-semibold hover:underline"
+                    >
+                      {member.traveller.full_name}
+                    </Link>
+                  ) : (
+                    <p className="text-sm font-semibold">
+                      Traveller unavailable
+                    </p>
+                  )}
+                  <Link
+                    to={`/registrations/${member.registration_id}`}
+                    className="mt-1 block break-words text-xs text-muted-foreground hover:underline"
+                  >
+                    {member.registration_number ?? member.registration_id}
+                  </Link>
+                </div>
+                <WorkflowStatusBadge
+                  status={member.registration_status?.status_code}
+                  className="shrink-0"
+                />
+              </div>
+              <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-xs">
+                <div>
+                  <dt className="text-muted-foreground">Payment</dt>
+                  <dd className="mt-1 font-medium">
+                    {finance
+                      ? finance.outstanding_balance > 0
+                        ? `${formatMoney(finance.outstanding_balance)} due`
+                        : 'Paid'
+                      : '—'}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Room</dt>
+                  <dd className="mt-1 font-medium">
+                    {member.room_number ?? 'Not assigned'}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Membership</dt>
+                  <dd className="mt-1 font-medium">
+                    {member.membership_status?.name ?? '—'}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Guarantee</dt>
+                  <dd className="mt-1 font-medium">
+                    {member.guarantee_required
+                      ? member.guarantee_waived
+                        ? 'Waived'
+                        : 'Required'
+                      : 'Not required'}
+                  </dd>
+                </div>
+              </dl>
+            </article>
+          );
+        })}
+      </div>
+      <div className="hidden md:block">
+        <DataTable
+          columns={columns}
+          data={members}
+          loading={false}
+          hidePagination
+        />
+      </div>
+    </>
+  );
+}
+
+function TravelGroupDetailSkeleton() {
+  return (
+    <div
+      className="space-y-8 pb-8"
+      role="status"
+      aria-label="Loading travel group"
+    >
+      <Link
+        to="/travel-groups"
+        className={buttonVariants({
+          variant: 'link',
+          size: 'sm',
+          className: 'h-auto px-0 text-muted-foreground hover:text-foreground',
+        })}
+      >
+        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+        Back to Groups
+      </Link>
+      <div className="rounded-lg border p-5 sm:p-6">
+        <div className="flex items-start justify-between gap-4">
+          <div className="space-y-3">
+            <Skeleton className="h-3 w-24" />
+            <Skeleton className="h-8 w-64 max-w-full" />
+            <Skeleton className="h-4 w-48" />
+          </div>
+          <Skeleton className="h-9 w-9" />
+        </div>
+        <Skeleton className="mt-6 h-16 w-full" />
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {Array.from({ length: 4 }, (_, index) => (
+          <Skeleton key={index} className="h-28 w-full" />
+        ))}
+      </div>
+      <Skeleton className="h-64 w-full" />
+    </div>
   );
 }
 
@@ -304,9 +430,11 @@ export function TravelGroupDetailPage() {
     }
   }
 
+  if (loading) return <TravelGroupDetailSkeleton />;
+
   return (
     <AsyncState
-      loading={loading}
+      loading={false}
       error={error}
       onRetry={() => void loadGroup()}
       isEmpty={!summary && !loading && !error}
@@ -319,42 +447,109 @@ export function TravelGroupDetailPage() {
       }
     >
       {summary && (
-        <div className="space-y-6">
-          <header className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div className="space-y-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-2xl font-bold tracking-tight">
-                  {summary.name}
-                </h1>
-                <WorkflowStatusBadge status={summary.status_code} />
+        <div className="space-y-10 pb-8">
+          <Link
+            to="/travel-groups"
+            className={buttonVariants({
+              variant: 'link',
+              size: 'sm',
+              className:
+                'h-auto px-0 text-muted-foreground hover:text-foreground',
+            })}
+          >
+            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+            Back to Groups
+          </Link>
+
+          <Card className="overflow-hidden">
+            <CardContent className="p-0">
+              <header className="flex items-start justify-between gap-4 px-4 py-5 sm:px-6 sm:py-6">
+                <div className="min-w-0">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Travel group · {summary.group_number}
+                  </p>
+                  <h1 className="mt-1 break-words text-2xl font-semibold leading-tight tracking-tight sm:text-3xl">
+                    {summary.name}
+                  </h1>
+                  <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                    <span className="break-words">
+                      {summary.package_version?.name ?? 'Package unavailable'}
+                    </span>
+                    <WorkflowStatusBadge status={summary.status_code} />
+                  </div>
+                </div>
+
+                {can('TRAVEL_GROUP_MANAGE') && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      render={
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="shrink-0"
+                          aria-label="Travel group actions"
+                        >
+                          <MoreVertical
+                            className="h-4 w-4"
+                            aria-hidden="true"
+                          />
+                        </Button>
+                      }
+                    />
+                    <DropdownMenuContent align="end" className="min-w-40">
+                      <DropdownMenuItem
+                        className="whitespace-nowrap"
+                        onClick={() =>
+                          navigate(`/travel-groups/${summary.id}/edit`)
+                        }
+                      >
+                        <Pencil className="mr-2 h-4 w-4" aria-hidden="true" />
+                        Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="whitespace-nowrap text-destructive focus:text-destructive"
+                        onClick={() => void handleDelete()}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" aria-hidden="true" />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+              </header>
+
+              <div className="border-t bg-muted/30 px-4 py-4 sm:px-6">
+                <div className="flex items-start gap-3">
+                  <CalendarDays
+                    className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground"
+                    aria-hidden="true"
+                  />
+                  <div className="grid flex-1 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start gap-2">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold">
+                        {displayDate(summary.departure_date)}
+                      </p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        Departure
+                      </p>
+                    </div>
+                    <div className="mt-2 flex items-center" aria-hidden="true">
+                      <span className="h-px w-5 bg-border sm:w-10" />
+                      <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
+                    </div>
+                    <div className="min-w-0 text-right">
+                      <p className="text-sm font-semibold">
+                        {displayDate(summary.return_date)}
+                      </p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        Return
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <p className="text-sm text-muted-foreground">
-                {summary.group_number} ·{' '}
-                {summary.package_version?.name ?? 'Package unavailable'}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Departure: {displayDate(summary.departure_date)} · Return:{' '}
-                {displayDate(summary.return_date)}
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {can('TRAVEL_GROUP_MANAGE') && (
-                <Button
-                  onClick={() => navigate(`/travel-groups/${summary.id}/edit`)}
-                >
-                  Edit
-                </Button>
-              )}
-              {can('TRAVEL_GROUP_MANAGE') && (
-                <Button
-                  variant="destructive"
-                  onClick={() => void handleDelete()}
-                >
-                  Delete
-                </Button>
-              )}
-            </div>
-          </header>
+            </CardContent>
+          </Card>
 
           <ContextualActionBar
             entity="travel-group"
@@ -386,31 +581,15 @@ export function TravelGroupDetailPage() {
             emptyDescription="The backend did not return preparation conditions for this group."
           />
 
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             <OperationalSummaryCard
               title="Capacity"
               value={`${summary.current_capacity} / ${summary.maximum_capacity}`}
-              secondary={`${summary.members.filter((member) => member.status_code === 'ACTIVE').length} active members`}
+              secondary={`${summary.members.filter((member) => member.status_code === 'ACTIVE' && member.registration_status_code === 'READY_FOR_TRAVEL').length} ready · ${summary.members.filter((member) => member.status_code === 'ACTIVE').length} active`}
               tone={
                 summary.current_capacity >= summary.maximum_capacity
                   ? 'warning'
                   : 'neutral'
-              }
-            />
-            <OperationalSummaryCard
-              title="Members ready"
-              value={
-                summary.members.filter(
-                  (member) =>
-                    member.status_code === 'ACTIVE' &&
-                    member.registration_status_code === 'READY_FOR_TRAVEL',
-                ).length
-              }
-              secondary={`of ${summary.members.filter((member) => member.status_code === 'ACTIVE').length} active members`}
-              tone={
-                summary.departure_readiness.all_members_ready
-                  ? 'success'
-                  : 'warning'
               }
             />
             <OperationalSummaryCard
@@ -435,7 +614,7 @@ export function TravelGroupDetailPage() {
             <OperationalSummaryCard
               title="Rooms assigned"
               value={summary.logistics.rooms_assigned_count}
-              secondary={`${summary.financial_summary.total_outstanding.toFixed(2)} ETB outstanding`}
+              secondary={`${formatMoney(summary.financial_summary.total_outstanding)} outstanding`}
               tone={
                 summary.logistics.rooms_assigned_count > 0
                   ? 'neutral'
@@ -446,16 +625,21 @@ export function TravelGroupDetailPage() {
           </div>
 
           <Card id="members">
-            <CardHeader className="flex flex-row items-center justify-between gap-3">
+            <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <CardTitle>Members</CardTitle>
                 <CardDescription>
-                  Operational status of each group member.
+                  Traveller readiness, payment, room, and membership status.
                 </CardDescription>
               </div>
               {can('TRAVEL_GROUP_MANAGE') && (
-                <Button onClick={() => setAssignOpen(true)}>
-                  Assign ready traveller
+                <Button
+                  size="sm"
+                  className="self-start sm:self-auto"
+                  onClick={() => setAssignOpen(true)}
+                >
+                  <Plus className="h-4 w-4" aria-hidden="true" />
+                  Assign member
                 </Button>
               )}
             </CardHeader>
@@ -463,7 +647,7 @@ export function TravelGroupDetailPage() {
               <AsyncState
                 isEmpty={travellers.length === 0}
                 emptyTitle="No active members"
-                emptyDescription="Assign a READY_FOR_TRAVEL registration to begin preparing this group."
+                emptyDescription="Assign a ready traveller to begin preparing this group."
               >
                 <OperationalMembersTable
                   members={travellers}
@@ -481,25 +665,24 @@ export function TravelGroupDetailPage() {
           </div>
 
           <Card id="transport">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Transport</CardTitle>
-                  <CardDescription>
-                    Transport segments and confirmation state.
-                  </CardDescription>
-                </div>
-                {can('TRAVEL_GROUP_MANAGE') && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setLogisticsMode('transport')}
-                  >
-                    <Plus className="mr-1 h-4 w-4" />
-                    Add transport
-                  </Button>
-                )}
+            <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <CardTitle>Transport</CardTitle>
+                <CardDescription>
+                  Confirmed movements for this group.
+                </CardDescription>
               </div>
+              {can('TRAVEL_GROUP_MANAGE') && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="self-start sm:self-auto"
+                  onClick={() => setLogisticsMode('transport')}
+                >
+                  <Plus className="h-4 w-4" aria-hidden="true" />
+                  Add transport
+                </Button>
+              )}
             </CardHeader>
             <CardContent className="space-y-2">
               <AsyncState
@@ -510,9 +693,9 @@ export function TravelGroupDetailPage() {
                 {summary.logistics.transport_segments.map((segment) => (
                   <div
                     key={segment.id}
-                    className="flex items-center justify-between gap-3 rounded-md border p-3 text-sm"
+                    className="flex flex-col items-start justify-between gap-3 border-b px-1 py-3 text-sm last:border-b-0 sm:flex-row sm:items-center"
                   >
-                    <div>
+                    <div className="min-w-0">
                       <p className="font-medium">
                         {segment.origin_location} →{' '}
                         {segment.destination_location}
@@ -548,19 +731,23 @@ export function TravelGroupDetailPage() {
                 Aggregated finance for active member registrations.
               </CardDescription>
             </CardHeader>
-            <CardContent className="grid gap-4 sm:grid-cols-3">
-              <DetailRow
-                label="Total invoiced"
-                value={formatMoney(summary.financial_summary.total_invoiced)}
-              />
-              <DetailRow
-                label="Total paid"
-                value={formatMoney(summary.financial_summary.total_paid)}
-              />
-              <DetailRow
-                label="Total outstanding"
-                value={formatMoney(summary.financial_summary.total_outstanding)}
-              />
+            <CardContent>
+              <div className="grid divide-y border-y sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+                <DetailRow
+                  label="Total invoiced"
+                  value={formatMoney(summary.financial_summary.total_invoiced)}
+                />
+                <DetailRow
+                  label="Total paid"
+                  value={formatMoney(summary.financial_summary.total_paid)}
+                />
+                <DetailRow
+                  label="Total outstanding"
+                  value={formatMoney(
+                    summary.financial_summary.total_outstanding,
+                  )}
+                />
+              </div>
             </CardContent>
           </Card>
 
@@ -604,9 +791,9 @@ export function TravelGroupDetailPage() {
 
 function DetailRow({ label, value }: { label: string; value: ReactNode }) {
   return (
-    <div className="space-y-1 rounded-md border p-3">
-      <p className="text-sm text-muted-foreground">{label}</p>
-      <p className="font-medium">{value}</p>
+    <div className="space-y-1 px-3 py-4 sm:px-5">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="text-base font-semibold tracking-tight">{value}</p>
     </div>
   );
 }

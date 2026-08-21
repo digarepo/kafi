@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  AlertTriangle,
+  CheckCircle2,
   ChevronDown,
   ChevronRight,
   Hotel as HotelIcon,
+  MoreVertical,
   Pencil,
   Plus,
   Sparkles,
@@ -21,6 +24,10 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
   Input,
   Label,
   Select,
@@ -82,8 +89,6 @@ export function AccommodationWorkspace({ group, onChanged }: Props) {
   }, [group.id]);
 
   const stays = group.logistics.hotel_stays;
-  const confirmedStays = stays.filter((s) => s.status?.code === 'CONFIRMED');
-  const accommodationReady = group.logistics.accommodation_ready ?? false;
 
   // Derive the shared booking reference from existing stays
   const existingBookingRef =
@@ -95,20 +100,7 @@ export function AccommodationWorkspace({ group, onChanged }: Props) {
         <div>
           <h3 className="text-lg font-semibold">Accommodation</h3>
           <p className="text-sm text-muted-foreground">
-            {confirmedStays.length} confirmed stay
-            {confirmedStays.length === 1 ? '' : 's'}
-            {coverage.length > 0 && (
-              <>
-                {' · Travelers accommodated: '}
-                {coverage[0]?.assigned_count ?? 0} /{' '}
-                {coverage[0]?.active_member_count ?? 0}
-              </>
-            )}
-            {accommodationReady
-              ? ' · All travelers have rooms'
-              : coverage.some((c) => !c.complete)
-                ? ' · Some travelers missing rooms'
-                : ''}
+            Hotels and room assignments for this group.
           </p>
         </div>
         <Button
@@ -220,77 +212,84 @@ function StayCard({
   return (
     <Card>
       <CardHeader className="cursor-pointer select-none" onClick={onToggle}>
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-start gap-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 items-start gap-3">
             <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
               {index}
             </div>
-            <div className="space-y-1">
+            <div className="min-w-0 space-y-1.5">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="font-medium">{cityName}</span>
-                <span className="text-sm text-muted-foreground">
-                  {displayDate(stay.check_in_date)} →{' '}
-                  {displayDate(stay.check_out_date)}
+                <span className="break-words text-sm font-semibold">
+                  {hotelName}
                 </span>
+                {isComplete ? (
+                  <span className="flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success">
+                    <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
+                    Ready
+                  </span>
+                ) : coverage ? (
+                  <span className="flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning">
+                    <AlertTriangle className="h-3 w-3" aria-hidden="true" />
+                    {missingCount} need rooms
+                  </span>
+                ) : null}
               </div>
-              <p className="text-sm text-muted-foreground">
-                {hotelName}
+              <p className="text-xs text-muted-foreground">
+                {displayDate(stay.check_in_date)} →{' '}
+                {displayDate(stay.check_out_date)}
+              </p>
+              <p className="break-words text-xs text-muted-foreground">
+                {cityName}
                 {stay.booking_reference
                   ? ` · Ref: ${stay.booking_reference}`
                   : ''}
               </p>
               {coverage && (
-                <div className="flex items-center gap-2 text-xs">
-                  <span
-                    className={
-                      isComplete
-                        ? 'text-success font-medium'
-                        : 'text-warning font-medium'
-                    }
-                  >
-                    Travelers: {assignedCount}/{activeCount}
-                  </span>
-                  {missingCount > 0 && (
-                    <span className="text-warning">
-                      {missingCount} need rooms
-                    </span>
-                  )}
-                </div>
+                <p
+                  className={
+                    isComplete
+                      ? 'text-xs font-medium text-success'
+                      : 'text-xs font-medium text-warning'
+                  }
+                >
+                  Travelers: {assignedCount}/{activeCount}
+                </p>
               )}
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            {isComplete ? (
-              <span className="rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success">
-                ✓ Ready
-              </span>
-            ) : coverage ? (
-              <span className="rounded-full bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning">
-                ⚠ {missingCount} need rooms
-              </span>
-            ) : null}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setEditOpen(true);
-              }}
-              className="text-muted-foreground hover:text-foreground p-1"
-              aria-label="Edit stay"
-            >
-              <Pencil className="h-3.5 w-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                void handleDeleteStay();
-              }}
-              className="text-muted-foreground hover:text-destructive p-1"
-              aria-label="Delete stay"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
+          <div className="flex shrink-0 items-center gap-1">
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    aria-label="Hotel stay actions"
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    <MoreVertical className="h-4 w-4" aria-hidden="true" />
+                  </Button>
+                }
+              />
+              <DropdownMenuContent align="end" className="min-w-36">
+                <DropdownMenuItem
+                  className="whitespace-nowrap"
+                  onClick={() => setEditOpen(true)}
+                >
+                  <Pencil className="mr-2 h-4 w-4" aria-hidden="true" />
+                  Edit
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="whitespace-nowrap text-destructive focus:text-destructive"
+                  onClick={() => void handleDeleteStay()}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" aria-hidden="true" />
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             {isExpanded ? (
               <ChevronDown className="h-4 w-4 text-muted-foreground" />
             ) : (
@@ -429,8 +428,8 @@ function StayRoomManager({ stay, group, onChanged }: StayRoomManagerProps) {
       {error && <p className="text-sm text-destructive">{error}</p>}
       <div className="flex flex-wrap gap-2">
         <Button size="sm" onClick={() => setCreateRoomOpen(true)}>
-          <Plus className="mr-1.5 h-4 w-4" />
-          Add Room
+          <Plus className="h-4 w-4 sm:mr-1.5" />
+          <span className="sr-only sm:not-sr-only">Add Room</span>
         </Button>
         <Button
           size="sm"
@@ -438,12 +437,14 @@ function StayRoomManager({ stay, group, onChanged }: StayRoomManagerProps) {
           onClick={() => void handleAutoAssign()}
           disabled={autoAssignLoading}
         >
-          <Sparkles className="mr-1.5 h-4 w-4" />
-          {autoAssignLoading ? 'Assigning…' : 'Auto-assign'}
+          <Sparkles className="h-4 w-4 sm:mr-1.5" />
+          <span className="sr-only sm:not-sr-only">
+            {autoAssignLoading ? 'Assigning…' : 'Auto-assign'}
+          </span>
         </Button>
         <Button size="sm" variant="outline" onClick={() => setAssignOpen(true)}>
-          <UserPlus className="mr-1.5 h-4 w-4" />
-          Manual assign
+          <UserPlus className="h-4 w-4 sm:mr-1.5" />
+          <span className="sr-only sm:not-sr-only">Manual assign</span>
         </Button>
       </div>
 

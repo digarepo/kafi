@@ -283,7 +283,7 @@ export function DataTable<TData, TValue>({
         </Table>
       </div>
 
-      {!hidePagination && table.getPageCount() > 1 && (
+      {!hidePagination && data.length > 0 && (
         <DataTablePaginationControls table={table} />
       )}
     </div>

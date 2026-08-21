@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { useNavigate, useSearchParams } from 'react-router';
-import { Plus, RotateCcw, Search } from 'lucide-react';
+import { Eye, Pencil, Plus, RotateCcw, Search, Trash2 } from 'lucide-react';
 import { useRenderProfile } from '../../../dev/render-profile';
 import {
   Button,
@@ -14,7 +14,7 @@ import {
 } from '@kafi/ui';
 import { usePermissions } from '../../../core/permissions';
 import { DateRangePicker } from '../../packages/components/date-range-picker';
-import { toYmd } from '../lib/date';
+import { displayDate, toYmd } from '../lib/date';
 import {
   AsyncState,
   WorkflowStatusBadge,
@@ -267,7 +267,16 @@ export function TravelGroupListPage() {
         accessorKey: 'group_number',
         header: 'Group',
       }),
-      textColumn<TravelGroupWorkItem>({ accessorKey: 'name', header: 'Name' }),
+      {
+        id: 'name',
+        header: 'Name',
+        accessorKey: 'name',
+        cell: ({ row }) => (
+          <span className="font-semibold">
+            {String(row.getValue('name') ?? '-')}
+          </span>
+        ),
+      },
       {
         id: 'package',
         header: 'Package/version',
@@ -282,14 +291,18 @@ export function TravelGroupListPage() {
           <WorkflowStatusBadge status={row.original.status?.status_code} />
         ),
       },
-      textColumn<TravelGroupWorkItem>({
-        accessorKey: 'departure_date',
+      {
+        id: 'departure_date',
         header: 'Departure',
-      }),
-      textColumn<TravelGroupWorkItem>({
-        accessorKey: 'return_date',
+        accessorKey: 'departure_date',
+        cell: ({ row }) => displayDate(row.original.departure_date),
+      },
+      {
+        id: 'return_date',
         header: 'Return',
-      }),
+        accessorKey: 'return_date',
+        cell: ({ row }) => displayDate(row.original.return_date),
+      },
       {
         id: 'capacity',
         header: 'Capacity',
@@ -304,28 +317,23 @@ export function TravelGroupListPage() {
         cell: ({ row }) =>
           `${row.original.active_member_count} active · ${row.original.ready_member_count ?? '—'} ready`,
       },
-      {
-        id: 'preparation',
-        header: 'Preparation',
-        enableSorting: false,
-        cell: ({ row }) => {
-          if (row.original.preparation_ready) return 'Ready';
-          return 'Open detail';
-        },
-      },
       actionsColumn<TravelGroupWorkItem>({
         actions: [
           {
             label: 'View',
+            icon: Eye,
             onClick: (group) => navigate(`/travel-groups/${group.id}`),
           },
           {
             label: 'Edit',
+            icon: Pencil,
             onClick: (group) => navigate(`/travel-groups/${group.id}/edit`),
             disabled: () => !can('TRAVEL_GROUP_MANAGE'),
           },
           {
             label: 'Delete',
+            icon: Trash2,
+            variant: 'destructive',
             onClick: (group) => void handleDelete(group.id),
             disabled: () => !can('TRAVEL_GROUP_MANAGE'),
           },

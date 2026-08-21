@@ -16,6 +16,9 @@ export interface DataTableAction<TData> {
   /** Optional icon shown before the label in the dropdown menu. */
   icon?: LucideIcon;
 
+  /** Visual variant; "destructive" renders red text and hover. */
+  variant?: 'default' | 'destructive';
+
   /** Callback invoked with the row's original data. */
   onClick: (row: TData) => void;
 
@@ -60,6 +63,7 @@ export function actionsColumn<TData>({
                 return (
                   <DropdownMenuItem
                     key={action.label}
+                    variant={action.variant ?? 'default'}
                     disabled={
                       typeof action.disabled === 'function'
                         ? action.disabled(row.original)

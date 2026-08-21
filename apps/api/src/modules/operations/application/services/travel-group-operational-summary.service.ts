@@ -68,9 +68,13 @@ export class TravelGroupOperationalSummaryService {
       throw new NotFoundException('Travel group not found');
     }
 
-    const activeMemberRegIds = group.members
-      .filter((m: any) => m.status_code === 'ACTIVE' && m.registration_id)
-      .map((m: any) => m.registration_id);
+    const activeMemberRegIds = [
+      ...new Set(
+        group.members
+          .filter((m: any) => m.status_code === 'ACTIVE' && m.registration_id)
+          .map((m: any) => m.registration_id as string),
+      ),
+    ];
 
     const [stays, segments, rooms, finance] = await Promise.all([
       this.getHotelStays(travelGroupId),
@@ -90,16 +94,17 @@ export class TravelGroupOperationalSummaryService {
       room: rooms.find((r) => r.group_membership_id === m.id) ?? null,
     }));
 
-    const totalInvoiced = members.reduce(
-      (sum: number, m: any) => sum + (m.finance.total_invoiced ?? 0),
+    const financeSummaries = [...finance.values()];
+    const totalInvoiced = financeSummaries.reduce(
+      (sum, item) => sum + Number(item.total_invoiced ?? 0),
       0,
     );
-    const totalPaid = members.reduce(
-      (sum: number, m: any) => sum + (m.finance.total_paid ?? 0),
+    const totalPaid = financeSummaries.reduce(
+      (sum, item) => sum + Number(item.total_paid ?? 0),
       0,
     );
-    const totalOutstanding = members.reduce(
-      (sum: number, m: any) => sum + (m.finance.outstanding_balance ?? 0),
+    const totalOutstanding = financeSummaries.reduce(
+      (sum, item) => sum + Number(item.outstanding_balance ?? 0),
       0,
     );
 
