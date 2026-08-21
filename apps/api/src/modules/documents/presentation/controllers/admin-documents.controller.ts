@@ -104,12 +104,17 @@ export class AdminDocumentsController {
 
   @Get('documents/:id/download')
   @RequirePermissions('DOCUMENT_VIEW')
-  async downloadDocument(@Param('id') id: string, @Res() res: Response) {
+  async downloadDocument(
+    @Param('id') id: string,
+    @Query('inline') inline: string | undefined,
+    @Res() res: Response,
+  ) {
     const { buffer, mime_type, original_filename } =
       await this.documents.download(id);
+    const disposition = inline === 'true' ? 'inline' : 'attachment';
     res.set({
       'Content-Type': mime_type ?? 'application/octet-stream',
-      'Content-Disposition': `attachment; filename="${original_filename ?? 'document'}"`,
+      'Content-Disposition': `${disposition}; filename="${original_filename ?? 'document'}"`,
     });
     res.send(buffer);
   }

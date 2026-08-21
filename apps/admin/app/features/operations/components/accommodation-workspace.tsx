@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CalendarBlankIcon } from '@phosphor-icons/react';
 import {
   ChevronDown,
   ChevronRight,
@@ -13,7 +12,6 @@ import {
 } from 'lucide-react';
 import {
   Button,
-  Calendar,
   Card,
   CardContent,
   CardHeader,
@@ -25,18 +23,15 @@ import {
   DialogTitle,
   Input,
   Label,
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
   Textarea,
-  cn,
 } from '@kafi/ui';
 import { type DateRange } from 'react-day-picker';
+import { DateRangePicker } from '../../packages/components/date-range-picker';
 import {
   api,
   type Country,
@@ -594,113 +589,6 @@ function StayRoomManager({ stay, group, onChanged }: StayRoomManagerProps) {
   );
 }
 
-// ---- Date Range Picker with bounds ----
-
-interface BoundedDateRangePickerProps {
-  value?: DateRange;
-  onChange: (range?: DateRange) => void;
-  minDate?: Date | null;
-  maxDate?: Date | null;
-  disabledRanges?: DateRange[];
-  placeholder?: string;
-}
-
-function BoundedDateRangePicker({
-  value,
-  onChange,
-  minDate,
-  maxDate,
-  disabledRanges = [],
-  placeholder = 'Select date range',
-}: BoundedDateRangePickerProps) {
-  const [open, setOpen] = useState(false);
-
-  const formatDate = (date?: Date) =>
-    date
-      ? date.toLocaleDateString('en-GB', {
-          day: 'numeric',
-          month: 'short',
-          year: 'numeric',
-        })
-      : '';
-
-  const label = value?.from
-    ? value.to
-      ? `${formatDate(value.from)} — ${formatDate(value.to)}`
-      : formatDate(value.from)
-    : placeholder;
-
-  // Build disabled matcher:
-  // - { before: dayBeforeMin } disables everything strictly before minDate
-  //   (we shift back one day so minDate itself is selectable)
-  // - { after: maxDate } disables everything after maxDate
-  // - existingRanges disable overlapping dates from other stays
-  const disabled = useMemo(() => {
-    const conditions: any[] = [];
-    if (minDate) {
-      const dayBefore = new Date(minDate);
-      dayBefore.setDate(dayBefore.getDate() - 1);
-      conditions.push({ before: dayBefore });
-    }
-    if (maxDate) {
-      conditions.push({ after: maxDate });
-    }
-    for (const range of disabledRanges) {
-      if (range.from && range.to) {
-        conditions.push({
-          from: range.from,
-          to: range.to,
-        });
-      }
-    }
-    return conditions.length > 0 ? conditions : undefined;
-  }, [minDate, maxDate, disabledRanges]);
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger
-        render={
-          <Button
-            type="button"
-            variant="outline"
-            className={cn(
-              'h-9 w-full justify-start text-left font-normal',
-              !value?.from && 'text-muted-foreground',
-            )}
-          >
-            <CalendarBlankIcon className="mr-2 h-4 w-4" />
-            {label}
-          </Button>
-        }
-      />
-      <PopoverContent className="w-auto p-0" align="start">
-        <Calendar
-          mode="range"
-          selected={value}
-          onSelect={(range) => {
-            onChange(range);
-            // Only close when a complete range is selected (from != to).
-            // react-day-picker sets both from and to to the same date on the
-            // first click, so we must check they differ before closing.
-            if (
-              range?.from &&
-              range?.to &&
-              range.from.getTime() !== range.to.getTime()
-            ) {
-              setOpen(false);
-            }
-          }}
-          numberOfMonths={2}
-          disabled={disabled}
-          defaultMonth={value?.from ?? minDate ?? new Date()}
-          startMonth={minDate ?? undefined}
-          endMonth={maxDate ?? undefined}
-        />
-      </PopoverContent>
-    </Popover>
-  );
-}
-
 // ---- Add Hotel Stay Dialog ----
 
 interface AddHotelStayDialogProps {
@@ -1105,7 +993,7 @@ function HotelStayFormDialog({
           {/* 5. Check-in / Check-out Date Range */}
           <div className="space-y-2">
             <Label>Check-in — Check-out</Label>
-            <BoundedDateRangePicker
+            <DateRangePicker
               value={dateRange}
               onChange={setDateRange}
               minDate={minDate}

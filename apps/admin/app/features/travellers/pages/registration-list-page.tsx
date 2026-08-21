@@ -1,44 +1,55 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { DateRange } from 'react-day-picker';
-import type { ColumnDef } from '@tanstack/react-table';
+import type { ColumnDef, Table } from '@tanstack/react-table';
 import { useNavigate, useSearchParams } from 'react-router';
+import { CalendarBlankIcon } from '@phosphor-icons/react';
+import {
+  Archive,
+  Eye,
+  Pencil,
+  Play,
+  Plus,
+  RotateCcw,
+  Search,
+} from 'lucide-react';
 import { useRenderProfile } from '../../../dev/render-profile';
 import {
   Button,
+  Calendar,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
+  cn,
 } from '@kafi/ui';
 import { usePermissions } from '../../../core/permissions';
-import { DateRangePicker } from '../../packages/components/date-range-picker';
 import { toYmd } from '../lib/date';
 import { displayDate } from '../../operations/lib/date';
 import {
   AsyncState,
   WorkflowStatusBadge,
 } from '../../../shared/operational-ui';
-import { DataTable, DataTableToolbar } from '../../../shared/data-table';
+import { DataTable } from '../../../shared/data-table';
+import { DataTableViewOptions } from '../../../shared/data-table/data-table-view-options';
 import { actionsColumn, textColumn } from '../../../shared/data-table/columns';
 import {
   api,
   type LookupOption,
   type PackageVersion,
   type Registration,
-  type RegistrationQueueItem,
 } from '../../../lib/api.js';
 
-const queueOptions = [
-  { value: 'all', label: 'All registrations' },
-  { value: 'needs-processing', label: 'Needs processing' },
-  { value: 'blocked-from-ready', label: 'Blocked from ready' },
-  { value: 'ready-for-group', label: 'Ready for group' },
-  { value: 'unpaid', label: 'Unpaid' },
-  { value: 'ready-for-travel', label: 'Ready for travel' },
-] as const;
-
-type Queue = (typeof queueOptions)[number]['value'];
+/**
+ * Registration worklist page.
+ *
+ * Filters (Status, Package, Departure range) are server-side and mirrored into
+ * the URL so the view is shareable and survives reloads. The page uses the
+ * shared `DataTable`/pagination primitives and the shadcn `Select` so the
+ * trigger always shows the human-readable label of the selected option.
+ */
 
 type RegistrationWorkItem = {
   id: string;
@@ -48,21 +59,7 @@ type RegistrationWorkItem = {
   status: string;
   status_name: string;
   expected_departure_date: string | null;
-  outstanding_balance: number | null;
-  blockers: string[];
-  group_name: string | null;
-  room_number: string | null;
 };
-
-function parseQueue(value: string | null): Queue {
-  return queueOptions.some((option) => option.value === value)
-    ? (value as Queue)
-    : 'all';
-}
-
-function codeForStatus(status: LookupOption | undefined): string | undefined {
-  return status?.code;
-}
 
 function mapRegistration(registration: Registration): RegistrationWorkItem {
   return {
@@ -75,51 +72,28 @@ function mapRegistration(registration: Registration): RegistrationWorkItem {
     status: registration.status,
     status_name: registration.status_name,
     expected_departure_date: registration.expected_departure_date,
-    outstanding_balance: null,
-    blockers: [],
-    group_name: null,
-    room_number: null,
   };
 }
 
-function mapQueueItem(item: RegistrationQueueItem): RegistrationWorkItem {
-  return {
-    id: item.id,
-    registration_number: item.registration_number,
-    traveller_name: item.traveller?.full_name ?? 'Traveller unavailable',
-    package_name: item.package_version?.version_name ?? 'Package unavailable',
-    status: item.status?.code ?? 'UNKNOWN',
-    status_name: item.status?.name ?? item.status?.code ?? 'Unknown',
-    expected_departure_date: item.expected_departure_date,
-    outstanding_balance: item.outstanding_balance,
-    blockers: item.blockers,
-    group_name: null,
-    room_number: null,
-  };
-}
-
-function toComparableDate(value: string | null | undefined): string | null {
-  if (!value) return null;
-  return value.length >= 10 ? value.slice(0, 10) : value;
-}
-
-function matchesDateRange(
-  date: string | null,
-  from: string,
-  to: string,
-): boolean {
-  if (!from && !to) return true;
-  const d = toComparableDate(date);
-  if (!d) return false;
-  return (!from || d >= from) && (!to || d <= to);
-}
+const DEFAULT_PAGE_SIZE = 10;
 
 export function RegistrationListPage() {
   useRenderProfile('RegistrationListPage');
   const { can } = usePermissions();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const queue = parseQueue(searchParams.get('queue'));
+
+  // Filter state is the single source of truth and is mirrored to the URL.
+  const search = searchParams.get('q') ?? '';
+  const statusFilter = searchParams.get('status') ?? '';
+  const packageFilter = searchParams.get('package') ?? '';
+  const departureFrom = searchParams.get('from') ?? '';
+  const departureTo = searchParams.get('to') ?? '';
+  const page = Number(searchParams.get('page') ?? '1') || 1;
+  const pageSize =
+    Number(searchParams.get('size') ?? String(DEFAULT_PAGE_SIZE)) ||
+    DEFAULT_PAGE_SIZE;
+
   const [registrations, setRegistrations] = useState<RegistrationWorkItem[]>(
     [],
   );
@@ -130,24 +104,13 @@ export function RegistrationListPage() {
   const [error, setError] = useState<string | null>(null);
   const [referenceError, setReferenceError] = useState<string | null>(null);
   const [retryNonce, setRetryNonce] = useState(0);
-  const [globalFilter, setGlobalFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
-  const [packageFilter, setPackageFilter] = useState('');
-  const [departureRange, setDepartureRange] = useState<DateRange | undefined>();
-  const [pagination, setPagination] = useState({
-    pageIndex: 0,
-    pageSize: 25,
-    total: 0,
-  });
-  const requiredStatusCode =
-    queue === 'needs-processing'
-      ? 'DRAFT'
-      : queue === 'ready-for-travel'
-        ? 'READY_FOR_TRAVEL'
-        : undefined;
-  const requiredStatusId = statuses.find(
-    (status) => codeForStatus(status) === requiredStatusCode,
-  )?.id;
+  const [total, setTotal] = useState(0);
+  const [tableInstance, setTableInstance] =
+    useState<Table<RegistrationWorkItem> | null>(null);
+
+  const hasActiveFilters = Boolean(
+    statusFilter || packageFilter || departureFrom || departureTo || search,
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -186,42 +149,16 @@ export function RegistrationListPage() {
       setLoading(true);
       setError(null);
       try {
-        let rows: RegistrationWorkItem[];
-        if (queue === 'blocked-from-ready') {
-          rows = (await api.getBlockedFromReadyQueue()).map(mapQueueItem);
-        } else if (queue === 'unpaid') {
-          rows = (await api.getUnpaidRegistrationQueue()).map(mapQueueItem);
-        } else if (queue === 'ready-for-group') {
-          rows = (await api.getReadyForGroupQueue()).map(mapQueueItem);
-        } else {
-          if (requiredStatusCode && !requiredStatusId) {
-            setLoading(false);
-            return;
-          }
-          const result = await api.listRegistrations(
-            pagination.pageIndex + 1,
-            pagination.pageSize,
-            {
-              search: globalFilter || undefined,
-              package_version_id: packageFilter || undefined,
-              status_id: statusFilter || requiredStatusId,
-            },
-          );
-          rows = result.data.map(mapRegistration);
-          if (!cancelled) {
-            setPagination((current) => ({ ...current, total: result.total }));
-          }
-        }
-
+        const result = await api.listRegistrations(page, pageSize, {
+          search: search || undefined,
+          package_version_id: packageFilter || undefined,
+          status_id: statusFilter || undefined,
+          departure_from: departureFrom || undefined,
+          departure_to: departureTo || undefined,
+        });
         if (!cancelled) {
-          setRegistrations(rows);
-          if (
-            queue === 'blocked-from-ready' ||
-            queue === 'unpaid' ||
-            queue === 'ready-for-group'
-          ) {
-            setPagination((current) => ({ ...current, total: rows.length }));
-          }
+          setRegistrations(result.data.map(mapRegistration));
+          setTotal(result.total);
         }
       } catch (err) {
         if (!cancelled) {
@@ -240,69 +177,101 @@ export function RegistrationListPage() {
       cancelled = true;
     };
   }, [
-    globalFilter,
-    packageFilter,
-    pagination.pageIndex,
-    pagination.pageSize,
-    queue,
-    requiredStatusId,
-    retryNonce,
-    statusFilter,
-  ]);
-
-  const departureFrom = toYmd(departureRange?.from) ?? '';
-  const departureTo = toYmd(departureRange?.to) ?? '';
-
-  const visibleRegistrations = useMemo(() => {
-    const search = globalFilter.trim().toLowerCase();
-    return registrations.filter((registration) => {
-      const matchesSearch =
-        !search ||
-        [
-          registration.registration_number,
-          registration.traveller_name,
-          registration.package_name,
-        ].some((value) => value.toLowerCase().includes(search));
-      const matchesPackage =
-        !packageFilter ||
-        registration.package_name ===
-          packageVersions.find((version) => version.id === packageFilter)
-            ?.version_name;
-      const matchesStatus =
-        !statusFilter ||
-        registration.status ===
-          statuses.find((status) => status.id === statusFilter)?.code;
-      return (
-        matchesSearch &&
-        matchesPackage &&
-        matchesStatus &&
-        matchesDateRange(
-          registration.expected_departure_date,
-          departureFrom,
-          departureTo,
-        )
-      );
-    });
-  }, [
     departureFrom,
     departureTo,
-    globalFilter,
     packageFilter,
-    packageVersions,
-    registrations,
+    page,
+    pageSize,
+    retryNonce,
+    search,
     statusFilter,
-    statuses,
   ]);
 
-  function selectQueue(nextQueue: Queue) {
-    const next = new URLSearchParams(searchParams);
-    if (nextQueue === 'all') next.delete('queue');
-    else next.set('queue', nextQueue);
-    setSearchParams(next);
-    setStatusFilter('');
-    setPackageFilter('');
-    resetPage();
-  }
+  const updateParams = useCallback(
+    (mutator: (next: URLSearchParams) => void) => {
+      const next = new URLSearchParams(searchParams);
+      mutator(next);
+      setSearchParams(next, { replace: true });
+    },
+    [searchParams, setSearchParams],
+  );
+
+  const setSearch = useCallback(
+    (value: string) => {
+      updateParams((next) => {
+        if (value) next.set('q', value);
+        else next.delete('q');
+        next.delete('page');
+      });
+    },
+    [updateParams],
+  );
+
+  const setStatus = useCallback(
+    (value: string) => {
+      updateParams((next) => {
+        if (value) next.set('status', value);
+        else next.delete('status');
+        next.delete('page');
+      });
+    },
+    [updateParams],
+  );
+
+  const setPackage = useCallback(
+    (value: string) => {
+      updateParams((next) => {
+        if (value) next.set('package', value);
+        else next.delete('package');
+        next.delete('page');
+      });
+    },
+    [updateParams],
+  );
+
+  const setDepartureDate = useCallback(
+    (date?: Date) => {
+      updateParams((next) => {
+        const ymd = toYmd(date) ?? '';
+        if (ymd) {
+          next.set('from', ymd);
+          next.set('to', ymd);
+        } else {
+          next.delete('from');
+          next.delete('to');
+        }
+        next.delete('page');
+      });
+    },
+    [updateParams],
+  );
+
+  const clearFilters = useCallback(() => {
+    updateParams((next) => {
+      next.delete('q');
+      next.delete('status');
+      next.delete('package');
+      next.delete('from');
+      next.delete('to');
+      next.delete('page');
+    });
+  }, [updateParams]);
+
+  const setPagination = useCallback(
+    (next: { pageIndex: number; pageSize: number; total: number }) => {
+      updateParams((params) => {
+        const nextPage = next.pageIndex + 1;
+        if (nextPage > 1) params.set('page', String(nextPage));
+        else params.delete('page');
+        if (next.pageSize !== DEFAULT_PAGE_SIZE) {
+          params.set('size', String(next.pageSize));
+        } else {
+          params.delete('size');
+        }
+      });
+    },
+    [updateParams],
+  );
 
   const handleArchive = useCallback(async (id: string) => {
     if (!confirm('Archive this registration?')) return;
@@ -330,7 +299,7 @@ export function RegistrationListPage() {
       }),
       textColumn<RegistrationWorkItem>({
         accessorKey: 'package_name',
-        header: 'Package/version',
+        header: 'Package',
       }),
       {
         id: 'status',
@@ -343,47 +312,22 @@ export function RegistrationListPage() {
         header: 'Departure',
         enableSorting: false,
         cell: ({ row }) => (
-          <span>{displayDate(row.original.expected_departure_date)}</span>
+          <span className="text-muted-foreground">
+            {displayDate(row.original.expected_departure_date)}
+          </span>
         ),
-      },
-      {
-        id: 'balance',
-        header: 'Outstanding',
-        enableSorting: false,
-        cell: ({ row }) =>
-          row.original.outstanding_balance === null
-            ? '—'
-            : `${row.original.outstanding_balance.toFixed(2)} ETB`,
-      },
-      {
-        id: 'readiness',
-        header: 'Readiness',
-        enableSorting: false,
-        cell: ({ row }) =>
-          row.original.blockers.length > 0
-            ? `${row.original.blockers.length} blocker${row.original.blockers.length === 1 ? '' : 's'}`
-            : row.original.outstanding_balance !== null
-              ? 'No blockers'
-              : 'Open detail',
-      },
-      {
-        id: 'group',
-        header: 'Group / room',
-        enableSorting: false,
-        cell: ({ row }) =>
-          row.original.group_name
-            ? `${row.original.group_name}${row.original.room_number ? ` · ${row.original.room_number}` : ''}`
-            : 'Not assigned',
       },
       actionsColumn<RegistrationWorkItem>({
         actions: [
           {
             label: 'View',
+            icon: Eye,
             onClick: (registration) =>
               navigate(`/registrations/${registration.id}`),
           },
           {
             label: 'Resume intake',
+            icon: Play,
             onClick: (registration) =>
               navigate(`/registrations/new?resume=${registration.id}`),
             disabled: (registration) =>
@@ -391,6 +335,7 @@ export function RegistrationListPage() {
           },
           {
             label: 'Edit',
+            icon: Pencil,
             onClick: (registration) =>
               navigate(`/registrations/${registration.id}/edit`),
             disabled: (registration) =>
@@ -398,6 +343,7 @@ export function RegistrationListPage() {
           },
           {
             label: 'Archive',
+            icon: Archive,
             onClick: (registration) => void handleArchive(registration.id),
             disabled: () => !can('REGISTRATION_DELETE'),
           },
@@ -407,144 +353,209 @@ export function RegistrationListPage() {
     [can, handleArchive, navigate],
   );
 
-  const selectedQueueLabel = queueOptions.find(
-    (option) => option.value === queue,
-  )?.label;
-  const serverPaginated =
-    queue === 'all' ||
-    queue === 'needs-processing' ||
-    queue === 'ready-for-travel';
+  const departureDate = useMemo<Date | undefined>(() => {
+    if (!departureFrom) return undefined;
+    const date = new Date(`${departureFrom}T00:00:00`);
+    return Number.isNaN(date.getTime()) ? undefined : date;
+  }, [departureFrom]);
 
-  function resetPage() {
-    setPagination((current) => ({ ...current, pageIndex: 0 }));
-  }
+  const pagination = {
+    pageIndex: page - 1,
+    pageSize,
+    total,
+  };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <div className="space-y-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">
+          <h1 className="text-xl font-semibold tracking-tight">
             Registration worklist
           </h1>
-          <p className="text-muted-foreground">
-            Review registrations, resolve blockers, and move each traveller to
-            the next valid step.
+          <p className="mt-1 text-sm text-muted-foreground">
+            Review registrations and move each traveller to the next valid step.
           </p>
         </div>
+        {/* Desktop/tablet: full text button */}
         {can('REGISTRATION_CREATE') && (
-          <Button onClick={() => navigate('/registrations/new')}>
+          <Button
+            className="hidden sm:inline-flex"
+            onClick={() => navigate('/registrations/new')}
+          >
             Create registration
           </Button>
         )}
-      </div>
-
-      <div
-        className="flex flex-wrap gap-2"
-        role="tablist"
-        aria-label="Registration queues"
-      >
-        {queueOptions.map((option) => (
+        {/* Mobile: circular + icon button on the right */}
+        {can('REGISTRATION_CREATE') && (
           <Button
-            key={option.value}
-            variant={queue === option.value ? 'default' : 'outline'}
-            size="sm"
-            role="tab"
-            aria-selected={queue === option.value}
-            onClick={() => selectQueue(option.value)}
+            size="icon"
+            className="h-10 w-10 shrink-0 self-end rounded-full sm:hidden"
+            onClick={() => navigate('/registrations/new')}
+            aria-label="Create registration"
           >
-            {option.label}
+            <Plus className="h-5 w-5" />
           </Button>
-        ))}
+        )}
       </div>
 
       {referenceError && (
         <p className="text-sm text-warning">{referenceError}</p>
       )}
 
-      <div className="rounded-md border bg-muted/30 p-3">
-        <DataTableToolbar
-          filter={globalFilter}
-          onFilterChange={(value) => {
-            setGlobalFilter(value);
-            resetPage();
-          }}
-        >
-          <Select
-            value={statusFilter}
-            onValueChange={(value) => {
-              setStatusFilter(value === 'all' ? '' : (value ?? ''));
-              resetPage();
-            }}
-            disabled={referenceLoading || queue !== 'all'}
-          >
-            <SelectTrigger className="h-9 w-48">
-              <SelectValue placeholder="Filter status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All statuses</SelectItem>
-              {statuses.map((status) => (
-                <SelectItem key={status.id} value={status.id}>
-                  {status.name}
+      {/* Desktop: search + status + package + departure + view + clear in one row */}
+      {/* Mobile: search on row 1, status+package on row 2, departure+view on row 3 */}
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-3">
+        <div className="relative w-full lg:max-w-xs">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search registration or traveller…"
+            className="h-9 w-full rounded-md border border-input bg-background pl-9 pr-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50"
+            aria-label="Search registrations"
+          />
+        </div>
+
+        {/* Mobile: 2-column grid for selects */}
+        <div className="grid grid-cols-2 gap-2 lg:flex lg:flex-nowrap lg:items-center lg:gap-2">
+          <div className="lg:w-40">
+            <Select
+              value={statusFilter ?? ''}
+              onValueChange={(v) => setStatus(v ?? '')}
+              disabled={referenceLoading}
+            >
+              <SelectTrigger className={cn('h-9 w-full')}>
+                <SelectValue>
+                  {[
+                    { value: '', label: 'All statuses' },
+                    ...statuses.map((status) => ({
+                      value: status.id,
+                      label: status.name,
+                    })),
+                  ].find((o) => o.value === statusFilter)?.label ?? 'Status'}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem key="" value="">
+                  All statuses
                 </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select
-            value={packageFilter}
-            onValueChange={(value) => {
-              setPackageFilter(value === 'all' ? '' : (value ?? ''));
-              resetPage();
-            }}
-            disabled={referenceLoading}
-          >
-            <SelectTrigger className="h-9 w-52">
-              <SelectValue placeholder="Filter package" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All packages</SelectItem>
-              {packageVersions.map((version) => (
-                <SelectItem key={version.id} value={version.id}>
-                  {version.version_name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <div className="w-64">
-            <DateRangePicker
-              value={departureRange}
-              onChange={(range) => {
-                setDepartureRange(range);
-                resetPage();
-              }}
-              placeholder="Filter departure range"
-            />
+                {statuses.map((status) => (
+                  <SelectItem key={status.id} value={status.id}>
+                    {status.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-        </DataTableToolbar>
+          <div className="lg:w-44">
+            <Select
+              value={packageFilter ?? ''}
+              onValueChange={(v) => setPackage(v ?? '')}
+              disabled={referenceLoading}
+            >
+              <SelectTrigger className={cn('h-9 w-full')}>
+                <SelectValue>
+                  {[
+                    { value: '', label: 'All packages' },
+                    ...packageVersions.map((version) => ({
+                      value: version.id,
+                      label: version.version_name,
+                    })),
+                  ].find((o) => o.value === packageFilter)?.label ?? 'Package'}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem key="" value="">
+                  All packages
+                </SelectItem>
+                {packageVersions.map((version) => (
+                  <SelectItem key={version.id} value={version.id}>
+                    {version.version_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="lg:w-56">
+            <Popover>
+              <PopoverTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className={cn(
+                      'h-9 w-full justify-start text-left font-normal',
+                      !departureDate && 'text-muted-foreground',
+                    )}
+                  >
+                    <CalendarBlankIcon className="mr-2 h-4 w-4" />
+                    <span className="truncate">
+                      {departureDate
+                        ? displayDate(departureDate)
+                        : 'Departure date'}
+                    </span>
+                  </Button>
+                }
+              />
+              <PopoverContent
+                className="w-auto overflow-hidden p-0"
+                align="start"
+              >
+                <Calendar
+                  mode="single"
+                  selected={departureDate}
+                  onSelect={(date) => {
+                    setDepartureDate(date ?? undefined);
+                  }}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+          {tableInstance && (
+            <div className="lg:ml-auto">
+              <DataTableViewOptions table={tableInstance} />
+            </div>
+          )}
+        </div>
+
+        {hasActiveFilters && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-9 shrink-0 self-start text-muted-foreground lg:self-center"
+            onClick={clearFilters}
+            aria-label="Clear all filters"
+          >
+            <RotateCcw className="mr-1.5 h-4 w-4" />
+            Clear
+          </Button>
+        )}
       </div>
 
       <AsyncState
         loading={loading}
         error={error}
         onRetry={() => setRetryNonce((value) => value + 1)}
-        isEmpty={!loading && !error && visibleRegistrations.length === 0}
-        emptyTitle={
-          selectedQueueLabel === 'Blocked from ready'
-            ? 'No registrations are blocked from ready'
-            : queue === 'unpaid'
-              ? 'No unpaid registrations'
-              : queue === 'all'
-                ? 'No registrations found'
-                : `No registrations in ${selectedQueueLabel?.toLowerCase() ?? 'this view'}`
+        isEmpty={!loading && !error && registrations.length === 0}
+        emptyTitle="No registrations found"
+        emptyDescription={
+          hasActiveFilters
+            ? 'Try adjusting or clearing the filters.'
+            : 'Registrations will appear here once created.'
         }
-        emptyDescription="Try another queue or adjust the available filters."
       >
-        <DataTable
-          columns={columns}
-          data={visibleRegistrations}
-          loading={false}
-          pagination={serverPaginated ? pagination : undefined}
-          onPaginationChange={serverPaginated ? setPagination : undefined}
-        />
+        <div className="[&_td]:text-xs [&_td]:font-normal [&_th]:text-xs">
+          <DataTable
+            columns={columns}
+            data={registrations}
+            loading={false}
+            pagination={pagination}
+            onPaginationChange={setPagination}
+            hideViewOptions
+            onTableReady={setTableInstance}
+          />
+        </div>
       </AsyncState>
     </div>
   );

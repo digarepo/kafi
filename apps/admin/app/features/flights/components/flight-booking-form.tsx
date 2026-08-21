@@ -1,10 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AnyFieldApi, useForm, useSelector } from '@tanstack/react-form';
-import { Button, Input, Label, Textarea } from '@kafi/ui';
+import {
+  Button,
+  Input,
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Textarea,
+} from '@kafi/ui';
 
 import { DatePicker } from '../../documents/components/date-picker';
 import { FieldError } from '../../../shared/field-error';
-import { AsyncLookupSelect } from '../../travellers/components/async-lookup-select';
 import { flightsApi, type EligibleRegistration } from '../lib/api';
 import { flightBookingFormSchema } from '../validation/flights.schema';
 import type {
@@ -51,43 +60,23 @@ export function FlightBookingForm({
   );
 
   const [eligibleRegs, setEligibleRegs] = useState<EligibleRegistration[]>([]);
-  const [regSearch, setRegSearch] = useState('');
-  const [regLoading, setRegLoading] = useState(false);
-  const [selectedReg, setSelectedReg] = useState<EligibleRegistration | null>(
-    registration
-      ? {
-          id: registration.id,
-          registration_number: registration.registration_number,
-          traveller: {
-            id: registration.traveller?.id ?? '',
-            first_name: registration.traveller?.first_name ?? '',
-            last_name: registration.traveller?.last_name ?? '',
-            traveller_number: registration.traveller?.traveller_number ?? '',
-            full_name: registration.traveller?.full_name ?? '',
-          },
-        }
-      : null,
-  );
 
   useEffect(() => {
     if (registration) return; // skip lookup when pre-selected
     let cancelled = false;
     async function load() {
-      setRegLoading(true);
       try {
-        const rows = await flightsApi.listEligibleRegistrations(regSearch);
+        const rows = await flightsApi.listEligibleRegistrations();
         if (!cancelled) setEligibleRegs(rows);
       } catch {
         if (!cancelled) setEligibleRegs([]);
-      } finally {
-        if (!cancelled) setRegLoading(false);
       }
     }
     void load();
     return () => {
       cancelled = true;
     };
-  }, [regSearch, registration]);
+  }, [registration]);
 
   const form = useForm({
     defaultValues,
@@ -161,23 +150,26 @@ export function FlightBookingForm({
                     (visa-approved, no active booking)
                   </span>
                 </Label>
-                <AsyncLookupSelect
-                  value={field.state.value}
-                  selectedLabel={
-                    selectedReg
-                      ? `${selectedReg.registration_number} — ${selectedReg.traveller.full_name}`
-                      : undefined
-                  }
-                  options={regOptions}
-                  placeholder="Search registration or traveller..."
-                  onChange={(value) => {
-                    field.handleChange(value);
-                    const match = eligibleRegs.find((r) => r.id === value);
-                    setSelectedReg(match ?? null);
+                <Select
+                  value={field.state.value ?? ''}
+                  onValueChange={(v) => {
+                    field.handleChange(v ?? '');
                   }}
-                  onSearch={setRegSearch}
-                  loading={regLoading}
-                />
+                >
+                  <SelectTrigger className="h-9 w-full">
+                    <SelectValue>
+                      {regOptions.find((o) => o.value === field.state.value)
+                        ?.label ?? 'Select registration'}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {regOptions.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <FieldError field={field} />
               </div>
             )

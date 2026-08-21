@@ -1,11 +1,56 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router';
-import { Button, Card, CardContent, CardHeader, CardTitle } from '@kafi/ui';
+import { useCallback, useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router';
+import { ArrowLeft } from 'lucide-react';
+import { Button, Skeleton, buttonVariants } from '@kafi/ui';
 import { usePermissions } from '../../../core/permissions';
+import { AsyncState } from '../../../shared/operational-ui';
 import { api, type ContactPerson } from '../../../lib/api.js';
+import { ContactPersonDetailCard } from '../components/contact-person-detail-card';
 
 interface ContactDetailPageProps {
   id: string;
+}
+
+function ContactDetailSkeleton() {
+  return (
+    <div
+      className="space-y-8"
+      aria-label="Loading contact person"
+      role="status"
+    >
+      <Link
+        to="/contact-persons"
+        className={buttonVariants({
+          variant: 'link',
+          size: 'sm',
+          className: 'h-auto px-0 text-muted-foreground hover:text-foreground',
+        })}
+      >
+        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+        Back to Contact Persons
+      </Link>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-3">
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-9 w-64 max-w-full" />
+          <Skeleton className="h-4 w-48" />
+        </div>
+        <div className="flex gap-2">
+          <Skeleton className="h-9 w-20" />
+        </div>
+      </div>
+      <section className="space-y-3">
+        <div className="grid gap-4 rounded-lg border p-5 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 6 }, (_, index) => (
+            <div key={index} className="space-y-2">
+              <Skeleton className="h-3 w-24" />
+              <Skeleton className="h-4 w-32" />
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
 }
 
 export function ContactDetailPage({ id }: ContactDetailPageProps) {
@@ -15,96 +60,77 @@ export function ContactDetailPage({ id }: ContactDetailPageProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function load() {
-      setLoading(true);
-      try {
-        const c = await api.getContactPerson(id);
-        setContact(c);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load contact person');
-      } finally {
-        setLoading(false);
-      }
+  const loadContact = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const c = await api.getContactPerson(id);
+      setContact(c);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Contact person could not be loaded',
+      );
+    } finally {
+      setLoading(false);
     }
-    void load();
   }, [id]);
 
-  async function handleArchive() {
-    if (!contact) return;
-    if (!confirm('Archive this contact person?')) return;
+  useEffect(() => {
+    void loadContact();
+  }, [loadContact]);
+
+  async function handleArchive(contactId: string) {
+    if (!window.confirm('Archive this contact person?')) return;
     try {
-      await api.archiveContactPerson(contact.id);
+      await api.archiveContactPerson(contactId);
       navigate('/contact-persons');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Archive failed');
     }
   }
 
-  if (loading) return <p className="text-muted-foreground">Loading...</p>;
-  if (!contact) return <p className="text-destructive">{error ?? 'Contact person not found'}</p>;
+  if (loading) return <ContactDetailSkeleton />;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">Contact person detail</h1>
-        <div className="flex gap-2">
-          {can('TRAVELLER_EDIT') && (
-            <Button onClick={() => navigate(`/contact-persons/${id}/edit`)}>Edit</Button>
-          )}
-          {can('TRAVELLER_DELETE') && (
-            <Button variant="destructive" onClick={() => void handleArchive()}>
-              Archive
-            </Button>
-          )}
+    <AsyncState
+      error={error}
+      onRetry={() => void loadContact()}
+      isEmpty={!contact}
+      emptyTitle="Contact person not found"
+      emptyDescription="This contact person may have been archived or is no longer available."
+      emptyAction={
+        <Button variant="outline" onClick={() => navigate('/contact-persons')}>
+          Back to contact persons
+        </Button>
+      }
+    >
+      {contact && (
+        <div className="space-y-10 pb-8">
+          <Link
+            to="/contact-persons"
+            className={buttonVariants({
+              variant: 'link',
+              size: 'sm',
+              className:
+                'h-auto px-0 text-muted-foreground hover:text-foreground',
+            })}
+          >
+            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+            Back to Contact Persons
+          </Link>
+
+          <ContactPersonDetailCard
+            contact={contact}
+            onArchive={
+              can('TRAVELLER_DELETE')
+                ? async () => handleArchive(contact.id)
+                : undefined
+            }
+          />
         </div>
-      </div>
-
-      {error && (
-        <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>
       )}
-
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            {contact.first_name} {contact.middle_name ?? ''} {contact.last_name}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-2">
-          <div>
-            <p className="text-sm text-muted-foreground">Phone</p>
-            <p className="font-medium">{contact.phone_number}</p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Alternate phone</p>
-            <p className="font-medium">{contact.alternate_phone_number ?? '-'}</p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Email</p>
-            <p className="font-medium">{contact.email_address ?? '-'}</p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Date of birth</p>
-            <p className="font-medium">{contact.date_of_birth ?? '-'}</p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Gender</p>
-            <p className="font-medium">{contact.gender ?? '-'}</p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Country</p>
-            <p className="font-medium">{contact.country?.name ?? '-'}</p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Address</p>
-            <p className="font-medium">{contact.address ?? '-'}</p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Status</p>
-            <p className="font-medium">{contact.status?.name ?? '-'}</p>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+    </AsyncState>
   );
 }

@@ -1,11 +1,15 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, asc, eq, inArray } from 'drizzle-orm';
+import { and, asc, eq, inArray, sql } from 'drizzle-orm';
 import { MySql2Database } from 'drizzle-orm/mysql2';
 import { DATABASE } from '../../../../shared/infrastructure/database/database.provider.js';
 import * as schema from '@kafi/database';
 import { InvoicesService } from '../../../finance/application/services/invoices.service.js';
 import { RegistrationsService } from './registrations.service.js';
 import { RegistrationReadinessService } from './registration-readiness.service.js';
+
+function toTwoDecimals(value: number): number {
+  return Math.round(value * 100) / 100;
+}
 
 /**
  * Read-only operational summary for a registration.
@@ -56,9 +60,9 @@ export class RegistrationOperationalSummaryService {
       this.getInvoicesForRegistration(registrationId),
     ]);
 
-    const room = membership
-      ? await this.getRoomForMembership(membership.id)
-      : null;
+    const roomAssignments = membership
+      ? await this.getRoomsForMembership(membership.id)
+      : [];
 
     return {
       id: registration.id,
@@ -82,7 +86,7 @@ export class RegistrationOperationalSummaryService {
       visas,
       flights,
       group_membership: membership,
-      room_assignment: room,
+      room_assignments: roomAssignments,
       readiness,
       cancellation:
         registration.status === 'CANCELLED'
@@ -281,8 +285,8 @@ export class RegistrationOperationalSummaryService {
     };
   }
 
-  private async getRoomForMembership(groupMembershipId: string) {
-    const [row] = await this.db
+  private async getRoomsForMembership(groupMembershipId: string) {
+    const rows = await this.db
       .select()
       .from(schema.roomAssignments)
       .leftJoin(
@@ -318,12 +322,11 @@ export class RegistrationOperationalSummaryService {
           eq(schema.roomAssignments.is_deleted, false),
         ),
       )
-      .orderBy(asc(schema.roomAssignments.assigned_at))
-      .limit(1);
+      .orderBy(asc(schema.roomAssignments.assigned_at));
 
-    if (!row) return null;
+    if (rows.length === 0) return [];
 
-    return {
+    return rows.map((row) => ({
       id: row.room_assignments.id,
       room: row.rooms
         ? {
@@ -342,6 +345,9 @@ export class RegistrationOperationalSummaryService {
         ? {
             id: row.group_hotel_stays.id,
             stay_number: row.group_hotel_stays.stay_number,
+            hotel_name: row.group_hotel_stays.hotel_name,
+            check_in_date: row.group_hotel_stays.check_in_date,
+            check_out_date: row.group_hotel_stays.check_out_date,
             hotel: row.hotels
               ? {
                   id: row.hotels.id,
@@ -357,7 +363,7 @@ export class RegistrationOperationalSummaryService {
             name: row.room_assignment_statuses.name,
           }
         : null,
-    };
+    }));
   }
 
   private async getInvoicesForRegistration(registrationId: string) {
@@ -376,20 +382,47 @@ export class RegistrationOperationalSummaryService {
       )
       .orderBy(asc(schema.invoices.created_at));
 
-    return rows.map((row) => ({
-      id: row.invoices.id,
-      invoice_number: row.invoices.invoice_number,
-      invoice_date: row.invoices.invoice_date,
-      due_date: row.invoices.due_date,
-      total_amount: row.invoices.total_amount,
-      status: row.invoice_statuses
-        ? {
-            id: row.invoice_statuses.id,
-            code: row.invoice_statuses.status_code,
-            name: row.invoice_statuses.name,
-          }
-        : null,
-    }));
+    if (rows.length === 0) return [];
+
+    const invoiceIds = rows.map((r) => r.invoices.id);
+
+    const allocationRows = await this.db
+      .select({
+        invoice_id: schema.paymentAllocations.invoice_id,
+        allocated: sql<number>`coalesce(sum(${schema.paymentAllocations.allocated_amount}), 0)`,
+      })
+      .from(schema.paymentAllocations)
+      .where(
+        and(
+          inArray(schema.paymentAllocations.invoice_id, invoiceIds),
+          eq(schema.paymentAllocations.is_deleted, false),
+        ),
+      )
+      .groupBy(schema.paymentAllocations.invoice_id);
+
+    const allocationMap = new Map(
+      allocationRows.map((r) => [r.invoice_id, Number(r.allocated)]),
+    );
+
+    return rows.map((row) => {
+      const totalAmount = Number(row.invoices.total_amount);
+      const allocated = allocationMap.get(row.invoices.id) ?? 0;
+      return {
+        id: row.invoices.id,
+        invoice_number: row.invoices.invoice_number,
+        invoice_date: row.invoices.invoice_date,
+        due_date: row.invoices.due_date,
+        total_amount: row.invoices.total_amount,
+        outstanding_balance: toTwoDecimals(totalAmount - allocated),
+        status: row.invoice_statuses
+          ? {
+              id: row.invoice_statuses.id,
+              code: row.invoice_statuses.status_code,
+              name: row.invoice_statuses.name,
+            }
+          : null,
+      };
+    });
   }
 
   private async getCancellationInfo(registrationId: string) {

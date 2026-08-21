@@ -128,7 +128,7 @@ Table travellers {
 
   // Business Rules
   //   - date_of_birth <= CURRENT_DATE
-  //   - duplicate warning: first_name + phone_no (enforced in backend)
+  //   - duplicate prevention: first_name + phone_number (hard-blocked in backend, including soft-deleted records)
 
   // Audit
   created_at timestamp [not null, default: `now()`]
@@ -437,6 +437,7 @@ Table registrations {
 
   // Business Rules
   //   - expected_departure_date <= expected_return_date
+  //   - duplicate prevention: only one non-terminal registration (DRAFT, PROCESSING, READY_FOR_TRAVEL) per traveller + package_version at a time (hard-blocked in backend)
 
   // Audit
   created_at timestamp [not null, default: `now()`]
@@ -448,7 +449,9 @@ Table registrations {
   Note: '''
   Represents a traveller purchasing a specific package version.
 
-  A traveller may have multiple registrations over time.
+  A traveller may have multiple registrations over time (different
+  package versions or after a previous registration is completed/cancelled),
+  but only one active registration per package version at a time.
 
   Registration is the operational anchor for financial,
   visa and accommodation processes.

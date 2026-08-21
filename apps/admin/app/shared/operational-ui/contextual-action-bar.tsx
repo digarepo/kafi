@@ -21,6 +21,7 @@ interface ContextualActionBarProps {
   onCommand?: Partial<
     Record<WorkflowCommand, (reason?: string) => void | Promise<void>>
   >;
+  readinessItems?: ReadinessItem[];
   className?: string;
 }
 
@@ -82,6 +83,7 @@ export function ContextualActionBar({
   can,
   guards = {},
   onCommand = {},
+  readinessItems,
   className,
 }: ContextualActionBarProps) {
   const titleId = useId();
@@ -103,10 +105,16 @@ export function ContextualActionBar({
       typeof onCommand[command] === 'function',
   );
 
-  if (visibleCommands.length === 0) return null;
-
   const primaryGuard = primaryCommand ? guards[primaryCommand] : undefined;
   const isPrimaryBlocked = primaryGuard?.allowed === false;
+
+  const allReady =
+    readinessItems !== undefined &&
+    readinessItems.length > 0 &&
+    readinessItems.every((item) => item.status === 'satisfied');
+
+  // Don't hide when there are readiness items to show, even if no commands
+  if (visibleCommands.length === 0 && !readinessItems) return null;
 
   async function handleConfirm(reason?: string) {
     if (!activeCommand) return;
@@ -142,26 +150,29 @@ export function ContextualActionBar({
               Next action
             </h2>
             <p className="text-sm text-muted-foreground">
-              Available workflow command for the current state.
+              {allReady
+                ? "You're all set — all readiness checks are complete."
+                : isPrimaryBlocked
+                  ? 'Resolve the items below to proceed.'
+                  : 'Available workflow command for the current state.'}
             </p>
           </div>
           <WorkflowStatusBadge status={status} />
         </div>
 
-        {isPrimaryBlocked ? (
+        {readinessItems && readinessItems.length > 0 && (
           <ReadinessBlockers
-            title="Action blocked"
-            items={primaryGuard?.blockers ?? []}
+            title={isPrimaryBlocked ? 'Action blocked' : 'Readiness'}
+            items={readinessItems}
             emptyTitle="Action is not available"
             emptyDescription="The backend has not marked this workflow command as available yet."
           />
-        ) : (
-          primaryCommand &&
-          onCommand[primaryCommand] && (
-            <Button onClick={() => openCommand(primaryCommand)}>
-              {getCommandLabel(primaryCommand)}
-            </Button>
-          )
+        )}
+
+        {!isPrimaryBlocked && primaryCommand && onCommand[primaryCommand] && (
+          <Button onClick={() => openCommand(primaryCommand)}>
+            {getCommandLabel(primaryCommand)}
+          </Button>
         )}
 
         {cancelCommand && onCommand[cancelCommand] && (

@@ -13,14 +13,16 @@ export function meta() {
   return [{ title: 'Admin | Kafi' }];
 }
 
-export async function clientLoader() {
+export async function clientLoader({ request }: { request: Request }) {
   try {
     const user = await api.me();
 
     return { user };
   } catch {
     api.logout();
-    throw redirect('/login');
+    const url = new URL(request.url);
+    const returnPath = `${url.pathname}${url.search}`;
+    throw redirect(`/login?redirect=${encodeURIComponent(returnPath)}`);
   }
 }
 

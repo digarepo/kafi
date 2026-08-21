@@ -23,6 +23,7 @@ import {
   type Guarantee,
   type GroupMembership,
 } from '../../../lib/api.js';
+import { DatePicker } from '../../travellers/components/date-picker';
 
 const GUARANTEE_TYPES = [
   { code: 'PERSON', name: 'Person' },
@@ -179,125 +180,184 @@ export function GuaranteeFormDialog({
           </div>
         )}
 
-        <div className="grid gap-4">
-          <div className="space-y-2">
-            <Label>Guarantee type</Label>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {/* Guarantee type — full width */}
+          <div className="space-y-2 sm:col-span-2">
+            <Label className="text-sm font-medium">
+              Guarantee type <span className="text-destructive">*</span>
+            </Label>
             <Select
-              value={type}
-              onValueChange={(v) => setType((v ?? 'PERSON') as GuaranteeType)}
+              value={type ?? ''}
+              onValueChange={(v) =>
+                setType(((v ?? '') || 'PERSON') as GuaranteeType)
+              }
               disabled={loading}
             >
-              <SelectTrigger>
-                <SelectValue />
+              <SelectTrigger className="h-9 w-full">
+                <SelectValue>
+                  {GUARANTEE_TYPES.map((t) => ({
+                    value: t.code,
+                    label: t.name,
+                  })).find((o) => o.value === type)?.label ??
+                    'Select guarantee type'}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                {GUARANTEE_TYPES.map((t) => (
-                  <SelectItem key={t.code} value={t.code}>
-                    {t.name}
+                {GUARANTEE_TYPES.map((t) => ({
+                  value: t.code,
+                  label: t.name,
+                })).map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
 
+          {/* Contact person — full width, only for PERSON type */}
           {type === 'PERSON' && (
-            <div className="space-y-2">
-              <Label>Contact person</Label>
+            <div className="space-y-2 sm:col-span-2">
+              <Label className="text-sm font-medium">
+                Contact person <span className="text-destructive">*</span>
+              </Label>
               <Select
-                value={contactId}
+                value={contactId ?? ''}
                 onValueChange={(v) => setContactId(v ?? '')}
                 disabled={loading}
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select contact person" />
+                <SelectTrigger className="h-9 w-full">
+                  <SelectValue>
+                    {contacts
+                      .map((c) => ({
+                        value: c.id,
+                        label: `${c.first_name} ${c.last_name}`,
+                      }))
+                      .find((o) => o.value === contactId)?.label ??
+                      'Select contact person'}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  {contacts.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.first_name} {c.last_name} · {c.phone_number}
-                    </SelectItem>
-                  ))}
+                  {contacts
+                    .map((c) => ({
+                      value: c.id,
+                      label: `${c.first_name} ${c.last_name}`,
+                    }))
+                    .map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>
           )}
 
+          {/* Instrument reference */}
           <div className="space-y-2">
-            <Label>Instrument reference</Label>
+            <Label className="text-sm font-medium">Reference number</Label>
             <Input
               value={reference}
               onChange={(e) => setReference(e.target.value)}
               disabled={loading}
+              className="h-9 w-full"
             />
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label>Amount {amountRequired && '*'}</Label>
-              <Input
-                type="number"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                disabled={loading}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Currency</Label>
-              <Select
-                value={currencyId}
-                onValueChange={(v) => setCurrencyId(v ?? '')}
-                disabled={loading}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select" />
-                </SelectTrigger>
-                <SelectContent>
-                  {currencies.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.currency_code} · {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label>Effective date</Label>
-              <Input
-                type="date"
-                value={effective}
-                onChange={(e) => setEffective(e.target.value)}
-                disabled={loading}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Expiry date</Label>
-              <Input
-                type="date"
-                value={expiry}
-                onChange={(e) => setExpiry(e.target.value)}
-                disabled={loading}
-              />
-            </div>
-          </div>
-
+          {/* Issuer */}
           <div className="space-y-2">
-            <Label>Issuer</Label>
+            <Label className="text-sm font-medium">Issuer</Label>
             <Input
               value={issuer}
               onChange={(e) => setIssuer(e.target.value)}
               disabled={loading}
+              className="h-9 w-full"
             />
           </div>
 
+          {/* Amount */}
           <div className="space-y-2">
-            <Label>Notes</Label>
+            <Label className="text-sm font-medium">
+              Amount{' '}
+              {amountRequired && <span className="text-destructive">*</span>}
+            </Label>
+            <Input
+              type="number"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              disabled={loading}
+              className="h-9 w-full"
+            />
+          </div>
+
+          {/* Currency */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">
+              Currency{' '}
+              {amountRequired && <span className="text-destructive">*</span>}
+            </Label>
+            <Select
+              value={currencyId ?? ''}
+              onValueChange={(v) => setCurrencyId(v ?? '')}
+              disabled={loading}
+            >
+              <SelectTrigger className="h-9 w-full">
+                <SelectValue>
+                  {currencies
+                    .map((c) => ({
+                      value: c.id,
+                      label: `${c.currency_code} · ${c.name}`,
+                    }))
+                    .find((o) => o.value === currencyId)?.label ??
+                    'Select currency'}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {currencies
+                  .map((c) => ({
+                    value: c.id,
+                    label: `${c.currency_code} · ${c.name}`,
+                  }))
+                  .map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Effective date */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Effective date</Label>
+            <DatePicker
+              value={effective}
+              onChange={setEffective}
+              placeholder="Select date"
+              disabled={loading}
+            />
+          </div>
+
+          {/* Expiry date */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Expiry date</Label>
+            <DatePicker
+              value={expiry}
+              onChange={setExpiry}
+              placeholder="Select date"
+              disabled={loading}
+            />
+          </div>
+
+          {/* Notes — full width */}
+          <div className="space-y-2 sm:col-span-2">
+            <Label className="text-sm font-medium">Notes</Label>
             <Textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               disabled={loading}
+              rows={2}
+              className="w-full"
             />
           </div>
         </div>

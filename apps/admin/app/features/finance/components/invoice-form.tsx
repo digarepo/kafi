@@ -8,11 +8,19 @@
  */
 
 import { AnyFieldApi, useForm, useSelector } from '@tanstack/react-form';
-import { Button, Input, Label } from '@kafi/ui';
+import {
+  Button,
+  Input,
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@kafi/ui';
 
 import { DatePicker } from './date-picker';
 import { FieldError } from '../../../shared/field-error';
-import { LookupSelect } from './lookup-select';
 import { InvoiceLineItemsEditor } from './invoice-line-items-editor';
 import { invoiceFormSchema } from '../validation/finance.schema';
 import type {
@@ -85,16 +93,37 @@ export function InvoiceForm({
           {(field: AnyFieldApi) => (
             <div className="space-y-2 md:col-span-2">
               <Label className="text-sm font-medium">Registration</Label>
-              <LookupSelect
-                value={field.state.value}
-                options={registrations.map((r) => ({
-                  value: r.id,
-                  label: `${r.registration_number} — ${r.traveller?.full_name ?? '-'}`,
-                }))}
-                placeholder="Select registration"
-                onChange={(value) => field.handleChange(value)}
-                aria-invalid={field.state.meta.errors.length > 0}
-              />
+              <Select
+                value={field.state.value ?? ''}
+                onValueChange={(v) => field.handleChange(v ?? '')}
+              >
+                <SelectTrigger
+                  className="h-9 w-full"
+                  aria-invalid={field.state.meta.errors.length > 0}
+                >
+                  <SelectValue>
+                    {registrations
+                      .map((r) => ({
+                        value: r.id,
+                        label: `${r.registration_number} — ${r.traveller?.full_name ?? '-'}`,
+                      }))
+                      .find((o) => o.value === field.state.value)?.label ??
+                      'Select registration'}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {registrations
+                    .map((r) => ({
+                      value: r.id,
+                      label: `${r.registration_number} — ${r.traveller?.full_name ?? '-'}`,
+                    }))
+                    .map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
               <FieldError field={field} />
             </div>
           )}

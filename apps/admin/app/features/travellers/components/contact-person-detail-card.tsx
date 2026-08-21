@@ -1,4 +1,4 @@
-import { Archive, Pencil, Plus, MoreVertical, UserRound } from 'lucide-react';
+import { Archive, MoreVertical, Pencil, UserRound } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import {
   Button,
@@ -9,7 +9,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@kafi/ui';
-import type { Traveller } from '../../../lib/api.js';
+import type { ContactPerson } from '../../../lib/api.js';
 import { usePermissions } from '../../../core/permissions';
 import { formatPhone } from '../../../shared/format';
 import { WorkflowStatusBadge } from '../../../shared/operational-ui';
@@ -26,30 +26,22 @@ function formatDateOnly(value: string | null | undefined): string {
       });
 }
 
-interface TravellerDetailCardProps {
-  traveller: Traveller;
+interface ContactPersonDetailCardProps {
+  contact: ContactPerson;
   onArchive?: (id: string) => Promise<void>;
-  onAddContact?: () => void;
 }
 
-export function TravellerDetailCard({
-  traveller,
+export function ContactPersonDetailCard({
+  contact,
   onArchive,
-  onAddContact,
-}: TravellerDetailCardProps) {
+}: ContactPersonDetailCardProps) {
   const { can } = usePermissions();
   const navigate = useNavigate();
-  const fullName = [
-    traveller.first_name,
-    traveller.middle_name,
-    traveller.last_name,
-  ]
+  const fullName = [contact.first_name, contact.middle_name, contact.last_name]
     .filter(Boolean)
     .join(' ');
   const hasActions =
-    (can('TRAVELLER_CREATE') && Boolean(onAddContact)) ||
-    can('TRAVELLER_EDIT') ||
-    (can('TRAVELLER_DELETE') && Boolean(onArchive));
+    can('TRAVELLER_EDIT') || (can('TRAVELLER_DELETE') && Boolean(onArchive));
 
   return (
     <Card className="overflow-hidden">
@@ -61,23 +53,21 @@ export function TravellerDetailCard({
             </div>
             <div className="min-w-0">
               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Traveller
+                Contact person
               </p>
               <h1 className="mt-1 break-words text-2xl font-semibold leading-tight tracking-tight sm:text-3xl">
                 {fullName}
               </h1>
               <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted-foreground">
-                <span className="font-medium text-foreground">
-                  {traveller.traveller_number}
-                </span>
-                <span className="hidden sm:inline" aria-hidden="true">
-                  ·
-                </span>
-                <span>{formatPhone(traveller.phone_number)}</span>
+                <span>{formatPhone(contact.phone_number)}</span>
+                {contact.alternate_phone_number && (
+                  <>
+                    <span aria-hidden="true">·</span>
+                    <span>{formatPhone(contact.alternate_phone_number)}</span>
+                  </>
+                )}
                 <WorkflowStatusBadge
-                  status={traveller.status?.name
-                    .toUpperCase()
-                    .replaceAll(' ', '_')}
+                  status={contact.status?.name.toUpperCase().replaceAll(' ', '_')}
                 />
               </div>
             </div>
@@ -91,25 +81,18 @@ export function TravellerDetailCard({
                     variant="outline"
                     size="icon"
                     className="shrink-0"
-                    aria-label="Traveller actions"
+                    aria-label="Contact person actions"
                   >
                     <MoreVertical className="h-4 w-4" aria-hidden="true" />
                   </Button>
                 }
               />
               <DropdownMenuContent align="end" className="min-w-40">
-                {can('TRAVELLER_CREATE') && onAddContact && (
-                  <DropdownMenuItem
-                    onClick={onAddContact}
-                    className="whitespace-nowrap"
-                  >
-                    <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
-                    Add contact
-                  </DropdownMenuItem>
-                )}
                 {can('TRAVELLER_EDIT') && (
                   <DropdownMenuItem
-                    onClick={() => navigate(`/travellers/${traveller.id}/edit`)}
+                    onClick={() =>
+                      navigate(`/contact-persons/${contact.id}/edit`)
+                    }
                     className="whitespace-nowrap"
                   >
                     <Pencil className="mr-2 h-4 w-4" aria-hidden="true" />
@@ -119,7 +102,7 @@ export function TravellerDetailCard({
                 {can('TRAVELLER_DELETE') && onArchive && (
                   <DropdownMenuItem
                     className="whitespace-nowrap text-destructive focus:text-destructive"
-                    onClick={() => void onArchive(traveller.id)}
+                    onClick={() => void onArchive(contact.id)}
                   >
                     <Archive className="mr-2 h-4 w-4" aria-hidden="true" />
                     Archive
@@ -135,31 +118,28 @@ export function TravellerDetailCard({
             <DetailGroup title="Personal information">
               <Detail
                 label="Date of birth"
-                value={formatDateOnly(traveller.date_of_birth)}
+                value={formatDateOnly(contact.date_of_birth)}
               />
-              <Detail label="Gender" value={traveller.gender ?? '—'} />
-              <Detail label="Country" value={traveller.country?.name ?? '—'} />
-              <Detail label="Region" value={traveller.region?.name ?? '—'} />
+              <Detail label="Gender" value={contact.gender ?? '—'} />
+              <Detail label="Country" value={contact.country?.name ?? '—'} />
+              <Detail label="Region" value={contact.region?.name ?? '—'} />
             </DetailGroup>
-            <DetailGroup title="Identity and contact">
+            <DetailGroup title="Contact information">
+              <Detail label="Phone" value={formatPhone(contact.phone_number)} />
               <Detail
-                label="Phone"
-                value={formatPhone(traveller.phone_number)}
+                label="Alternate phone"
+                value={
+                  contact.alternate_phone_number
+                    ? formatPhone(contact.alternate_phone_number)
+                    : '—'
+                }
               />
-              <Detail label="Email" value={traveller.email_address ?? '—'} />
-              <Detail
-                label="Passport number"
-                value={traveller.passport_number ?? '—'}
-              />
-              <Detail
-                label="Fayda number"
-                value={traveller.fayda_number ?? '—'}
-              />
+              <Detail label="Email" value={contact.email_address ?? '—'} />
+              <Detail label="Address" value={contact.address ?? '—'} />
               <Detail
                 label="Preferred language"
-                value={traveller.preferred_language?.name ?? '—'}
+                value={contact.preferred_language?.name ?? '—'}
               />
-              <Detail label="Source" value={traveller.source?.name ?? '—'} />
             </DetailGroup>
           </div>
         </div>

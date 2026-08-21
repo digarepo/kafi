@@ -90,7 +90,7 @@ export function TravellerEditPage({ id }: TravellerEditPageProps) {
         sources={sources}
         statuses={statuses}
         onSubmit={handleSubmit}
-        submitLabel="Update"
+        onCancel={() => navigate(`/travellers/${traveller.id}`)}
       />
     </div>
   );

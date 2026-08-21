@@ -33,6 +33,14 @@ const registrationFiltersSchema = z.object({
   traveller_id: z.string().ulid().optional(),
   package_version_id: z.string().ulid().optional(),
   status_id: z.string().ulid().optional(),
+  departure_from: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  departure_to: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
 });
 
 export class CreateRegistrationDto extends createZodDto(

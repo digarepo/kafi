@@ -144,36 +144,36 @@ export function AssignToGroupDialog({
           <div className="space-y-2">
             <Label>Compatible travel group</Label>
             <Select
-              value={groupId}
+              value={groupId ?? ''}
               onValueChange={(v) => setGroupId(v ?? '')}
               disabled={loading || saving}
             >
-              <SelectTrigger>
-                <SelectValue
-                  placeholder={
-                    loading
+              <SelectTrigger className="h-9 w-full">
+                <SelectValue>
+                  {eligibleGroups
+                    .map((g) => ({
+                      value: g.id,
+                      label: `${g.name} · ${g.group_number} (${g.current_capacity} / ${g.maximum_capacity})`,
+                    }))
+                    .find((o) => o.value === groupId)?.label ??
+                    (loading
                       ? 'Loading…'
                       : eligibleGroups.length === 0
                         ? 'No compatible groups available'
-                        : 'Select travel group'
-                  }
-                />
+                        : 'Select travel group')}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                {eligibleGroups.map((g) => (
-                  <SelectItem key={g.id} value={g.id}>
-                    <div className="flex flex-col">
-                      <span className="font-medium">
-                        {g.name} · {g.group_number}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {g.current_capacity} / {g.maximum_capacity} ·{' '}
-                        {g.package_version?.name ?? '—'} ·{' '}
-                        {g.departure_date ?? 'No departure date'}
-                      </span>
-                    </div>
-                  </SelectItem>
-                ))}
+                {eligibleGroups
+                  .map((g) => ({
+                    value: g.id,
+                    label: `${g.name} · ${g.group_number} (${g.current_capacity} / ${g.maximum_capacity})`,
+                  }))
+                  .map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
             {packageVersionId && eligibleGroups.length === 0 && !loading && (

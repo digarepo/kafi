@@ -8,11 +8,19 @@
  */
 
 import { AnyFieldApi, useForm, useSelector } from '@tanstack/react-form';
-import { Button, Input, Label } from '@kafi/ui';
+import {
+  Button,
+  Input,
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@kafi/ui';
 
 import { DatePicker } from './date-picker';
 import { FieldError } from '../../../shared/field-error';
-import { LookupSelect } from './lookup-select';
 import { paymentFormSchema } from '../validation/finance.schema';
 import type {
   PaymentFormOutput,
@@ -92,16 +100,37 @@ export function PaymentForm({
           {(field: AnyFieldApi) => (
             <div className="space-y-2 md:col-span-2">
               <Label className="text-sm font-medium">Payer</Label>
-              <LookupSelect
-                value={field.state.value}
-                options={payers.map((p) => ({
-                  value: p.id,
-                  label: `${p.payer_number} — ${p.organization_name ?? p.contact_name ?? '-'}`,
-                }))}
-                placeholder="Select payer"
-                onChange={(value) => field.handleChange(value)}
-                aria-invalid={field.state.meta.errors.length > 0}
-              />
+              <Select
+                value={field.state.value ?? ''}
+                onValueChange={(v) => field.handleChange(v ?? '')}
+              >
+                <SelectTrigger
+                  className="h-9 w-full"
+                  aria-invalid={field.state.meta.errors.length > 0}
+                >
+                  <SelectValue>
+                    {payers
+                      .map((p) => ({
+                        value: p.id,
+                        label: `${p.payer_number} — ${p.organization_name ?? p.contact_name ?? '-'}`,
+                      }))
+                      .find((o) => o.value === field.state.value)?.label ??
+                      'Select payer'}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {payers
+                    .map((p) => ({
+                      value: p.id,
+                      label: `${p.payer_number} — ${p.organization_name ?? p.contact_name ?? '-'}`,
+                    }))
+                    .map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
               <FieldError field={field} />
             </div>
           )}
@@ -111,13 +140,31 @@ export function PaymentForm({
           {(field: AnyFieldApi) => (
             <div className="space-y-2">
               <Label className="text-sm font-medium">Payment method</Label>
-              <LookupSelect
-                value={field.state.value}
-                options={paymentMethods.map((m) => ({ value: m.id, label: m.name }))}
-                placeholder="Select payment method"
-                onChange={(value) => field.handleChange(value)}
-                aria-invalid={field.state.meta.errors.length > 0}
-              />
+              <Select
+                value={field.state.value ?? ''}
+                onValueChange={(v) => field.handleChange(v ?? '')}
+              >
+                <SelectTrigger
+                  className="h-9 w-full"
+                  aria-invalid={field.state.meta.errors.length > 0}
+                >
+                  <SelectValue>
+                    {paymentMethods
+                      .map((m) => ({ value: m.id, label: m.name }))
+                      .find((o) => o.value === field.state.value)?.label ??
+                      'Select payment method'}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {paymentMethods
+                    .map((m) => ({ value: m.id, label: m.name }))
+                    .map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
               <FieldError field={field} />
             </div>
           )}
@@ -165,16 +212,37 @@ export function PaymentForm({
           {(field: AnyFieldApi) => (
             <div className="space-y-2">
               <Label className="text-sm font-medium">Original currency</Label>
-              <LookupSelect
-                value={field.state.value}
-                options={currencies.map((c) => ({
-                  value: c.id,
-                  label: `${c.currency_code} — ${c.name}`,
-                }))}
-                placeholder="Select currency"
-                onChange={(value) => field.handleChange(value)}
-                aria-invalid={field.state.meta.errors.length > 0}
-              />
+              <Select
+                value={field.state.value ?? ''}
+                onValueChange={(v) => field.handleChange(v ?? '')}
+              >
+                <SelectTrigger
+                  className="h-9 w-full"
+                  aria-invalid={field.state.meta.errors.length > 0}
+                >
+                  <SelectValue>
+                    {currencies
+                      .map((c) => ({
+                        value: c.id,
+                        label: `${c.currency_code} — ${c.name}`,
+                      }))
+                      .find((o) => o.value === field.state.value)?.label ??
+                      'Select currency'}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {currencies
+                    .map((c) => ({
+                      value: c.id,
+                      label: `${c.currency_code} — ${c.name}`,
+                    }))
+                    .map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
               <FieldError field={field} />
             </div>
           )}

@@ -258,18 +258,31 @@ export function GroupMembershipDetailDialog({
           <div className="space-y-3 rounded-md border p-3">
             <Label>Transfer to travel group</Label>
             <Select
-              value={targetGroupId}
+              value={targetGroupId ?? ''}
               onValueChange={(v) => setTargetGroupId(v ?? '')}
             >
-              <SelectTrigger>
-                <SelectValue placeholder="Select target group" />
+              <SelectTrigger className="h-9 w-full">
+                <SelectValue>
+                  {availableTargets
+                    .map((g) => ({
+                      value: g.id,
+                      label: `${g.name} · ${g.current_capacity} / ${g.maximum_capacity}`,
+                    }))
+                    .find((o) => o.value === targetGroupId)?.label ??
+                    'Select target group'}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                {availableTargets.map((g) => (
-                  <SelectItem key={g.id} value={g.id}>
-                    {g.name} · {g.current_capacity} / {g.maximum_capacity}
-                  </SelectItem>
-                ))}
+                {availableTargets
+                  .map((g) => ({
+                    value: g.id,
+                    label: `${g.name} · ${g.current_capacity} / ${g.maximum_capacity}`,
+                  }))
+                  .map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
             <Textarea
@@ -300,18 +313,31 @@ export function GroupMembershipDetailDialog({
           <div className="space-y-3 rounded-md border p-3">
             <Label>New status</Label>
             <Select
-              value={statusId}
+              value={statusId ?? ''}
               onValueChange={(v) => setStatusId(v ?? '')}
             >
-              <SelectTrigger>
-                <SelectValue placeholder="Select status" />
+              <SelectTrigger className="h-9 w-full">
+                <SelectValue>
+                  {statuses
+                    .map((s) => ({
+                      value: s.id,
+                      label: s.name,
+                    }))
+                    .find((o) => o.value === statusId)?.label ??
+                    'Select status'}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                {statuses.map((s) => (
-                  <SelectItem key={s.id} value={s.id}>
-                    {s.name}
-                  </SelectItem>
-                ))}
+                {statuses
+                  .map((s) => ({
+                    value: s.id,
+                    label: s.name,
+                  }))
+                  .map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
             <div className="flex gap-2">

@@ -1,35 +1,30 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router";
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate } from 'react-router';
 import {
-  buttonVariants,
-  Button,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@kafi/ui";
-import { usePermissions } from "../../../core/permissions";
+  ArrowLeft,
+  ArrowRight,
+  CalendarDays,
+  FileText,
+  Plus,
+  Upload,
+} from 'lucide-react';
+import { Button, Skeleton, buttonVariants } from '@kafi/ui';
+import { usePermissions } from '../../../core/permissions';
 import {
   AsyncState,
-  OperationalSummaryCard,
   WorkflowStatusBadge,
-} from "../../../shared/operational-ui";
-import { documentsApi, type DocumentListItem } from "../../documents/lib/api";
-import { api, type Registration, type Traveller, type TravellerContact } from "../../../lib/api.js";
-import { TravellerDetailCard } from "../components/traveller-detail-card";
-import { TravellerContactsTable } from "../components/traveller-contacts-table";
+} from '../../../shared/operational-ui';
+import { documentsApi, type DocumentListItem } from '../../documents/lib/api';
+import { api, type Registration, type Traveller } from '../../../lib/api.js';
+import { TravellerDetailCard } from '../components/traveller-detail-card';
+import { TravellerContactsTable } from '../components/traveller-contacts-table';
 
 interface TravellerDetailPageProps {
   id: string;
 }
 
-function isOperationalRegistration(registration: Registration): boolean {
-  return !["CANCELLED", "COMPLETED"].includes(registration.status);
-}
-
 async function listAllTravellerRegistrations(travellerId: string) {
-  const pageSize = 100;
+  const pageSize = 50;
   const firstPage = await api.listRegistrations(1, pageSize, {
     traveller_id: travellerId,
   });
@@ -38,86 +33,128 @@ async function listAllTravellerRegistrations(travellerId: string) {
 
   const remainingPages = await Promise.all(
     Array.from({ length: pageCount - 1 }, (_, index) =>
-      api.listRegistrations(index + 2, pageSize, { traveller_id: travellerId })
-    )
+      api.listRegistrations(index + 2, pageSize, { traveller_id: travellerId }),
+    ),
   );
   return [firstPage.data, ...remainingPages.map((page) => page.data)].flat();
 }
 
-function RegistrationContextCard({ registration }: { registration: Registration }) {
+function TravellerDetailSkeleton() {
   return (
-    <Card size="sm">
-      <CardHeader className="flex flex-row items-start justify-between gap-3">
-        <div className="min-w-0 space-y-1">
-          <CardTitle className="truncate">{registration.registration_number}</CardTitle>
-          <CardDescription>
-            {registration.package_template?.name ?? "Package unavailable"} ·{" "}
-            {registration.package_version?.version_name ?? "Version unavailable"}
-          </CardDescription>
+    <div className="space-y-8" aria-label="Loading traveller" role="status">
+      <Link
+        to="/travellers"
+        className={buttonVariants({
+          variant: 'link',
+          size: 'sm',
+          className: 'h-auto px-0 text-muted-foreground hover:text-foreground',
+        })}
+      >
+        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+        Back to Travellers
+      </Link>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-3">
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-9 w-64 max-w-full" />
+          <Skeleton className="h-4 w-48" />
         </div>
-        <WorkflowStatusBadge status={registration.status} />
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="grid gap-3 text-sm sm:grid-cols-2">
-          <div>
-            <p className="text-muted-foreground">Departure</p>
-            <p className="font-medium">{registration.expected_departure_date ?? "Not set"}</p>
-          </div>
-          <div>
-            <p className="text-muted-foreground">Return</p>
-            <p className="font-medium">{registration.expected_return_date ?? "Not set"}</p>
-          </div>
+        <div className="flex gap-2">
+          <Skeleton className="h-9 w-20" />
+          <Skeleton className="h-9 w-20" />
         </div>
-        <Link
-          to={`/registrations/${registration.id}`}
-          className={buttonVariants({
-            variant: "link",
-            size: "sm",
-            className: "h-auto px-0",
-          })}
-        >
-          View registration operations
-        </Link>
-      </CardContent>
-    </Card>
+      </div>
+      <section className="space-y-3">
+        <Skeleton className="h-5 w-36" />
+        <div className="grid gap-4 rounded-lg border p-5 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 6 }, (_, index) => (
+            <div key={index} className="space-y-2">
+              <Skeleton className="h-3 w-24" />
+              <Skeleton className="h-4 w-32" />
+            </div>
+          ))}
+        </div>
+      </section>
+      <section className="space-y-3">
+        <Skeleton className="h-5 w-32" />
+        <Skeleton className="h-28 w-full" />
+      </section>
+      <section className="space-y-3">
+        <Skeleton className="h-5 w-24" />
+        <Skeleton className="h-28 w-full" />
+      </section>
+    </div>
   );
 }
 
-function ContactSummary({ contacts }: { contacts: TravellerContact[] }) {
-  const primary = contacts.find((contact) => contact.is_primary_contact);
-  const emergency = contacts.find((contact) => contact.is_emergency_contact);
+function formatTravelDate(value: string | null | undefined): string {
+  if (!value) return 'Not set';
+  const date = new Date(`${value.slice(0, 10)}T00:00:00`);
+  return Number.isNaN(date.getTime())
+    ? value
+    : date.toLocaleDateString('en-US', {
+        day: '2-digit',
+        month: 'short',
+      });
+}
+
+function RegistrationRow({ registration }: { registration: Registration }) {
+  const departure = formatTravelDate(registration.expected_departure_date);
+  const returnDate = formatTravelDate(registration.expected_return_date);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Contact overview</CardTitle>
-        <CardDescription>Existing traveller contact relationships.</CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-4 sm:grid-cols-2">
-        <div>
-          <p className="text-sm text-muted-foreground">Primary contact</p>
-          <p className="font-medium">
-            {primary?.contact_person
-              ? `${primary.contact_person.first_name} ${primary.contact_person.last_name}`
-              : "No primary contact"}
+    <article className="px-4 py-4 sm:px-5 sm:py-5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-base font-semibold tracking-tight">
+            {registration.registration_number}
           </p>
-          <p className="text-sm text-muted-foreground">
-            {primary?.contact_person?.phone_number ?? "—"}
+          <p className="mt-2 break-words text-sm font-medium leading-snug">
+            {registration.package_template?.name ?? 'Package unavailable'}
+          </p>
+          <p className="mt-0.5 break-words text-xs text-muted-foreground">
+            {registration.package_version?.version_name ??
+              'Version unavailable'}
           </p>
         </div>
-        <div>
-          <p className="text-sm text-muted-foreground">Emergency contact</p>
-          <p className="font-medium">
-            {emergency?.contact_person
-              ? `${emergency.contact_person.first_name} ${emergency.contact_person.last_name}`
-              : "No emergency contact"}
-          </p>
-          <p className="text-sm text-muted-foreground">
-            {emergency?.contact_person?.phone_number ?? "—"}
-          </p>
+        <WorkflowStatusBadge
+          status={registration.status}
+          className="shrink-0"
+        />
+      </div>
+
+      <div className="mt-4 rounded-md bg-muted/50 px-3 py-3">
+        <div className="mb-2 flex items-center gap-2 text-xs font-medium text-muted-foreground">
+          <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />
+          Travel
         </div>
-      </CardContent>
-    </Card>
+        <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start gap-2">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold">{departure}</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">Departure</p>
+          </div>
+          <div className="mt-2 flex items-center" aria-hidden="true">
+            <span className="h-px w-5 bg-border sm:w-8" />
+            <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
+          </div>
+          <div className="min-w-0 text-right">
+            <p className="text-sm font-semibold">{returnDate}</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">Return</p>
+          </div>
+        </div>
+      </div>
+
+      <Link
+        to={`/registrations/${registration.id}`}
+        className={buttonVariants({
+          variant: 'link',
+          size: 'sm',
+          className: 'mt-3 h-auto px-0',
+        })}
+      >
+        View registration <ArrowRight className="h-4 w-4" aria-hidden="true" />
+      </Link>
+    </article>
   );
 }
 
@@ -125,8 +162,9 @@ export function TravellerDetailPage({ id }: TravellerDetailPageProps) {
   const { can } = usePermissions();
   const navigate = useNavigate();
   const [traveller, setTraveller] = useState<Traveller | null>(null);
-  const [contacts, setContacts] = useState<TravellerContact[]>([]);
-  const [registrations, setRegistrations] = useState<Registration[] | null>(null);
+  const [registrations, setRegistrations] = useState<Registration[] | null>(
+    null,
+  );
   const [documents, setDocuments] = useState<DocumentListItem[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -135,21 +173,25 @@ export function TravellerDetailPage({ id }: TravellerDetailPageProps) {
     setLoading(true);
     setError(null);
     try {
-      const [travellerResult, contactResult, registrationResult, documentResult] =
+      const [travellerResult, registrationResult, documentResult] =
         await Promise.all([
           api.getTraveller(id),
-          api.listTravellerContacts(id),
-          can("REGISTRATION_VIEW") ? listAllTravellerRegistrations(id) : Promise.resolve(null),
-          can("DOCUMENT_VIEW")
-            ? documentsApi.listTravellerDocuments(id, 1, 100)
+          can('REGISTRATION_VIEW')
+            ? listAllTravellerRegistrations(id)
+            : Promise.resolve(null),
+          can('DOCUMENT_VIEW')
+            ? documentsApi.listTravellerDocuments(id, 1, 20)
             : Promise.resolve(null),
         ]);
       setTraveller(travellerResult);
-      setContacts(contactResult);
-      setRegistrations(registrationResult ?? null);
+      setRegistrations(registrationResult);
       setDocuments(documentResult?.data ?? null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Traveller context could not be loaded");
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Traveller record could not be loaded',
+      );
     } finally {
       setLoading(false);
     }
@@ -159,229 +201,236 @@ export function TravellerDetailPage({ id }: TravellerDetailPageProps) {
     void loadTravellerContext();
   }, [loadTravellerContext]);
 
+  const handleArchiveContact = useCallback(
+    async (contactId: string) => {
+      await api.archiveTravellerContact(id, contactId);
+      const updated = await api.getTraveller(id);
+      setTraveller(updated);
+    },
+    [id],
+  );
+
   const activeRegistrations = useMemo(
-    () => registrations?.filter(isOperationalRegistration) ?? [],
-    [registrations]
-  );
-  const readyRegistrations = useMemo(
-    () => registrations?.filter((registration) => registration.status === "READY_FOR_TRAVEL") ?? [],
-    [registrations]
-  );
-  const inProgressRegistrations = useMemo(
     () =>
-      registrations?.filter((registration) =>
-        ["DRAFT", "PROCESSING"].includes(registration.status)
+      registrations?.filter(
+        (registration) =>
+          !['CANCELLED', 'COMPLETED'].includes(registration.status),
       ) ?? [],
-    [registrations]
+    [registrations],
   );
+
+  if (loading) return <TravellerDetailSkeleton />;
 
   return (
     <AsyncState
-      loading={loading}
       error={error}
       onRetry={() => void loadTravellerContext()}
-      isEmpty={!traveller && !loading && !error}
+      isEmpty={!traveller}
       emptyTitle="Traveller not found"
       emptyDescription="This traveller may have been archived or is no longer available."
       emptyAction={
-        <Button variant="outline" onClick={() => navigate("/travellers")}>
+        <Button variant="outline" onClick={() => navigate('/travellers')}>
           Back to travellers
         </Button>
       }
     >
       {traveller && (
-        <div className="space-y-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight">Traveller context</h1>
-              <p className="text-muted-foreground">
-                Master data and connected operational records.
-              </p>
-            </div>
-            {can("TRAVELLER_CREATE") && (
-              <Button onClick={() => navigate(`/travellers/${id}/contacts/new`)}>
-                Add contact
-              </Button>
+        <div className="space-y-10 pb-8">
+          <Link
+            to="/travellers"
+            className={buttonVariants({
+              variant: 'link',
+              size: 'sm',
+              className:
+                'h-auto px-0 text-muted-foreground hover:text-foreground',
+            })}
+          >
+            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+            Back to Travellers
+          </Link>
+
+          <TravellerDetailCard
+            traveller={traveller}
+            onAddContact={
+              can('TRAVELLER_CREATE')
+                ? () => navigate(`/travellers/${id}/contacts/new`)
+                : undefined
+            }
+            onArchive={
+              can('TRAVELLER_DELETE')
+                ? async () => {
+                    if (!window.confirm('Archive this traveller?')) return;
+                    await api.archiveTraveller(id);
+                    navigate('/travellers');
+                  }
+                : undefined
+            }
+          />
+
+          <div
+            className={
+              can('REGISTRATION_VIEW') && can('DOCUMENT_VIEW')
+                ? 'grid gap-10 xl:grid-cols-2 xl:items-start'
+                : 'grid gap-10'
+            }
+          >
+            {can('REGISTRATION_VIEW') && registrations && (
+              <section
+                className="min-w-0 space-y-4"
+                aria-labelledby="traveller-registrations-title"
+              >
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                  <div>
+                    <h2
+                      id="traveller-registrations-title"
+                      className="text-lg font-semibold tracking-tight"
+                    >
+                      Registrations
+                    </h2>
+                    <p className="text-sm text-muted-foreground">
+                      {activeRegistrations.length > 0
+                        ? `${activeRegistrations.length} active registration${activeRegistrations.length === 1 ? '' : 's'}`
+                        : 'No active registrations'}
+                    </p>
+                  </div>
+                  {can('REGISTRATION_CREATE') && (
+                    <Button
+                      size="sm"
+                      onClick={() => navigate('/registrations/new')}
+                    >
+                      <Plus className="h-4 w-4" aria-hidden="true" />
+                      New registration
+                    </Button>
+                  )}
+                </div>
+                <div className="overflow-hidden rounded-lg border">
+                  {registrations.length === 0 ? (
+                    <div className="p-6 text-sm text-muted-foreground">
+                      No registrations for this traveller.
+                    </div>
+                  ) : (
+                    <div className="divide-y">
+                      {registrations.map((registration) => (
+                        <RegistrationRow
+                          key={registration.id}
+                          registration={registration}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </section>
+            )}
+
+            {can('DOCUMENT_VIEW') && documents && (
+              <section
+                className="min-w-0 space-y-4"
+                aria-labelledby="traveller-documents-title"
+              >
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                  <div>
+                    <h2
+                      id="traveller-documents-title"
+                      className="text-lg font-semibold tracking-tight"
+                    >
+                      Documents
+                    </h2>
+                    <p className="text-sm text-muted-foreground">
+                      Traveller documents and verification state.
+                    </p>
+                  </div>
+                  <div className="flex gap-3">
+                    <Link
+                      to={`/documents?traveller_id=${id}`}
+                      className={buttonVariants({
+                        variant: 'link',
+                        size: 'sm',
+                        className: 'h-auto px-0',
+                      })}
+                    >
+                      View all
+                    </Link>
+                    {can('DOCUMENT_MANAGE') && (
+                      <Link
+                        to={`/documents/new?traveller_id=${id}`}
+                        className={buttonVariants({
+                          variant: 'link',
+                          size: 'sm',
+                          className: 'h-auto px-0',
+                        })}
+                      >
+                        <Upload className="h-4 w-4" aria-hidden="true" />
+                        Upload
+                      </Link>
+                    )}
+                  </div>
+                </div>
+                <div className="overflow-hidden rounded-lg border">
+                  {documents.length === 0 ? (
+                    <div className="p-6 text-sm text-muted-foreground">
+                      No documents uploaded.
+                    </div>
+                  ) : (
+                    <div className="divide-y">
+                      {documents.map((document) => (
+                        <div
+                          key={document.id}
+                          className="flex items-start gap-3 px-4 py-3 sm:px-5"
+                        >
+                          <FileText
+                            className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground"
+                            aria-hidden="true"
+                          />
+                          <div className="min-w-0">
+                            <p className="break-words text-sm font-medium leading-snug">
+                              {document.document_type?.name ?? 'Document'}
+                            </p>
+                            <p className="mt-1 break-words text-xs text-muted-foreground">
+                              {document.verification_status?.name ??
+                                'Unverified'}{' '}
+                              ·{' '}
+                              {document.document_status?.name ??
+                                'Unknown status'}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </section>
             )}
           </div>
 
-          <TravellerDetailCard traveller={traveller} />
-
-          {can("REGISTRATION_VIEW") && registrations ? (
-            <section className="space-y-4" aria-labelledby="traveller-overview-title">
-              <div>
-                <h2 id="traveller-overview-title" className="text-lg font-semibold tracking-tight">
-                  Operational overview
-                </h2>
-                <p className="text-sm text-muted-foreground">
-                  Registration context without duplicating registration workflow actions.
-                </p>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-3">
-                <OperationalSummaryCard
-                  title="Registrations"
-                  value={registrations.length}
-                  secondary="All historical and operational records"
-                />
-                <OperationalSummaryCard
-                  title="Active registrations"
-                  value={activeRegistrations.length}
-                  secondary={
-                    activeRegistrations.length > 0
-                      ? "Not cancelled or completed"
-                      : "No active registration"
-                  }
-                  tone="neutral"
-                />
-                <OperationalSummaryCard
-                  title="Ready for travel"
-                  value={readyRegistrations.length}
-                  secondary={`${inProgressRegistrations.length} in intake or processing`}
-                  tone={readyRegistrations.length > 0 ? "success" : "neutral"}
-                />
-              </div>
-            </section>
-          ) : (
-            <AsyncState
-              isEmpty
-              emptyTitle="Registration context unavailable"
-              emptyDescription="You need registration view permission to see connected registrations."
+          {can('TRAVELLER_VIEW') && (
+            <section
+              className="space-y-4"
+              aria-labelledby="traveller-contacts-title"
             >
-              <div />
-            </AsyncState>
-          )}
-
-          {can("REGISTRATION_VIEW") && registrations && (
-            <section className="space-y-4" aria-labelledby="traveller-registrations-title">
               <div>
                 <h2
-                  id="traveller-registrations-title"
+                  id="traveller-contacts-title"
                   className="text-lg font-semibold tracking-tight"
                 >
-                  Registrations
+                  Contacts
                 </h2>
                 <p className="text-sm text-muted-foreground">
-                  Open a registration to perform workflow actions, resolve readiness blockers, and
-                  inspect group context.
+                  People connected to this traveller.
                 </p>
               </div>
               <AsyncState
-                isEmpty={registrations.length === 0}
-                emptyTitle="No registrations for this traveller"
-                emptyDescription="Create a registration to start the booking workflow."
-                emptyAction={
-                  can("REGISTRATION_CREATE") ? (
-                    <Button onClick={() => navigate("/registrations/new")}>
-                      Create registration
-                    </Button>
-                  ) : undefined
-                }
+                isEmpty={traveller.contacts.length === 0}
+                emptyTitle="No contact relationships"
+                emptyDescription="Add a contact when one is needed for the traveller or registration workflow."
               >
-                <div className="grid gap-4 xl:grid-cols-2">
-                  {registrations.map((registration) => (
-                    <RegistrationContextCard key={registration.id} registration={registration} />
-                  ))}
-                </div>
+                <TravellerContactsTable
+                  contacts={traveller.contacts}
+                  onArchive={
+                    can('TRAVELLER_DELETE') ? handleArchiveContact : undefined
+                  }
+                />
               </AsyncState>
             </section>
-          )}
-
-          <ContactSummary contacts={contacts} />
-
-          <section className="space-y-4" aria-labelledby="traveller-contacts-title">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <h2 id="traveller-contacts-title" className="text-lg font-semibold tracking-tight">
-                  Contact relationships
-                </h2>
-                <p className="text-sm text-muted-foreground">
-                  Manage relationship details in the existing contact workflow.
-                </p>
-              </div>
-            </div>
-            <AsyncState
-              isEmpty={contacts.length === 0}
-              emptyTitle="No contact relationships"
-              emptyDescription="Add a primary or emergency contact when required by the registration workflow."
-            >
-              <TravellerContactsTable
-                contacts={contacts}
-                onArchive={
-                  can("TRAVELLER_DELETE")
-                    ? async (contactId) => {
-                        await api.archiveTravellerContact(id, contactId);
-                        await loadTravellerContext();
-                      }
-                    : undefined
-                }
-              />
-            </AsyncState>
-          </section>
-
-          {can("DOCUMENT_VIEW") ? (
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between gap-3">
-                <div>
-                  <CardTitle>Documents summary</CardTitle>
-                  <CardDescription>
-                    Traveller-level documents without duplicating document management.
-                  </CardDescription>
-                </div>
-                <div className="flex flex-wrap gap-3">
-                  <Link
-                    to={`/documents?traveller_id=${id}`}
-                    className={buttonVariants({
-                      variant: "link",
-                      size: "sm",
-                      className: "h-auto px-0",
-                    })}
-                  >
-                    View documents
-                  </Link>
-                  {can("DOCUMENT_MANAGE") && (
-                    <Link
-                      to={`/documents/new?traveller_id=${id}`}
-                      className={buttonVariants({
-                        variant: "link",
-                        size: "sm",
-                        className: "h-auto px-0",
-                      })}
-                    >
-                      Upload document
-                    </Link>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent>
-                <AsyncState
-                  isEmpty={documents?.length === 0}
-                  emptyTitle="No documents uploaded"
-                  emptyDescription="Document completeness and verification remain owned by the Documents workflow."
-                >
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    {documents?.map((document) => (
-                      <div key={document.id} className="rounded-md border p-3 text-sm">
-                        <p className="font-medium">{document.document_type?.name ?? "Document"}</p>
-                        <p className="text-muted-foreground">
-                          {document.verification_status?.name ?? "Unverified"}
-                        </p>
-                        <p className="text-muted-foreground">
-                          {document.document_status?.name ?? "Unknown status"}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </AsyncState>
-              </CardContent>
-            </Card>
-          ) : (
-            <AsyncState
-              isEmpty
-              emptyTitle="Documents summary unavailable"
-              emptyDescription="You need document view permission to inspect traveller documents."
-            >
-              <div />
-            </AsyncState>
           )}
         </div>
       )}

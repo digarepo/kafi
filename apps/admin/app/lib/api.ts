@@ -650,6 +650,7 @@ export interface Registration {
   traveller: {
     id: string;
     first_name: string;
+    middle_name: string | null;
     last_name: string;
     full_name: string;
     traveller_number: string;
@@ -748,6 +749,9 @@ export interface RegistrationOperationalSummary extends Registration {
   currency_code: string | null;
   primary_contact: {
     id: string;
+    first_name: string;
+    middle_name: string | null;
+    last_name: string;
     name: string;
     phone_number: string;
   } | null;
@@ -758,6 +762,7 @@ export interface RegistrationOperationalSummary extends Registration {
     invoice_date: string;
     due_date: string | null;
     total_amount: number | string;
+    outstanding_balance: number;
     status: { id: string; code: string; name: string } | null;
   }>;
   documents: Array<{
@@ -808,7 +813,7 @@ export interface RegistrationOperationalSummary extends Registration {
     left_at: string | null;
     status: { id: string; code: string; name: string } | null;
   } | null;
-  room_assignment: {
+  room_assignments: Array<{
     id: string;
     room: {
       id: string;
@@ -818,10 +823,13 @@ export interface RegistrationOperationalSummary extends Registration {
     group_hotel_stay: {
       id: string;
       stay_number: string;
+      hotel_name: string | null;
+      check_in_date: string | null;
+      check_out_date: string | null;
       hotel: { id: string; name: string } | null;
     } | null;
     status: { id: string; code: string; name: string } | null;
-  } | null;
+  }>;
   readiness: RegistrationReadiness | null;
   cancellation: {
     cancellation_reason: string | null;
@@ -1112,6 +1120,8 @@ export interface RegistrationListFilters {
   traveller_id?: string;
   package_version_id?: string;
   status_id?: string;
+  departure_from?: string;
+  departure_to?: string;
 }
 
 export interface CreateRegistrationInput {
@@ -2380,12 +2390,14 @@ export const api = {
     page = 1,
     pageSize = 25,
     search?: string,
+    options?: { status_id?: string },
   ): Promise<PaginatedTravellers> {
     const qs = new URLSearchParams({
       page: String(page),
       page_size: String(pageSize),
     });
     if (search) qs.set('search', search);
+    if (options?.status_id) qs.set('status_id', options.status_id);
     return request(`/api/admin/travellers?${qs.toString()}`);
   },
 
@@ -2546,6 +2558,9 @@ export const api = {
       qs.set('package_version_id', filters.package_version_id);
     }
     if (filters.status_id) qs.set('status_id', filters.status_id);
+    if (filters.departure_from)
+      qs.set('departure_from', filters.departure_from);
+    if (filters.departure_to) qs.set('departure_to', filters.departure_to);
     return request(`/api/admin/registrations?${qs.toString()}`);
   },
 

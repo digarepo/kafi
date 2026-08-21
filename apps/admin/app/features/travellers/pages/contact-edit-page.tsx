@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
+import { toast } from 'sonner';
 import { ContactPersonForm } from '../components/contact-person-form';
 import type { ContactPersonFormOutput } from '../types/travellers.types';
 import {
   api,
+  ApiError,
   type ContactPerson,
   type Country,
   type Language,
@@ -54,9 +56,18 @@ export function ContactEditPage({ id }: ContactEditPageProps) {
       await api.updateContactPerson(id, values);
       navigate(`/contact-persons/${id}`);
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'Failed to update contact person',
-      );
+      if (err instanceof ApiError && err.status === 400) {
+        toast.error(
+          err.message || 'Please check the form fields and try again.',
+        );
+      } else {
+        const msg =
+          err instanceof Error
+            ? err.message
+            : 'Failed to update contact person';
+        setError(msg);
+        toast.error(msg);
+      }
     }
   }
 
@@ -69,10 +80,10 @@ export function ContactEditPage({ id }: ContactEditPageProps) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">
+        <h1 className="text-xl font-semibold tracking-tight">
           Edit contact person
         </h1>
-        <p className="text-muted-foreground">
+        <p className="mt-1 text-sm text-muted-foreground">
           Update the reusable contact person.
         </p>
       </div>
@@ -90,7 +101,7 @@ export function ContactEditPage({ id }: ContactEditPageProps) {
         languages={languages}
         statuses={statuses}
         onSubmit={handleSubmit}
-        submitLabel="Update"
+        onCancel={() => navigate('/contact-persons')}
       />
     </div>
   );

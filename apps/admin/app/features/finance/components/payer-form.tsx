@@ -9,10 +9,19 @@
 import { useEffect, useMemo } from 'react';
 import { AnyFieldApi, useForm, useSelector } from '@tanstack/react-form';
 
-import { Button, Input, Label } from '@kafi/ui';
+import {
+  Button,
+  Input,
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  cn,
+} from '@kafi/ui';
 
 import { FieldError } from '../../../shared/field-error';
-import { LookupSelect } from './lookup-select';
 import { payerFormSchema } from '../validation/finance.schema';
 import type {
   PayerFormOutput,
@@ -102,14 +111,40 @@ export function PayerForm({
           {(field: AnyFieldApi) => (
             <div className="space-y-2">
               <Label className="text-sm font-medium">Payer type</Label>
-              <LookupSelect
-                value={field.state.value}
-                options={payerTypes.map((t) => ({ value: t.id, label: t.name }))}
-                placeholder="Select payer type"
-                onChange={(value) => field.handleChange(value)}
-                aria-invalid={field.state.meta.errors.length > 0}
-                className={mode === 'edit' ? 'pointer-events-none opacity-70' : ''}
-              />
+              <Select
+                value={field.state.value ?? ''}
+                onValueChange={(v) => field.handleChange(v ?? '')}
+              >
+                <SelectTrigger
+                  className={cn(
+                    'h-9 w-full',
+                    mode === 'edit' ? 'pointer-events-none opacity-70' : '',
+                  )}
+                  aria-invalid={field.state.meta.errors.length > 0}
+                >
+                  <SelectValue>
+                    {payerTypes
+                      .map((t) => ({
+                        value: t.id,
+                        label: t.name,
+                      }))
+                      .find((o) => o.value === field.state.value)?.label ??
+                      'Select payer type'}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {payerTypes
+                    .map((t) => ({
+                      value: t.id,
+                      label: t.name,
+                    }))
+                    .map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
               <FieldError field={field} />
             </div>
           )}
@@ -118,7 +153,10 @@ export function PayerForm({
         <form.Field name="organization_name">
           {(field: AnyFieldApi) => (
             <div className="space-y-2">
-              <Label htmlFor="organization_name" className="text-sm font-medium">
+              <Label
+                htmlFor="organization_name"
+                className="text-sm font-medium"
+              >
                 Organization name
               </Label>
               <Input
@@ -153,7 +191,10 @@ export function PayerForm({
         <form.Field name="contact_person_id">
           {(field: AnyFieldApi) => (
             <div className="space-y-2">
-              <Label htmlFor="contact_person_id" className="text-sm font-medium">
+              <Label
+                htmlFor="contact_person_id"
+                className="text-sm font-medium"
+              >
                 Contact person ID
               </Label>
               <Input
@@ -251,7 +292,8 @@ export function PayerForm({
             ? mode === 'edit'
               ? 'Saving…'
               : 'Creating…'
-            : (submitLabel ?? (mode === 'edit' ? 'Save changes' : 'Create payer'))}
+            : (submitLabel ??
+              (mode === 'edit' ? 'Save changes' : 'Create payer'))}
         </Button>
       </div>
     </form>

@@ -1,4 +1,5 @@
 import { MoreVertical } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import type { ColumnDef } from '@tanstack/react-table';
 
 import {
@@ -11,6 +12,9 @@ import {
 
 export interface DataTableAction<TData> {
   label: string;
+
+  /** Optional icon shown before the label in the dropdown menu. */
+  icon?: LucideIcon;
 
   /** Callback invoked with the row's original data. */
   onClick: (row: TData) => void;
@@ -51,19 +55,23 @@ export function actionsColumn<TData>({
               }
             />
             <DropdownMenuContent align="end">
-              {actions.map((action) => (
-                <DropdownMenuItem
-                  key={action.label}
-                  disabled={
-                    typeof action.disabled === 'function'
-                      ? action.disabled(row.original)
-                      : action.disabled
-                  }
-                  onClick={() => action.onClick(row.original)}
-                >
-                  {action.label}
-                </DropdownMenuItem>
-              ))}
+              {actions.map((action) => {
+                const Icon = action.icon;
+                return (
+                  <DropdownMenuItem
+                    key={action.label}
+                    disabled={
+                      typeof action.disabled === 'function'
+                        ? action.disabled(row.original)
+                        : action.disabled
+                    }
+                    onClick={() => action.onClick(row.original)}
+                  >
+                    {Icon && <Icon className="mr-2 h-4 w-4" />}
+                    {action.label}
+                  </DropdownMenuItem>
+                );
+              })}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

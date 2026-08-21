@@ -11,6 +11,7 @@ export interface TravelGroupFormValues {
   package_version_id: string;
   name: string;
   travelRange?: DateRange;
+  override_travel_dates: boolean;
   maximum_capacity: number;
   remarks: string;
 }
@@ -29,6 +30,7 @@ export interface TravelGroupFormProps {
   group?: TravelGroup | null;
   packageVersions: PackageVersion[];
   onSubmit: (values: TravelGroupFormOutput) => Promise<void>;
+  onCancel?: () => void;
   submitLabel?: string;
 }
 

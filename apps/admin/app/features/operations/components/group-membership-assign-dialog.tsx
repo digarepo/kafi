@@ -163,22 +163,34 @@ export function GroupMembershipAssignDialog({
           <div className="space-y-2">
             <Label>Registration</Label>
             <Select
-              value={registrationId}
+              value={registrationId ?? ''}
               onValueChange={(v) => setRegistrationId(v ?? '')}
               disabled={loading}
             >
-              <SelectTrigger>
-                <SelectValue
-                  placeholder={loading ? 'Loading…' : 'Select registration'}
-                />
+              <SelectTrigger className="h-9 w-full">
+                <SelectValue>
+                  {options
+                    .map((r) => ({
+                      value: r.id,
+                      label:
+                        `${r.registration_number} · ${r.traveller?.first_name ?? ''} ${r.traveller?.last_name ?? ''}`.trim(),
+                    }))
+                    .find((o) => o.value === registrationId)?.label ??
+                    (loading ? 'Loading…' : 'Select registration')}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                {options.map((r) => (
-                  <SelectItem key={r.id} value={r.id}>
-                    {r.registration_number} · {r.traveller?.first_name}{' '}
-                    {r.traveller?.last_name}
-                  </SelectItem>
-                ))}
+                {options
+                  .map((r) => ({
+                    value: r.id,
+                    label:
+                      `${r.registration_number} · ${r.traveller?.first_name ?? ''} ${r.traveller?.last_name ?? ''}`.trim(),
+                  }))
+                  .map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
             {hasMore && (

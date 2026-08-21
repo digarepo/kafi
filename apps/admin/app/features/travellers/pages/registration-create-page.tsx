@@ -34,10 +34,6 @@ export function RegistrationCreatePage() {
         <h1 className="text-2xl font-bold tracking-tight">
           {resumeId ? 'Resume registration intake' : 'Create registration'}
         </h1>
-        <p className="text-muted-foreground">
-          Guided intake: traveler, documents, contact, guarantee, payment, and
-          completion.
-        </p>
       </div>
 
       {error && (

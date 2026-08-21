@@ -205,6 +205,34 @@ export const documentsApi = {
     return { blob: await response.blob(), filename };
   },
 
+  /**
+   * Fetch a document with inline disposition and open it in a new browser tab.
+   * The blob URL is revoked after 60 seconds to free memory.
+   */
+  async viewDocument(id: string): Promise<void> {
+    const token = getAccessToken();
+    const headers: Record<string, string> = {};
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const response = await fetch(
+      `${API_BASE_URL}/api/admin/documents/${id}/download?inline=true`,
+      { headers },
+    );
+    if (!response.ok) {
+      const body = await response
+        .json()
+        .catch(() => ({ message: 'Failed to open document' }));
+      throw new ApiError(
+        response.status,
+        body.message ?? 'Failed to open document',
+        body,
+      );
+    }
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  },
+
   async uploadDocument(input: CreateDocumentInput): Promise<DocumentDetail> {
     const formData = new FormData();
     formData.append('file', input.file);

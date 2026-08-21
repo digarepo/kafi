@@ -15,16 +15,14 @@
  * system transitions the registration from DRAFT to PROCESSING.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
-import type { DateRange } from 'react-day-picker';
 import {
   AlertCircle,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
-  CircleAlert,
   FileUp,
   Loader2,
   Plus,
@@ -35,28 +33,29 @@ import {
   Button,
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
-  Checkbox,
   Input,
   Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   Textarea,
   cn,
 } from '@kafi/ui';
 
-import { api } from '../../../lib/api.js';
+import { api, ApiError } from '../../../lib/api.js';
 import {
   documentsApi,
   type DocumentListItem,
   type DocumentType,
 } from '../../documents/lib/api.js';
-import { useDebouncedValue } from '../../../shared/hooks/use-debounced-value';
-import { AsyncLookupSelect } from './async-lookup-select';
-import { LookupSelect } from './lookup-select';
 import { ContactPersonDialog } from './contact-person-dialog';
-import { DateRangePicker } from '../../packages/components/date-range-picker';
-import { parseYmd, toYmd } from '../lib/date';
+import { FormProgress } from '../../../shared/form-progress';
+import { RegistrationForm } from './registration-form';
+import { DatePicker } from './date-picker';
 import type {
   ContactPerson,
   Country,
@@ -74,9 +73,8 @@ const WORKFLOW_STEPS = [
   { key: 'documents', label: 'Documents' },
   { key: 'contact', label: 'Emergency Contact' },
   { key: 'guarantee', label: 'Guarantee' },
-  { key: 'finance', label: 'Finance / Payment' },
+  { key: 'finance', label: 'Payment' },
   { key: 'review', label: 'Review' },
-  { key: 'complete', label: 'Complete' },
 ] as const;
 
 const GUARANTEE_TYPES: Array<{
@@ -92,7 +90,10 @@ const GUARANTEE_TYPES: Array<{
 
 function formatMoney(value: number | string | null | undefined): string {
   if (value === null || value === undefined) return '—';
-  return Number(value).toFixed(2);
+  return Number(value).toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 function today(): string {
@@ -130,14 +131,10 @@ export function RegistrationIntakeWorkflow({
 
   // Step 1: Traveler + package selection
   const [travellers, setTravellers] = useState<Traveller[]>([]);
-  const [travellerSearch, setTravellerSearch] = useState('');
-  const debouncedTravellerSearch = useDebouncedValue(travellerSearch);
-  const [travellerLoading, setTravellerLoading] = useState(false);
   const [selectedTravellerId, setSelectedTravellerId] = useState('');
   const [selectedPackageVersionId, setSelectedPackageVersionId] = useState('');
   const [expectedDepartureDate, setExpectedDepartureDate] = useState('');
   const [expectedReturnDate, setExpectedReturnDate] = useState('');
-  const [manualDates, setManualDates] = useState(false);
   const [remarks, setRemarks] = useState('');
   const [registration, setRegistration] = useState<Registration | null>(null);
 
@@ -153,9 +150,6 @@ export function RegistrationIntakeWorkflow({
 
   // Step 3: Emergency contact
   const [contacts, setContacts] = useState<ContactPerson[]>([]);
-  const [contactSearch, setContactSearch] = useState('');
-  const debouncedContactSearch = useDebouncedValue(contactSearch);
-  const [contactLoading, setContactLoading] = useState(false);
   const [selectedContactId, setSelectedContactId] = useState('');
   const [contactDialogOpen, setContactDialogOpen] = useState(false);
   const [contactDialogError, setContactDialogError] = useState<string | null>(
@@ -199,7 +193,6 @@ export function RegistrationIntakeWorkflow({
   // Step 6-7: Review & complete
   const [operationalSummary, setOperationalSummary] =
     useState<RegistrationOperationalSummary | null>(null);
-  const [completed, setCompleted] = useState(false);
 
   const selectedTraveller = travellers.find(
     (t) => t.id === selectedTravellerId,
@@ -401,64 +394,35 @@ export function RegistrationIntakeWorkflow({
   useEffect(() => {
     let cancelled = false;
     async function loadTravellers() {
-      setTravellerLoading(true);
       try {
-        const result = await api.listTravellers(
-          1,
-          25,
-          debouncedTravellerSearch || undefined,
-        );
+        const result = await api.listTravellers(1, 100);
         if (!cancelled) setTravellers(result.data);
       } catch {
         // ignore
-      } finally {
-        if (!cancelled) setTravellerLoading(false);
       }
     }
     void loadTravellers();
     return () => {
       cancelled = true;
     };
-  }, [debouncedTravellerSearch]);
+  }, []);
 
   // ---- Contact search ----
   useEffect(() => {
     let cancelled = false;
     async function loadContacts() {
-      setContactLoading(true);
       try {
-        const result = await api.listContactPersons(
-          1,
-          25,
-          debouncedContactSearch || undefined,
-        );
+        const result = await api.listContactPersons(1, 100);
         if (!cancelled) setContacts(result.data);
       } catch {
         // ignore
-      } finally {
-        if (!cancelled) setContactLoading(false);
       }
     }
     void loadContacts();
     return () => {
       cancelled = true;
     };
-  }, [debouncedContactSearch]);
-
-  // ---- Auto-fill dates from package (unless manually overridden) ----
-  useEffect(() => {
-    if (manualDates || !selectedPackage) return;
-    setExpectedDepartureDate(
-      selectedPackage.departure_date?.slice(0, 10) ?? '',
-    );
-    setExpectedReturnDate(selectedPackage.return_date?.slice(0, 10) ?? '');
-  }, [manualDates, selectedPackage]);
-
-  const dateRange = useMemo<DateRange | undefined>(() => {
-    const from = parseYmd(expectedDepartureDate);
-    const to = parseYmd(expectedReturnDate);
-    return from ? { from, to } : undefined;
-  }, [expectedDepartureDate, expectedReturnDate]);
+  }, []);
 
   // ---- Load traveller documents when traveller is selected ----
   const loadTravellerDocuments = useCallback(async () => {
@@ -576,12 +540,21 @@ export function RegistrationIntakeWorkflow({
         remarks: remarks || undefined,
       });
       setRegistration(reg);
-      toast.success('Registration created');
       setStepIndex(1);
     } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : 'Failed to create registration',
-      );
+      if (err instanceof ApiError && err.status === 409) {
+        toast.error(err.message, {
+          duration: Infinity,
+          action: {
+            label: 'Go to worklist',
+            onClick: () => navigate('/registrations'),
+          },
+        });
+      } else {
+        toast.error(
+          err instanceof Error ? err.message : 'Failed to create registration',
+        );
+      }
     } finally {
       setSubmitting(false);
     }
@@ -611,7 +584,6 @@ export function RegistrationIntakeWorkflow({
         const filtered = prev.filter((d) => d.document_type?.id !== typeId);
         return [...filtered, created as unknown as DocumentListItem];
       });
-      toast.success('Document uploaded');
     } catch (err) {
       toast.error(
         err instanceof Error ? err.message : 'Document upload failed',
@@ -626,7 +598,6 @@ export function RegistrationIntakeWorkflow({
       await documentsApi.deleteDocument(docId);
       setRegistrationDocuments((prev) => prev.filter((d) => d.id !== docId));
       setTravellerDocuments((prev) => prev.filter((d) => d.id !== docId));
-      toast.success('Document removed');
     } catch (err) {
       toast.error(
         err instanceof Error ? err.message : 'Failed to remove document',
@@ -638,7 +609,6 @@ export function RegistrationIntakeWorkflow({
     if (!registration) return;
     try {
       await documentsApi.attachDocumentToRegistration(docId, registration.id);
-      toast.success('Document attached to registration');
       await loadRegistrationIntakeData();
     } catch (err) {
       toast.error(
@@ -680,7 +650,6 @@ export function RegistrationIntakeWorkflow({
         if (status !== 409) throw err;
       }
       setLinkedContactId(selectedContactId);
-      toast.success('Emergency contact linked');
       setStepIndex(3);
     } catch (err) {
       toast.error(
@@ -734,7 +703,6 @@ export function RegistrationIntakeWorkflow({
         if (guaranteeNotes) input.notes = guaranteeNotes;
       }
       await api.createRegistrationGuarantee(registration.id, input as any);
-      toast.success('Guarantee created');
       await loadRegistrationIntakeData();
       setStepIndex(4);
     } catch (err) {
@@ -762,7 +730,6 @@ export function RegistrationIntakeWorkflow({
           },
         ],
       });
-      toast.success('Invoice created');
       await loadRegistrationIntakeData();
     } catch (err) {
       toast.error(
@@ -805,7 +772,6 @@ export function RegistrationIntakeWorkflow({
       setShowCustomPayerForm(false);
       setCustomPayerName('');
       setCustomPayerPhone('');
-      toast.success('Payer created');
     } catch (err) {
       toast.error(
         err instanceof Error ? err.message : 'Failed to create payer',
@@ -847,7 +813,6 @@ export function RegistrationIntakeWorkflow({
           ],
         });
       }
-      toast.success('Payment recorded');
       setPaymentAmount('');
       setPaymentReference('');
       await Promise.all([
@@ -878,10 +843,8 @@ export function RegistrationIntakeWorkflow({
         return;
       }
       await api.startRegistrationProcessing(registration.id);
-      setCompleted(true);
-      toast.success(
-        'Registration completed. Visa processing is now the next step.',
-      );
+      toast.success('Registration completed successfully.');
+      navigate('/registrations');
     } catch (err) {
       toast.error(
         err instanceof Error ? err.message : 'Failed to complete registration',
@@ -973,6 +936,10 @@ export function RegistrationIntakeWorkflow({
       void handleCreateGuarantee();
       return;
     }
+    if (currentStep.key === 'review') {
+      void handleCompleteRegistration();
+      return;
+    }
     setStepIndex((i) => Math.min(i + 1, WORKFLOW_STEPS.length - 1));
   }
 
@@ -983,206 +950,43 @@ export function RegistrationIntakeWorkflow({
   // ---- Render helpers ----
   function renderStepIndicator() {
     return (
-      <div className="flex flex-wrap items-center gap-2">
-        {WORKFLOW_STEPS.map((step, i) => {
-          const isCurrent = i === stepIndex;
-          const isPast = i < stepIndex;
-          return (
-            <div key={step.key} className="flex items-center gap-2">
-              <div
-                className={cn(
-                  'flex h-7 w-7 items-center justify-center rounded-full text-xs font-medium',
-                  isCurrent
-                    ? 'bg-primary text-primary-foreground'
-                    : isPast
-                      ? 'bg-success/10 text-success'
-                      : 'bg-muted text-muted-foreground',
-                )}
-              >
-                {isPast ? <CheckCircle2 className="h-4 w-4" /> : i + 1}
-              </div>
-              <span
-                className={cn(
-                  'text-sm',
-                  isCurrent
-                    ? 'font-medium text-foreground'
-                    : 'text-muted-foreground',
-                )}
-              >
-                {step.label}
-              </span>
-              {i < WORKFLOW_STEPS.length - 1 && (
-                <ChevronRight className="h-4 w-4 text-muted-foreground" />
-              )}
-            </div>
-          );
-        })}
-      </div>
+      <FormProgress
+        steps={[...WORKFLOW_STEPS]}
+        currentStep={stepIndex}
+        onStepChange={(step) => setStepIndex(step)}
+      />
     );
   }
 
   function renderTravelerStep() {
     return (
-      <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Select traveler</CardTitle>
-            <CardDescription>
-              Choose an existing traveler for this registration.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Traveler</Label>
-              <AsyncLookupSelect
-                value={selectedTravellerId}
-                selectedLabel={
-                  selectedTraveller
-                    ? `${selectedTraveller.first_name} ${selectedTraveller.last_name} (${selectedTraveller.phone_number})`
-                    : undefined
-                }
-                options={travellers.map((t) => ({
-                  value: t.id,
-                  label: `${t.first_name} ${t.last_name} (${t.phone_number})`,
-                }))}
-                placeholder="Search traveler by name or phone"
-                onChange={(value) => setSelectedTravellerId(value)}
-                onSearch={setTravellerSearch}
-                loading={travellerLoading}
-              />
-            </div>
-
-            {selectedTraveller && (
-              <div className="rounded-md border bg-muted/30 p-4 space-y-2 text-sm">
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <span className="text-muted-foreground">Name:</span>{' '}
-                    {selectedTraveller.first_name} {selectedTraveller.last_name}
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Phone:</span>{' '}
-                    {selectedTraveller.phone_number}
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Passport:</span>{' '}
-                    {selectedTraveller.passport_number ?? '—'}
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Fayda:</span>{' '}
-                    {selectedTraveller.fayda_number ?? '—'}
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Country:</span>{' '}
-                    {selectedTraveller.country?.name ?? '—'}
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Status:</span>{' '}
-                    {selectedTraveller.status?.name ?? '—'}
-                  </div>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Select package version</CardTitle>
-            <CardDescription>
-              Choose a published and available package version.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Package version</Label>
-              <LookupSelect
-                value={selectedPackageVersionId}
-                options={packageVersions
-                  .filter((p) => p.status === 'PUBLISHED')
-                  .map((p) => ({
-                    value: p.id,
-                    label: `${p.version_name} — ${p.package_template?.name ?? '-'} (${formatMoney(p.base_price)} ${p.currency?.code ?? ''})`,
-                  }))}
-                placeholder="Select published package version"
-                onChange={(value) => setSelectedPackageVersionId(value)}
-              />
-            </div>
-
-            {selectedPackage && (
-              <div className="rounded-md border bg-muted/30 p-4 space-y-2 text-sm">
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <span className="text-muted-foreground">Price:</span>{' '}
-                    {formatMoney(selectedPackage.base_price)}{' '}
-                    {selectedPackage.currency?.code ?? ''}
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Departure:</span>{' '}
-                    {selectedPackage.departure_date?.slice(0, 10) ?? '—'}
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Return:</span>{' '}
-                    {selectedPackage.return_date?.slice(0, 10) ?? '—'}
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Capacity:</span>{' '}
-                    {selectedPackage.remaining_capacity ?? '—'} remaining
-                  </div>
-                </div>
-                {(selectedPackage.availability_blockers ?? []).length > 0 && (
-                  <div className="mt-2 rounded bg-destructive/10 p-2 text-xs text-destructive">
-                    {(selectedPackage.availability_blockers ?? []).join(', ')}
-                  </div>
-                )}
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label className="text-sm font-medium">Travel dates</Label>
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="manual_dates"
-                    checked={manualDates}
-                    onCheckedChange={(v) => setManualDates(v === true)}
-                    disabled={!selectedPackage}
-                  />
-                  <Label htmlFor="manual_dates" className="text-sm font-normal">
-                    Override package dates
-                  </Label>
-                </div>
-              </div>
-              <DateRangePicker
-                value={dateRange}
-                onChange={(range) => {
-                  setExpectedDepartureDate(
-                    range?.from ? (toYmd(range.from) ?? '') : '',
-                  );
-                  setExpectedReturnDate(
-                    range?.to ? (toYmd(range.to) ?? '') : '',
-                  );
-                }}
-                disabled={!manualDates || !selectedPackage}
-                placeholder="Select package version to set travel dates"
-              />
-              <p className="text-xs text-muted-foreground">
-                Travel dates are filled from the selected package version unless
-                you override them.
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Remarks</Label>
-              <Textarea
-                value={remarks}
-                onChange={(e) => setRemarks(e.target.value)}
-                rows={2}
-                className="w-full"
-              />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <RegistrationForm
+        mode={registration ? 'edit' : 'create'}
+        registration={registration ?? undefined}
+        travellers={travellers}
+        packageVersions={packageVersions}
+        onSubmit={async (values) => {
+          // In workflow mode, onSubmit is triggered by the Next button
+          // via form validation. The actual API call is handled by
+          // handleCreateRegistration, but if the registration already
+          // exists (resume), we update it.
+          if (registration) {
+            await api.updateRegistration(registration.id, {
+              expected_departure_date: values.expected_departure_date,
+              expected_return_date: values.expected_return_date,
+              remarks: values.remarks,
+            });
+          }
+        }}
+        workflowMode
+        onValuesChange={(values) => {
+          setSelectedTravellerId(values.traveller_id);
+          setSelectedPackageVersionId(values.package_version_id);
+          setExpectedDepartureDate(values.expected_departure_date);
+          setExpectedReturnDate(values.expected_return_date);
+          setRemarks(values.remarks);
+        }}
+      />
     );
   }
 
@@ -1190,7 +994,7 @@ export function RegistrationIntakeWorkflow({
     docType: DocumentType | undefined,
     label: string,
     isRequired: boolean,
-    allowMultiple: boolean,
+    _allowMultiple: boolean,
   ) {
     if (!docType) return null;
     const attached = registrationDocuments.filter(
@@ -1206,9 +1010,10 @@ export function RegistrationIntakeWorkflow({
     const allAttached = [...attached, ...travellerOwned];
 
     return (
-      <div className="rounded-md border p-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
+      <div className="rounded-lg border p-4 space-y-3">
+        {/* Row 1: title + status (left), controls (right) */}
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
             <h4 className="font-medium text-sm">
               {label}
               {isRequired && <span className="text-destructive ml-1">*</span>}
@@ -1221,35 +1026,64 @@ export function RegistrationIntakeWorkflow({
               <p className="text-xs text-muted-foreground">Not yet attached</p>
             )}
           </div>
-          <div className="flex gap-2">
+
+          {/* Controls: select + upload inline on desktop, stacked on mobile */}
+          <div className="flex flex-col items-end gap-2 sm:flex-row sm:items-center sm:gap-2">
             {travellerOwned.length > 0 && (
-              <LookupSelect
-                value=""
-                options={travellerOwned.map((d) => ({
-                  value: d.id,
-                  label:
-                    d.display_name ?? d.original_filename ?? d.document_number,
-                }))}
-                placeholder="Select existing"
-                onChange={(value) =>
-                  value && handleAttachExistingDocument(value)
-                }
-                className="w-48"
-              />
+              <div className="w-40 sm:w-44">
+                <Select
+                  value={''}
+                  onValueChange={(v) =>
+                    v && handleAttachExistingDocument(v ?? '')
+                  }
+                >
+                  <SelectTrigger className="h-9 w-full">
+                    <SelectValue>
+                      {travellerOwned
+                        .map((d) => ({
+                          value: d.id,
+                          label:
+                            d.display_name ??
+                            d.original_filename ??
+                            d.document_number,
+                        }))
+                        .find((o) => o.value === '')?.label ??
+                        'Select existing'}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {travellerOwned
+                      .map((d) => ({
+                        value: d.id,
+                        label:
+                          d.display_name ??
+                          d.original_filename ??
+                          d.document_number,
+                      }))
+                      .map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
             )}
             <Button
               type="button"
               variant="outline"
-              size="sm"
+              size="icon"
               disabled={uploadingType === docType.id}
               onClick={() => fileInputRefs.current[docType.id]?.click()}
+              className="h-9 w-9 shrink-0 rounded-full sm:h-8 sm:w-auto sm:rounded-md sm:px-3"
+              aria-label={`Upload ${label}`}
             >
               {uploadingType === docType.id ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <Upload className="h-4 w-4" />
               )}
-              Upload
+              <span className="hidden sm:inline">Upload</span>
             </Button>
             <input
               ref={(el) => {
@@ -1275,14 +1109,16 @@ export function RegistrationIntakeWorkflow({
                 className="flex items-center gap-2 rounded bg-muted/30 px-2 py-1.5"
               >
                 <CheckCircle2 className="h-3.5 w-3.5 text-success shrink-0" />
-                <span className="flex-1 truncate">
+                <button
+                  type="button"
+                  onClick={() => void documentsApi.viewDocument(doc.id)}
+                  className="flex-1 truncate text-left text-foreground underline-offset-2 hover:underline"
+                  title="Click to view document"
+                >
                   {doc.display_name ??
                     doc.original_filename ??
                     doc.document_number}
-                </span>
-                <span className="text-xs text-muted-foreground shrink-0">
-                  {doc.verification_status?.name ?? 'Pending'}
-                </span>
+                </button>
                 <Button
                   type="button"
                   variant="ghost"
@@ -1298,54 +1134,32 @@ export function RegistrationIntakeWorkflow({
           </ul>
         )}
 
-        {!allowMultiple && allAttached.length > 0 && (
+        {/* {!_allowMultiple && allAttached.length > 0 && (
           <p className="text-xs text-muted-foreground">
             Upload a new document to replace the current one. Use the trash icon
             to remove an unwanted upload.
           </p>
-        )}
+        )} */}
       </div>
     );
   }
 
   function renderDocumentsStep() {
     return (
-      <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Registration documents</CardTitle>
-            <CardDescription>
-              Attach required documents for this trip. You can select an
-              existing traveler document or upload a new one.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {renderDocumentTypeSection(passportType, 'Passport', true, false)}
-            {renderDocumentTypeSection(
-              photoType,
-              'Traveler Photo',
-              true,
-              false,
-            )}
+      <div className="mx-auto w-full max-w-3xl space-y-4">
+        {renderDocumentTypeSection(passportType, 'Passport', true, false)}
+        {renderDocumentTypeSection(photoType, 'Traveler Photo', true, false)}
 
-            <div className="space-y-3">
-              <h4 className="font-medium text-sm">Other Documents</h4>
-              {otherTypes.map((t) =>
-                renderDocumentTypeSection(t, t.name, false, true),
-              )}
-              {otherTypes.length === 0 && (
-                <p className="text-sm text-muted-foreground">
-                  No additional document types configured.
-                </p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        <div className="rounded-md bg-info/10 p-3 text-sm text-info">
-          <CircleAlert className="inline h-4 w-4 mr-1" />
-          Newly uploaded documents are immediately available for selection
-          across all steps.
+        <div className="space-y-3">
+          <h4 className="font-medium text-sm">Other Documents</h4>
+          {otherTypes.map((t) =>
+            renderDocumentTypeSection(t, t.name, false, true),
+          )}
+          {otherTypes.length === 0 && (
+            <p className="text-sm text-muted-foreground">
+              No additional document types configured.
+            </p>
+          )}
         </div>
       </div>
     );
@@ -1353,73 +1167,72 @@ export function RegistrationIntakeWorkflow({
 
   function renderContactStep() {
     return (
-      <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Emergency contact</CardTitle>
-            <CardDescription>
-              Select an existing contact or create a new one. The contact will
-              be linked as the emergency contact for this registration.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {linkedContactId && (
-              <div className="rounded-md bg-success/10 p-3 text-sm text-success">
-                <CheckCircle2 className="inline h-4 w-4 mr-1" />
-                Emergency contact linked successfully.
-              </div>
-            )}
+      <div className="mx-auto w-full max-w-3xl space-y-4">
+        {linkedContactId && (
+          <div className="rounded-md bg-success/10 p-3 text-sm text-success">
+            <CheckCircle2 className="inline h-4 w-4 mr-1" />
+            Emergency contact linked successfully.
+          </div>
+        )}
 
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">
-                Select existing contact
-              </Label>
-              <AsyncLookupSelect
-                value={selectedContactId}
-                selectedLabel={
-                  contacts.find((c) => c.id === selectedContactId)
-                    ? `${contacts.find((c) => c.id === selectedContactId)?.first_name} ${contacts.find((c) => c.id === selectedContactId)?.last_name} (${contacts.find((c) => c.id === selectedContactId)?.phone_number})`
-                    : undefined
-                }
-                options={contacts.map((c) => ({
+        <div className="space-y-2">
+          <Label className="text-sm font-medium">Select existing contact</Label>
+          <Select
+            value={selectedContactId ?? ''}
+            onValueChange={(v) => setSelectedContactId(v ?? '')}
+          >
+            <SelectTrigger className="h-9 w-full">
+              <SelectValue>
+                {contacts
+                  .map((c) => ({
+                    value: c.id,
+                    label: `${c.first_name} ${c.last_name}`,
+                  }))
+                  .find((o) => o.value === selectedContactId)?.label ??
+                  'Select emergency contact'}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {contacts
+                .map((c) => ({
                   value: c.id,
-                  label: `${c.first_name} ${c.last_name} (${c.phone_number})`,
-                }))}
-                placeholder="Search contact by name or phone"
-                onChange={(value) => setSelectedContactId(value)}
-                onSearch={setContactSearch}
-                loading={contactLoading}
-              />
-            </div>
+                  label: `${c.first_name} ${c.last_name}`,
+                }))
+                .map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
+        </div>
 
-            <div className="flex items-center gap-3">
-              <div className="h-px flex-1 bg-border" />
-              <span className="text-xs text-muted-foreground">OR</span>
-              <div className="h-px flex-1 bg-border" />
-            </div>
+        <div className="flex items-center gap-3">
+          <div className="h-px flex-1 bg-border" />
+          <span className="text-xs text-muted-foreground">OR</span>
+          <div className="h-px flex-1 bg-border" />
+        </div>
 
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setContactDialogOpen(true)}
-            >
-              <Plus className="h-4 w-4" />
-              Create new contact
-            </Button>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => setContactDialogOpen(true)}
+        >
+          <Plus className="h-4 w-4" />
+          Create new contact
+        </Button>
 
-            {selectedContactId && !linkedContactId && (
-              <div className="rounded-md border p-3 text-sm">
-                <p className="text-muted-foreground mb-1">Selected contact:</p>
-                {(() => {
-                  const c = contacts.find((x) => x.id === selectedContactId);
-                  return c
-                    ? `${c.first_name} ${c.last_name} — ${c.phone_number}`
-                    : 'Unknown';
-                })()}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        {selectedContactId && !linkedContactId && (
+          <div className="rounded-md border p-3 text-sm">
+            <p className="text-muted-foreground mb-1">Selected contact:</p>
+            {(() => {
+              const c = contacts.find((x) => x.id === selectedContactId);
+              return c
+                ? `${c.first_name} ${c.last_name} — ${c.phone_number}`
+                : 'Unknown';
+            })()}
+          </div>
+        )}
 
         <ContactPersonDialog
           mode="create"
@@ -1448,333 +1261,430 @@ export function RegistrationIntakeWorkflow({
     );
 
     return (
-      <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Guarantee</CardTitle>
-            <CardDescription>
-              Provide a guarantee for this registration. Choose a person or a
-              financial instrument.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {activeGuarantee && (
-              <div className="rounded-md bg-success/10 p-3 text-sm text-success">
-                <CheckCircle2 className="inline h-4 w-4 mr-1" />
-                Active guarantee: {activeGuarantee.guarantee_number} (
-                {activeGuarantee.guarantee_type})
-              </div>
-            )}
+      <div className="mx-auto w-full max-w-3xl space-y-4">
+        {activeGuarantee && (
+          <div className="rounded-md bg-success/10 p-3 text-sm text-success">
+            <CheckCircle2 className="inline h-4 w-4 mr-1" />
+            Active guarantee: {activeGuarantee.guarantee_number} (
+            {activeGuarantee.guarantee_type})
+          </div>
+        )}
 
-            {!activeGuarantee && (
+        {!activeGuarantee && (
+          <>
+            {guaranteeType === 'PERSON' && (
               <>
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium">Guarantee type</Label>
-                  <LookupSelect
-                    value={guaranteeType}
-                    options={GUARANTEE_TYPES}
-                    placeholder="Select guarantee type"
-                    onChange={(value) =>
-                      setGuaranteeType(value as Guarantee['guarantee_type'])
+                  <Label className="text-sm font-medium">
+                    Guarantee type <span className="text-destructive">*</span>
+                  </Label>
+                  <Select
+                    value={guaranteeType ?? ''}
+                    onValueChange={(v) =>
+                      setGuaranteeType(v as Guarantee['guarantee_type'])
                     }
-                  />
+                  >
+                    <SelectTrigger className="h-9 w-full">
+                      <SelectValue>
+                        {GUARANTEE_TYPES.find((o) => o.value === guaranteeType)
+                          ?.label ?? 'Select guarantee type'}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {GUARANTEE_TYPES.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
-                {guaranteeType === 'PERSON' && (
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">
-                      Select contact
-                    </Label>
-                    <LookupSelect
-                      value={guaranteeContactId}
-                      options={contacts.map((c) => ({
-                        value: c.id,
-                        label: `${c.first_name} ${c.last_name} (${c.phone_number})`,
-                      }))}
-                      placeholder="Select a contact"
-                      onChange={(value) => setGuaranteeContactId(value)}
-                    />
-                    {contacts.length === 0 && (
-                      <p className="text-xs text-muted-foreground">
-                        No contacts loaded. Go back to the contact step to
-                        create one.
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                {guaranteeType !== 'PERSON' && (
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">Amount</Label>
-                      <Input
-                        type="number"
-                        value={guaranteeAmount}
-                        onChange={(e) => setGuaranteeAmount(e.target.value)}
-                        className="h-9 w-full"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">Currency</Label>
-                      <LookupSelect
-                        value={guaranteeCurrencyId}
-                        options={currencies.map((c) => ({
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">
+                    Select contact <span className="text-destructive">*</span>
+                  </Label>
+                  <Select
+                    value={guaranteeContactId ?? ''}
+                    onValueChange={(v) => setGuaranteeContactId(v ?? '')}
+                  >
+                    <SelectTrigger className="h-9 w-full">
+                      <SelectValue>
+                        {contacts
+                          .map((c) => ({
+                            value: c.id,
+                            label: `${c.first_name} ${c.last_name}`,
+                          }))
+                          .find((o) => o.value === guaranteeContactId)?.label ??
+                          'Select a contact'}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {contacts
+                        .map((c) => ({
                           value: c.id,
-                          label: c.name,
-                        }))}
-                        placeholder="Select currency"
-                        onChange={(value) => setGuaranteeCurrencyId(value)}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">
-                        Reference number
-                      </Label>
-                      <Input
-                        value={guaranteeReference}
-                        onChange={(e) => setGuaranteeReference(e.target.value)}
-                        className="h-9 w-full"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">Expiry date</Label>
-                      <Input
-                        type="date"
-                        value={guaranteeExpiry}
-                        onChange={(e) => setGuaranteeExpiry(e.target.value)}
-                        className="h-9 w-full"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">Issuer</Label>
-                      <Input
-                        value={guaranteeIssuer}
-                        onChange={(e) => setGuaranteeIssuer(e.target.value)}
-                        className="h-9 w-full"
-                      />
-                    </div>
-                    <div className="space-y-2 md:col-span-2">
-                      <Label className="text-sm font-medium">Notes</Label>
-                      <Textarea
-                        value={guaranteeNotes}
-                        onChange={(e) => setGuaranteeNotes(e.target.value)}
-                        rows={2}
-                        className="w-full"
-                      />
-                    </div>
-                  </div>
-                )}
+                          label: `${c.first_name} ${c.last_name}`,
+                        }))
+                        .map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                  {contacts.length === 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      No contacts loaded. Go back to the contact step to create
+                      one.
+                    </p>
+                  )}
+                </div>
               </>
             )}
-          </CardContent>
-        </Card>
+
+            {guaranteeType !== 'PERSON' && (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">
+                    Guarantee type <span className="text-destructive">*</span>
+                  </Label>
+                  <Select
+                    value={guaranteeType ?? ''}
+                    onValueChange={(v) =>
+                      setGuaranteeType(v as Guarantee['guarantee_type'])
+                    }
+                  >
+                    <SelectTrigger className="h-9 w-full">
+                      <SelectValue>
+                        {GUARANTEE_TYPES.find((o) => o.value === guaranteeType)
+                          ?.label ?? 'Select guarantee type'}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {GUARANTEE_TYPES.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">
+                    Reference number
+                  </Label>
+                  <Input
+                    value={guaranteeReference}
+                    onChange={(e) => setGuaranteeReference(e.target.value)}
+                    className="h-9 w-full"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">
+                    Amount <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    type="number"
+                    value={guaranteeAmount}
+                    onChange={(e) => setGuaranteeAmount(e.target.value)}
+                    className="h-9 w-full"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">
+                    Currency <span className="text-destructive">*</span>
+                  </Label>
+                  <Select
+                    value={guaranteeCurrencyId ?? ''}
+                    onValueChange={(v) => setGuaranteeCurrencyId(v ?? '')}
+                  >
+                    <SelectTrigger className="h-9 w-full">
+                      <SelectValue>
+                        {currencies
+                          .map((c) => ({
+                            value: c.id,
+                            label: c.name,
+                          }))
+                          .find((o) => o.value === guaranteeCurrencyId)
+                          ?.label ?? 'Select currency'}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {currencies
+                        .map((c) => ({
+                          value: c.id,
+                          label: c.name,
+                        }))
+                        .map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Expiry date</Label>
+                  <DatePicker
+                    value={guaranteeExpiry}
+                    onChange={setGuaranteeExpiry}
+                    placeholder="Select date"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Issuer</Label>
+                  <Input
+                    value={guaranteeIssuer}
+                    onChange={(e) => setGuaranteeIssuer(e.target.value)}
+                    className="h-9 w-full"
+                  />
+                </div>
+                <div className="space-y-2 sm:col-span-2">
+                  <Label className="text-sm font-medium">Notes</Label>
+                  <Textarea
+                    value={guaranteeNotes}
+                    onChange={(e) => setGuaranteeNotes(e.target.value)}
+                    rows={2}
+                    className="w-full"
+                  />
+                </div>
+              </div>
+            )}
+          </>
+        )}
       </div>
     );
   }
 
   function renderFinanceStep() {
     return (
-      <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Finance / Payment</CardTitle>
-            <CardDescription>
-              Review the financial requirement and record payment without
-              leaving the workflow.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {selectedPackage && (
-              <div className="rounded-md border bg-muted/30 p-4 text-sm space-y-1">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Package price:</span>
-                  <span className="font-medium">
-                    {formatMoney(selectedPackage.base_price)}{' '}
-                    {selectedPackage.currency?.code ?? ''}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Total invoiced:</span>
-                  <span>{formatMoney(financeSummary?.total_invoiced)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Amount paid:</span>
-                  <span>{formatMoney(financeSummary?.total_paid)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">
-                    Outstanding balance:
-                  </span>
-                  <span
-                    className={cn(
-                      'font-medium',
-                      outstandingBalance > 0
-                        ? 'text-destructive'
-                        : 'text-success',
-                    )}
-                  >
-                    {formatMoney(outstandingBalance)}
-                  </span>
-                </div>
-              </div>
-            )}
+      <div className="mx-auto w-full max-w-3xl space-y-4">
+        {selectedPackage && (
+          <div className="rounded-md border bg-muted/30 p-4 text-sm space-y-1">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Package price:</span>
+              <span className="font-medium">
+                {formatMoney(selectedPackage.base_price)}{' '}
+                {selectedPackage.currency?.code ?? ''}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Total invoiced:</span>
+              <span>{formatMoney(financeSummary?.total_invoiced)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Amount paid:</span>
+              <span>{formatMoney(financeSummary?.total_paid)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">
+                Outstanding balance:
+              </span>
+              <span
+                className={cn(
+                  'font-medium',
+                  outstandingBalance > 0 ? 'text-destructive' : 'text-success',
+                )}
+              >
+                {formatMoney(outstandingBalance)}
+              </span>
+            </div>
+          </div>
+        )}
 
-            {!hasInvoice && (
-              <div className="space-y-3">
-                <div className="rounded-md bg-warning/10 p-3 text-sm text-warning">
-                  <AlertCircle className="inline h-4 w-4 mr-1" />
-                  No invoice yet. Create one to record payment.
-                </div>
-                <Button
-                  type="button"
-                  onClick={() => void handleCreateInvoice()}
-                  disabled={submitting}
+        {!hasInvoice && (
+          <div className="space-y-3">
+            <div className="rounded-md bg-warning/10 p-3 text-sm text-warning">
+              <AlertCircle className="inline h-4 w-4 mr-1" />
+              No invoice yet. Create one to record payment.
+            </div>
+            <Button
+              type="button"
+              onClick={() => void handleCreateInvoice()}
+              disabled={submitting}
+            >
+              {submitting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <FileUp className="h-4 w-4" />
+              )}
+              Create invoice from package price
+            </Button>
+          </div>
+        )}
+
+        {hasInvoice && outstandingBalance > 0 && (
+          <div className="space-y-4 rounded-md border p-4">
+            <h4 className="font-medium text-sm">Record payment</h4>
+
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">
+                Payer <span className="text-destructive">*</span>
+              </Label>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <Select
+                  value={payerId ?? ''}
+                  onValueChange={(v) => setPayerId(v ?? '')}
                 >
-                  {submitting ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <FileUp className="h-4 w-4" />
-                  )}
-                  Create invoice from package price
-                </Button>
-              </div>
-            )}
-
-            {hasInvoice && outstandingBalance > 0 && (
-              <div className="space-y-4 rounded-md border p-4">
-                <h4 className="font-medium text-sm">Record payment</h4>
-
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">Payer</Label>
-                  <div className="flex gap-2">
-                    <LookupSelect
-                      value={payerId}
-                      options={payers.map((p) => ({
+                  <SelectTrigger
+                    className={cn('h-9 w-full', 'w-full sm:flex-1')}
+                  >
+                    <SelectValue>
+                      {payers
+                        .map((p) => ({
+                          value: p.id,
+                          label: `${p.contact_name ?? p.payer_number}`,
+                        }))
+                        .find((o) => o.value === payerId)?.label ??
+                        'Select payer'}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {payers
+                      .map((p) => ({
                         value: p.id,
                         label: `${p.contact_name ?? p.payer_number}`,
-                      }))}
-                      placeholder="Select payer"
-                      onChange={(value) => setPayerId(value)}
-                      className="flex-1"
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => void handleCreatePayer(true)}
-                      disabled={submitting}
-                    >
-                      Use traveller
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowCustomPayerForm((v) => !v)}
-                      disabled={submitting}
-                    >
-                      <Plus className="h-4 w-4" />
-                      Other payer
-                    </Button>
-                  </div>
-                  {showCustomPayerForm && (
-                    <div className="space-y-2 rounded-md border p-3">
-                      <div className="grid gap-2 md:grid-cols-2">
-                        <div className="space-y-1">
-                          <Label className="text-xs">Payer name</Label>
-                          <Input
-                            value={customPayerName}
-                            onChange={(e) => setCustomPayerName(e.target.value)}
-                            placeholder="Full name"
-                            className="h-9"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs">Phone number</Label>
-                          <Input
-                            value={customPayerPhone}
-                            onChange={(e) =>
-                              setCustomPayerPhone(e.target.value)
-                            }
-                            placeholder="Phone number"
-                            className="h-9"
-                          />
-                        </div>
-                      </div>
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={() => void handleCreatePayer(false)}
-                        disabled={
-                          submitting || !customPayerName || !customPayerPhone
-                        }
-                      >
-                        Create payer
-                      </Button>
-                    </div>
-                  )}
+                      }))
+                      .map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void handleCreatePayer(true)}
+                    disabled={submitting}
+                  >
+                    Use traveller
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowCustomPayerForm((v) => !v)}
+                    disabled={submitting}
+                  >
+                    <Plus className="h-4 w-4" />
+                    Other payer
+                  </Button>
                 </div>
+              </div>
+              {showCustomPayerForm && (
+                <div className="space-y-2 rounded-md border p-3">
+                  <div className="grid gap-2 md:grid-cols-2">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Payer name</Label>
+                      <Input
+                        value={customPayerName}
+                        onChange={(e) => setCustomPayerName(e.target.value)}
+                        placeholder="Full name"
+                        className="h-9"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Phone number</Label>
+                      <Input
+                        value={customPayerPhone}
+                        onChange={(e) => setCustomPayerPhone(e.target.value)}
+                        placeholder="Phone number"
+                        className="h-9"
+                      />
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => void handleCreatePayer(false)}
+                    disabled={
+                      submitting || !customPayerName || !customPayerPhone
+                    }
+                  >
+                    Create payer
+                  </Button>
+                </div>
+              )}
+            </div>
 
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">
-                      Payment method
-                    </Label>
-                    <LookupSelect
-                      value={paymentMethodId}
-                      options={paymentMethods.map((m) => ({
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">
+                  Payment method <span className="text-destructive">*</span>
+                </Label>
+                <Select
+                  value={paymentMethodId ?? ''}
+                  onValueChange={(v) => setPaymentMethodId(v ?? '')}
+                >
+                  <SelectTrigger className="h-9 w-full">
+                    <SelectValue>
+                      {paymentMethods
+                        .map((m) => ({
+                          value: m.id,
+                          label: m.name,
+                        }))
+                        .find((o) => o.value === paymentMethodId)?.label ??
+                        'Select method'}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {paymentMethods
+                      .map((m) => ({
                         value: m.id,
                         label: m.name,
-                      }))}
-                      placeholder="Select method"
-                      onChange={(value) => setPaymentMethodId(value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Amount</Label>
-                    <Input
-                      type="number"
-                      value={paymentAmount}
-                      onChange={(e) => setPaymentAmount(e.target.value)}
-                      className="h-9 w-full"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">
-                    Reference number
-                  </Label>
-                  <Input
-                    value={paymentReference}
-                    onChange={(e) => setPaymentReference(e.target.value)}
-                    className="h-9 w-full"
-                  />
-                </div>
-
-                <Button
-                  type="button"
-                  onClick={() => void handleRecordPayment()}
-                  disabled={
-                    submitting || !payerId || !paymentMethodId || !paymentAmount
-                  }
-                >
-                  {submitting ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : null}
-                  Record payment
-                </Button>
+                      }))
+                      .map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
               </div>
-            )}
-
-            {hasInvoice && outstandingBalance <= 0 && (
-              <div className="rounded-md bg-success/10 p-3 text-sm text-success">
-                <CheckCircle2 className="inline h-4 w-4 mr-1" />
-                Payment requirement satisfied. Outstanding balance is zero.
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">
+                  Amount <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  type="number"
+                  value={paymentAmount}
+                  onChange={(e) => setPaymentAmount(e.target.value)}
+                  className="h-9 w-full"
+                />
               </div>
-            )}
-          </CardContent>
-        </Card>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Reference number</Label>
+              <Input
+                value={paymentReference}
+                onChange={(e) => setPaymentReference(e.target.value)}
+                className="h-9 w-full"
+              />
+            </div>
+
+            <Button
+              type="button"
+              onClick={() => void handleRecordPayment()}
+              disabled={
+                submitting || !payerId || !paymentMethodId || !paymentAmount
+              }
+            >
+              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              Record payment
+            </Button>
+          </div>
+        )}
+
+        {hasInvoice && outstandingBalance <= 0 && (
+          <div className="rounded-md bg-success/10 p-3 text-sm text-success">
+            <CheckCircle2 className="inline h-4 w-4 mr-1" />
+            Payment requirement satisfied. Outstanding balance is zero.
+          </div>
+        )}
       </div>
     );
   }
@@ -1825,152 +1735,52 @@ export function RegistrationIntakeWorkflow({
     const allSatisfied = items.every((i) => i.satisfied);
 
     return (
-      <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Review registration intake</CardTitle>
-            <CardDescription>
-              Confirm all intake requirements are satisfied before completing.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <ul className="space-y-2">
-              {items.map((item) => (
-                <li
-                  key={item.label}
-                  className="flex items-start gap-3 rounded-md border p-3 text-sm"
-                >
-                  {item.satisfied ? (
-                    <CheckCircle2 className="h-5 w-5 text-success shrink-0" />
-                  ) : (
-                    <AlertCircle className="h-5 w-5 text-destructive shrink-0" />
-                  )}
-                  <div className="flex-1">
-                    <p className="font-medium">{item.label}</p>
-                    {item.detail && (
-                      <p className="text-muted-foreground">{item.detail}</p>
-                    )}
-                  </div>
-                </li>
+      <div className="mx-auto w-full max-w-3xl space-y-3">
+        <ul className="space-y-2">
+          {items.map((item) => (
+            <li
+              key={item.label}
+              className="flex items-start gap-3 rounded-md border p-3 text-sm"
+            >
+              {item.satisfied ? (
+                <CheckCircle2 className="h-5 w-5 text-success shrink-0" />
+              ) : (
+                <AlertCircle className="h-5 w-5 text-destructive shrink-0" />
+              )}
+              <div className="flex-1">
+                <p className="font-medium">{item.label}</p>
+                {item.detail && (
+                  <p className="text-muted-foreground">{item.detail}</p>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+
+        {allSatisfied ? (
+          <div className="rounded-md bg-success/10 p-3 text-sm text-success">
+            <CheckCircle2 className="inline h-4 w-4 mr-1" />
+            All intake requirements satisfied. The registration will enter
+            Processing when you complete this step.
+          </div>
+        ) : (
+          <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+            <AlertCircle className="inline h-4 w-4 mr-1" />
+            Some requirements are missing. Go back to the relevant step to
+            resolve the blockers.
+          </div>
+        )}
+
+        {readiness && readiness.blockers.length > 0 && (
+          <div className="rounded-md border p-3 text-sm">
+            <p className="font-medium mb-1">System blockers:</p>
+            <ul className="list-disc list-inside text-muted-foreground">
+              {readiness.blockers.map((b) => (
+                <li key={b}>{b}</li>
               ))}
             </ul>
-
-            {allSatisfied ? (
-              <div className="rounded-md bg-success/10 p-3 text-sm text-success">
-                <CheckCircle2 className="inline h-4 w-4 mr-1" />
-                All intake requirements satisfied. The registration will enter
-                Processing when you complete this step.
-              </div>
-            ) : (
-              <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-                <AlertCircle className="inline h-4 w-4 mr-1" />
-                Some requirements are missing. Go back to the relevant step to
-                resolve the blockers.
-              </div>
-            )}
-
-            {readiness && readiness.blockers.length > 0 && (
-              <div className="rounded-md border p-3 text-sm">
-                <p className="font-medium mb-1">System blockers:</p>
-                <ul className="list-disc list-inside text-muted-foreground">
-                  {readiness.blockers.map((b) => (
-                    <li key={b}>{b}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  function renderCompleteStep() {
-    if (completed) {
-      return (
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Registration completed</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="rounded-md bg-success/10 p-4 text-center">
-                <CheckCircle2 className="mx-auto h-12 w-12 text-success" />
-                <p className="mt-3 font-medium">
-                  Registration completed successfully.
-                </p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Visa processing is now the next step.
-                </p>
-              </div>
-
-              {registration && (
-                <div className="rounded-md border p-4 text-sm space-y-1">
-                  <div>
-                    <span className="text-muted-foreground">
-                      Registration number:
-                    </span>{' '}
-                    {registration.registration_number}
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Status:</span>{' '}
-                    PROCESSING
-                  </div>
-                </div>
-              )}
-
-              <div className="flex gap-2">
-                {registration && (
-                  <Button
-                    onClick={() =>
-                      navigate(`/registrations/${registration.id}`)
-                    }
-                  >
-                    View registration
-                  </Button>
-                )}
-                <Button
-                  variant="outline"
-                  onClick={() => navigate('/registrations')}
-                >
-                  Back to registrations
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      );
-    }
-
-    return (
-      <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Complete registration</CardTitle>
-            <CardDescription>
-              When all intake requirements are satisfied, the system will
-              transition this registration from DRAFT to PROCESSING.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {!canComplete && (
-              <div className="rounded-md bg-warning/10 p-3 text-sm text-warning">
-                <AlertCircle className="inline h-4 w-4 mr-1" />
-                Not all requirements are satisfied. Go back to resolve blockers
-                before completing.
-              </div>
-            )}
-
-            <Button
-              onClick={() => void handleCompleteRegistration()}
-              disabled={!canComplete || submitting}
-              className="w-full"
-            >
-              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              Complete registration & start processing
-            </Button>
-          </CardContent>
-        </Card>
+          </div>
+        )}
       </div>
     );
   }
@@ -1987,55 +1797,84 @@ export function RegistrationIntakeWorkflow({
     );
   }
 
+  function renderStepNav() {
+    const isReview = currentStep.key === 'review';
+    return (
+      <div className="flex items-center justify-between">
+        {/* Left: Back + Discard (Discard on all steps) */}
+        <div className="flex items-center gap-2">
+          {stepIndex > 0 && (
+            <Button variant="outline" onClick={handleBack}>
+              <ChevronLeft className="h-4 w-4" />
+              Back
+            </Button>
+          )}
+          <Button variant="ghost" onClick={() => navigate('/registrations')}>
+            Discard
+          </Button>
+        </div>
+
+        {/* Right: Next / Complete */}
+        <Button onClick={handleNext} disabled={!canAdvance()}>
+          {submitting ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : isReview ? (
+            <CheckCircle2 className="h-4 w-4" />
+          ) : (
+            <ChevronRight className="h-4 w-4" />
+          )}
+          {isReview ? 'Register' : 'Next'}
+        </Button>
+      </div>
+    );
+  }
+
+  const stepTitles: Record<string, string> = {
+    traveler: 'Traveler & package',
+    documents: 'Travel documents',
+    contact: 'Emergency contact',
+    guarantee: 'Guarantee',
+    finance: 'Payment',
+    review: 'Review',
+  };
+
+  const stepsInCard =
+    currentStep.key === 'traveler' ||
+    currentStep.key === 'documents' ||
+    currentStep.key === 'contact' ||
+    currentStep.key === 'guarantee' ||
+    currentStep.key === 'finance' ||
+    currentStep.key === 'review';
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 pb-20 sm:pb-0">
       {renderStepIndicator()}
 
-      <div className="min-h-[400px]">
-        {currentStep.key === 'traveler' && renderTravelerStep()}
-        {currentStep.key === 'documents' && renderDocumentsStep()}
-        {currentStep.key === 'contact' && renderContactStep()}
-        {currentStep.key === 'guarantee' && renderGuaranteeStep()}
-        {currentStep.key === 'finance' && renderFinanceStep()}
-        {currentStep.key === 'review' && renderReviewStep()}
-        {currentStep.key === 'complete' && renderCompleteStep()}
-      </div>
-
-      {currentStep.key !== 'complete' && (
-        <div className="flex items-center justify-between">
-          <Button
-            variant="outline"
-            onClick={handleBack}
-            disabled={stepIndex === 0}
-          >
-            <ChevronLeft className="h-4 w-4" />
-            Back
-          </Button>
-
-          <div className="flex items-center gap-2">
-            {registration && (
-              <Button
-                variant="ghost"
-                onClick={() => navigate(`/registrations/${registration.id}`)}
-              >
-                Cancel & view registration
-              </Button>
-            )}
-            <Button onClick={handleNext} disabled={!canAdvance()}>
-              {submitting ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <ChevronRight className="h-4 w-4" />
-              )}
-              {currentStep.key === 'traveler' && !registration
-                ? 'Create registration'
-                : currentStep.key === 'review'
-                  ? 'Proceed to complete'
-                  : 'Save and continue'}
-            </Button>
-          </div>
-        </div>
+      {/* Steps using the shared card wrapper */}
+      {stepsInCard && (
+        <Card className="mx-auto w-full max-w-4xl md:border-none md:drop-shadow-2xl">
+          <CardHeader>
+            <CardTitle>{stepTitles[currentStep.key]}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {currentStep.key === 'traveler' && renderTravelerStep()}
+            {currentStep.key === 'documents' && renderDocumentsStep()}
+            {currentStep.key === 'contact' && renderContactStep()}
+            {currentStep.key === 'guarantee' && renderGuaranteeStep()}
+            {currentStep.key === 'finance' && renderFinanceStep()}
+            {currentStep.key === 'review' && renderReviewStep()}
+            {/* Desktop/tablet: nav inside card with spacing */}
+            <div className="hidden border-t pt-6 sm:block">
+              {renderStepNav()}
+            </div>
+          </CardContent>
+        </Card>
       )}
+
+      {/* Mobile: fixed bottom bar, always visible above keyboard */}
+      <div className="fixed inset-x-0 bottom-0 z-50 border-t bg-background p-3 sm:hidden">
+        {renderStepNav()}
+      </div>
     </div>
   );
 }

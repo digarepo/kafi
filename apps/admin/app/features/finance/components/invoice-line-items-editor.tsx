@@ -7,9 +7,17 @@
  */
 
 import { useState } from 'react';
-import { Button, Input, Label } from '@kafi/ui';
+import {
+  Button,
+  Input,
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@kafi/ui';
 
-import { LookupSelect } from './lookup-select';
 import type { InvoiceLineItemFormValues } from '../types/finance.types';
 import type { LookupOption } from '../../../lib/api.js';
 
@@ -70,7 +78,9 @@ export function InvoiceLineItemsEditor({
           min={0}
           step="0.01"
           value={draft.quantity}
-          onChange={(e) => setDraft((d) => ({ ...d, quantity: e.target.value }))}
+          onChange={(e) =>
+            setDraft((d) => ({ ...d, quantity: e.target.value }))
+          }
           placeholder="Qty"
         />
         <Input
@@ -83,14 +93,30 @@ export function InvoiceLineItemsEditor({
           }
           placeholder="Unit price (ETB)"
         />
-        <LookupSelect
-          value={draft.line_item_type_id}
-          options={lineItemTypes.map((t) => ({ value: t.id, label: t.name }))}
-          placeholder="Type (optional)"
-          onChange={(value) =>
-            setDraft((d) => ({ ...d, line_item_type_id: value }))
+        <Select
+          value={draft.line_item_type_id ?? ''}
+          onValueChange={(v) =>
+            setDraft((d) => ({ ...d, line_item_type_id: v ?? '' }))
           }
-        />
+        >
+          <SelectTrigger className="h-9 w-full">
+            <SelectValue>
+              {lineItemTypes
+                .map((t) => ({ value: t.id, label: t.name }))
+                .find((o) => o.value === draft.line_item_type_id)?.label ??
+                'Type (optional)'}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {lineItemTypes
+              .map((t) => ({ value: t.id, label: t.name }))
+              .map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+          </SelectContent>
+        </Select>
         <div className="md:col-span-5 flex justify-end">
           <Button type="button" onClick={addLineItem}>
             Add line item
@@ -135,7 +161,8 @@ export function InvoiceLineItemsEditor({
       )}
 
       <p className="text-sm text-muted-foreground">
-        Subtotal (computed): <span className="font-medium">{subtotal.toFixed(2)} ETB</span>
+        Subtotal (computed):{' '}
+        <span className="font-medium">{subtotal.toFixed(2)} ETB</span>
       </p>
     </div>
   );

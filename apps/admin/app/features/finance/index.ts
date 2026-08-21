@@ -3,7 +3,6 @@
  */
 
 export { financeMeta } from './meta';
-export * from './components/lookup-select';
 export * from './components/date-picker';
 export * from './components/payer-form';
 export * from './components/payer-dialog';

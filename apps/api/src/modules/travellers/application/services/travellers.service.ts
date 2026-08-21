@@ -52,43 +52,48 @@ export class TravellersService {
   // ---- Reference data ----
 
   async listTravellerStatuses() {
-    return this.db
+    const rows = await this.db
       .select()
       .from(schema.travellerStatuses)
       .where(eq(schema.travellerStatuses.is_active, true))
       .orderBy(asc(schema.travellerStatuses.display_order));
+    return rows.map((row) => ({ ...row, code: row.status_code }));
   }
 
   async listTravellerSources() {
-    return this.db
+    const rows = await this.db
       .select()
       .from(schema.travellerSources)
       .where(eq(schema.travellerSources.is_active, true))
       .orderBy(asc(schema.travellerSources.display_order));
+    return rows.map((row) => ({ ...row, code: row.source_code }));
   }
 
   async listRelationshipTypes() {
-    return this.db
+    const rows = await this.db
       .select()
       .from(schema.relationshipTypes)
       .where(eq(schema.relationshipTypes.is_active, true))
       .orderBy(asc(schema.relationshipTypes.display_order));
+    return rows.map((row) => ({ ...row, code: row.relationship_code }));
   }
 
   async listContactPersonStatuses() {
-    return this.db
+    const rows = await this.db
       .select()
       .from(schema.contactPersonStatuses)
       .where(eq(schema.contactPersonStatuses.is_active, true))
       .orderBy(asc(schema.contactPersonStatuses.display_order));
+    return rows.map((row) => ({ ...row, code: row.status_code }));
   }
 
   async listTravellerContactStatuses() {
-    return this.db
+    const rows = await this.db
       .select()
       .from(schema.travellerContactStatuses)
       .where(eq(schema.travellerContactStatuses.is_active, true))
       .orderBy(asc(schema.travellerContactStatuses.display_order));
+    return rows.map((row) => ({ ...row, code: row.status_code }));
   }
 
   async listRegistrationStatuses() {
@@ -254,6 +259,24 @@ export class TravellersService {
 
   async createTraveller(dto: CreateTravellerDto, actorId: string) {
     assertDobNotInFuture(dto.date_of_birth);
+
+    // Prevent duplicate travellers. Match on first_name + phone_number,
+    // including soft-deleted records so archived travellers cannot be
+    // silently re-created as new profiles.
+    const duplicates = await this.findDuplicates(
+      dto.first_name,
+      dto.phone_number,
+    );
+    if (duplicates.length > 0) {
+      const match = duplicates[0];
+      const label = `${match.first_name} ${match.last_name} (${match.traveller_number})`;
+      throw new ConflictException(
+        match.is_deleted
+          ? `A traveller with this name and phone already exists but is archived: ${label}. Restore the archived record instead of creating a new one.`
+          : `A traveller with this name and phone already exists: ${label}. Use the existing record instead of creating a duplicate.`,
+      );
+    }
+
     const number = await this.generateTravellerNumber();
     const id = ulid();
     await this.db.insert(schema.travellers).values({
@@ -341,7 +364,6 @@ export class TravellersService {
 
   async checkDuplicate(dto: CheckDuplicateDto, excludeId?: string) {
     const conditions = [
-      eq(schema.travellers.is_deleted, false),
       eq(schema.travellers.first_name, dto.first_name),
       eq(schema.travellers.phone_number, dto.phone_number),
     ];
@@ -351,11 +373,54 @@ export class TravellersService {
     const rows = await this.db
       .select()
       .from(schema.travellers)
+      .leftJoin(
+        schema.countries,
+        eq(schema.travellers.country_id, schema.countries.id),
+      )
+      .leftJoin(
+        schema.travellerStatuses,
+        eq(schema.travellers.traveller_status_id, schema.travellerStatuses.id),
+      )
       .where(and(...conditions));
 
     return {
-      possible_matches: rows.map((r) => this.mapTravellerRow(r as any)),
+      possible_matches: rows.map((r) => this.mapTravellerRow(r)),
     };
+  }
+
+  /**
+   * Finds duplicate travellers by first_name + phone_number, including
+   * soft-deleted records. Used by `createTraveller` to hard-block creation
+   * when an existing record (active or archived) already matches.
+   */
+  private async findDuplicates(
+    firstName: string,
+    phoneNumber: string,
+  ): Promise<
+    {
+      first_name: string;
+      last_name: string;
+      traveller_number: string;
+      is_deleted: boolean;
+    }[]
+  > {
+    const rows = await this.db
+      .select({
+        first_name: schema.travellers.first_name,
+        last_name: schema.travellers.last_name,
+        traveller_number: schema.travellers.traveller_number,
+        is_deleted: schema.travellers.is_deleted,
+      })
+      .from(schema.travellers)
+      .where(
+        and(
+          eq(schema.travellers.first_name, firstName),
+          eq(schema.travellers.phone_number, phoneNumber),
+        ),
+      )
+      .limit(1);
+
+    return rows;
   }
 
   // ---- Contact persons ----

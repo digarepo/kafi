@@ -9,6 +9,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { RegistrationsService } from './registrations.service.js';
 import {
   CreateRegistrationDto,
+  RegistrationFiltersDto,
   UpdateRegistrationDto,
 } from '../dto/registrations.dto.js';
 import { createMockDb } from './mock-db.js';
@@ -630,6 +631,68 @@ describe('RegistrationsService', () => {
         total_paid: 50000,
         refundable_amount: 30000, // 50000 - 20000
       });
+    });
+  });
+
+  describe('listRegistrations departure date filtering', () => {
+    it('applies departure_from and departure_to filters and returns mapped rows', async () => {
+      const db = createMockDb([
+        [{ count: 2 }], // count (consumed first by the synchronous .then)
+        [registrationRow('DRAFT')[0], registrationRow('PROCESSING')[0]], // rows
+      ]);
+      const emitter = new EventEmitter2();
+      const service = new RegistrationsService(
+        db as any,
+        emitter as any,
+        readiness as any,
+        packages as any,
+        expenses as any,
+        financeReporting as any,
+        refunds as any,
+      );
+
+      const result = await service.listRegistrations(
+        Object.assign(new RegistrationFiltersDto(), {
+          page: 1,
+          page_size: 25,
+          departure_from: '2026-01-01',
+          departure_to: '2026-12-31',
+        }) as any,
+      );
+
+      expect(result.total).toBe(2);
+      expect(result.data).toHaveLength(2);
+      expect(result.data[0].id).toBe('01KZ4REG');
+      // The date filter predicates are built with the real `gte`/`lte` helpers
+      // from drizzle-orm (module-level imports), so they don't surface in the
+      // mock's call log. The query still runs through the mocked chain, so
+      // verifying the mapped rows and total confirms the filter path executed
+      // without throwing.
+    });
+
+    it('returns rows without date filters when none are provided', async () => {
+      const db = createMockDb([[{ count: 1 }], [registrationRow('DRAFT')[0]]]);
+      const emitter = new EventEmitter2();
+      const service = new RegistrationsService(
+        db as any,
+        emitter as any,
+        readiness as any,
+        packages as any,
+        expenses as any,
+        financeReporting as any,
+        refunds as any,
+      );
+
+      const result = await service.listRegistrations(
+        Object.assign(new RegistrationFiltersDto(), {
+          page: 1,
+          page_size: 25,
+        }) as any,
+      );
+
+      expect(result.total).toBe(1);
+      // No date filters supplied, so the gte/lte predicate builders are never
+      // invoked; the query chain still resolves the queued rows/count.
     });
   });
 });

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { DateRange } from 'react-day-picker';
 import type { ColumnDef } from '@tanstack/react-table';
 import { useNavigate, useSearchParams } from 'react-router';
+import { Plus, RotateCcw, Search } from 'lucide-react';
 import { useRenderProfile } from '../../../dev/render-profile';
 import {
   Button,
@@ -10,6 +10,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  cn,
 } from '@kafi/ui';
 import { usePermissions } from '../../../core/permissions';
 import { DateRangePicker } from '../../packages/components/date-range-picker';
@@ -18,7 +19,7 @@ import {
   AsyncState,
   WorkflowStatusBadge,
 } from '../../../shared/operational-ui';
-import { DataTable, DataTableToolbar } from '../../../shared/data-table';
+import { DataTable } from '../../../shared/data-table';
 import { actionsColumn, textColumn } from '../../../shared/data-table/columns';
 import {
   api,
@@ -27,35 +28,60 @@ import {
   type TravelGroupListItem,
 } from '../../../lib/api.js';
 
+const DEFAULT_PAGE_SIZE = 10;
+
 type TravelGroupWorkItem = TravelGroupListItem;
+
+function parseYmdToDate(value: string | null): Date | undefined {
+  if (!value) return undefined;
+  const date = new Date(`${value}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? undefined : date;
+}
 
 export function TravelGroupListPage() {
   useRenderProfile('TravelGroupListPage');
   const { can } = usePermissions();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+
+  const search = searchParams.get('q') ?? '';
+  const statusFilter = searchParams.get('status') ?? '';
+  const packageFilter = searchParams.get('package') ?? '';
+  const departureFrom = searchParams.get('from') ?? '';
+  const departureTo = searchParams.get('to') ?? '';
+  const page = Number(searchParams.get('page') ?? '1') || 1;
+  const pageSize =
+    Number(searchParams.get('size') ?? String(DEFAULT_PAGE_SIZE)) ||
+    DEFAULT_PAGE_SIZE;
+
   const [groups, setGroups] = useState<TravelGroupWorkItem[]>([]);
   const [statuses, setStatuses] = useState<LookupOption[]>([]);
   const [packageVersions, setPackageVersions] = useState<PackageVersion[]>([]);
   const [loading, setLoading] = useState(true);
   const [referenceLoading, setReferenceLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [retryNonce, setRetryNonce] = useState(0);
   const [referenceError, setReferenceError] = useState<string | null>(null);
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState(
-    searchParams.get('status') ?? '',
+  const [retryNonce, setRetryNonce] = useState(0);
+  const [total, setTotal] = useState(0);
+
+  const hasActiveFilters = Boolean(
+    search || statusFilter || packageFilter || departureFrom || departureTo,
   );
-  const [packageFilter, setPackageFilter] = useState('');
-  const [departureRange, setDepartureRange] = useState<DateRange | undefined>();
-  const [pagination, setPagination] = useState({
-    pageIndex: 0,
-    pageSize: 25,
-    total: 0,
-  });
+
   const selectedStatusId = statuses.find(
     (status) => status.code === statusFilter,
   )?.id;
+
+  const departureRange = useMemo(
+    () =>
+      departureFrom || departureTo
+        ? {
+            from: parseYmdToDate(departureFrom),
+            to: parseYmdToDate(departureTo),
+          }
+        : undefined,
+    [departureFrom, departureTo],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -95,31 +121,22 @@ export function TravelGroupListPage() {
   }, []);
 
   useEffect(() => {
-    const statusFromUrl = searchParams.get('status') ?? '';
-    if (statusFromUrl !== statusFilter) setStatusFilter(statusFromUrl);
-  }, [searchParams, statusFilter]);
-
-  useEffect(() => {
     let cancelled = false;
     async function loadGroups() {
       setLoading(true);
       setError(null);
       try {
-        const result = await api.listTravelGroups(
-          pagination.pageIndex + 1,
-          pagination.pageSize,
-          {
-            search: search || undefined,
-            package_version_id: packageFilter || undefined,
-            status_id: selectedStatusId,
-            departure_from: toYmd(departureRange?.from),
-            departure_to: toYmd(departureRange?.to),
-          },
-        );
+        const result = await api.listTravelGroups(page, pageSize, {
+          search: search || undefined,
+          package_version_id: packageFilter || undefined,
+          status_id: selectedStatusId,
+          departure_from: departureFrom || undefined,
+          departure_to: departureTo || undefined,
+        });
 
         if (!cancelled) {
           setGroups(result.data);
-          setPagination((current) => ({ ...current, total: result.total }));
+          setTotal(result.total);
         }
       } catch (err) {
         if (!cancelled) {
@@ -138,28 +155,99 @@ export function TravelGroupListPage() {
       cancelled = true;
     };
   }, [
-    departureRange,
+    departureFrom,
+    departureTo,
     packageFilter,
-    pagination.pageIndex,
-    pagination.pageSize,
+    page,
+    pageSize,
     search,
     selectedStatusId,
-    statusFilter,
     retryNonce,
   ]);
 
-  function resetPage() {
-    setPagination((current) => ({ ...current, pageIndex: 0 }));
-  }
+  const updateParams = useCallback(
+    (mutator: (next: URLSearchParams) => void) => {
+      const next = new URLSearchParams(searchParams);
+      mutator(next);
+      setSearchParams(next, { replace: true });
+    },
+    [searchParams, setSearchParams],
+  );
 
-  function updateStatusFilter(value: string) {
-    const next = new URLSearchParams(searchParams);
-    if (value === 'all') next.delete('status');
-    else next.set('status', value);
-    setSearchParams(next);
-    setStatusFilter(value === 'all' ? '' : value);
-    resetPage();
-  }
+  const setSearch = useCallback(
+    (value: string) => {
+      updateParams((next) => {
+        if (value) next.set('q', value);
+        else next.delete('q');
+        next.delete('page');
+      });
+    },
+    [updateParams],
+  );
+
+  const setStatus = useCallback(
+    (value: string) => {
+      updateParams((next) => {
+        if (value) next.set('status', value);
+        else next.delete('status');
+        next.delete('page');
+      });
+    },
+    [updateParams],
+  );
+
+  const setPackage = useCallback(
+    (value: string) => {
+      updateParams((next) => {
+        if (value) next.set('package', value);
+        else next.delete('package');
+        next.delete('page');
+      });
+    },
+    [updateParams],
+  );
+
+  const setDepartureRange = useCallback(
+    (range?: { from?: Date; to?: Date }) => {
+      updateParams((next) => {
+        const from = toYmd(range?.from);
+        const to = toYmd(range?.to);
+        if (from) next.set('from', from);
+        else next.delete('from');
+        if (to) next.set('to', to);
+        else next.delete('to');
+        next.delete('page');
+      });
+    },
+    [updateParams],
+  );
+
+  const clearFilters = useCallback(() => {
+    updateParams((next) => {
+      next.delete('q');
+      next.delete('status');
+      next.delete('package');
+      next.delete('from');
+      next.delete('to');
+      next.delete('page');
+    });
+  }, [updateParams]);
+
+  const setPagination = useCallback(
+    (next: { pageIndex: number; pageSize: number; total: number }) => {
+      updateParams((params) => {
+        const nextPage = next.pageIndex + 1;
+        if (nextPage > 1) params.set('page', String(nextPage));
+        else params.delete('page');
+        if (next.pageSize !== DEFAULT_PAGE_SIZE) {
+          params.set('size', String(next.pageSize));
+        } else {
+          params.delete('size');
+        }
+      });
+    },
+    [updateParams],
+  );
 
   const handleDelete = useCallback(async (id: string) => {
     if (!confirm('Delete this travel group?')) return;
@@ -254,20 +342,39 @@ export function TravelGroupListPage() {
         ? 'No travel-prepared groups'
         : 'No travel groups found';
 
+  const pagination = {
+    pageIndex: page - 1,
+    pageSize,
+    total,
+  };
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <div className="space-y-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">
+          <h1 className="text-xl font-semibold tracking-tight">
             Travel-group worklist
           </h1>
-          <p className="text-muted-foreground">
+          <p className="mt-1 text-sm text-muted-foreground">
             Prepare groups, monitor readiness, and execute departures.
           </p>
         </div>
         {can('TRAVEL_GROUP_MANAGE') && (
-          <Button onClick={() => navigate('/travel-groups/new')}>
-            Create travel group
+          <Button
+            className="hidden sm:inline-flex"
+            onClick={() => navigate('/travel-groups/new')}
+          >
+            + Add group
+          </Button>
+        )}
+        {can('TRAVEL_GROUP_MANAGE') && (
+          <Button
+            size="icon"
+            className="h-10 w-10 shrink-0 self-end rounded-full sm:hidden"
+            onClick={() => navigate('/travel-groups/new')}
+            aria-label="Add group"
+          >
+            <Plus className="h-5 w-5" />
           </Button>
         )}
       </div>
@@ -276,62 +383,103 @@ export function TravelGroupListPage() {
         <p className="text-sm text-warning">{referenceError}</p>
       )}
 
-      <div className="rounded-md border bg-muted/30 p-3">
-        <DataTableToolbar
-          filter={search}
-          onFilterChange={(value) => {
-            setSearch(value);
-            resetPage();
-          }}
-        >
-          <Select
-            value={statusFilter || 'all'}
-            onValueChange={(value) => updateStatusFilter(value ?? 'all')}
-            disabled={referenceLoading}
-          >
-            <SelectTrigger className="h-9 w-48">
-              <SelectValue placeholder="Filter status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All statuses</SelectItem>
-              {statuses.map((status) => (
-                <SelectItem key={status.code} value={status.code}>
-                  {status.name}
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-3">
+        <div className="relative w-full lg:max-w-xs">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search group or package…"
+            className="h-9 w-full rounded-md border border-input bg-background pl-9 pr-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50"
+            aria-label="Search travel groups"
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 lg:flex lg:flex-nowrap lg:items-center lg:gap-2">
+          <div className="lg:w-40">
+            <Select
+              value={statusFilter ?? ''}
+              onValueChange={(v) => setStatus(v ?? '')}
+              disabled={referenceLoading}
+            >
+              <SelectTrigger className={cn('h-9 w-full')}>
+                <SelectValue>
+                  {[
+                    { value: '', label: 'All statuses' },
+                    ...statuses.map((status) => ({
+                      value: status.code ?? '',
+                      label: status.name,
+                    })),
+                  ].find((o) => o.value === statusFilter)?.label ?? 'Status'}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem key="" value="">
+                  All statuses
                 </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select
-            value={packageFilter || 'all'}
-            onValueChange={(value) => {
-              setPackageFilter(value === 'all' ? '' : (value ?? ''));
-              resetPage();
-            }}
-            disabled={referenceLoading}
-          >
-            <SelectTrigger className="h-9 w-52">
-              <SelectValue placeholder="Filter package" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All packages</SelectItem>
-              {packageVersions.map((version) => (
-                <SelectItem key={version.id} value={version.id}>
-                  {version.version_name}
+                {statuses.map((status) => (
+                  <SelectItem
+                    key={status.code ?? status.id}
+                    value={status.code ?? status.id}
+                  >
+                    {status.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="lg:w-44">
+            <Select
+              value={packageFilter ?? ''}
+              onValueChange={(v) => setPackage(v ?? '')}
+              disabled={referenceLoading}
+            >
+              <SelectTrigger className={cn('h-9 w-full')}>
+                <SelectValue>
+                  {[
+                    { value: '', label: 'All packages' },
+                    ...packageVersions.map((version) => ({
+                      value: version.id,
+                      label: version.version_name,
+                    })),
+                  ].find((o) => o.value === packageFilter)?.label ?? 'Package'}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem key="" value="">
+                  All packages
                 </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <div className="w-64">
+                {packageVersions.map((version) => (
+                  <SelectItem key={version.id} value={version.id}>
+                    {version.version_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="col-span-2 lg:col-span-1 lg:w-64">
             <DateRangePicker
               value={departureRange}
-              onChange={(range) => {
-                setDepartureRange(range);
-                resetPage();
-              }}
-              placeholder="Filter departure range"
+              onChange={(range) => setDepartureRange(range)}
+              placeholder="Departure range"
+              disabled={referenceLoading}
             />
           </div>
-        </DataTableToolbar>
+        </div>
+
+        {hasActiveFilters && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-9 shrink-0 self-start text-muted-foreground lg:self-center"
+            onClick={clearFilters}
+            aria-label="Clear all filters"
+          >
+            <RotateCcw className="mr-1.5 h-4 w-4" />
+            Clear
+          </Button>
+        )}
       </div>
 
       <AsyncState

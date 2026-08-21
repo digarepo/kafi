@@ -47,6 +47,7 @@ export function DataTable<TData, TValue>({
   data,
   loading,
   hidePagination = false,
+  hideViewOptions = false,
   pagination: externalPagination,
   sorting: externalSorting,
   columnVisibility: externalColumnVisibility,
@@ -55,6 +56,7 @@ export function DataTable<TData, TValue>({
   onPaginationChange,
   onColumnVisibilityChange,
   onGlobalFilterChange,
+  onTableReady,
   onDeleteSelected,
   enableRowSelection = false,
 }: DataTableProps<TData, TValue>) {
@@ -166,6 +168,10 @@ export function DataTable<TData, TValue>({
     );
   });
 
+  useEffect(() => {
+    if (onTableReady) onTableReady(table);
+  }, [onTableReady, table]);
+
   const selectedRows = selectionEnabled
     ? table.getSelectedRowModel().rows.map((row) => row.original)
     : [];
@@ -185,11 +191,11 @@ export function DataTable<TData, TValue>({
             Delete selected ({selectedCount})
           </Button>
         ) : null}
-        <DataTableViewOptions table={table} />
+        {!hideViewOptions && <DataTableViewOptions table={table} />}
       </div>
 
       <div className={cn('overflow-x-auto rounded-md border bg-background')}>
-        <Table className="min-w-max">
+        <Table className="min-w-max text-xs font-normal">
           <TableHeader className="bg-muted">
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
@@ -197,6 +203,7 @@ export function DataTable<TData, TValue>({
                   <TableHead
                     key={header.id}
                     className={cn(
+                      'h-8 px-4 text-xs font-medium',
                       header.column.getCanSort() &&
                         'cursor-pointer select-none',
                     )}
@@ -240,7 +247,7 @@ export function DataTable<TData, TValue>({
               <TableRow>
                 <TableCell
                   colSpan={visibleColumnCount}
-                  className="h-24 text-center"
+                  className="h-20 text-center text-xs"
                 >
                   Loading…
                 </TableCell>
@@ -250,9 +257,10 @@ export function DataTable<TData, TValue>({
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() ? 'selected' : undefined}
+                  className="text-xs"
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
+                    <TableCell key={cell.id} className="px-4 py-1">
                       {flexRender(
                         cell.column.columnDef.cell,
                         cell.getContext(),
@@ -265,7 +273,7 @@ export function DataTable<TData, TValue>({
               <TableRow>
                 <TableCell
                   colSpan={visibleColumnCount}
-                  className="h-24 text-center"
+                  className="h-20 text-center text-xs"
                 >
                   No results.
                 </TableCell>

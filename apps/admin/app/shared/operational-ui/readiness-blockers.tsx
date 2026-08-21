@@ -1,6 +1,6 @@
 import { useId } from 'react';
 import { AlertCircle, CheckCircle2, CircleAlert } from 'lucide-react';
-import { buttonVariants, Button, cn } from '@kafi/ui';
+import { Button, cn } from '@kafi/ui';
 import { Link } from 'react-router';
 
 export type ReadinessItemStatus = 'satisfied' | 'blocked' | 'warning';
@@ -136,21 +136,17 @@ export function ReadinessBlockers({
                 <span className="sr-only">{presentation.label}</span>
                 {item.action &&
                   (item.action.href ? (
-                    <Link
-                      to={item.action.href}
-                      className={buttonVariants({
-                        variant: 'link',
-                        size: 'sm',
-                        className: 'h-auto px-0',
-                      })}
+                    <Button
+                      variant="link"
+                      size="sm"
+                      render={<Link to={item.action.href} />}
                     >
                       {item.action.label}
-                    </Link>
+                    </Button>
                   ) : (
                     <Button
                       variant="link"
                       size="sm"
-                      className="h-auto px-0"
                       onClick={item.action.onClick}
                     >
                       {item.action.label}
