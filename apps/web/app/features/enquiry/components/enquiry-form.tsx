@@ -4,7 +4,7 @@
  * @remarks
  * Uses TanStack Form with the Zod enquiry schema for client-side validation.
  * Resolves package and service select options from existing feature data.
- * Falls back to a simulated submission when `VITE_API_URL` is not configured.
+ * Submits to `${VITE_API_URL}/api/public/inquiries/enquiry`.
  */
 
 import { useState } from 'react';

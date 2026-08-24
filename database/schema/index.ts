@@ -6,3 +6,4 @@ export * from './finance.schema.js';
 export * from './operations.schema.js';
 export * from './documents.schema.js';
 export * from './flights.schema.js';
+export * from './inquiries.schema.js';

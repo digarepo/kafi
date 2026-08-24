@@ -9,6 +9,7 @@ describe('admin navigation', () => {
   it('returns the approved sections in explicit order', () => {
     const sections = getNavigationSections([
       'DASHBOARD_VIEW',
+      'INQUIRY_VIEW',
       'REGISTRATION_VIEW',
       'TRAVELLER_VIEW',
       'TRAVEL_GROUP_VIEW',
@@ -33,6 +34,7 @@ describe('admin navigation', () => {
       sections.flatMap((section) => section.items).map((item) => item.label),
     ).toEqual([
       'Dashboard',
+      'Inquiry Inbox',
       'Registrations',
       'Travellers',
       'Contact Persons',

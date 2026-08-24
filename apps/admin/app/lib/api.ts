@@ -1827,6 +1827,69 @@ export interface ReplaceGuaranteeInput {
   notes?: string;
 }
 
+// ---- Inquiries ----
+
+export type InquiryType = 'BOOKING' | 'CALLBACK' | 'CONTACT' | 'ENQUIRY';
+export type InquiryStatus = 'NEW' | 'CONTACTED' | 'RESOLVED';
+
+export interface Inquiry {
+  id: string;
+  inquiry_number: string;
+  inquiry_type: InquiryType;
+  inquiry_status: InquiryStatus;
+  full_name: string | null;
+  phone_number: string;
+  email_address: string | null;
+  message: string | null;
+  enquiry_category: string | null;
+  package_interest: string | null;
+  service_interest: string | null;
+  travel_period: string | null;
+  group_size: string | null;
+  source_channel: string | null;
+  staff_notes: string | null;
+  handled_by: string | null;
+  contacted_at: string | null;
+  resolved_at: string | null;
+  first_viewed_at: string | null;
+  created_at: string;
+  updated_at: string;
+  is_deleted: boolean;
+}
+
+export interface PaginatedInquiries {
+  data: Inquiry[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export interface InquirySummary {
+  new: number;
+  contacted: number;
+  resolved: number;
+  unviewed: number;
+  total: number;
+}
+
+export interface InquiryListFilters {
+  page?: number;
+  page_size?: number;
+  search?: string;
+  type?: InquiryType;
+  status?: InquiryStatus;
+  from?: string;
+  to?: string;
+}
+
+export interface UpdateInquiryInput {
+  staff_notes: string | null;
+}
+
+export interface ChangeInquiryStatusInput {
+  status: 'CONTACTED' | 'RESOLVED';
+}
+
 type CacheEntry = {
   value: unknown;
   expiresAt: number;
@@ -3604,6 +3667,52 @@ export const api = {
 
   async deleteGuarantee(id: string): Promise<void> {
     await request(`/api/admin/guarantees/${id}`, { method: 'DELETE' });
+  },
+
+  async listInquiries(
+    filters: InquiryListFilters = {},
+  ): Promise<PaginatedInquiries> {
+    const params = new URLSearchParams();
+    if (filters.page) params.set('page', String(filters.page));
+    if (filters.page_size) params.set('page_size', String(filters.page_size));
+    if (filters.search) params.set('search', filters.search);
+    if (filters.type) params.set('type', filters.type);
+    if (filters.status) params.set('status', filters.status);
+    if (filters.from) params.set('from', filters.from);
+    if (filters.to) params.set('to', filters.to);
+    const qs = params.toString();
+    return request<PaginatedInquiries>(
+      `/api/admin/inquiries${qs ? `?${qs}` : ''}`,
+    );
+  },
+
+  async getInquirySummary(): Promise<InquirySummary> {
+    return request<InquirySummary>('/api/admin/inquiries/summary');
+  },
+
+  async getInquiry(id: string): Promise<Inquiry> {
+    return request<Inquiry>(`/api/admin/inquiries/${id}`);
+  },
+
+  async updateInquiry(id: string, input: UpdateInquiryInput): Promise<Inquiry> {
+    return request<Inquiry>(`/api/admin/inquiries/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    });
+  },
+
+  async changeInquiryStatus(
+    id: string,
+    input: ChangeInquiryStatusInput,
+  ): Promise<Inquiry> {
+    return request<Inquiry>(`/api/admin/inquiries/${id}/status`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
+
+  async archiveInquiry(id: string): Promise<void> {
+    await request(`/api/admin/inquiries/${id}/archive`, { method: 'POST' });
   },
 };
 

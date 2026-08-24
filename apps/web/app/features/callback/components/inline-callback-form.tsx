@@ -8,15 +8,15 @@
  * - Triggers a sonner toast on submission.
  */
 
-import { useEffect, useState } from "react";
-import { AnyFieldApi, useForm, useSelector } from "@tanstack/react-form";
-import { CheckIcon } from "@phosphor-icons/react";
-import { Button, Input, Label, cn } from "@kafi/ui";
-import { toast } from "sonner";
+import { useEffect, useState } from 'react';
+import { AnyFieldApi, useForm, useSelector } from '@tanstack/react-form';
+import { CheckIcon } from '@phosphor-icons/react';
+import { Button, Input, Label, cn } from '@kafi/ui';
+import { toast } from 'sonner';
 
-import { submitCallbackRequest } from "../services/submit-callback-request";
-import { type CallbackFormValues } from "../types/callback.types";
-import { callbackSchema } from "../validation/callback-schema";
+import { submitCallbackRequest } from '../services/submit-callback-request';
+import { type CallbackFormValues } from '../types/callback.types';
+import { callbackSchema } from '../validation/callback-schema';
 
 /**
  * Renders the first validation message for a field.
@@ -24,13 +24,15 @@ import { callbackSchema } from "../validation/callback-schema";
 function FieldError({ errors }: { errors: ReadonlyArray<unknown> }) {
   if (!errors.length) return null;
   const firstMessage =
-    typeof errors[0] === "string" ? errors[0] : (errors[0] as { message?: string })?.message;
+    typeof errors[0] === 'string'
+      ? errors[0]
+      : (errors[0] as { message?: string })?.message;
   if (!firstMessage) return null;
   return <p className="mt-1 text-xs text-destructive">{firstMessage}</p>;
 }
 
 export default function InlineCallbackForm({
-  source = "homepage",
+  source = 'homepage',
   onSuccess,
   onCancel,
 }: {
@@ -41,7 +43,7 @@ export default function InlineCallbackForm({
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const defaultValues: CallbackFormValues = {
-    phone: "",
+    phone: '',
     fullName: undefined,
     source,
   };
@@ -56,7 +58,9 @@ export default function InlineCallbackForm({
         onSuccess?.();
       } catch (error) {
         const message =
-          error instanceof Error ? error.message : "Something went wrong. Please try again.";
+          error instanceof Error
+            ? error.message
+            : 'Something went wrong. Please try again.';
         setSubmitError(message);
         throw error;
       }
@@ -64,7 +68,10 @@ export default function InlineCallbackForm({
   });
 
   const isSubmitting = useSelector(form.store, (state) => state.isSubmitting);
-  const isSubmitSuccessful = useSelector(form.store, (state) => state.isSubmitSuccessful);
+  const isSubmitSuccessful = useSelector(
+    form.store,
+    (state) => state.isSubmitSuccessful,
+  );
 
   useEffect(() => {
     if (!isSubmitSuccessful) return;
@@ -91,12 +98,12 @@ export default function InlineCallbackForm({
         form.handleSubmit().catch(() => null);
       }}
       className={cn(
-        "flex w-full flex-col gap-3 sm:flex-row sm:items-start",
-        onCancel ? "max-w-xl" : "max-w-md"
+        'flex w-full flex-col gap-3 sm:flex-row sm:items-start',
+        onCancel ? 'max-w-xl' : 'max-w-md',
       )}
     >
       {submitError && (
-        <p className="absolute -bottom-8 left-0 right-0 text-center text-xs text-destructive">
+        <p className="w-full text-center text-xs text-destructive sm:col-span-full">
           {submitError}
         </p>
       )}
@@ -112,7 +119,7 @@ export default function InlineCallbackForm({
                 id="inline-phone"
                 name={field.name}
                 type="tel"
-                value={field.state.value || ""}
+                value={field.state.value || ''}
                 onChange={(e) => field.handleChange(e.target.value)}
                 onBlur={field.handleBlur}
                 aria-invalid={field.state.meta.errors.length > 0}
@@ -125,8 +132,12 @@ export default function InlineCallbackForm({
         </form.Field>
       </div>
 
-      <Button type="submit" disabled={isSubmitting} className="h-11 shrink-0 px-5 text-sm">
-        {isSubmitting ? "Sending..." : "Request Callback"}
+      <Button
+        type="submit"
+        disabled={isSubmitting}
+        className="h-11 shrink-0 px-5 text-sm"
+      >
+        {isSubmitting ? 'Sending...' : 'Request Callback'}
       </Button>
 
       {onCancel && (

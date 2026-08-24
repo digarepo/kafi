@@ -9,6 +9,7 @@ import { OperationsModule } from '../modules/operations/index.js';
 import { DocumentsModule } from '../modules/documents/index.js';
 import { FlightsModule } from '../modules/flights/index.js';
 import { DashboardModule } from '../modules/dashboard/index.js';
+import { InquiriesModule } from '../modules/inquiries/index.js';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { DashboardModule } from '../modules/dashboard/index.js';
     DocumentsModule,
     FlightsModule,
     DashboardModule,
+    InquiriesModule,
   ],
   controllers: [AppController],
   providers: [],

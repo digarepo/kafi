@@ -220,6 +220,16 @@ const PERMISSION_CODES = [
     name: 'Manage flight bookings',
     module: 'Flights',
   },
+  {
+    permission_code: 'INQUIRY_VIEW',
+    name: 'View inquiries',
+    module: 'Inquiries',
+  },
+  {
+    permission_code: 'INQUIRY_MANAGE',
+    name: 'Manage inquiries',
+    module: 'Inquiries',
+  },
 ];
 
 const ROLE_PERMISSION_MAP: Record<string, string[]> = {
@@ -250,6 +260,10 @@ const ROLE_PERMISSION_MAP: Record<string, string[]> = {
     'TRAVEL_GROUP_MANAGE',
     'FLIGHT_VIEW',
     'FLIGHT_MANAGE',
+    // Agents are the front line who call inbound leads, so they need to be
+    // able to action the inbox, not just read it.
+    'INQUIRY_VIEW',
+    'INQUIRY_MANAGE',
   ],
 };
 

@@ -4,6 +4,7 @@ import {
   Banknote,
   Calendar,
   FileText,
+  Inbox,
   LayoutDashboard,
   Package,
   Plane,
@@ -50,6 +51,13 @@ const navigationSections: AdminNavigationSection[] = [
     label: 'Booking & Travellers',
     order: 10,
     items: [
+      {
+        id: 'inquiries',
+        label: 'Inquiry Inbox',
+        href: '/inquiries',
+        icon: Inbox,
+        permission: 'INQUIRY_VIEW',
+      },
       {
         id: 'registrations',
         label: 'Registrations',

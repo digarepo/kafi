@@ -3,10 +3,38 @@ import { Link } from 'react-router';
 
 import { Card } from '@kafi/ui';
 
-import type { PackageItem } from '../types/package.types';
+import type { PublicPackageVersion } from '../../../lib/public-api';
 
 interface RelatedPackagesProps {
-  packages: PackageItem[];
+  packages: PublicPackageVersion[];
+}
+
+/**
+ * Derives a display name from the version — uses the template name's first
+ * word (e.g. "Comfort" from "Comfort Umrah Package") to keep cards concise.
+ */
+function tierName(pkg: PublicPackageVersion): string {
+  const template = pkg.package_template?.name ?? pkg.version_name;
+  return template.split(' ')[0] ?? pkg.version_name;
+}
+
+/**
+ * Derives a subtitle from the version's pilgrimage type and season.
+ */
+function subtitle(pkg: PublicPackageVersion): string {
+  const parts: string[] = [];
+  if (pkg.pilgrimage_type?.name) parts.push(pkg.pilgrimage_type.name);
+  if (pkg.season?.name) parts.push(pkg.season.name);
+  return parts.join(' — ') || pkg.version_name;
+}
+
+/**
+ * Formats the price with the currency code.
+ */
+function formatPrice(pkg: PublicPackageVersion): string {
+  const code = pkg.currency?.code ?? '';
+  const formatted = new Intl.NumberFormat('en-US').format(pkg.base_price);
+  return `${code} ${formatted}`;
 }
 
 /**
@@ -17,6 +45,7 @@ interface RelatedPackagesProps {
  * @remarks
  * - Uses `card-hover` for a consistent lift affordance and a translating arrow
  *   on hover, matching the rest of the site's interaction language.
+ * - Accepts the API's `PublicPackageVersion` shape.
  */
 export function RelatedPackages({ packages }: RelatedPackagesProps) {
   return (
@@ -39,15 +68,15 @@ export function RelatedPackages({ packages }: RelatedPackagesProps) {
                 <div className="flex items-start justify-between gap-6">
                   <div className="space-y-2">
                     <p className="text-[10px] font-semibold uppercase tracking-widest text-accent">
-                      {pkg.name} Package
+                      {tierName(pkg)} Package
                     </p>
 
                     <h3 className="font-heading text-lg font-bold text-foreground">
-                      {pkg.subtitle}
+                      {subtitle(pkg)}
                     </h3>
 
                     <p className="pt-2 text-lg font-bold text-foreground">
-                      {pkg.price}
+                      {formatPrice(pkg)}
                     </p>
                   </div>
 

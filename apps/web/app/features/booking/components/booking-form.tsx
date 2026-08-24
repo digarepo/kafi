@@ -3,7 +3,7 @@
  *
  * @remarks
  * Uses TanStack Form with the Zod booking schema for client-side validation.
- * Falls back to a simulated submission when `VITE_API_URL` is not configured.
+ * Submits to `${VITE_API_URL}/api/public/inquiries/booking`.
  */
 
 import { useState } from 'react';

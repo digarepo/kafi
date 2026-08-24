@@ -79,6 +79,13 @@ export class BusinessNumberService {
     return this.nextNumber('FLT', schema.flightBookings.booking_number);
   }
 
+  /**
+   * Returns the next `INQ-YYYY-NNNNNN` number for a public inquiry.
+   */
+  async generateInquiryNumber(): Promise<string> {
+    return this.nextNumber('INQ', schema.inquiries.inquiry_number);
+  }
+
   private async nextNumber(prefix: string, column: any): Promise<string> {
     const year = new Date().getFullYear();
     const [row] = await this.db

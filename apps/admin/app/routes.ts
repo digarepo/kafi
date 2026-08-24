@@ -29,6 +29,10 @@ export default [
       route(':id', 'routes/admin/registrations/$id.tsx'),
       route(':id/edit', 'routes/admin/registrations/$id-edit.tsx'),
     ]),
+    route('inquiries', 'routes/admin/inquiries.tsx', [
+      index('routes/admin/inquiries/index.tsx'),
+      route(':id', 'routes/admin/inquiries/$id.tsx'),
+    ]),
     route('invoices', 'routes/admin/invoices.tsx', [
       index('routes/admin/invoices/index.tsx'),
       route('new', 'routes/admin/invoices/new.tsx'),

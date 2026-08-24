@@ -3,7 +3,7 @@
  *
  * @remarks
  * - Uses TanStack Form with the Zod enquiry schema for client-side validation.
- * - Falls back to a simulated submission when `VITE_API_URL` is not configured.
+ * - Submits to `${VITE_API_URL}/api/public/inquiries/contact`.
  */
 
 import { useState } from 'react';
@@ -221,8 +221,7 @@ function SelectField({
  * @returns The enquiry form or its success confirmation.
  *
  * @remarks
- * - Submits to `${VITE_API_URL}/inquiries` when the API URL is configured.
- * - Simulates a short async success in development for UX testing.
+ * - Submits to `${VITE_API_URL}/api/public/inquiries/contact`.
  */
 export default function EnquiryForm() {
   const [submitError, setSubmitError] = useState<string | null>(null);
