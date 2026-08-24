@@ -576,6 +576,10 @@ export interface LookupOption {
   id: string;
   name: string;
   code?: string;
+  status_code?: string;
+  type_code?: string;
+  category_code?: string;
+  source_code?: string;
 }
 
 export interface Traveller {
@@ -2767,6 +2771,7 @@ export const api = {
     pageSize = 25,
     search?: string,
     registrationId?: string,
+    invoiceStatusId?: string,
   ): Promise<PaginatedInvoices> {
     const qs = new URLSearchParams({
       page: String(page),
@@ -2774,6 +2779,7 @@ export const api = {
     });
     if (search) qs.set('search', search);
     if (registrationId) qs.set('registration_id', registrationId);
+    if (invoiceStatusId) qs.set('invoice_status_id', invoiceStatusId);
     return request(`/api/admin/invoices?${qs.toString()}`);
   },
 
@@ -2855,12 +2861,16 @@ export const api = {
     page = 1,
     pageSize = 25,
     search?: string,
+    payerTypeId?: string,
+    payerStatusId?: string,
   ): Promise<PaginatedPayers> {
     const qs = new URLSearchParams({
       page: String(page),
       page_size: String(pageSize),
     });
     if (search) qs.set('search', search);
+    if (payerTypeId) qs.set('payer_type_id', payerTypeId);
+    if (payerStatusId) qs.set('payer_status_id', payerStatusId);
     return request(`/api/admin/payers?${qs.toString()}`);
   },
 
@@ -2893,6 +2903,7 @@ export const api = {
     pageSize = 25,
     search?: string,
     payerId?: string,
+    paymentStatusId?: string,
   ): Promise<PaginatedPayments> {
     const qs = new URLSearchParams({
       page: String(page),
@@ -2900,6 +2911,7 @@ export const api = {
     });
     if (search) qs.set('search', search);
     if (payerId) qs.set('payer_id', payerId);
+    if (paymentStatusId) qs.set('payment_status_id', paymentStatusId);
     return request(`/api/admin/payments?${qs.toString()}`);
   },
 
@@ -2957,12 +2969,18 @@ export const api = {
     page = 1,
     pageSize = 25,
     search?: string,
+    expenseStatusId?: string,
+    expenseCategoryId?: string,
+    expenseSourceId?: string,
   ): Promise<PaginatedExpenses> {
     const qs = new URLSearchParams({
       page: String(page),
       page_size: String(pageSize),
     });
     if (search) qs.set('search', search);
+    if (expenseStatusId) qs.set('expense_status_id', expenseStatusId);
+    if (expenseCategoryId) qs.set('expense_category_id', expenseCategoryId);
+    if (expenseSourceId) qs.set('expense_source_id', expenseSourceId);
     return request(`/api/admin/expenses?${qs.toString()}`);
   },
 
@@ -3004,12 +3022,15 @@ export const api = {
     page = 1,
     pageSize = 25,
     registrationId?: string,
+    financeExceptionStatusId?: string,
   ): Promise<PaginatedFinanceExceptions> {
     const qs = new URLSearchParams({
       page: String(page),
       page_size: String(pageSize),
     });
     if (registrationId) qs.set('registration_id', registrationId);
+    if (financeExceptionStatusId)
+      qs.set('finance_exception_status_id', financeExceptionStatusId);
     return request(`/api/admin/finance-exceptions?${qs.toString()}`);
   },
 
@@ -3051,11 +3072,16 @@ export const api = {
 
   // ---- Refunds ----
 
-  async listRefunds(page = 1, pageSize = 25): Promise<PaginatedRefunds> {
+  async listRefunds(
+    page = 1,
+    pageSize = 25,
+    refundStatusId?: string,
+  ): Promise<PaginatedRefunds> {
     const qs = new URLSearchParams({
       page: String(page),
       page_size: String(pageSize),
     });
+    if (refundStatusId) qs.set('refund_status_id', refundStatusId);
     return request(`/api/admin/refunds?${qs.toString()}`);
   },
 

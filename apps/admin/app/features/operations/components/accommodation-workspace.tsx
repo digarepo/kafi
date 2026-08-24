@@ -273,7 +273,7 @@ function StayCard({
                   </Button>
                 }
               />
-              <DropdownMenuContent align="end" className="min-w-36">
+              <DropdownMenuContent align="end">
                 <DropdownMenuItem
                   className="whitespace-nowrap"
                   onClick={() => setEditOpen(true)}

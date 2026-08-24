@@ -1,15 +1,30 @@
 import { useEffect, useState } from 'react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { Link, useNavigate, useSearchParams } from 'react-router';
-import { Button } from '@kafi/ui';
+import { Eye, Plus, RotateCcw, Search, Trash2 } from 'lucide-react';
+import {
+  Button,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  cn,
+} from '@kafi/ui';
 
 import { usePermissions } from '../../../core/permissions';
-import { DataTable, DataTableToolbar } from '../../../shared/data-table';
+import { DataTable } from '../../../shared/data-table';
 import { actionsColumn, textColumn } from '../../../shared/data-table/columns';
 import { WorkflowStatusBadge } from '../../../shared/operational-ui';
 import { displayDate } from '../../operations/lib/date';
-import { flightsApi, type FlightBookingListItem } from '../lib/api';
+import {
+  flightsApi,
+  type FlightBookingListItem,
+  type FlightBookingStatus,
+} from '../lib/api';
 import { useDebouncedValue } from '../../../shared/hooks/use-debounced-value';
+
+const DEFAULT_PAGE_SIZE = 10;
 
 export function FlightBookingsListPage() {
   const { can } = usePermissions();
@@ -17,15 +32,33 @@ export function FlightBookingsListPage() {
   const [searchParams] = useSearchParams();
   const registrationId = searchParams.get('registration_id') ?? undefined;
   const [items, setItems] = useState<FlightBookingListItem[]>([]);
+  const [statuses, setStatuses] = useState<FlightBookingStatus[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [globalFilter, setGlobalFilter] = useState('');
   const debouncedFilter = useDebouncedValue(globalFilter);
+  const [statusFilter, setStatusFilter] = useState('');
   const [pagination, setPagination] = useState({
     pageIndex: 0,
-    pageSize: 25,
+    pageSize: DEFAULT_PAGE_SIZE,
     total: 0,
   });
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadReference() {
+      try {
+        const result = await flightsApi.listFlightBookingStatuses();
+        if (!cancelled) setStatuses(result);
+      } catch {
+        // non-fatal
+      }
+    }
+    void loadReference();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -36,7 +69,10 @@ export function FlightBookingsListPage() {
           pagination.pageIndex + 1,
           pagination.pageSize,
           debouncedFilter,
-          { registration_id: registrationId },
+          {
+            registration_id: registrationId,
+            status_id: statusFilter || undefined,
+          },
         );
         if (!cancelled) {
           setItems(res.data);
@@ -62,6 +98,7 @@ export function FlightBookingsListPage() {
     pagination.pageIndex,
     pagination.pageSize,
     registrationId,
+    statusFilter,
   ]);
 
   async function reload() {
@@ -69,7 +106,10 @@ export function FlightBookingsListPage() {
       pagination.pageIndex + 1,
       pagination.pageSize,
       debouncedFilter,
-      { registration_id: registrationId },
+      {
+        registration_id: registrationId,
+        status_id: statusFilter || undefined,
+      },
     );
     setItems(res.data);
     setPagination((current) => ({ ...current, total: res.total }));
@@ -84,6 +124,14 @@ export function FlightBookingsListPage() {
       setError(err instanceof Error ? err.message : 'Delete failed');
     }
   }
+
+  const hasActiveFilters = Boolean(globalFilter || statusFilter);
+
+  const clearFilters = () => {
+    setGlobalFilter('');
+    setStatusFilter('');
+    setPagination((c) => ({ ...c, pageIndex: 0 }));
+  };
 
   const columns: ColumnDef<FlightBookingListItem>[] = [
     textColumn<FlightBookingListItem>({
@@ -148,10 +196,13 @@ export function FlightBookingsListPage() {
       actions: [
         {
           label: can('FLIGHT_MANAGE') ? 'Manage' : 'View',
+          icon: Eye,
           onClick: (item) => navigate(`/flight-bookings/${item.id}`),
         },
         {
           label: 'Delete',
+          icon: Trash2,
+          variant: 'destructive',
           onClick: (item) => void handleDelete(item.id),
           disabled: (item) =>
             !can('FLIGHT_MANAGE') || item.status?.status_code === 'CANCELLED',
@@ -189,10 +240,11 @@ export function FlightBookingsListPage() {
         </div>
       )}
 
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <h2 className="text-xl font-semibold tracking-tight">All bookings</h2>
         {can('FLIGHT_MANAGE') && (
           <Button
+            className="hidden sm:inline-flex"
             onClick={() =>
               navigate(
                 registrationId
@@ -201,24 +253,88 @@ export function FlightBookingsListPage() {
               )
             }
           >
-            + Record flight booking
+            <Plus className="mr-1.5 h-4 w-4" />
+            Record flight booking
+          </Button>
+        )}
+        {can('FLIGHT_MANAGE') && (
+          <Button
+            size="icon"
+            className="h-10 w-10 shrink-0 self-end rounded-full sm:hidden"
+            onClick={() =>
+              navigate(
+                registrationId
+                  ? `/flight-bookings/new?registration_id=${registrationId}`
+                  : '/flight-bookings/new',
+              )
+            }
+            aria-label="Record flight booking"
+          >
+            <Plus className="h-5 w-5" />
           </Button>
         )}
       </div>
 
-      <DataTableToolbar
-        filter={globalFilter}
-        onFilterChange={(value) => {
-          setGlobalFilter(value);
-          setPagination((current) => ({ ...current, pageIndex: 0 }));
-        }}
-      />
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-3">
+        <div className="relative w-full lg:max-w-xs">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="search"
+            value={globalFilter}
+            onChange={(e) => {
+              setGlobalFilter(e.target.value);
+              setPagination((current) => ({ ...current, pageIndex: 0 }));
+            }}
+            placeholder="Search flight bookings…"
+            className="h-9 w-full rounded-md border border-input bg-background pl-9 pr-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50"
+            aria-label="Search flight bookings"
+          />
+        </div>
+        <div className="grid grid-cols-2 gap-2 lg:flex lg:flex-nowrap lg:items-center lg:gap-2">
+          <div className="lg:w-44">
+            <Select
+              value={statusFilter}
+              onValueChange={(v) => {
+                setStatusFilter(v ?? '');
+                setPagination((c) => ({ ...c, pageIndex: 0 }));
+              }}
+            >
+              <SelectTrigger className={cn('h-9 w-full')}>
+                <SelectValue>
+                  {statusFilter
+                    ? (statuses.find((s) => s.id === statusFilter)?.name ??
+                      'Status')
+                    : 'All statuses'}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All statuses</SelectItem>
+                {statuses.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        {hasActiveFilters && (
+          <button
+            type="button"
+            onClick={clearFilters}
+            className="flex h-9 shrink-0 items-center gap-1.5 self-start text-sm text-muted-foreground transition-colors hover:text-foreground lg:self-center"
+            aria-label="Clear all filters"
+          >
+            <RotateCcw className="h-4 w-4" />
+            Clear
+          </button>
+        )}
+      </div>
+
       <DataTable
         columns={columns}
         data={items}
         loading={loading}
-        globalFilter={globalFilter}
-        onGlobalFilterChange={setGlobalFilter}
         pagination={pagination}
         onPaginationChange={setPagination}
       />

@@ -97,7 +97,7 @@ export function TravellerDetailCard({
                   </Button>
                 }
               />
-              <DropdownMenuContent align="end" className="min-w-40">
+              <DropdownMenuContent align="end">
                 {can('TRAVELLER_CREATE') && onAddContact && (
                   <DropdownMenuItem
                     onClick={onAddContact}

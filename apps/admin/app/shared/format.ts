@@ -22,6 +22,37 @@ export function formatMoney(
 }
 
 /**
+ * Normalize a finance lookup option into a stable `{ id, code, name }` shape.
+ *
+ * The finance reference-data endpoints return raw schema rows whose code
+ * column is named per-table (`status_code`, `type_code`, `category_code`,
+ * `source_code`). This helper picks the first non-empty code field and
+ * returns a normalized option so downstream UI code can rely on `code`
+ * regardless of the source table.
+ */
+export function normalizeLookupOption(option: {
+  id: string;
+  name: string;
+  code?: string;
+  status_code?: string;
+  type_code?: string;
+  category_code?: string;
+  source_code?: string;
+}): { id: string; code: string; name: string } {
+  return {
+    id: option.id,
+    code:
+      option.code ??
+      option.status_code ??
+      option.type_code ??
+      option.category_code ??
+      option.source_code ??
+      option.id,
+    name: option.name,
+  };
+}
+
+/**
  * Format a phone number into E.164 display form with readable spacing.
  *
  * Handles Ethiopian local numbers (leading `0`), numbers already prefixed

@@ -1,16 +1,41 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import type { ColumnDef } from '@tanstack/react-table';
-import { Button, Tabs, TabsList, TabsTrigger, TabsContent } from '@kafi/ui';
+import {
+  Archive,
+  Ban,
+  DoorClosed,
+  Eye,
+  Globe,
+  Pencil,
+  Plus,
+  RotateCcw,
+  Search,
+} from 'lucide-react';
+import {
+  Button,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+  cn,
+} from '@kafi/ui';
 
 import { usePermissions } from '../../../core/permissions';
 import { useRenderProfile } from '../../../dev/render-profile';
-import { DataTable, DataTableToolbar } from '../../../shared/data-table';
+import { DataTable } from '../../../shared/data-table';
 import {
   actionsColumn,
   statusColumn,
   textColumn,
 } from '../../../shared/data-table/columns';
+import { formatMoney } from '../../../shared/format';
+import { displayDate } from '../../operations/lib/date';
 import {
   api,
   type Currency,
@@ -33,6 +58,8 @@ import type {
 
 type Tab = 'templates' | 'versions';
 
+const DEFAULT_PAGE_SIZE = 10;
+
 export function PackagesPage() {
   useRenderProfile('PackagesPage');
   const { can } = usePermissions();
@@ -46,15 +73,17 @@ export function PackagesPage() {
   const [versions, setVersions] = useState<PackageVersion[]>([]);
 
   const [loading, setLoading] = useState(false);
-  const [globalFilter, setGlobalFilter] = useState('');
+  const [templateSearch, setTemplateSearch] = useState('');
+  const [versionSearch, setVersionSearch] = useState('');
+  const [versionTemplateFilter, setVersionTemplateFilter] = useState('');
   const [templatePagination, setTemplatePagination] = useState({
     pageIndex: 0,
-    pageSize: 25,
+    pageSize: DEFAULT_PAGE_SIZE,
     total: 0,
   });
   const [versionPagination, setVersionPagination] = useState({
     pageIndex: 0,
-    pageSize: 25,
+    pageSize: DEFAULT_PAGE_SIZE,
     total: 0,
   });
 
@@ -82,6 +111,7 @@ export function PackagesPage() {
                 api.listPilgrimageTypes(),
                 api.listCurrencies(),
                 api.listSeasons(),
+                api.listPackageTemplates(1, 100),
               ])
             : Promise.resolve(null);
         const templatesPromise =
@@ -89,7 +119,9 @@ export function PackagesPage() {
             ? api.listPackageTemplates(
                 templatePagination.pageIndex + 1,
                 templatePagination.pageSize,
-                tab === 'templates' ? globalFilter || undefined : undefined,
+                scope === 'templates' || tab === 'templates'
+                  ? templateSearch || undefined
+                  : undefined,
               )
             : Promise.resolve(null);
         const versionsPromise =
@@ -97,8 +129,10 @@ export function PackagesPage() {
             ? api.listPackageVersions(
                 versionPagination.pageIndex + 1,
                 versionPagination.pageSize,
-                undefined,
-                tab === 'versions' ? globalFilter || undefined : undefined,
+                versionTemplateFilter || undefined,
+                scope === 'versions' || tab === 'versions'
+                  ? versionSearch || undefined
+                  : undefined,
               )
             : Promise.resolve(null);
         const [references, tpl, ver] = await Promise.all([
@@ -108,11 +142,12 @@ export function PackagesPage() {
         ]);
 
         if (references) {
-          const [cat, pt, cur, sea] = references;
+          const [cat, pt, cur, sea, allTemplates] = references;
           setCategories(cat);
           setPilgrimageTypes(pt);
           setCurrencies(cur);
           setSeasons(sea);
+          setTemplates(allTemplates.data);
         }
         if (tpl) {
           setTemplates(tpl.data);
@@ -137,12 +172,14 @@ export function PackagesPage() {
       }
     },
     [
-      globalFilter,
       tab,
       templatePagination.pageIndex,
       templatePagination.pageSize,
+      templateSearch,
       versionPagination.pageIndex,
       versionPagination.pageSize,
+      versionSearch,
+      versionTemplateFilter,
     ],
   );
 
@@ -312,6 +349,7 @@ export function PackagesPage() {
         actions: [
           {
             label: 'View',
+            icon: Eye,
             onClick: (t) => {
               setViewingTemplate(t);
               setViewingVersion(null);
@@ -320,11 +358,14 @@ export function PackagesPage() {
           },
           {
             label: 'Edit',
+            icon: Pencil,
             onClick: (t) => setEditingTemplate(t),
             disabled: () => !can('PACKAGE_EDIT'),
           },
           {
             label: 'Archive',
+            icon: Archive,
+            variant: 'destructive',
             onClick: (t) => handleArchiveTemplate(t.id),
             disabled: (t) => !can('PACKAGE_DELETE') || t.status !== 'ACTIVE',
           },
@@ -350,21 +391,35 @@ export function PackagesPage() {
         enableSorting: false,
         cell: ({ row }) => row.original.package_template?.name ?? '-',
       },
-      textColumn<PackageVersion>({ accessorKey: 'slug', header: 'Slug' }),
+      {
+        id: 'departure_date',
+        header: 'Departure',
+        accessorKey: 'departure_date',
+        enableSorting: false,
+        cell: ({ row }) => displayDate(row.original.departure_date),
+      },
+      {
+        id: 'return_date',
+        header: 'Return',
+        accessorKey: 'return_date',
+        enableSorting: false,
+        cell: ({ row }) => displayDate(row.original.return_date),
+      },
+      {
+        id: 'base_price',
+        header: 'Price',
+        enableSorting: false,
+        cell: ({ row }) => formatMoney(row.original.base_price),
+      },
       statusColumn<PackageVersion>({
         accessorKey: 'status',
         header: 'Status',
       }),
-      {
-        id: 'price',
-        header: 'Price',
-        enableSorting: false,
-        cell: ({ row }) => row.original.base_price,
-      },
       actionsColumn<PackageVersion>({
         actions: [
           {
             label: 'View',
+            icon: Eye,
             onClick: (v) => {
               setViewingVersion(v);
               setViewingTemplate(null);
@@ -373,21 +428,26 @@ export function PackagesPage() {
           },
           {
             label: 'Edit draft',
+            icon: Pencil,
             onClick: (v) => void handleEditVersion(v),
             disabled: (v) => !can('PACKAGE_EDIT') || v.status !== 'DRAFT',
           },
           {
             label: 'Publish',
+            icon: Globe,
             onClick: (v) => handlePublishVersion(v.id),
             disabled: (v) => !can('PACKAGE_EDIT') || v.status !== 'DRAFT',
           },
           {
             label: 'Close early',
+            icon: DoorClosed,
             onClick: (v) => handleCloseVersion(v.id),
             disabled: (v) => !can('PACKAGE_EDIT') || v.status !== 'PUBLISHED',
           },
           {
             label: 'Cancel',
+            icon: Ban,
+            variant: 'destructive',
             onClick: (v) => handleCancelVersion(v.id),
             disabled: (v) =>
               !can('PACKAGE_EDIT') ||
@@ -404,6 +464,9 @@ export function PackagesPage() {
       handlePublishVersion,
     ],
   );
+
+  const hasTemplateFilters = Boolean(templateSearch);
+  const hasVersionFilters = Boolean(versionSearch || versionTemplateFilter);
 
   return (
     <div className="space-y-6">
@@ -479,34 +542,67 @@ export function PackagesPage() {
 
         <TabsContent value="templates" className="space-y-4">
           <div className="space-y-4">
-            <div className="flex flex-row items-center justify-between">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <h2 className="text-xl font-semibold tracking-tight">
                 Templates
               </h2>
               {can('PACKAGE_CREATE') && (
-                <Button onClick={() => setCreateTemplateOpen(true)}>
-                  + Add template
+                <Button
+                  className="hidden sm:inline-flex"
+                  onClick={() => setCreateTemplateOpen(true)}
+                >
+                  <Plus className="mr-1.5 h-4 w-4" />
+                  Add template
+                </Button>
+              )}
+              {can('PACKAGE_CREATE') && (
+                <Button
+                  size="icon"
+                  className="h-10 w-10 shrink-0 self-end rounded-full sm:hidden"
+                  onClick={() => setCreateTemplateOpen(true)}
+                  aria-label="Add template"
+                >
+                  <Plus className="h-5 w-5" />
                 </Button>
               )}
             </div>
 
-            <DataTableToolbar
-              filter={globalFilter}
-              onFilterChange={(value) => {
-                setGlobalFilter(value);
-                setTemplatePagination((current) => ({
-                  ...current,
-                  pageIndex: 0,
-                }));
-              }}
-            />
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-3">
+              <div className="relative w-full lg:max-w-xs">
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="search"
+                  value={templateSearch}
+                  onChange={(e) => {
+                    setTemplateSearch(e.target.value);
+                    setTemplatePagination((c) => ({ ...c, pageIndex: 0 }));
+                  }}
+                  placeholder="Search templates…"
+                  className="h-9 w-full rounded-md border border-input bg-background pl-9 pr-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50"
+                  aria-label="Search templates"
+                />
+              </div>
+              {hasTemplateFilters && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-9 shrink-0 self-start text-muted-foreground lg:self-center"
+                  onClick={() => {
+                    setTemplateSearch('');
+                    setTemplatePagination((c) => ({ ...c, pageIndex: 0 }));
+                  }}
+                  aria-label="Clear filters"
+                >
+                  <RotateCcw className="mr-1.5 h-4 w-4" />
+                  Clear
+                </Button>
+              )}
+            </div>
 
             <DataTable
               columns={templateColumns}
               data={templates}
               loading={loading}
-              globalFilter={globalFilter}
-              onGlobalFilterChange={setGlobalFilter}
               pagination={templatePagination}
               onPaginationChange={setTemplatePagination}
             />
@@ -515,32 +611,95 @@ export function PackagesPage() {
 
         <TabsContent value="versions" className="space-y-4">
           <div className="space-y-4">
-            <div className="flex flex-row items-center justify-between">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <h2 className="text-xl font-semibold tracking-tight">Versions</h2>
               {can('PACKAGE_CREATE') && (
-                <Button onClick={() => setCreateVersionOpen(true)}>
-                  + Add version
+                <Button
+                  className="hidden sm:inline-flex"
+                  onClick={() => setCreateVersionOpen(true)}
+                >
+                  <Plus className="mr-1.5 h-4 w-4" />
+                  Add version
+                </Button>
+              )}
+              {can('PACKAGE_CREATE') && (
+                <Button
+                  size="icon"
+                  className="h-10 w-10 shrink-0 self-end rounded-full sm:hidden"
+                  onClick={() => setCreateVersionOpen(true)}
+                  aria-label="Add version"
+                >
+                  <Plus className="h-5 w-5" />
                 </Button>
               )}
             </div>
 
-            <DataTableToolbar
-              filter={globalFilter}
-              onFilterChange={(value) => {
-                setGlobalFilter(value);
-                setVersionPagination((current) => ({
-                  ...current,
-                  pageIndex: 0,
-                }));
-              }}
-            />
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-3">
+              <div className="relative w-full lg:max-w-xs">
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="search"
+                  value={versionSearch}
+                  onChange={(e) => {
+                    setVersionSearch(e.target.value);
+                    setVersionPagination((c) => ({ ...c, pageIndex: 0 }));
+                  }}
+                  placeholder="Search versions…"
+                  className="h-9 w-full rounded-md border border-input bg-background pl-9 pr-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50"
+                  aria-label="Search versions"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2 lg:flex lg:flex-nowrap lg:items-center lg:gap-2">
+                <div className="lg:w-56">
+                  <Select
+                    value={versionTemplateFilter}
+                    onValueChange={(v) => {
+                      setVersionTemplateFilter(v ?? '');
+                      setVersionPagination((c) => ({ ...c, pageIndex: 0 }));
+                    }}
+                  >
+                    <SelectTrigger className={cn('h-9 w-full')}>
+                      <SelectValue>
+                        {versionTemplateFilter
+                          ? (templates.find(
+                              (t) => t.id === versionTemplateFilter,
+                            )?.name ?? 'Template')
+                          : 'All templates'}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">All templates</SelectItem>
+                      {templates.map((t) => (
+                        <SelectItem key={t.id} value={t.id}>
+                          {t.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              {hasVersionFilters && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-9 shrink-0 self-start text-muted-foreground lg:self-center"
+                  onClick={() => {
+                    setVersionSearch('');
+                    setVersionTemplateFilter('');
+                    setVersionPagination((c) => ({ ...c, pageIndex: 0 }));
+                  }}
+                  aria-label="Clear filters"
+                >
+                  <RotateCcw className="mr-1.5 h-4 w-4" />
+                  Clear
+                </Button>
+              )}
+            </div>
 
             <DataTable
               columns={versionColumns}
               data={versions}
               loading={loading}
-              globalFilter={globalFilter}
-              onGlobalFilterChange={setGlobalFilter}
               pagination={versionPagination}
               onPaginationChange={setVersionPagination}
             />

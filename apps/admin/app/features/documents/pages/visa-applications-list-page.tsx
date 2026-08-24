@@ -1,15 +1,30 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { Link, useNavigate, useSearchParams } from 'react-router';
-import { Button } from '@kafi/ui';
+import { Eye, Plus, RotateCcw, Search, Trash2 } from 'lucide-react';
+import {
+  Button,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  cn,
+} from '@kafi/ui';
 
 import { usePermissions } from '../../../core/permissions';
-import { DataTable, DataTableToolbar } from '../../../shared/data-table';
+import { DataTable } from '../../../shared/data-table';
 import { actionsColumn, textColumn } from '../../../shared/data-table/columns';
 import { WorkflowStatusBadge } from '../../../shared/operational-ui';
 import { displayDate } from '../../operations/lib/date';
-import { documentsApi, type VisaApplicationListItem } from '../lib/api';
+import {
+  documentsApi,
+  type VisaApplicationListItem,
+  type VisaApplicationStatus,
+} from '../lib/api';
 import { useDebouncedValue } from '../../../shared/hooks/use-debounced-value';
+
+const DEFAULT_PAGE_SIZE = 10;
 
 export function VisaApplicationsListPage() {
   const { can } = usePermissions();
@@ -17,15 +32,33 @@ export function VisaApplicationsListPage() {
   const [searchParams] = useSearchParams();
   const registrationId = searchParams.get('registration_id') ?? undefined;
   const [visas, setVisas] = useState<VisaApplicationListItem[]>([]);
+  const [statuses, setStatuses] = useState<VisaApplicationStatus[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [globalFilter, setGlobalFilter] = useState('');
   const debouncedFilter = useDebouncedValue(globalFilter);
+  const [statusFilter, setStatusFilter] = useState('');
   const [pagination, setPagination] = useState({
     pageIndex: 0,
-    pageSize: 25,
+    pageSize: DEFAULT_PAGE_SIZE,
     total: 0,
   });
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadReference() {
+      try {
+        const result = await documentsApi.listVisaStatuses();
+        if (!cancelled) setStatuses(result);
+      } catch {
+        // non-fatal
+      }
+    }
+    void loadReference();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -36,7 +69,10 @@ export function VisaApplicationsListPage() {
           pagination.pageIndex + 1,
           pagination.pageSize,
           debouncedFilter,
-          { registration_id: registrationId },
+          {
+            registration_id: registrationId,
+            status_id: statusFilter || undefined,
+          },
         );
         if (!cancelled) {
           setVisas(res.data);
@@ -58,6 +94,7 @@ export function VisaApplicationsListPage() {
     pagination.pageIndex,
     pagination.pageSize,
     registrationId,
+    statusFilter,
   ]);
 
   const contextRegistration = useMemo(() => {
@@ -72,7 +109,10 @@ export function VisaApplicationsListPage() {
       pagination.pageIndex + 1,
       pagination.pageSize,
       debouncedFilter,
-      { registration_id: registrationId },
+      {
+        registration_id: registrationId,
+        status_id: statusFilter || undefined,
+      },
     );
     setVisas(res.data);
     setPagination((current) => ({ ...current, total: res.total }));
@@ -83,11 +123,18 @@ export function VisaApplicationsListPage() {
     try {
       await documentsApi.deleteVisaApplication(id);
       await reload();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (err: any) {
+    } catch (err) {
       setError(err instanceof Error ? err.message : 'Delete failed');
     }
   }
+
+  const hasActiveFilters = Boolean(globalFilter || statusFilter);
+
+  const clearFilters = () => {
+    setGlobalFilter('');
+    setStatusFilter('');
+    setPagination((c) => ({ ...c, pageIndex: 0 }));
+  };
 
   const columns: ColumnDef<VisaApplicationListItem>[] = [
     textColumn<VisaApplicationListItem>({
@@ -134,10 +181,13 @@ export function VisaApplicationsListPage() {
       actions: [
         {
           label: can('VISA_MANAGE') ? 'Process' : 'View',
+          icon: Eye,
           onClick: (v) => navigate(`/visa-applications/${v.id}`),
         },
         {
           label: 'Delete',
+          icon: Trash2,
+          variant: 'destructive',
           onClick: (v) => void handleDelete(v.id),
           disabled: (v) =>
             !can('VISA_MANAGE') ||
@@ -181,10 +231,11 @@ export function VisaApplicationsListPage() {
         </div>
       )}
 
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <h2 className="text-xl font-semibold tracking-tight">All visas</h2>
         {can('VISA_MANAGE') && (
           <Button
+            className="hidden sm:inline-flex"
             onClick={() =>
               navigate(
                 registrationId
@@ -193,24 +244,88 @@ export function VisaApplicationsListPage() {
               )
             }
           >
-            + Add visa application
+            <Plus className="mr-1.5 h-4 w-4" />
+            Add visa application
+          </Button>
+        )}
+        {can('VISA_MANAGE') && (
+          <Button
+            size="icon"
+            className="h-10 w-10 shrink-0 self-end rounded-full sm:hidden"
+            onClick={() =>
+              navigate(
+                registrationId
+                  ? `/visa-applications/new?registration_id=${registrationId}`
+                  : '/visa-applications/new',
+              )
+            }
+            aria-label="Add visa application"
+          >
+            <Plus className="h-5 w-5" />
           </Button>
         )}
       </div>
 
-      <DataTableToolbar
-        filter={globalFilter}
-        onFilterChange={(value) => {
-          setGlobalFilter(value);
-          setPagination((current) => ({ ...current, pageIndex: 0 }));
-        }}
-      />
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-3">
+        <div className="relative w-full lg:max-w-xs">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="search"
+            value={globalFilter}
+            onChange={(e) => {
+              setGlobalFilter(e.target.value);
+              setPagination((current) => ({ ...current, pageIndex: 0 }));
+            }}
+            placeholder="Search visa applications…"
+            className="h-9 w-full rounded-md border border-input bg-background pl-9 pr-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50"
+            aria-label="Search visa applications"
+          />
+        </div>
+        <div className="grid grid-cols-2 gap-2 lg:flex lg:flex-nowrap lg:items-center lg:gap-2">
+          <div className="lg:w-44">
+            <Select
+              value={statusFilter}
+              onValueChange={(v) => {
+                setStatusFilter(v ?? '');
+                setPagination((c) => ({ ...c, pageIndex: 0 }));
+              }}
+            >
+              <SelectTrigger className={cn('h-9 w-full')}>
+                <SelectValue>
+                  {statusFilter
+                    ? (statuses.find((s) => s.id === statusFilter)?.name ??
+                      'Status')
+                    : 'All statuses'}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All statuses</SelectItem>
+                {statuses.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        {hasActiveFilters && (
+          <button
+            type="button"
+            onClick={clearFilters}
+            className="flex h-9 shrink-0 items-center gap-1.5 self-start text-sm text-muted-foreground transition-colors hover:text-foreground lg:self-center"
+            aria-label="Clear all filters"
+          >
+            <RotateCcw className="h-4 w-4" />
+            Clear
+          </button>
+        )}
+      </div>
+
       <DataTable
         columns={columns}
         data={visas}
         loading={loading}
-        globalFilter={globalFilter}
-        onGlobalFilterChange={setGlobalFilter}
         pagination={pagination}
         onPaginationChange={setPagination}
       />

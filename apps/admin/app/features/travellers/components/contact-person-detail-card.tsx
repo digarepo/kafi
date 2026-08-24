@@ -67,7 +67,9 @@ export function ContactPersonDetailCard({
                   </>
                 )}
                 <WorkflowStatusBadge
-                  status={contact.status?.name.toUpperCase().replaceAll(' ', '_')}
+                  status={contact.status?.name
+                    .toUpperCase()
+                    .replaceAll(' ', '_')}
                 />
               </div>
             </div>
@@ -87,7 +89,7 @@ export function ContactPersonDetailCard({
                   </Button>
                 }
               />
-              <DropdownMenuContent align="end" className="min-w-40">
+              <DropdownMenuContent align="end">
                 {can('TRAVELLER_EDIT') && (
                   <DropdownMenuItem
                     onClick={() =>

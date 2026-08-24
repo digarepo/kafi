@@ -48,3 +48,16 @@ docs/implementation/phase-c-operational-views-implementation-report.md
 AGENTS.md
 apps/api/storage/documents/DOC-01M0DFYXGA1M3GRKED2G46AX6Y-a9267fd8-6273-4f0c-983a-335f6035ac70.jpeg
 apps/api/storage/documents/DOC-01M0DFZF2WDE1NZ9EDT7GBYWR6-MemesrechaIkiz.pdf
+
+.claude/worktrees
+.claude/settings.local.json
+
+.agents/
+.codex/
+.freebuff/
+.gemini/
+.github/agents/
+.github/prompts/
+.github/skills/
+.opencode/
+opencode.json

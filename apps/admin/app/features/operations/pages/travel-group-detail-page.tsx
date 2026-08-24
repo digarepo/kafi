@@ -496,7 +496,7 @@ export function TravelGroupDetailPage() {
                         </Button>
                       }
                     />
-                    <DropdownMenuContent align="end" className="min-w-40">
+                    <DropdownMenuContent align="end">
                       <DropdownMenuItem
                         className="whitespace-nowrap"
                         onClick={() =>

@@ -30,24 +30,23 @@ export function Hero() {
 
           <div className="space-y-4">
             <h1 className="font-heading text-3xl sm:text-5xl font-extrabold tracking-tight text-balance leading-[1.1] text-foreground">
-              A Spiritual Journey <br />
+              <span> Umrah </span> <br />
+              made &nbsp;
               <span className="text-primary">
                 <TypingAnimation
-                  words={['Perfected In Comfort', 'Designed For You']}
+                  words={['Simple', 'Easy', 'Accessible']}
                   loop
-                  typeSpeed={150}
-                  deleteSpeed={30}
+                  typeSpeed={50}
+                  deleteSpeed={50}
                   pauseDelay={2000}
                 />
               </span>
             </h1>
-            <p className="max-w-xl text-sm sm:text-md text-muted-foreground font-light leading-relaxed">
-              We align premium accommodation and travel schedules in
-              coordination with{' '}
-              <span className="text-accent font-semibold">
-                Ethiopian Airlines
-              </span>{' '}
-              to support Hajj & Umrah pilgrimages.
+            <p className="max-w-xl text-sm sm:text-md text-muted-foreground font-heading font-medium leading-relaxed">
+              We align premium accommodation and travel schedules to provide you
+              with &nbsp;
+              <span className="font-semibold text-primary text-lg">Umrah</span>
+              &nbsp; travels.
             </p>
           </div>
 

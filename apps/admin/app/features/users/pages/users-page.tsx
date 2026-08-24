@@ -1,10 +1,18 @@
 import { useState } from 'react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { Badge, Button } from '@kafi/ui';
+import {
+  MailCheck,
+  Pencil,
+  Plus,
+  RotateCcw,
+  Search,
+  Trash2,
+} from 'lucide-react';
 
 import { usePermissions } from '../../../core/permissions';
 import { DeleteDialog } from '../../../shared/delete-dialog';
-import { DataTable, DataTableToolbar } from '../../../shared/data-table';
+import { DataTable } from '../../../shared/data-table';
 import {
   actionsColumn,
   statusColumn,
@@ -157,11 +165,13 @@ export function UsersPage({ initial }: UsersPageProps) {
       actions: [
         {
           label: 'Edit',
+          icon: Pencil,
           onClick: (user) => setEditingUser(user),
           disabled: () => !can('USER_EDIT'),
         },
         {
           label: 'Resend verification',
+          icon: MailCheck,
           onClick: (user) => {
             void handleResendVerification(user);
           },
@@ -169,6 +179,8 @@ export function UsersPage({ initial }: UsersPageProps) {
         },
         {
           label: 'Delete',
+          icon: Trash2,
+          variant: 'destructive',
           onClick: (user) => handleDeleteClick(user),
           disabled: () => !can('USER_DELETE'),
         },
@@ -240,17 +252,53 @@ export function UsersPage({ initial }: UsersPageProps) {
       />
 
       <div className="space-y-4">
-        <div className="flex flex-row items-center justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <h2 className="text-xl font-semibold tracking-tight">Users</h2>
           {can('USER_CREATE') && (
-            <Button onClick={() => setCreateOpen(true)}>+ Add user</Button>
+            <Button
+              className="hidden sm:inline-flex"
+              onClick={() => setCreateOpen(true)}
+            >
+              <Plus className="mr-1.5 h-4 w-4" />
+              Add user
+            </Button>
+          )}
+          {can('USER_CREATE') && (
+            <Button
+              size="icon"
+              className="h-10 w-10 shrink-0 self-end rounded-full sm:hidden"
+              onClick={() => setCreateOpen(true)}
+              aria-label="Add user"
+            >
+              <Plus className="h-5 w-5" />
+            </Button>
           )}
         </div>
 
-        <DataTableToolbar
-          filter={globalFilter}
-          onFilterChange={setGlobalFilter}
-        />
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-3">
+          <div className="relative w-full lg:max-w-xs">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              type="search"
+              value={globalFilter}
+              onChange={(e) => setGlobalFilter(e.target.value)}
+              placeholder="Search users…"
+              className="h-9 w-full rounded-md border border-input bg-background pl-9 pr-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50"
+              aria-label="Search users"
+            />
+          </div>
+          {globalFilter && (
+            <button
+              type="button"
+              onClick={() => setGlobalFilter('')}
+              className="flex h-9 shrink-0 items-center gap-1.5 self-start text-sm text-muted-foreground transition-colors hover:text-foreground lg:self-center"
+              aria-label="Clear filters"
+            >
+              <RotateCcw className="h-4 w-4" />
+              Clear
+            </button>
+          )}
+        </div>
 
         <DataTable
           columns={columns}

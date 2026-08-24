@@ -21,7 +21,10 @@ export type WorkflowStatusCode =
   | 'RELEASED'
   | 'ASSIGNED'
   | 'AVAILABLE'
-  | 'TRANSFERRED';
+  | 'TRANSFERRED'
+  | 'PUBLISHED'
+  | 'CLOSED'
+  | 'ARCHIVED';
 
 export type WorkflowStatusVariant =
   | 'default'
@@ -74,6 +77,11 @@ export const workflowStatusPresentation: Record<
   ASSIGNED: { label: 'Assigned', variant: 'success' },
   AVAILABLE: { label: 'Available', variant: 'stale' },
   RELEASED: { label: 'Released', variant: 'stale' },
+
+  // Package lifecycle statuses
+  PUBLISHED: { label: 'Published', variant: 'info' },
+  CLOSED: { label: 'Closed', variant: 'stale' },
+  ARCHIVED: { label: 'Archived', variant: 'stale' },
 };
 
 function humanizeStatus(status: string): string {
