@@ -10,19 +10,19 @@
 import { useEffect, useState } from 'react';
 import { AnyFieldApi, useForm, useSelector } from '@tanstack/react-form';
 import { ArrowRightIcon, CheckIcon } from '@phosphor-icons/react';
+import { Button } from '@ui/components/ui/button';
+import { Card } from '@ui/components/ui/card';
+import { Input } from '@ui/components/ui/input';
+import { Label } from '@ui/components/ui/label';
 import {
-  Button,
-  Card,
-  Input,
-  Label,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Textarea,
-} from '@kafi/ui';
-import { cn } from '@kafi/ui';
+} from '@ui/components/ui/select';
+import { Textarea } from '@ui/components/ui/textarea';
+import { cn } from '@ui/lib/utils';
 import { toast } from 'sonner';
 import { z } from 'zod';
 import { Link } from 'react-router';
@@ -228,7 +228,7 @@ export default function InlineCustomServiceCard() {
                         <SelectTrigger
                           id="service-type"
                           aria-invalid={field.state.meta.errors.length > 0}
-                          className="h-11 w-full"
+                          className="data-[size=default]:h-11 w-full"
                         >
                           <SelectValue placeholder="Select a service" />
                         </SelectTrigger>

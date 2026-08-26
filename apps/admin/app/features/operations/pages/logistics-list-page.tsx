@@ -1,15 +1,26 @@
-import { useEffect, useState } from "react";
-import type { ColumnDef } from "@tanstack/react-table";
-import { BedDouble, Bus, Container, Hotel as HotelIcon } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@kafi/ui";
-import { usePermissions } from "../../../core/permissions";
-import { DataTable, DataTableToolbar } from "../../../shared/data-table";
-import { actionsColumn, textColumn } from "../../../shared/data-table/columns";
-import { logisticsApi, type Hotel, type Vendor } from "../../../lib/logistics-api";
+import { useEffect, useState } from 'react';
+import type { ColumnDef } from '@tanstack/react-table';
+import {
+  Archive,
+  BedDouble,
+  Bus,
+  Container,
+  Hotel as HotelIcon,
+} from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@kafi/ui';
+import { usePermissions } from '../../../core/permissions';
+import { DataTable, DataTableToolbar } from '../../../shared/data-table';
+import { useDestructiveConfirmation } from '../../../shared/delete-dialog';
+import { actionsColumn, textColumn } from '../../../shared/data-table/columns';
+import {
+  logisticsApi,
+  type Hotel,
+  type Vendor,
+} from '../../../lib/logistics-api';
 
 export function LogisticsListPage() {
   const { can } = usePermissions();
-  const [activeTab, setActiveTab] = useState<"hotels" | "vendors">("hotels");
+  const [activeTab, setActiveTab] = useState<'hotels' | 'vendors'>('hotels');
 
   return (
     <div className="space-y-6">
@@ -40,10 +51,10 @@ export function LogisticsListPage() {
           </TabsTrigger>
         </TabsList>
         <TabsContent value="hotels" className="pt-4">
-          <HotelList canManage={can("TRAVEL_GROUP_MANAGE")} />
+          <HotelList canManage={can('TRAVEL_GROUP_MANAGE')} />
         </TabsContent>
         <TabsContent value="vendors" className="pt-4">
-          <VendorList canManage={can("TRAVEL_GROUP_MANAGE")} />
+          <VendorList canManage={can('TRAVEL_GROUP_MANAGE')} />
         </TabsContent>
       </Tabs>
     </div>
@@ -51,10 +62,11 @@ export function LogisticsListPage() {
 }
 
 function HotelList({ canManage }: { canManage: boolean }) {
+  const { confirm } = useDestructiveConfirmation();
   const [hotels, setHotels] = useState<Hotel[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState("");
+  const [filter, setFilter] = useState('');
   const [pagination, setPagination] = useState({
     pageIndex: 0,
     pageSize: 25,
@@ -70,14 +82,17 @@ function HotelList({ canManage }: { canManage: boolean }) {
         const res = await logisticsApi.listHotels(
           pagination.pageIndex + 1,
           pagination.pageSize,
-          filter
+          filter,
         );
         if (!cancelled) {
           setHotels(res.data);
           setPagination((current) => ({ ...current, total: res.total }));
         }
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load hotels");
+        if (!cancelled)
+          setError(
+            err instanceof Error ? err.message : 'Failed to load hotels',
+          );
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -89,44 +104,53 @@ function HotelList({ canManage }: { canManage: boolean }) {
   }, [filter, pagination.pageIndex, pagination.pageSize]);
 
   async function handleDelete(id: string) {
-    if (!confirm("Delete this hotel?")) return;
+    if (
+      !(await confirm({
+        title: 'Delete hotel?',
+        description: 'This hotel will be permanently removed.',
+      }))
+    )
+      return;
     try {
       await logisticsApi.deleteHotel(id);
       const res = await logisticsApi.listHotels(
         pagination.pageIndex + 1,
         pagination.pageSize,
-        filter
+        filter,
       );
       setHotels(res.data);
       setPagination((current) => ({ ...current, total: res.total }));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Delete failed");
+      setError(err instanceof Error ? err.message : 'Delete failed');
     }
   }
 
   const columns: ColumnDef<Hotel>[] = [
-    textColumn<Hotel>({ accessorKey: "hotel_code", header: "Code" }),
-    textColumn<Hotel>({ accessorKey: "name", header: "Name" }),
+    textColumn<Hotel>({ accessorKey: 'hotel_code', header: 'Code' }),
+    textColumn<Hotel>({ accessorKey: 'name', header: 'Name' }),
     {
-      id: "location",
-      header: "Location",
+      id: 'location',
+      header: 'Location',
       cell: ({ row }) =>
-        [row.original.city, row.original.country].filter(Boolean).join(", ") || "-",
+        [row.original.city, row.original.country].filter(Boolean).join(', ') ||
+        '-',
     },
     {
-      id: "type",
-      header: "Type",
-      cell: ({ row }) => row.original.hotel_type?.name ?? "-",
+      id: 'type',
+      header: 'Type',
+      cell: ({ row }) => row.original.hotel_type?.name ?? '-',
     },
     {
-      id: "status",
-      header: "Status",
-      cell: ({ row }) => row.original.hotel_status?.name ?? "-",
+      id: 'status',
+      header: 'Status',
+      cell: ({ row }) => row.original.hotel_status?.name ?? '-',
     },
     actionsColumn<Hotel>({
       actions: [
         {
-          label: "Delete",
+          label: 'Archive',
+          icon: Archive,
+          variant: 'destructive',
           onClick: (h) => void handleDelete(h.id),
           disabled: () => !canManage,
         },
@@ -137,7 +161,9 @@ function HotelList({ canManage }: { canManage: boolean }) {
   return (
     <div className="space-y-4">
       {error && (
-        <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>
+        <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+          {error}
+        </div>
       )}
       <DataTableToolbar
         filter={filter}
@@ -160,10 +186,11 @@ function HotelList({ canManage }: { canManage: boolean }) {
 }
 
 function VendorList({ canManage }: { canManage: boolean }) {
+  const { confirm } = useDestructiveConfirmation();
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState("");
+  const [filter, setFilter] = useState('');
   const [pagination, setPagination] = useState({
     pageIndex: 0,
     pageSize: 25,
@@ -178,14 +205,17 @@ function VendorList({ canManage }: { canManage: boolean }) {
         const res = await logisticsApi.listVendors(
           pagination.pageIndex + 1,
           pagination.pageSize,
-          filter
+          filter,
         );
         if (!cancelled) {
           setVendors(res.data);
           setPagination((current) => ({ ...current, total: res.total }));
         }
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load vendors");
+        if (!cancelled)
+          setError(
+            err instanceof Error ? err.message : 'Failed to load vendors',
+          );
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -197,43 +227,51 @@ function VendorList({ canManage }: { canManage: boolean }) {
   }, [filter, pagination.pageIndex, pagination.pageSize]);
 
   async function handleDelete(id: string) {
-    if (!confirm("Delete this vendor?")) return;
+    if (
+      !(await confirm({
+        title: 'Delete vendor?',
+        description: 'This vendor will be permanently removed.',
+      }))
+    )
+      return;
     try {
       await logisticsApi.deleteVendor(id);
       const res = await logisticsApi.listVendors(
         pagination.pageIndex + 1,
         pagination.pageSize,
-        filter
+        filter,
       );
       setVendors(res.data);
       setPagination((current) => ({ ...current, total: res.total }));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Delete failed");
+      setError(err instanceof Error ? err.message : 'Delete failed');
     }
   }
 
   const columns: ColumnDef<Vendor>[] = [
-    textColumn<Vendor>({ accessorKey: "vendor_number", header: "Number" }),
-    textColumn<Vendor>({ accessorKey: "name", header: "Name" }),
+    textColumn<Vendor>({ accessorKey: 'vendor_number', header: 'Number' }),
+    textColumn<Vendor>({ accessorKey: 'name', header: 'Name' }),
     {
-      id: "contact",
-      header: "Contact",
-      cell: ({ row }) => row.original.phone_number ?? "-",
+      id: 'contact',
+      header: 'Contact',
+      cell: ({ row }) => row.original.phone_number ?? '-',
     },
     {
-      id: "type",
-      header: "Type",
-      cell: ({ row }) => row.original.vendor_type?.name ?? "-",
+      id: 'type',
+      header: 'Type',
+      cell: ({ row }) => row.original.vendor_type?.name ?? '-',
     },
     {
-      id: "status",
-      header: "Status",
-      cell: ({ row }) => row.original.vendor_status?.name ?? "-",
+      id: 'status',
+      header: 'Status',
+      cell: ({ row }) => row.original.vendor_status?.name ?? '-',
     },
     actionsColumn<Vendor>({
       actions: [
         {
-          label: "Delete",
+          label: 'Archive',
+          icon: Archive,
+          variant: 'destructive',
           onClick: (v) => void handleDelete(v.id),
           disabled: () => !canManage,
         },
@@ -244,7 +282,9 @@ function VendorList({ canManage }: { canManage: boolean }) {
   return (
     <div className="space-y-4">
       {error && (
-        <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>
+        <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+          {error}
+        </div>
       )}
       <DataTableToolbar
         filter={filter}

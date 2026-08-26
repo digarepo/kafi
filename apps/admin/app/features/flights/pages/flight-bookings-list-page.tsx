@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { Link, useNavigate, useSearchParams } from 'react-router';
-import { Eye, Plus, RotateCcw, Search, Trash2 } from 'lucide-react';
+import { Archive, Eye, Plus, RotateCcw, Search } from 'lucide-react';
 import {
   Button,
   Select,
@@ -14,6 +14,7 @@ import {
 
 import { usePermissions } from '../../../core/permissions';
 import { DataTable } from '../../../shared/data-table';
+import { useDestructiveConfirmation } from '../../../shared/delete-dialog';
 import { actionsColumn, textColumn } from '../../../shared/data-table/columns';
 import { WorkflowStatusBadge } from '../../../shared/operational-ui';
 import { displayDate } from '../../operations/lib/date';
@@ -28,6 +29,7 @@ const DEFAULT_PAGE_SIZE = 10;
 
 export function FlightBookingsListPage() {
   const { can } = usePermissions();
+  const { confirm } = useDestructiveConfirmation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const registrationId = searchParams.get('registration_id') ?? undefined;
@@ -116,7 +118,13 @@ export function FlightBookingsListPage() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('Delete this flight booking?')) return;
+    if (
+      !(await confirm({
+        title: 'Delete flight booking?',
+        description: 'This flight booking will be permanently removed.',
+      }))
+    )
+      return;
     try {
       await flightsApi.deleteFlightBooking(id);
       await reload();
@@ -200,8 +208,8 @@ export function FlightBookingsListPage() {
           onClick: (item) => navigate(`/flight-bookings/${item.id}`),
         },
         {
-          label: 'Delete',
-          icon: Trash2,
+          label: 'Archive',
+          icon: Archive,
           variant: 'destructive',
           onClick: (item) => void handleDelete(item.id),
           disabled: (item) =>

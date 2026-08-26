@@ -1,6 +1,7 @@
 // import { ArrowRightIcon } from '@phosphor-icons/react';
 // import { Badge, Button } from '@kafi/ui';
 // import { Link } from 'react-router';
+// import { Link } from 'react-router';
 
 // export function ServicesCTA() {
 //   return (
@@ -48,7 +49,8 @@
 // }
 
 import { ArrowRightIcon } from '@phosphor-icons/react';
-import { Button, Card } from '@kafi/ui';
+import { Button } from '@ui/components/ui/button';
+import { Card } from '@ui/components/ui/card';
 import { Link } from 'react-router';
 
 export function ServicesCTA() {

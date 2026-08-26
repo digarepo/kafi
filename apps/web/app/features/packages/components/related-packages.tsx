@@ -1,7 +1,7 @@
 import { ArrowRightIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 
-import { Card } from '@kafi/ui';
+import { Card } from '@ui/components/ui/card';
 
 import type { PublicPackageVersion } from '../../../lib/public-api';
 

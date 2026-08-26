@@ -1,14 +1,9 @@
-import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router';
+import { Link } from 'react-router';
 import { ArrowLeftIcon, CheckIcon, CalendarIcon } from '@phosphor-icons/react';
 
-import { Separator } from '@kafi/ui';
+import { Separator } from '@ui/components/ui/separator';
 
-import {
-  getPublicPackage,
-  listPublicPackages,
-  type PublicPackageVersion,
-} from '../../../lib/public-api';
+import type { PublicPackageVersion } from '../../../lib/public-api';
 import { PackageBookingCard } from './package-booking-card';
 import { PackageFacts } from './package-facts';
 import { RelatedPackages } from './related-packages';
@@ -63,9 +58,15 @@ function variantLabel(pkg: PublicPackageVersion): string {
   return String(pkg.year);
 }
 
+interface LivePackageDetailProps {
+  pkg: PublicPackageVersion;
+  variants: PublicPackageVersion[];
+  related: PublicPackageVersion[];
+}
+
 /**
- * Renders the package detail page for a given slug, fetching live data from
- * the API while preserving the original visual design.
+ * Renders the package detail page for a given package, using server-rendered
+ * data passed from the route loader.
  *
  * @remarks
  * - Layout: subtle header band with variant selector, facts strip, a 2/3 main
@@ -76,128 +77,21 @@ function variantLabel(pkg: PublicPackageVersion): string {
  *   (e.g. different seasons), letting users switch departures without going
  *   back to the listing page.
  */
-export function LivePackageDetail() {
-  const { slug } = useParams<{ slug: string }>();
-  const [pkg, setPkg] = useState<PublicPackageVersion | null>(null);
-  const [variants, setVariants] = useState<PublicPackageVersion[]>([]);
-  const [related, setRelated] = useState<PublicPackageVersion[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!slug) return;
-    setLoading(true);
-    setError(null);
-
-    Promise.all([getPublicPackage(slug), listPublicPackages()])
-      .then(([current, all]) => {
-        setPkg(current);
-
-        // Variants = other published versions of the same template (same tier,
-        // different seasons/departures). Sorted by departure date ascending.
-        const templateId = current.package_template?.id;
-        setVariants(
-          all.data
-            .filter(
-              (p) =>
-                p.package_template?.id === templateId &&
-                p.slug !== current.slug,
-            )
-            .sort((a, b) => {
-              const da = a.departure_date
-                ? new Date(a.departure_date).getTime()
-                : Infinity;
-              const db = b.departure_date
-                ? new Date(b.departure_date).getTime()
-                : Infinity;
-              return da - db;
-            }),
-        );
-
-        // Related = one version per *other* tier, picking the next upcoming.
-        // This keeps the "Other journeys" section showing the other tiers,
-        // not duplicate seasons of the current tier.
-        const otherTiers = all.data.filter(
-          (p) => p.package_template?.id !== templateId,
-        );
-        const groups = new Map<string, PublicPackageVersion[]>();
-        for (const v of otherTiers) {
-          const key = v.package_template?.id ?? v.id;
-          const list = groups.get(key);
-          if (list) list.push(v);
-          else groups.set(key, [v]);
-        }
-        const now = new Date();
-        const showcase: PublicPackageVersion[] = [];
-        for (const versions of groups.values()) {
-          const withDates = versions
-            .filter((v) => v.departure_date)
-            .map((v) => ({ v, d: new Date(v.departure_date!) }));
-          const upcoming = withDates
-            .filter((x) => x.d >= now)
-            .sort((a, b) => a.d.getTime() - b.d.getTime());
-          if (upcoming.length > 0) showcase.push(upcoming[0]!.v);
-          else {
-            const past = withDates.sort(
-              (a, b) => b.d.getTime() - a.d.getTime(),
-            );
-            if (past.length > 0) showcase.push(past[0]!.v);
-            else showcase.push(versions[0]!);
-          }
-        }
-        setRelated(showcase.slice(0, 2));
-      })
-      .catch((err) =>
-        setError(err instanceof Error ? err.message : 'Package not found'),
-      )
-      .finally(() => setLoading(false));
-  }, [slug]);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background pb-24 text-foreground lg:pb-0">
-        <section className="relative overflow-hidden border-b border-border/20 bg-linear-to-b from-accent/5 to-background">
-          <div className="mx-auto max-w-7xl px-6 pb-12 pt-28 sm:px-8 lg:px-12 md:pb-16">
-            <div className="h-8 w-32 animate-pulse rounded bg-muted/40" />
-            <div className="mt-8 h-12 w-96 animate-pulse rounded bg-muted/40" />
-            <div className="mt-4 h-4 w-64 animate-pulse rounded bg-muted/40" />
-          </div>
-        </section>
-        <main className="mx-auto max-w-7xl px-6 py-16 sm:px-8 lg:px-12 lg:py-20">
-          <div className="grid grid-cols-1 gap-12 lg:grid-cols-3 lg:gap-16">
-            <div className="space-y-8 lg:col-span-2">
-              <div className="h-48 w-full animate-pulse rounded-lg bg-muted/30" />
-              <div className="h-32 w-full animate-pulse rounded-lg bg-muted/30" />
-            </div>
-            <div className="h-80 w-full animate-pulse rounded-lg bg-muted/30" />
-          </div>
-        </main>
-      </div>
-    );
-  }
-
-  if (error || !pkg) {
-    return (
-      <div className="mx-auto max-w-7xl px-6 py-24 text-center text-muted-foreground">
-        <p className="text-sm">{error ?? 'Package not found'}</p>
-        <Link
-          to="/packages"
-          className="mt-4 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-accent hover:underline"
-        >
-          <ArrowLeftIcon weight="bold" className="h-4 w-4" />
-          Back to packages
-        </Link>
-      </div>
-    );
-  }
-
+export function LivePackageDetail({
+  pkg,
+  variants,
+  related,
+}: LivePackageDetailProps) {
   const name = tierName(pkg);
   const inclusions = pkg.inclusions
     .slice()
     .sort((a, b) => a.display_order - b.display_order);
 
   return (
-    <div className="min-h-screen bg-background pb-24 text-foreground lg:pb-0">
+    <main
+      id="main-content"
+      className="min-h-screen bg-background pb-24 text-foreground lg:pb-0"
+    >
       {/* Header band */}
       <section className="relative overflow-hidden border-b border-border/20 bg-linear-to-b from-accent/5 to-background">
         <div className="mx-auto max-w-7xl px-6 pb-12 pt-28 sm:px-8 lg:px-12 md:pb-16">
@@ -267,7 +161,7 @@ export function LivePackageDetail() {
       </section>
 
       {/* Main content */}
-      <main className="mx-auto max-w-7xl px-6 py-16 sm:px-8 lg:px-12 lg:py-20">
+      <section className="mx-auto max-w-7xl px-6 py-16 sm:px-8 lg:px-12 lg:py-20">
         <div className="grid grid-cols-1 items-start gap-12 lg:grid-cols-3 lg:gap-16">
           {/* Main information */}
           <div className="space-y-12 lg:col-span-2">
@@ -357,7 +251,7 @@ export function LivePackageDetail() {
             <PackageBookingCard package={pkg} />
           </aside>
         </div>
-      </main>
+      </section>
 
       {/* Related packages — other tiers, not other seasons */}
       {related.length > 0 && <RelatedPackages packages={related} />}
@@ -384,6 +278,6 @@ export function LivePackageDetail() {
           </Link>
         </div>
       </div>
-    </div>
+    </main>
   );
 }

@@ -11,7 +11,10 @@
 import { useEffect, useState } from 'react';
 import { AnyFieldApi, useForm, useSelector } from '@tanstack/react-form';
 import { CheckIcon } from '@phosphor-icons/react';
-import { Button, Input, Label, cn } from '@kafi/ui';
+import { Button } from '@ui/components/ui/button'
+import { Input } from '@ui/components/ui/input'
+import { Label } from '@ui/components/ui/label'
+import { cn } from '@ui/lib/utils';
 import { toast } from 'sonner';
 
 import { submitCallbackRequest } from '../services/submit-callback-request';

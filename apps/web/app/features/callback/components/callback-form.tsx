@@ -10,7 +10,9 @@
 import { useState } from "react";
 import { AnyFieldApi, useForm, useSelector } from "@tanstack/react-form";
 import { ArrowRightIcon, CheckCircleIcon } from "@phosphor-icons/react";
-import { Button, Input, Label } from "@kafi/ui";
+import { Button } from '@ui/components/ui/button'
+import { Input } from '@ui/components/ui/input'
+import { Label } from '@ui/components/ui/label';
 
 import { submitCallbackRequest } from "../services/submit-callback-request";
 import { type CallbackFormValues } from "../types/callback.types";

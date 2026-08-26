@@ -63,6 +63,7 @@ export function TravellerContactsTable({
           {
             label: 'Archive',
             icon: Archive,
+            variant: 'destructive',
             onClick: (contact) => void onArchive(contact.id),
           },
         ],

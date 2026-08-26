@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { Button, Skeleton, buttonVariants } from '@kafi/ui';
 import { usePermissions } from '../../../core/permissions';
+import { useDestructiveConfirmation } from '../../../shared/delete-dialog';
 import {
   AsyncState,
   WorkflowStatusBadge,
@@ -160,6 +161,7 @@ function RegistrationRow({ registration }: { registration: Registration }) {
 
 export function TravellerDetailPage({ id }: TravellerDetailPageProps) {
   const { can } = usePermissions();
+  const { confirm } = useDestructiveConfirmation();
   const navigate = useNavigate();
   const [traveller, setTraveller] = useState<Traveller | null>(null);
   const [registrations, setRegistrations] = useState<Registration[] | null>(
@@ -259,7 +261,15 @@ export function TravellerDetailPage({ id }: TravellerDetailPageProps) {
             onArchive={
               can('TRAVELLER_DELETE')
                 ? async () => {
-                    if (!window.confirm('Archive this traveller?')) return;
+                    if (
+                      !(await confirm({
+                        title: 'Archive traveller?',
+                        description:
+                          'The traveller will be removed from active records and can be restored later.',
+                        confirmLabel: 'Archive',
+                      }))
+                    )
+                      return;
                     await api.archiveTraveller(id);
                     navigate('/travellers');
                   }

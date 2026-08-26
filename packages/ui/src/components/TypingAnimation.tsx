@@ -1,12 +1,27 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import gsap from 'gsap';
-import { useGSAP } from '@gsap/react';
 import { cn } from '@ui/lib/utils';
 
 // -----------------------------------------------------------------------------
-// Simple in‑view hook – mimics the original useInView(…, { amount: 0.3, once: true })
+// Reduced-motion hook
+// -----------------------------------------------------------------------------
+function usePrefersReducedMotion(): boolean {
+  const [reduced, setReduced] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    setReduced(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setReduced(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+
+  return reduced;
+}
+
+// -----------------------------------------------------------------------------
+// Simple in-view hook
 // -----------------------------------------------------------------------------
 function useInView(
   ref: React.RefObject<Element>,
@@ -38,7 +53,7 @@ function useInView(
 }
 
 // -----------------------------------------------------------------------------
-// Types (identical to your original, with minor additions)
+// Types
 // -----------------------------------------------------------------------------
 type MotionElementType =
   | 'article'
@@ -58,11 +73,11 @@ interface TypingAnimationProps {
   children?: string;
   words?: string[];
   className?: string;
-  duration?: number; // fallback for typeSpeed
-  typeSpeed?: number; // ms per character (default duration)
-  deleteSpeed?: number; // ms per character (default half of typeSpeed)
-  delay?: number; // initial delay in ms
-  pauseDelay?: number; // pause between words in ms
+  duration?: number;
+  typeSpeed?: number;
+  deleteSpeed?: number;
+  delay?: number;
+  pauseDelay?: number;
   loop?: boolean;
   as?: MotionElementType;
   startOnView?: boolean;
@@ -72,7 +87,7 @@ interface TypingAnimationProps {
 }
 
 // -----------------------------------------------------------------------------
-// The component
+// The component — lightweight, no GSAP dependency
 // -----------------------------------------------------------------------------
 export function TypingAnimation({
   children,
@@ -95,10 +110,8 @@ export function TypingAnimation({
     threshold: 0.3,
     once: true,
   });
+  const prefersReducedMotion = usePrefersReducedMotion();
 
-  // ---------------------------------------------------------------------------
-  // Derive settings
-  // ---------------------------------------------------------------------------
   const wordsToAnimate = useMemo(
     () => words ?? (children ? [children] : []),
     [words, children],
@@ -109,21 +122,17 @@ export function TypingAnimation({
 
   const shouldStart = startOnView ? isInView : true;
 
-  // Key that changes when the source words / children change, forcing a timeline reset
   const animationKey = useMemo(
     () => (words ? words.join('\u0000') : (children ?? '')),
     [words, children],
   );
 
-  // ---------------------------------------------------------------------------
-  // Internal state for rendering & cursor logic
-  // ---------------------------------------------------------------------------
   const [displayedText, setDisplayedText] = useState('');
   const [currentWordIndex, setCurrentWordIndex] = useState(0);
   const [currentCharIndex, setCurrentCharIndex] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
 
-  // Reset all state when the source words change
+  // Reset when source words change
   useEffect(() => {
     setDisplayedText('');
     setCurrentWordIndex(0);
@@ -131,88 +140,98 @@ export function TypingAnimation({
     setIsAnimating(false);
   }, [animationKey]);
 
-  // ---------------------------------------------------------------------------
-  // GSAP timeline
-  // ---------------------------------------------------------------------------
-  useGSAP(
-    () => {
-      if (!shouldStart || wordsToAnimate.length === 0) return;
+  // When reduced motion is preferred, show the first word immediately
+  useEffect(() => {
+    if (prefersReducedMotion && wordsToAnimate.length > 0) {
+      setDisplayedText(wordsToAnimate[0]!);
+      setCurrentWordIndex(0);
+      setCurrentCharIndex(wordsToAnimate[0]!.length);
+      setIsAnimating(false);
+    }
+  }, [prefersReducedMotion, wordsToAnimate]);
 
-      const tl = gsap.timeline({
-        delay: delay / 1000,
-        repeat: loop ? -1 : 0,
-        onStart: () => setIsAnimating(true),
-        onComplete: () => {
-          // Only fires when repeat is not infinite and the whole sequence finishes
-          if (!loop) setIsAnimating(false);
-        },
-      });
+  // Lightweight typing loop using setTimeout — no GSAP
+  useEffect(() => {
+    if (!shouldStart || prefersReducedMotion || wordsToAnimate.length === 0)
+      return;
 
-      // Shared object that GSAP will tween – we read it in onUpdate
-      const charObj = { value: 0 };
+    let timeoutId: ReturnType<typeof setTimeout>;
+    let cancelled = false;
 
-      wordsToAnimate.forEach((word, i) => {
-        const isLastWord = i === wordsToAnimate.length - 1;
+    const runSequence = (
+      wordIdx: number,
+      charIdx: number,
+      isDeleting: boolean,
+    ) => {
+      if (cancelled) return;
+      const word = wordsToAnimate[wordIdx]!;
+      const isLastWord = wordIdx === wordsToAnimate.length - 1;
 
-        // ----- Typing phase -----
-        tl.to(charObj, {
-          value: word.length,
-          duration: (word.length * typingSpeed) / 1000,
-          ease: 'none',
-          onUpdate: () => {
-            const len = Math.floor(charObj.value);
-            setDisplayedText(word.slice(0, len));
-            setCurrentCharIndex(len);
-            setCurrentWordIndex(i);
-          },
-          onComplete: () => {
-            // Snap to final string at the end of typing
-            setDisplayedText(word);
-            setCurrentCharIndex(word.length);
-          },
-        });
-
-        // ----- Pause & delete (only if there are more words or we loop) -----
-        if (!isLastWord || loop) {
-          // Pause between words
-          tl.to({}, { duration: pauseDelay / 1000 });
-
-          // Deleting phase
-          tl.to(charObj, {
-            value: 0,
-            duration: (word.length * deletingSpeed) / 1000,
-            ease: 'none',
-            onUpdate: () => {
-              const len = Math.floor(charObj.value);
-              setDisplayedText(word.slice(0, len));
-              setCurrentCharIndex(len);
-            },
-            onComplete: () => {
-              setDisplayedText('');
-              setCurrentCharIndex(0);
-            },
-          });
+      if (!isDeleting) {
+        // Typing phase
+        if (charIdx <= word.length) {
+          setDisplayedText(word.slice(0, charIdx));
+          setCurrentCharIndex(charIdx);
+          setCurrentWordIndex(wordIdx);
+          timeoutId = setTimeout(
+            () => runSequence(wordIdx, charIdx + 1, false),
+            typingSpeed,
+          );
+        } else {
+          // Word complete — pause, then delete (if more words or looping)
+          if (!isLastWord || loop) {
+            timeoutId = setTimeout(
+              () => runSequence(wordIdx, word.length, true),
+              pauseDelay,
+            );
+          } else {
+            setIsAnimating(false);
+          }
         }
-      });
-    },
-    {
-      // Re‑run the effect whenever these dependencies change
-      dependencies: [
-        shouldStart,
-        animationKey,
-        typingSpeed,
-        deletingSpeed,
-        pauseDelay,
-        delay,
-        loop,
-      ],
-      revertOnUpdate: true, // cleans up the previous timeline automatically
-    },
-  );
+      } else {
+        // Deleting phase
+        if (charIdx > 0) {
+          setDisplayedText(word.slice(0, charIdx - 1));
+          setCurrentCharIndex(charIdx - 1);
+          timeoutId = setTimeout(
+            () => runSequence(wordIdx, charIdx - 1, true),
+            deletingSpeed,
+          );
+        } else {
+          // Move to next word
+          const nextIdx = (wordIdx + 1) % wordsToAnimate.length;
+          if (nextIdx === 0 && !loop) {
+            setIsAnimating(false);
+            return;
+          }
+          timeoutId = setTimeout(
+            () => runSequence(nextIdx, 0, false),
+            typingSpeed,
+          );
+        }
+      }
+    };
 
-  // ---------------------------------------------------------------------------
-  // Cursor visibility logic (mirrors original)
-  // ---------------------------------------------------------------------------
+    setIsAnimating(true);
+    timeoutId = setTimeout(() => runSequence(0, 0, false), delay);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+    };
+  }, [
+    shouldStart,
+    prefersReducedMotion,
+    animationKey,
+    typingSpeed,
+    deletingSpeed,
+    pauseDelay,
+    delay,
+    loop,
+    wordsToAnimate,
+  ]);
+
+  // Cursor visibility logic
   const lastWord = wordsToAnimate[currentWordIndex] ?? '';
   const isComplete =
     !loop &&
@@ -231,28 +250,41 @@ export function TypingAnimation({
     underscore: '_',
   }[cursorStyle];
 
-  // ---------------------------------------------------------------------------
-  // Render – using a plain HTML element (no motion)
-  // ---------------------------------------------------------------------------
   const Element = Component as React.ElementType;
+
+  // Reserve space for the longest word to prevent CLS from text reflow
+  const longestWord = useMemo(
+    () => wordsToAnimate.reduce((a, b) => (b.length > a.length ? b : a), ''),
+    [wordsToAnimate],
+  );
 
   return (
     <Element
       ref={elementRef}
       className={cn(
-        'leading-20 tracking-[-0.02em]',
+        'relative leading-20 tracking-[-0.02em]',
         Component === 'span' && 'inline-block',
         className,
       )}
     >
-      {displayedText}
-      {shouldShowCursor && (
-        <span
-          className={cn('inline-block', blinkCursor && 'animate-blink-cursor')}
-        >
-          {cursorChar}
-        </span>
-      )}
+      {/* Invisible spacer reserves the width of the longest word */}
+      <span aria-hidden="true" className="invisible whitespace-nowrap">
+        {longestWord}
+      </span>
+      {/* Visible typing text overlaid on top */}
+      <span className="absolute left-0 top-0 whitespace-nowrap">
+        {displayedText}
+        {shouldShowCursor && (
+          <span
+            className={cn(
+              'inline-block',
+              blinkCursor && 'animate-blink-cursor',
+            )}
+          >
+            {cursorChar}
+          </span>
+        )}
+      </span>
     </Element>
   );
 }

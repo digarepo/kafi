@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ArrowLeft, Home } from 'lucide-react';
-import { DecorativeBackground } from '@kafi/ui';
+import { DecorativeBackground } from '@ui/components/DecorativeBackground';
 
 function NotFoundIllustration() {
   return (

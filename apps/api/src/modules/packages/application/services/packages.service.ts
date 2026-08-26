@@ -49,6 +49,7 @@ export interface PackageVersionValidationIssue {
 
 export function getPackageVersionPublicationIssues(version: {
   version_name?: string | null;
+  slug?: string | null;
   departure_date?: Date | string | null;
   return_date?: Date | string | null;
   base_price?: number | string | null;
@@ -69,6 +70,13 @@ export function getPackageVersionPublicationIssues(version: {
       code: 'VERSION_NAME_REQUIRED',
       field: 'version_name',
       message: 'Version name is required.',
+    });
+  }
+  if (!version.slug?.trim()) {
+    issues.push({
+      code: 'SLUG_REQUIRED',
+      field: 'slug',
+      message: 'A URL slug is required before publishing.',
     });
   }
   if (!departure || !returnDate) {
@@ -532,7 +540,7 @@ export class PackagesService {
     const draftStatus = await this.getVersionStatus('DRAFT');
     const code = await this.generateVersionCode();
     const slug = await this.ensureUniqueSlug(
-      dto.slug ?? slugify(dto.version_name),
+      dto.slug?.trim() || slugify(dto.version_name),
     );
 
     const id = ulid();
@@ -596,8 +604,8 @@ export class PackagesService {
     this.assertDateRangeOrder(departure, returnDate, 'travel dates');
     this.assertDateRangeOrder(salesStart, salesEnd, 'registration window');
 
-    const slug = dto.slug
-      ? await this.ensureUniqueSlug(dto.slug, id)
+    const slug = dto.slug?.trim()
+      ? await this.ensureUniqueSlug(dto.slug.trim(), id)
       : existing.slug;
 
     await this.db

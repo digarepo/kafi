@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router';
 import { Button, Card, CardContent, CardHeader, CardTitle } from '@kafi/ui';
 
 import { usePermissions } from '../../../core/permissions';
+import { useDestructiveConfirmation } from '../../../shared/delete-dialog';
 import {
   api,
   type Invoice,
@@ -16,6 +17,7 @@ interface InvoiceDetailPageProps {
 
 export function InvoiceDetailPage({ id }: InvoiceDetailPageProps) {
   const { can } = usePermissions();
+  const { confirm } = useDestructiveConfirmation();
   const navigate = useNavigate();
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [loading, setLoading] = useState(true);
@@ -42,7 +44,15 @@ export function InvoiceDetailPage({ id }: InvoiceDetailPageProps) {
 
   async function handleArchive() {
     if (!invoice) return;
-    if (!confirm('Archive this invoice?')) return;
+    if (
+      !(await confirm({
+        title: 'Archive invoice?',
+        description:
+          'The invoice will be removed from active records and can be restored later.',
+        confirmLabel: 'Archive',
+      }))
+    )
+      return;
     try {
       await api.archiveInvoice(invoice.id);
       navigate('/invoices');

@@ -10,8 +10,12 @@
 import { useEffect, useState } from 'react';
 import { AnyFieldApi, useForm, useSelector } from '@tanstack/react-form';
 import { CheckIcon } from '@phosphor-icons/react';
-import { Button, Card, Input, Label, Textarea } from '@kafi/ui';
-import { cn } from '@kafi/ui';
+import { Button } from '@ui/components/ui/button'
+import { Card } from '@ui/components/ui/card'
+import { Input } from '@ui/components/ui/input'
+import { Label } from '@ui/components/ui/label'
+import { Textarea } from '@ui/components/ui/textarea';
+import { cn } from '@ui/lib/utils';
 import { toast } from 'sonner';
 import { z } from 'zod';
 

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { usePermissions } from '../../../core/permissions';
+import { useDestructiveConfirmation } from '../../../shared/delete-dialog';
 import {
   Button,
   Dialog,
@@ -42,6 +43,7 @@ export function GroupMembershipDetailDialog({
   onChanged,
 }: GroupMembershipDetailDialogProps) {
   const { can } = usePermissions();
+  const { confirm } = useDestructiveConfirmation();
   const canManage = can('TRAVEL_GROUP_MANAGE');
   const [statuses, setStatuses] = useState<GroupMembershipStatus[]>([]);
   const [travelGroups, setTravelGroups] = useState<TravelGroupListItem[]>([]);
@@ -146,7 +148,14 @@ export function GroupMembershipDetailDialog({
 
   async function handleDelete() {
     if (!membership) return;
-    if (!confirm('Remove this member from the group?')) return;
+    if (
+      !(await confirm({
+        title: 'Remove member from group?',
+        description: 'The member will be removed from this travel group.',
+        confirmLabel: 'Remove member',
+      }))
+    )
+      return;
     setLoading(true);
     setError(null);
     try {

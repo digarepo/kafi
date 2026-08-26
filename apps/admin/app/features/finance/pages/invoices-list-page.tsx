@@ -14,6 +14,7 @@ import {
 
 import { usePermissions } from '../../../core/permissions';
 import { DataTable } from '../../../shared/data-table';
+import { useDestructiveConfirmation } from '../../../shared/delete-dialog';
 import { actionsColumn } from '../../../shared/data-table/columns';
 import { FinanceStatusBadge } from '../../../shared/finance-status';
 import { formatMoney, normalizeLookupOption } from '../../../shared/format';
@@ -28,6 +29,7 @@ const DEFAULT_PAGE_SIZE = 10;
 
 export function InvoicesListPage() {
   const { can } = usePermissions();
+  const { confirm } = useDestructiveConfirmation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -144,7 +146,15 @@ export function InvoicesListPage() {
     });
 
   async function handleArchive(id: string) {
-    if (!confirm('Archive this invoice?')) return;
+    if (
+      !(await confirm({
+        title: 'Archive invoice?',
+        description:
+          'The invoice will be removed from active records and can be restored later.',
+        confirmLabel: 'Archive',
+      }))
+    )
+      return;
     try {
       await api.archiveInvoice(id);
       setRetryNonce((n) => n + 1);

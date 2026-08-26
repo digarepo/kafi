@@ -44,13 +44,6 @@ const navigationSections: AdminNavigationSection[] = [
         icon: LayoutDashboard,
         permission: 'DASHBOARD_VIEW',
       },
-    ],
-  },
-  {
-    id: 'booking-travellers',
-    label: 'Booking & Travellers',
-    order: 10,
-    items: [
       {
         id: 'inquiries',
         label: 'Inquiry Inbox',
@@ -58,12 +51,19 @@ const navigationSections: AdminNavigationSection[] = [
         icon: Inbox,
         permission: 'INQUIRY_VIEW',
       },
+    ],
+  },
+  {
+    id: 'operations',
+    label: 'Operations',
+    order: 10,
+    items: [
       {
-        id: 'registrations',
-        label: 'Registrations',
-        href: '/registrations',
-        icon: Calendar,
-        permission: 'REGISTRATION_VIEW',
+        id: 'packages',
+        label: 'Packages',
+        href: '/packages',
+        icon: Package,
+        permission: 'PACKAGE_VIEW',
       },
       {
         id: 'travellers',
@@ -79,13 +79,13 @@ const navigationSections: AdminNavigationSection[] = [
         icon: Users,
         permission: 'TRAVELLER_VIEW',
       },
-    ],
-  },
-  {
-    id: 'operations',
-    label: 'Operations',
-    order: 20,
-    items: [
+      {
+        id: 'registrations',
+        label: 'Registrations',
+        href: '/registrations',
+        icon: Calendar,
+        permission: 'REGISTRATION_VIEW',
+      },
       {
         id: 'travel-groups',
         label: 'Travel Groups',
@@ -93,33 +93,12 @@ const navigationSections: AdminNavigationSection[] = [
         icon: Users,
         permission: 'TRAVEL_GROUP_VIEW',
       },
-      {
-        id: 'logistics',
-        label: 'Logistics',
-        href: '/logistics',
-        icon: Package,
-        permission: 'TRAVEL_GROUP_VIEW',
-      },
-    ],
-  },
-  {
-    id: 'catalog',
-    label: 'Catalog',
-    order: 30,
-    items: [
-      {
-        id: 'packages',
-        label: 'Packages',
-        href: '/packages',
-        icon: Package,
-        permission: 'PACKAGE_VIEW',
-      },
     ],
   },
   {
     id: 'finance',
     label: 'Finance',
-    order: 40,
+    order: 30,
     items: [
       {
         id: 'finance-dashboard',
@@ -182,7 +161,7 @@ const navigationSections: AdminNavigationSection[] = [
   {
     id: 'compliance',
     label: 'Compliance',
-    order: 50,
+    order: 20,
     items: [
       {
         id: 'documents',
@@ -210,7 +189,7 @@ const navigationSections: AdminNavigationSection[] = [
   {
     id: 'administration',
     label: 'Administration',
-    order: 60,
+    order: 40,
     items: [
       {
         id: 'users',

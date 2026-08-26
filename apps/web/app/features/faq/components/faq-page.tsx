@@ -12,14 +12,14 @@ import {
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-  Badge,
-  Card,
-} from '@kafi/ui';
+} from '@ui/components/ui/accordion';
+import { Badge } from '@ui/components/ui/badge';
+import { Card } from '@ui/components/ui/card';
 
 import { FAQ_CATEGORIES } from '../data/faq-data';
 import { type FaqCategory } from '../types/faq.types';
 
-import InlineFaqQuestionCard from './inline-faq-question-card';
+import { LazyInlineFaqQuestionCard } from './lazy-inline-faq-question-card';
 
 /**
  * Renders a single FAQ category as a card with an Accordion.
@@ -30,11 +30,11 @@ import InlineFaqQuestionCard from './inline-faq-question-card';
 function FaqCategorySection({ category }: { category: FaqCategory }) {
   return (
     <Card className="card border-border/40 p-6 md:p-8">
-      <h3 className="font-heading text-sm font-bold uppercase tracking-wider text-foreground">
+      <h2 className="font-heading text-sm font-bold uppercase tracking-wider text-foreground">
         {category.title}
-      </h3>
+      </h2>
 
-      <Accordion defaultValue={[]} className="mt-6">
+      <Accordion defaultValue={[]} keepMounted className="mt-6">
         {category.items.map((item) => (
           <AccordionItem key={item.id} value={item.id}>
             <AccordionTrigger className="py-4 text-sm font-medium text-foreground hover:text-accent hover:no-underline">
@@ -111,11 +111,14 @@ function FaqContent() {
  */
 export default function FaqPage() {
   return (
-    <main className="relative min-h-screen bg-background text-foreground">
+    <main
+      id="main-content"
+      className="relative min-h-screen bg-background text-foreground"
+    >
       <FaqHero />
       <FaqContent />
       <section className="mb-20 rounded-3xl bg-muted/30 p-2 sm:p-4 md:mt-28">
-        <InlineFaqQuestionCard />
+        <LazyInlineFaqQuestionCard />
       </section>
     </main>
   );

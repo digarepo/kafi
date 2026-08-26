@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { Link, useNavigate, useSearchParams } from 'react-router';
-import { Eye, Plus, RotateCcw, Search, Trash2 } from 'lucide-react';
+import { Archive, Eye, Plus, RotateCcw, Search } from 'lucide-react';
 import {
   Button,
   Select,
@@ -14,6 +14,7 @@ import {
 
 import { usePermissions } from '../../../core/permissions';
 import { DataTable } from '../../../shared/data-table';
+import { useDestructiveConfirmation } from '../../../shared/delete-dialog';
 import { actionsColumn, textColumn } from '../../../shared/data-table/columns';
 import { WorkflowStatusBadge } from '../../../shared/operational-ui';
 import { displayDate } from '../../operations/lib/date';
@@ -28,6 +29,7 @@ const DEFAULT_PAGE_SIZE = 10;
 
 export function VisaApplicationsListPage() {
   const { can } = usePermissions();
+  const { confirm } = useDestructiveConfirmation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const registrationId = searchParams.get('registration_id') ?? undefined;
@@ -119,7 +121,13 @@ export function VisaApplicationsListPage() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('Delete this visa application?')) return;
+    if (
+      !(await confirm({
+        title: 'Delete visa application?',
+        description: 'This visa application will be permanently removed.',
+      }))
+    )
+      return;
     try {
       await documentsApi.deleteVisaApplication(id);
       await reload();
@@ -185,8 +193,8 @@ export function VisaApplicationsListPage() {
           onClick: (v) => navigate(`/visa-applications/${v.id}`),
         },
         {
-          label: 'Delete',
-          icon: Trash2,
+          label: 'Archive',
+          icon: Archive,
           variant: 'destructive',
           onClick: (v) => void handleDelete(v.id),
           disabled: (v) =>

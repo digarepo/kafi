@@ -1,4 +1,8 @@
-import { Button, Card, Badge, Separator, TypingAnimation } from '@kafi/ui';
+import { Button } from '@ui/components/ui/button'
+import { Card } from '@ui/components/ui/card'
+import { Badge } from '@ui/components/ui/badge'
+import { Separator } from '@ui/components/ui/separator'
+import { TypingAnimation } from '@ui/components/TypingAnimation';
 import { SparkleIcon, AirplaneIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 
@@ -29,10 +33,13 @@ export function Hero() {
           </Badge>
 
           <div className="space-y-4">
-            <h1 className="font-heading text-3xl sm:text-5xl font-extrabold tracking-tight text-balance leading-[1.1] text-foreground">
+            <h1
+              className="font-heading text-3xl sm:text-5xl font-extrabold tracking-tight text-balance leading-[1.1] text-foreground"
+              aria-label="Umrah made Simple"
+            >
               <span> Umrah </span> <br />
               made &nbsp;
-              <span className="text-primary">
+              <span className="text-primary" aria-hidden="true">
                 <TypingAnimation
                   words={['Simple', 'Easy', 'Accessible']}
                   loop
@@ -68,9 +75,9 @@ export function Hero() {
                   <span className="text-[10px] text-accent uppercase tracking-widest font-semibold">
                     Next Departure
                   </span>
-                  <h3 className="font-heading text-md font-bold text-foreground">
+                  <h2 className="font-heading text-md font-bold text-foreground">
                     Addis Ababa Hub
-                  </h3>
+                  </h2>
                 </div>
                 <div className="p-2 rounded-full bg-accent/10 text-accent">
                   <AirplaneIcon weight="light" className="w-7 h-7 rotate-45" />

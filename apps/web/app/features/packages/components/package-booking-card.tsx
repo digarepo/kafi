@@ -6,7 +6,9 @@ import {
 } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 
-import { Button, Card, Separator } from '@kafi/ui';
+import { Button } from '@ui/components/ui/button'
+import { Card } from '@ui/components/ui/card'
+import { Separator } from '@ui/components/ui/separator';
 
 import type { PublicPackageVersion } from '../../../lib/public-api';
 

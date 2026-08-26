@@ -30,6 +30,7 @@ import {
   PencilIcon,
 } from 'lucide-react';
 import { usePermissions } from '../../../core/permissions';
+import { useDestructiveConfirmation } from '../../../shared/delete-dialog';
 import {
   AsyncState,
   ContextualActionBar,
@@ -199,6 +200,7 @@ function buildReadinessItems(
 
 export function RegistrationDetailPage({ id }: RegistrationDetailPageProps) {
   const { can } = usePermissions();
+  const { confirm } = useDestructiveConfirmation();
   const navigate = useNavigate();
   const [summary, setSummary] = useState<RegistrationOperationalSummary | null>(
     null,
@@ -233,7 +235,15 @@ export function RegistrationDetailPage({ id }: RegistrationDetailPageProps) {
 
   async function handleArchive() {
     if (!summary) return;
-    if (!confirm('Archive this registration?')) return;
+    if (
+      !(await confirm({
+        title: 'Archive registration?',
+        description:
+          'The registration will be removed from active records and can be restored later.',
+        confirmLabel: 'Archive',
+      }))
+    )
+      return;
     try {
       await api.archiveRegistration(summary.id);
       navigate('/registrations');

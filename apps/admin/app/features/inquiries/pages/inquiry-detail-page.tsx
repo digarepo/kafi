@@ -13,6 +13,7 @@ import {
 } from '@kafi/ui';
 import { usePermissions } from '../../../core/permissions';
 import { formatPhone } from '../../../shared/format';
+import { useDestructiveConfirmation } from '../../../shared/delete-dialog';
 import { displayDate } from '../../operations/lib/date';
 import {
   api,
@@ -59,6 +60,7 @@ function nextStatus(current: InquiryStatus): 'CONTACTED' | 'RESOLVED' | null {
 
 export function InquiryDetailPage({ id }: InquiryDetailPageProps) {
   const { can } = usePermissions();
+  const { confirm } = useDestructiveConfirmation();
   const navigate = useNavigate();
   const [inquiry, setInquiry] = useState<Inquiry | null>(null);
   const [loading, setLoading] = useState(true);
@@ -151,7 +153,14 @@ export function InquiryDetailPage({ id }: InquiryDetailPageProps) {
 
   async function handleArchive() {
     if (!inquiry) return;
-    if (!confirm('Archive this inquiry? It will be removed from the inbox.')) {
+    if (
+      !(await confirm({
+        title: 'Archive inquiry?',
+        description:
+          'It will be removed from the inbox and can be restored later.',
+        confirmLabel: 'Archive',
+      }))
+    ) {
       return;
     }
     setArchiving(true);

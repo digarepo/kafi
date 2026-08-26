@@ -31,6 +31,7 @@ import {
   buttonVariants,
 } from '@kafi/ui';
 import { usePermissions } from '../../../core/permissions';
+import { useDestructiveConfirmation } from '../../../shared/delete-dialog';
 import {
   AsyncState,
   ContextualActionBar,
@@ -361,6 +362,7 @@ export function TravelGroupDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { can } = usePermissions();
+  const { confirm } = useDestructiveConfirmation();
   const [summary, setSummary] = useState<TravelGroupOperationalSummary | null>(
     null,
   );
@@ -419,7 +421,14 @@ export function TravelGroupDetailPage() {
 
   async function handleDelete() {
     if (!summary) return;
-    if (!confirm('Delete this travel group?')) return;
+    if (
+      !(await confirm({
+        title: 'Delete travel group?',
+        description:
+          'This travel group and its operational record will be permanently removed.',
+      }))
+    )
+      return;
     try {
       await api.deleteTravelGroup(summary.id);
       navigate('/travel-groups');

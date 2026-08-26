@@ -1,8 +1,4 @@
-import { useEffect, useState } from 'react';
-import {
-  listPublicPackages,
-  type PublicPackageVersion,
-} from '../../../lib/public-api';
+import { type PublicPackageVersion } from '../../../lib/public-api';
 import { PackageCard } from './package-card';
 
 /**
@@ -55,7 +51,7 @@ function pickNextUpcoming(
  * Groups versions by `package_template_id`, picks the next upcoming version per
  * group, and returns them sorted by tier rank.
  */
-function selectShowcasePackages(
+export function selectShowcasePackages(
   all: PublicPackageVersion[],
 ): PublicPackageVersion[] {
   const groups = new Map<string, PublicPackageVersion[]>();
@@ -75,31 +71,25 @@ function selectShowcasePackages(
   return showcase.sort((a, b) => tierRank(a) - tierRank(b));
 }
 
+export { tierKey };
+
 /**
- * Fetches published package versions from the API and renders one card per tier
- * using the original `PackageCard` design.
+ * Renders the live package cards in a responsive grid.
  *
  * @remarks
- * - Only one version per tier (template) is shown — the next upcoming departure.
- *   This preserves the "three tiers, one foundation" comparison layout even when
- *   multiple seasons are published.
- * - Tiers with no published versions are hidden.
- * - Packages are sorted by tier (Economy → Comfort → Premium) so the visual
- *   progression matches the original layout, regardless of API `sort_order`.
+ * - Receives already-fetched showcase packages from the parent so the same
+ *   data can be shared with the comparison matrix without a second fetch.
+ * - Tiers with no published versions are hidden (the parent simply passes
+ *   fewer packages).
  * - The "Comfort" tier is marked "popular" to preserve the elevated center card.
- * - Loading and empty states are minimal and styled to match the page.
  */
-export function LivePackages() {
-  const [packages, setPackages] = useState<PublicPackageVersion[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    setLoading(true);
-    listPublicPackages()
-      .then((res) => setPackages(selectShowcasePackages(res.data)))
-      .finally(() => setLoading(false));
-  }, []);
-
+export function LivePackages({
+  packages,
+  loading,
+}: {
+  packages: PublicPackageVersion[];
+  loading: boolean;
+}) {
   if (loading) {
     return (
       <div className="grid grid-cols-1 gap-8 md:grid-cols-3 md:items-stretch">

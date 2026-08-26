@@ -204,6 +204,7 @@ describe('PackagesService', () => {
 describe('getPackageVersionPublicationIssues', () => {
   const validVersion = {
     version_name: 'April 2026',
+    slug: 'april-2026',
     departure_date: '2026-04-10',
     return_date: '2026-04-20',
     base_price: 1500,
@@ -226,6 +227,16 @@ describe('getPackageVersionPublicationIssues', () => {
     });
     expect(issues).toContainEqual(
       expect.objectContaining({ code: 'VERSION_NAME_REQUIRED' }),
+    );
+  });
+
+  it('flags missing slug', () => {
+    const issues = getPackageVersionPublicationIssues({
+      ...validVersion,
+      slug: '',
+    });
+    expect(issues).toContainEqual(
+      expect.objectContaining({ code: 'SLUG_REQUIRED' }),
     );
   });
 

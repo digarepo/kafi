@@ -33,6 +33,7 @@ import {
   WorkflowStatusBadge,
 } from '../../../shared/operational-ui';
 import { DataTable } from '../../../shared/data-table';
+import { useDestructiveConfirmation } from '../../../shared/delete-dialog';
 import { DataTableViewOptions } from '../../../shared/data-table/data-table-view-options';
 import { actionsColumn, textColumn } from '../../../shared/data-table/columns';
 import {
@@ -80,6 +81,7 @@ const DEFAULT_PAGE_SIZE = 10;
 export function RegistrationListPage() {
   useRenderProfile('RegistrationListPage');
   const { can } = usePermissions();
+  const { confirm } = useDestructiveConfirmation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -274,7 +276,15 @@ export function RegistrationListPage() {
   );
 
   const handleArchive = useCallback(async (id: string) => {
-    if (!confirm('Archive this registration?')) return;
+    if (
+      !(await confirm({
+        title: 'Archive registration?',
+        description:
+          'The registration will be removed from active records and can be restored later.',
+        confirmLabel: 'Archive',
+      }))
+    )
+      return;
     try {
       await api.archiveRegistration(id);
       setRegistrations((current) =>
@@ -344,6 +354,7 @@ export function RegistrationListPage() {
           {
             label: 'Archive',
             icon: Archive,
+            variant: 'destructive',
             onClick: (registration) => void handleArchive(registration.id),
             disabled: () => !can('REGISTRATION_DELETE'),
           },

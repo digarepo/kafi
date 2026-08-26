@@ -1,9 +1,14 @@
-import { Link } from "react-router";
-import { cn, SidebarHeader as ShadcnSidebarHeader, SidebarTrigger, useSidebar } from "@kafi/ui";
+import { Link } from 'react-router';
+import {
+  cn,
+  SidebarHeader as ShadcnSidebarHeader,
+  SidebarTrigger,
+  useSidebar,
+} from '@kafi/ui';
 
 function BrandLogo({ className }: { className?: string }) {
   return (
-    <div className={cn("relative", className)}>
+    <div className={cn('relative', className)}>
       <img
         src="/KafiOr.svg"
         alt="Kafi Tours"
@@ -19,11 +24,12 @@ function BrandLogo({ className }: { className?: string }) {
 }
 
 export function SidebarHeader() {
-  const { state } = useSidebar();
+  const { isMobile, state } = useSidebar();
+  const isExpanded = isMobile || state === 'expanded';
 
   return (
-    <ShadcnSidebarHeader className={cn("h-14", state === "collapsed" && "p-0")}>
-      {state === "expanded" ? (
+    <ShadcnSidebarHeader className={cn('h-14', !isExpanded && 'p-0')}>
+      {isExpanded ? (
         <div className="flex h-full items-center justify-between px-3">
           <Link
             to="/"
@@ -37,8 +43,18 @@ export function SidebarHeader() {
           <SidebarTrigger className="h-8 w-8" />
         </div>
       ) : (
-        <div className="flex h-full items-center justify-center px-1">
-          <BrandLogo className="h-10 w-10 shrink-0" />
+        <div className="group/sidebar-brand relative flex h-full items-center justify-center px-1">
+          <Link
+            to="/"
+            aria-label="Kafi Tours home"
+            className="flex h-10 w-10 items-center justify-center rounded-md outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <BrandLogo className="h-10 w-10 shrink-0" />
+          </Link>
+          <SidebarTrigger
+            aria-label="Expand sidebar"
+            className="pointer-events-none absolute inset-1 h-auto w-auto bg-sidebar/80 opacity-0 transition-opacity group-hover/sidebar-brand:pointer-events-auto group-hover/sidebar-brand:opacity-100 group-focus-within/sidebar-brand:pointer-events-auto group-focus-within/sidebar-brand:opacity-100"
+          />
         </div>
       )}
     </ShadcnSidebarHeader>

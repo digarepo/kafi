@@ -7,7 +7,7 @@ import {
   Plus,
   RotateCcw,
   Search,
-  Trash2,
+  Archive,
 } from 'lucide-react';
 
 import { usePermissions } from '../../../core/permissions';
@@ -178,8 +178,8 @@ export function UsersPage({ initial }: UsersPageProps) {
           disabled: (user) => !can('USER_EDIT') || user.is_email_verified,
         },
         {
-          label: 'Delete',
-          icon: Trash2,
+          label: 'Archive',
+          icon: Archive,
           variant: 'destructive',
           onClick: (user) => handleDeleteClick(user),
           disabled: () => !can('USER_DELETE'),

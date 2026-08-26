@@ -14,6 +14,7 @@ import {
 
 import { usePermissions } from '../../../core/permissions';
 import { DataTable } from '../../../shared/data-table';
+import { useDestructiveConfirmation } from '../../../shared/delete-dialog';
 import { actionsColumn } from '../../../shared/data-table/columns';
 import { FinanceStatusBadge } from '../../../shared/finance-status';
 import { formatMoney, normalizeLookupOption } from '../../../shared/format';
@@ -29,6 +30,7 @@ const DEFAULT_PAGE_SIZE = 10;
 export function PaymentsListPage() {
   const { can } = usePermissions();
   const navigate = useNavigate();
+  const { confirm } = useDestructiveConfirmation();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const search = searchParams.get('q') ?? '';
@@ -143,7 +145,15 @@ export function PaymentsListPage() {
     });
 
   async function handleArchive(id: string) {
-    if (!confirm('Archive this payment?')) return;
+    if (
+      !(await confirm({
+        title: 'Archive payment?',
+        description:
+          'The payment will be removed from active records and can be restored later.',
+        confirmLabel: 'Archive',
+      }))
+    )
+      return;
     try {
       await api.archivePayment(id);
       setRetryNonce((n) => n + 1);

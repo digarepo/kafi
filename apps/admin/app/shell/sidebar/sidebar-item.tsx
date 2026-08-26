@@ -1,15 +1,17 @@
-import { Link } from "react-router";
-import { SidebarMenuButton, SidebarMenuItem } from "@kafi/ui";
+import { Link } from 'react-router';
+import { SidebarMenuButton, SidebarMenuItem } from '@kafi/ui';
 
-import { isNavigationItemActive, type AdminNavigationItem } from "../navigation";
-import { useLocation } from "react-router";
+import {
+  isNavigationItemActive,
+  type AdminNavigationItem,
+} from '../navigation';
 
 type Props = {
   item: AdminNavigationItem;
+  pathname: string;
 };
 
-export function SidebarItem({ item }: Props) {
-  const { pathname } = useLocation();
+export function SidebarItem({ item, pathname }: Props) {
   const isActive = isNavigationItemActive(item, pathname);
   const Icon = item.icon;
 
@@ -18,7 +20,7 @@ export function SidebarItem({ item }: Props) {
       <SidebarMenuButton
         isActive={isActive}
         tooltip={item.label}
-        aria-current={isActive ? "page" : undefined}
+        aria-current={isActive ? 'page' : undefined}
         render={
           <Link to={item.href}>
             <Icon aria-hidden="true" />

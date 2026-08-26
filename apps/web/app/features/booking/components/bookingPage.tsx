@@ -2,27 +2,32 @@
  * Booking request page for Kafi Tours.
  *
  * @remarks
- * - Reads the `?package=:slug` query parameter to pre-select a package.
+ * - Receives the pre-selected package slug and name from the route loader,
+ *   so the packages data chunk is not part of the client bundle.
  * - Renders an editorial hero, the booking form, and a dedicated success state
  *   handled by the form component.
  */
 
-import { useSearchParams } from "react-router";
-import { Badge } from "@kafi/ui";
+import { Badge } from '@ui/components/ui/badge';
 
-import BookingForm from "./booking-form";
-import { packages } from "@/features/packages/data/packages";
+import BookingForm from './booking-form';
 
-export default function BookingPage() {
-  const [searchParams] = useSearchParams();
-  const packageParam = searchParams.get("package");
+interface BookingPageProps {
+  /** Optional package slug to pre-select from a query parameter. */
+  defaultPackage?: string;
+  /** Optional display name of the pre-selected package for the callout. */
+  prefilledPackageName?: string;
+}
 
-  const prefilledPackage = packageParam
-    ? packages.find((pkg) => pkg.slug === packageParam || pkg.id === packageParam)
-    : undefined;
-
+export default function BookingPage({
+  defaultPackage,
+  prefilledPackageName,
+}: BookingPageProps) {
   return (
-    <main className="min-h-screen bg-background text-foreground">
+    <main
+      id="main-content"
+      className="min-h-screen bg-background text-foreground"
+    >
       <section className="relative overflow-hidden border-b border-border/10 bg-linear-to-b from-muted/10 to-background pt-28 pb-12 md:pt-32 md:pb-16">
         <div className="mx-auto max-w-7xl px-6 sm:px-8 lg:px-12">
           <div className="max-w-3xl">
@@ -38,9 +43,9 @@ export default function BookingPage() {
             </h1>
 
             <p className="mt-6 text-base font-light leading-relaxed text-muted-foreground md:text-lg">
-              Share a few details about your preferred package, travel period, and group size. A
-              Kafi travel coordinator will contact you to confirm availability and guide you through
-              the next steps.
+              Share a few details about your preferred package, travel period,
+              and group size. A Kafi travel coordinator will contact you to
+              confirm availability and guide you through the next steps.
             </p>
           </div>
         </div>
@@ -51,8 +56,8 @@ export default function BookingPage() {
           <div className="grid gap-12 lg:grid-cols-12">
             <div className="lg:col-span-7">
               <BookingForm
-                defaultPackage={prefilledPackage?.slug}
-                prefilledPackageName={prefilledPackage?.name}
+                defaultPackage={defaultPackage}
+                prefilledPackageName={prefilledPackageName}
               />
             </div>
 

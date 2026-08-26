@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { Button } from '@kafi/ui';
 
 import { usePermissions } from '../../../core/permissions';
+import { useDestructiveConfirmation } from '../../../shared/delete-dialog';
 import { WorkflowStatusBadge } from '../../../shared/operational-ui';
 import { displayDate } from '../../operations/lib/date';
 import {
@@ -17,6 +18,7 @@ import type { VisaResultFormValues } from '../types/documents.types';
 export function VisaApplicationDetailPage() {
   const { can } = usePermissions();
   const navigate = useNavigate();
+  const { confirm } = useDestructiveConfirmation();
   const { id } = useParams<{ id: string }>();
   const [visa, setVisa] = useState<VisaApplicationDetail | null>(null);
   const [statuses, setStatuses] = useState<VisaApplicationStatus[]>([]);
@@ -94,7 +96,13 @@ export function VisaApplicationDetailPage() {
 
   async function handleDelete() {
     if (!id) return;
-    if (!confirm('Delete this visa application?')) return;
+    if (
+      !(await confirm({
+        title: 'Delete visa application?',
+        description: 'This visa application will be permanently removed.',
+      }))
+    )
+      return;
     try {
       await documentsApi.deleteVisaApplication(id);
       toast.success('Visa application deleted');

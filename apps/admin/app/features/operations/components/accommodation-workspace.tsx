@@ -39,6 +39,8 @@ import {
 } from '@kafi/ui';
 import { type DateRange } from 'react-day-picker';
 import { DateRangePicker } from '../../packages/components/date-range-picker';
+import { toast } from 'sonner';
+import { useDestructiveConfirmation } from '../../../shared/delete-dialog';
 import {
   api,
   type Country,
@@ -186,6 +188,7 @@ function StayCard({
   group,
   onChanged,
 }: StayCardProps) {
+  const { confirm } = useDestructiveConfirmation();
   const [editOpen, setEditOpen] = useState(false);
   const hotelName = stay.hotel_name ?? stay.hotel?.name ?? 'Hotel unavailable';
   const cityName = stay.city?.name ?? 'City unavailable';
@@ -196,16 +199,17 @@ function StayCard({
 
   async function handleDeleteStay() {
     if (
-      !confirm(
-        'Delete this hotel stay? Rooms and assignments must be removed first.',
-      )
+      !(await confirm({
+        title: 'Delete hotel stay?',
+        description: 'Rooms and assignments must be removed first.',
+      }))
     )
       return;
     try {
       await api.deleteGroupHotelStay(stay.id);
       onChanged();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Could not delete stay');
+      toast.error(err instanceof Error ? err.message : 'Could not delete stay');
     }
   }
 
@@ -326,6 +330,7 @@ interface StayRoomManagerProps {
 }
 
 function StayRoomManager({ stay, group, onChanged }: StayRoomManagerProps) {
+  const { confirm } = useDestructiveConfirmation();
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -390,7 +395,14 @@ function StayRoomManager({ stay, group, onChanged }: StayRoomManagerProps) {
   }
 
   async function handleRelease(assignmentId: string) {
-    if (!confirm('Release this room assignment?')) return;
+    if (
+      !(await confirm({
+        title: 'Release room assignment?',
+        description: 'This room assignment will be removed from the group.',
+        confirmLabel: 'Release assignment',
+      }))
+    )
+      return;
     try {
       await api.releaseRoomAssignment(assignmentId);
       onChanged();
@@ -400,7 +412,13 @@ function StayRoomManager({ stay, group, onChanged }: StayRoomManagerProps) {
   }
 
   async function handleDeleteRoom(roomId: string) {
-    if (!confirm('Delete this room?')) return;
+    if (
+      !(await confirm({
+        title: 'Delete room?',
+        description: 'This room will be permanently removed.',
+      }))
+    )
+      return;
     try {
       await api.deleteRoom(roomId);
       await loadRooms();

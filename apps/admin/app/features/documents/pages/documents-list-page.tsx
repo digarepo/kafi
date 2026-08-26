@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { useNavigate, useSearchParams } from 'react-router';
-import { Eye, RotateCcw, Search, Trash2 } from 'lucide-react';
+import { Archive, Eye, RotateCcw, Search } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -13,6 +13,7 @@ import {
 
 import { usePermissions } from '../../../core/permissions';
 import { DataTable } from '../../../shared/data-table';
+import { useDestructiveConfirmation } from '../../../shared/delete-dialog';
 import { actionsColumn, textColumn } from '../../../shared/data-table/columns';
 import { documentsApi, type DocumentListItem } from '../lib/api';
 import { useDebouncedValue } from '../../../shared/hooks/use-debounced-value';
@@ -21,6 +22,7 @@ const DEFAULT_PAGE_SIZE = 10;
 
 export function DocumentsListPage() {
   const { can } = usePermissions();
+  const { confirm } = useDestructiveConfirmation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const travellerId = searchParams.get('traveller_id') ?? undefined;
@@ -118,7 +120,13 @@ export function DocumentsListPage() {
   ]);
 
   async function handleDelete(id: string) {
-    if (!confirm('Delete this document?')) return;
+    if (
+      !(await confirm({
+        title: 'Delete document?',
+        description: 'This document will be permanently removed.',
+      }))
+    )
+      return;
     try {
       await documentsApi.deleteDocument(id);
       setPagination((c) => ({ ...c }));
@@ -175,8 +183,8 @@ export function DocumentsListPage() {
           onClick: (d) => navigate(`/documents/${d.id}`),
         },
         {
-          label: 'Delete',
-          icon: Trash2,
+          label: 'Archive',
+          icon: Archive,
           variant: 'destructive',
           onClick: (d) => void handleDelete(d.id),
           disabled: () => !can('DOCUMENT_MANAGE'),

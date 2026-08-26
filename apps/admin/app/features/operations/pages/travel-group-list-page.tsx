@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { useNavigate, useSearchParams } from 'react-router';
-import { Eye, Pencil, Plus, RotateCcw, Search, Trash2 } from 'lucide-react';
+import { Archive, Eye, Pencil, Plus, RotateCcw, Search } from 'lucide-react';
 import { useRenderProfile } from '../../../dev/render-profile';
 import {
   Button,
@@ -20,6 +20,7 @@ import {
   WorkflowStatusBadge,
 } from '../../../shared/operational-ui';
 import { DataTable } from '../../../shared/data-table';
+import { useDestructiveConfirmation } from '../../../shared/delete-dialog';
 import { actionsColumn, textColumn } from '../../../shared/data-table/columns';
 import {
   api,
@@ -41,6 +42,7 @@ function parseYmdToDate(value: string | null): Date | undefined {
 export function TravelGroupListPage() {
   useRenderProfile('TravelGroupListPage');
   const { can } = usePermissions();
+  const { confirm } = useDestructiveConfirmation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -250,7 +252,13 @@ export function TravelGroupListPage() {
   );
 
   const handleDelete = useCallback(async (id: string) => {
-    if (!confirm('Delete this travel group?')) return;
+    if (
+      !(await confirm({
+        title: 'Delete travel group?',
+        description: 'This travel group will be permanently removed.',
+      }))
+    )
+      return;
     try {
       await api.deleteTravelGroup(id);
       setGroups((current) => current.filter((group) => group.id !== id));
@@ -331,8 +339,8 @@ export function TravelGroupListPage() {
             disabled: () => !can('TRAVEL_GROUP_MANAGE'),
           },
           {
-            label: 'Delete',
-            icon: Trash2,
+            label: 'Archive',
+            icon: Archive,
             variant: 'destructive',
             onClick: (group) => void handleDelete(group.id),
             disabled: () => !can('TRAVEL_GROUP_MANAGE'),

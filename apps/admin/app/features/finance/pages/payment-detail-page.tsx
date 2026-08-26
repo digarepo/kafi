@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router';
 import { Button, Card, CardContent, CardHeader, CardTitle } from '@kafi/ui';
 
 import { usePermissions } from '../../../core/permissions';
+import { useDestructiveConfirmation } from '../../../shared/delete-dialog';
 import {
   api,
   type AllocationInput,
@@ -17,6 +18,7 @@ interface PaymentDetailPageProps {
 
 export function PaymentDetailPage({ id }: PaymentDetailPageProps) {
   const { can } = usePermissions();
+  const { confirm } = useDestructiveConfirmation();
   const navigate = useNavigate();
   const [payment, setPayment] = useState<Payment | null>(null);
   const [invoices, setInvoices] = useState<InvoiceListItem[]>([]);
@@ -49,7 +51,15 @@ export function PaymentDetailPage({ id }: PaymentDetailPageProps) {
 
   async function handleArchive() {
     if (!payment) return;
-    if (!confirm('Archive this payment?')) return;
+    if (
+      !(await confirm({
+        title: 'Archive payment?',
+        description:
+          'The payment will be removed from active records and can be restored later.',
+        confirmLabel: 'Archive',
+      }))
+    )
+      return;
     try {
       await api.archivePayment(payment.id);
       navigate('/payments');
@@ -66,7 +76,9 @@ export function PaymentDetailPage({ id }: PaymentDetailPageProps) {
       await reload();
       setAllocateOpen(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to allocate payment');
+      setError(
+        err instanceof Error ? err.message : 'Failed to allocate payment',
+      );
     }
   }
 
@@ -118,7 +130,9 @@ export function PaymentDetailPage({ id }: PaymentDetailPageProps) {
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Original amount</p>
-            <p className="font-medium">{Number(payment.original_amount).toFixed(2)}</p>
+            <p className="font-medium">
+              {Number(payment.original_amount).toFixed(2)}
+            </p>
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Exchange rate</p>
@@ -130,7 +144,9 @@ export function PaymentDetailPage({ id }: PaymentDetailPageProps) {
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Unallocated (ETB)</p>
-            <p className="font-medium">{payment.unallocated_amount.toFixed(2)}</p>
+            <p className="font-medium">
+              {payment.unallocated_amount.toFixed(2)}
+            </p>
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Reference number</p>
@@ -160,7 +176,9 @@ export function PaymentDetailPage({ id }: PaymentDetailPageProps) {
                   {payment.allocations.map((a) => (
                     <tr key={a.id} className="border-t border-border">
                       <td className="p-2">{a.invoice_number}</td>
-                      <td className="p-2">{Number(a.allocated_amount).toFixed(2)}</td>
+                      <td className="p-2">
+                        {Number(a.allocated_amount).toFixed(2)}
+                      </td>
                       <td className="p-2">{a.allocation_date}</td>
                     </tr>
                   ))}

@@ -29,6 +29,7 @@ import {
 import { usePermissions } from '../../../core/permissions';
 import { useRenderProfile } from '../../../dev/render-profile';
 import { DataTable } from '../../../shared/data-table';
+import { useDestructiveConfirmation } from '../../../shared/delete-dialog';
 import {
   actionsColumn,
   statusColumn,
@@ -63,6 +64,7 @@ const DEFAULT_PAGE_SIZE = 10;
 export function PackagesPage() {
   useRenderProfile('PackagesPage');
   const { can } = usePermissions();
+  const { confirm } = useDestructiveConfirmation();
   const [tab, setTab] = useState<Tab>('templates');
 
   const [categories, setCategories] = useState<PackageCategory[]>([]);
@@ -219,7 +221,15 @@ export function PackagesPage() {
 
   const handleArchiveTemplate = useCallback(
     async (id: string) => {
-      if (!confirm('Archive this template?')) return;
+      if (
+        !(await confirm({
+          title: 'Archive package template?',
+          description:
+            'The template will be removed from active records and can be restored later.',
+          confirmLabel: 'Archive',
+        }))
+      )
+        return;
       try {
         await api.archivePackageTemplate(id);
         toast.success('Template archived');
@@ -274,9 +284,11 @@ export function PackagesPage() {
   const handleCloseVersion = useCallback(
     async (id: string) => {
       if (
-        !confirm(
-          'Close this version early? It will stop accepting registrations.',
-        )
+        !(await confirm({
+          title: 'Close package version early?',
+          description: 'It will stop accepting new registrations.',
+          confirmLabel: 'Close version',
+        }))
       )
         return;
       try {
@@ -292,7 +304,15 @@ export function PackagesPage() {
 
   const handleCancelVersion = useCallback(
     async (id: string) => {
-      if (!confirm('Cancel this package version?')) return;
+      if (
+        !(await confirm({
+          title: 'Cancel package version?',
+          description:
+            'This package version will no longer be available for operations.',
+          confirmLabel: 'Cancel version',
+        }))
+      )
+        return;
       try {
         await api.cancelPackageVersion(id);
         toast.success('Version cancelled');

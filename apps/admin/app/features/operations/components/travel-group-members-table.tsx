@@ -1,4 +1,5 @@
 import type { ColumnDef } from '@tanstack/react-table';
+import { Archive } from 'lucide-react';
 import { usePermissions } from '../../../core/permissions';
 import { DataTable, actionsColumn } from '../../../shared/data-table';
 import { displayDate } from '../lib/date';
@@ -40,7 +41,9 @@ export function TravelGroupMembersTable({
       actions: [
         { label: 'View', onClick: (m) => onView(m) },
         {
-          label: 'Delete',
+          label: 'Archive',
+          icon: Archive,
+          variant: 'destructive',
           onClick: (m) => onDelete(m),
           disabled: () => !can('TRAVEL_GROUP_MANAGE'),
         },

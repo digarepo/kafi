@@ -13,7 +13,7 @@ import {
   PhoneIcon,
   WhatsappLogoIcon,
 } from '@phosphor-icons/react';
-import { Separator } from '@kafi/ui';
+import { Separator } from '@ui/components/ui/separator';
 
 const PHONE_PRIMARY = '+251 111 262 965';
 const PHONE_MOBILE = '+251 930 737 337';
@@ -40,17 +40,20 @@ const OFFICE_HOURS = [
  * - Sunday is always treated as closed.
  */
 function useOfficeStatus() {
-  const [now, setNow] = useState(() => new Date());
+  const [now, setNow] = useState<Date | null>(null);
 
   useEffect(() => {
+    setNow(new Date());
     const timer = setInterval(() => setNow(new Date()), 60000);
     return () => clearInterval(timer);
   }, []);
 
-  const minutes = now.getHours() * 60 + now.getMinutes();
-  const today = OFFICE_HOURS.find((h) =>
-    (h.days as readonly number[]).includes(now.getDay()),
-  );
+  const minutes = now ? now.getHours() * 60 + now.getMinutes() : -1;
+  const today = now
+    ? OFFICE_HOURS.find((h) =>
+        (h.days as readonly number[]).includes(now.getDay()),
+      )
+    : undefined;
   const isOpen = today?.open
     ? minutes >= today.open[0] * 60 && minutes < today.open[1] * 60
     : false;
@@ -96,7 +99,7 @@ function PanelSection({
  * @returns The panel with phone, WhatsApp, email, and office hours.
  */
 export default function ContactPanel() {
-  const { isOpen } = useOfficeStatus();
+  const { isOpen, now } = useOfficeStatus();
 
   return (
     <aside className="lg:border-l lg:border-border/40 lg:pl-12">
@@ -160,10 +163,10 @@ export default function ContactPanel() {
           <div className="space-y-3">
             <div className="flex items-center gap-2">
               <span
-                className={`size-2 rounded-full ${isOpen ? 'bg-green-500' : 'bg-amber-500'}`}
+                className={`size-2 rounded-full ${now ? (isOpen ? 'bg-green-500' : 'bg-amber-500') : 'bg-muted-foreground/30'}`}
               />
               <span className="text-sm font-medium text-foreground">
-                {isOpen ? 'Open now' : 'Closed now'}
+                {now ? (isOpen ? 'Open now' : 'Closed now') : 'Checking hours…'}
               </span>
             </div>
             <dl className="space-y-2">

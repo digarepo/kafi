@@ -1,5 +1,7 @@
 import {
+  createContext,
   useCallback,
+  useContext,
   useState,
   type ReactElement,
   type ReactNode,
@@ -53,6 +55,19 @@ export interface DeleteDialogProps {
   /** Custom cancel button label. */
   cancelLabel?: string;
 }
+
+export interface DestructiveConfirmationOptions {
+  title: ReactNode;
+  description: ReactNode;
+  confirmLabel?: string;
+}
+
+type DestructiveConfirmationContextValue = {
+  confirm: (options: DestructiveConfirmationOptions) => Promise<boolean>;
+};
+
+const DestructiveConfirmationContext =
+  createContext<DestructiveConfirmationContextValue | null>(null);
 
 function capitalize(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1);
@@ -131,4 +146,57 @@ export function DeleteDialog({
 export function useDeleteDialog() {
   const [open, setOpen] = useState(false);
   return { open, setOpen };
+}
+
+export function DeleteDialogProvider({ children }: { children: ReactNode }) {
+  const [request, setRequest] = useState<{
+    options: DestructiveConfirmationOptions;
+    resolve: (confirmed: boolean) => void;
+  } | null>(null);
+
+  const confirm = useCallback(
+    (options: DestructiveConfirmationOptions) =>
+      new Promise<boolean>((resolve) => setRequest({ options, resolve })),
+    [],
+  );
+
+  const close = useCallback(() => {
+    setRequest((current) => {
+      current?.resolve(false);
+      return null;
+    });
+  }, []);
+
+  const handleConfirm = useCallback(() => {
+    setRequest((current) => {
+      current?.resolve(true);
+      return null;
+    });
+  }, []);
+
+  return (
+    <DestructiveConfirmationContext.Provider value={{ confirm }}>
+      {children}
+      <DeleteDialog
+        open={request !== null}
+        onOpenChange={(open) => {
+          if (!open) close();
+        }}
+        title={request?.options.title}
+        description={request?.options.description}
+        confirmLabel={request?.options.confirmLabel}
+        onConfirm={handleConfirm}
+      />
+    </DestructiveConfirmationContext.Provider>
+  );
+}
+
+export function useDestructiveConfirmation() {
+  const context = useContext(DestructiveConfirmationContext);
+  if (!context) {
+    throw new Error(
+      'useDestructiveConfirmation must be used within DeleteDialogProvider.',
+    );
+  }
+  return context;
 }

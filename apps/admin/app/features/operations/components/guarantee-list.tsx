@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
-import { Button } from "@kafi/ui";
-import { api, type Guarantee, type GroupMembership } from "../../../lib/api.js";
-import { displayDate } from "../lib/date";
+import { useEffect, useState } from 'react';
+import { Button } from '@kafi/ui';
+import { api, type Guarantee, type GroupMembership } from '../../../lib/api.js';
+import { useDestructiveConfirmation } from '../../../shared/delete-dialog';
+import { displayDate } from '../lib/date';
 
 interface GuaranteeListProps {
   membership: GroupMembership;
@@ -10,7 +11,13 @@ interface GuaranteeListProps {
   onChanged: () => void;
 }
 
-export function GuaranteeList({ membership, canManage, onReplace, onChanged }: GuaranteeListProps) {
+export function GuaranteeList({
+  membership,
+  canManage,
+  onReplace,
+  onChanged,
+}: GuaranteeListProps) {
+  const { confirm } = useDestructiveConfirmation();
   const [guarantees, setGuarantees] = useState<Guarantee[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -23,7 +30,10 @@ export function GuaranteeList({ membership, canManage, onReplace, onChanged }: G
         const data = await api.listGuarantees(membership.id);
         if (!cancelled) setGuarantees(data);
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load guarantees");
+        if (!cancelled)
+          setError(
+            err instanceof Error ? err.message : 'Failed to load guarantees',
+          );
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -35,20 +45,29 @@ export function GuaranteeList({ membership, canManage, onReplace, onChanged }: G
   }, [membership.id]);
 
   async function handleDelete(id: string) {
-    if (!confirm("Delete this guarantee?")) return;
+    if (
+      !(await confirm({
+        title: 'Delete guarantee?',
+        description: 'This guarantee will be permanently removed.',
+      }))
+    )
+      return;
     try {
       await api.deleteGuarantee(id);
       onChanged();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Delete failed");
+      setError(err instanceof Error ? err.message : 'Delete failed');
     }
   }
 
-  if (loading) return <p className="text-muted-foreground">Loading guarantees…</p>;
+  if (loading)
+    return <p className="text-muted-foreground">Loading guarantees…</p>;
   if (error) return <p className="text-destructive text-sm">{error}</p>;
 
   if (guarantees.length === 0) {
-    return <p className="text-muted-foreground text-sm">No guarantees recorded.</p>;
+    return (
+      <p className="text-muted-foreground text-sm">No guarantees recorded.</p>
+    );
   }
 
   return (
@@ -62,7 +81,9 @@ export function GuaranteeList({ membership, canManage, onReplace, onChanged }: G
             <th className="px-3 py-2 text-left font-medium">Amount</th>
             <th className="px-3 py-2 text-left font-medium">Effective</th>
             <th className="px-3 py-2 text-left font-medium">Expiry</th>
-            {canManage && <th className="px-3 py-2 text-right font-medium">Actions</th>}
+            {canManage && (
+              <th className="px-3 py-2 text-right font-medium">Actions</th>
+            )}
           </tr>
         </thead>
         <tbody>
@@ -72,7 +93,7 @@ export function GuaranteeList({ membership, canManage, onReplace, onChanged }: G
               <td className="px-3 py-2">{g.guarantee_type}</td>
               <td className="px-3 py-2">{g.guarantee_status}</td>
               <td className="px-3 py-2">
-                {g.amount ? `${g.amount} ${g.currency?.code ?? ""}` : "-"}
+                {g.amount ? `${g.amount} ${g.currency?.code ?? ''}` : '-'}
               </td>
               <td className="px-3 py-2">{displayDate(g.effective_date)}</td>
               <td className="px-3 py-2">{displayDate(g.expiry_date)}</td>
@@ -83,7 +104,8 @@ export function GuaranteeList({ membership, canManage, onReplace, onChanged }: G
                     size="sm"
                     onClick={() => onReplace(g)}
                     disabled={
-                      g.guarantee_status === "REPLACED" || g.guarantee_status === "REFUNDED"
+                      g.guarantee_status === 'REPLACED' ||
+                      g.guarantee_status === 'REFUNDED'
                     }
                   >
                     Replace
@@ -92,7 +114,10 @@ export function GuaranteeList({ membership, canManage, onReplace, onChanged }: G
                     variant="ghost"
                     size="sm"
                     onClick={() => void handleDelete(g.id)}
-                    disabled={g.guarantee_status === "ACTIVE" || g.guarantee_status === "REPLACED"}
+                    disabled={
+                      g.guarantee_status === 'ACTIVE' ||
+                      g.guarantee_status === 'REPLACED'
+                    }
                   >
                     Delete
                   </Button>

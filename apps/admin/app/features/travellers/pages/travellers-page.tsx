@@ -15,6 +15,7 @@ import { Archive, Pencil, Plus, RotateCcw, Search } from 'lucide-react';
 
 import { usePermissions } from '../../../core/permissions';
 import { DataTable } from '../../../shared/data-table';
+import { useDestructiveConfirmation } from '../../../shared/delete-dialog';
 import { actionsColumn, textColumn } from '../../../shared/data-table/columns';
 import {
   api,
@@ -49,6 +50,7 @@ type Tab = 'travellers' | 'contacts' | 'registrations';
  */
 export function TravellersPage() {
   const { can } = usePermissions();
+  const { confirm } = useDestructiveConfirmation();
   const [tab, setTab] = useState<Tab>('travellers');
 
   // Reference data
@@ -213,7 +215,15 @@ export function TravellersPage() {
   }
 
   async function handleArchiveTraveller(id: string) {
-    if (!confirm('Archive this traveller?')) return;
+    if (
+      !(await confirm({
+        title: 'Archive traveller?',
+        description:
+          'The traveller will be removed from active records and can be restored later.',
+        confirmLabel: 'Archive',
+      }))
+    )
+      return;
     setError(null);
     setSuccess(null);
     try {
@@ -272,7 +282,15 @@ export function TravellersPage() {
   }
 
   async function handleArchiveContact(id: string) {
-    if (!confirm('Archive this contact person?')) return;
+    if (
+      !(await confirm({
+        title: 'Archive contact person?',
+        description:
+          'The contact person will be removed from active records and can be restored later.',
+        confirmLabel: 'Archive',
+      }))
+    )
+      return;
     setError(null);
     setSuccess(null);
     try {
@@ -324,7 +342,15 @@ export function TravellersPage() {
   }
 
   async function handleArchiveRegistration(id: string) {
-    if (!confirm('Archive this registration?')) return;
+    if (
+      !(await confirm({
+        title: 'Archive registration?',
+        description:
+          'The registration will be removed from active records and can be restored later.',
+        confirmLabel: 'Archive',
+      }))
+    )
+      return;
     setError(null);
     setSuccess(null);
     try {

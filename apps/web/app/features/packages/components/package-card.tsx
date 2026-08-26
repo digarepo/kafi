@@ -1,7 +1,14 @@
 import { Link } from 'react-router';
-import { ArrowRightIcon, CheckIcon, ClockIcon } from '@phosphor-icons/react';
+import {
+  ArrowRightIcon,
+  CalendarIcon,
+  CheckIcon,
+  ClockIcon,
+  UsersIcon,
+} from '@phosphor-icons/react';
 
-import { Button, Card } from '@kafi/ui';
+import { Button } from '@ui/components/ui/button'
+import { Card } from '@ui/components/ui/card';
 
 import type { PublicPackageVersion } from '../../../lib/public-api';
 
@@ -21,12 +28,18 @@ function tierName(pkg: PublicPackageVersion): string {
 }
 
 /**
- * Derives a subtitle from the version's category and season.
+ * Derives a subtitle from the version's pilgrimage type and season/year.
+ *
+ * @remarks
+ * - When `season.name` is available it is used (e.g. "Ramadan 2027").
+ * - Otherwise falls back to the `year` field (e.g. "2026").
+ * - The pilgrimage type is always prepended (e.g. "Umrah — 2026").
  */
 function subtitle(pkg: PublicPackageVersion): string {
   const parts: string[] = [];
   if (pkg.pilgrimage_type?.name) parts.push(pkg.pilgrimage_type.name);
   if (pkg.season?.name) parts.push(pkg.season.name);
+  else if (pkg.year) parts.push(String(pkg.year));
   return parts.join(' — ') || pkg.version_name;
 }
 
@@ -50,6 +63,18 @@ function formatDuration(pkg: PublicPackageVersion): string {
     (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24),
   );
   return `${nights} Days`;
+}
+
+/**
+ * Formats a date as "18 Feb 2027".
+ */
+function formatDate(dateStr: string | null): string {
+  if (!dateStr) return 'TBD';
+  return new Date(dateStr).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
 }
 
 /**
@@ -77,6 +102,13 @@ export function PackageCard({
     .sort((a, b) => a.display_order - b.display_order)
     .slice(0, 6)
     .map((inc) => inc.inclusion_text);
+
+  const hasAvailability =
+    pkg.available_capacity != null && pkg.max_capacity != null;
+  const isLowAvailability =
+    hasAvailability &&
+    pkg.available_capacity! > 0 &&
+    pkg.available_capacity! <= Math.ceil(pkg.max_capacity! * 0.25);
 
   return (
     <Card
@@ -120,18 +152,35 @@ export function PackageCard({
         </span>
       </div>
 
-      {/* Best for — derived from category and capacity */}
-      <p className="mt-3 text-xs font-light leading-relaxed text-muted-foreground">
-        {pkg.package_category?.name ?? 'Standard'} tier
-        {pkg.max_capacity ? ` · up to ${pkg.max_capacity} pilgrims` : ''}
-      </p>
+      {/* Availability */}
+      {hasAvailability && (
+        <p
+          className={`mt-3 text-xs font-light leading-relaxed ${
+            isLowAvailability ? 'text-accent' : 'text-muted-foreground'
+          }`}
+        >
+          {pkg.available_capacity === 0
+            ? 'Fully booked'
+            : `${pkg.available_capacity} of ${pkg.max_capacity} spots remaining`}
+        </p>
+      )}
 
-      {/* Duration — the only quick fact on the card */}
+      {/* Quick facts — departure date, duration, group size */}
       <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 border-y border-border/40 py-4 text-xs text-muted-foreground">
+        <span className="flex items-center gap-2">
+          <CalendarIcon className="h-4 w-4 shrink-0 text-accent" />
+          {formatDate(pkg.departure_date)}
+        </span>
         <span className="flex items-center gap-2">
           <ClockIcon className="h-4 w-4 shrink-0 text-accent" />
           {formatDuration(pkg)}
         </span>
+        {pkg.max_capacity && (
+          <span className="flex items-center gap-2">
+            <UsersIcon className="h-4 w-4 shrink-0 text-accent" />
+            Up to {pkg.max_capacity}
+          </span>
+        )}
       </div>
 
       {/* Highlights — full list for true comparison */}

@@ -6,6 +6,7 @@ import { Button } from '@kafi/ui';
 import { usePermissions } from '../../../core/permissions';
 import { formatPhone } from '../../../shared/format';
 import { DataTable } from '../../../shared/data-table';
+import { useDestructiveConfirmation } from '../../../shared/delete-dialog';
 import { actionsColumn, textColumn } from '../../../shared/data-table/columns';
 import { api, type ContactPerson } from '../../../lib/api.js';
 
@@ -13,6 +14,7 @@ const DEFAULT_PAGE_SIZE = 10;
 
 export function ContactListPage() {
   const { can } = usePermissions();
+  const { confirm } = useDestructiveConfirmation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -106,7 +108,15 @@ export function ContactListPage() {
   );
 
   async function handleArchive(id: string) {
-    if (!confirm('Archive this contact person?')) return;
+    if (
+      !(await confirm({
+        title: 'Archive contact person?',
+        description:
+          'The contact person will be removed from active records and can be restored later.',
+        confirmLabel: 'Archive',
+      }))
+    )
+      return;
     try {
       await api.archiveContactPerson(id);
       const res = await api.listContactPersons(
@@ -163,6 +173,7 @@ export function ContactListPage() {
           {
             label: 'Archive',
             icon: Archive,
+            variant: 'destructive',
             onClick: (c) => void handleArchive(c.id),
             disabled: () => !can('TRAVELLER_DELETE'),
           },

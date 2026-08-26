@@ -1,4 +1,7 @@
-import { Badge, Button, Card, Separator } from '@kafi/ui';
+import { Badge } from '@ui/components/ui/badge'
+import { Button } from '@ui/components/ui/button'
+import { Card } from '@ui/components/ui/card'
+import { Separator } from '@ui/components/ui/separator';
 import {
   ArrowRightIcon,
   AirplaneIcon,
@@ -8,8 +11,18 @@ import {
   CheckIcon,
 } from '@phosphor-icons/react';
 import { Link } from 'react-router';
+import { lazy, Suspense, useEffect, useState } from 'react';
 
-import { InlineCallbackForm } from '@/features/callback';
+import {
+  listPublicPackages,
+  type PublicPackageVersion,
+} from '@/lib/public-api';
+
+const InlineCallbackForm = lazy(() =>
+  import('@/features/callback/components/inline-callback-form').then((m) => ({
+    default: m.default,
+  })),
+);
 
 /**
  * Renders the partnerships section showcasing trusted travel and pilgrimage partners.
@@ -25,17 +38,29 @@ export function Partners() {
     <section className="py-12 border-t border-b border-border/30 bg-background/50 relative z-10">
       <div className="mx-auto container px-6 sm:px-8 lg:px-12 flex flex-col md:flex-row items-center justify-evenly gap-8 text-center md:text-left">
         <div>
-          <h3 className="font-heading text-xs font-bold text-brand-light dark:text-brand-gold uppercase tracking-wider">
+          <h2 className="font-heading text-xs font-bold text-brand-light dark:text-brand-gold uppercase tracking-wider">
             In Partnership With
-          </h3>
+          </h2>
           <p className="text-[12px] text-muted-foreground font-normal mt-0.5">
             Securing safe flights and premium logistics for all pilgrims.
           </p>
         </div>
         <div className="flex flex-wrap justify-center items-center gap-8 md:gap-12 opacity-70  hover:grayscale-0 transition-all duration-300">
-          <img src="/et-large.svg" className="h-20" />
+          <img
+            src="/et-large.svg"
+            alt="Ethiopian Airlines"
+            className="h-20"
+            width="120"
+            height="80"
+          />
 
-          <img src="/hajj-ministry.svg" className="h-20" />
+          <img
+            src="/hajj-ministry.svg"
+            alt="Saudi Hajj Ministry"
+            className="h-20"
+            width="120"
+            height="80"
+          />
         </div>
       </div>
     </section>
@@ -82,8 +107,14 @@ export function Destinations() {
           <Card className="card card-hover lg:col-span-7 overflow-hidden border-border/30 bg-card flex flex-col justify-between min-h-100 relative">
             <div className="absolute inset-0 z-0">
               <img
-                src="hero-mecca.webp"
-                alt="Makkah"
+                src="/hero-mecca.webp"
+                alt="Makkah Al-Mukarramah with the Masjid al-Haram"
+                width={1200}
+                height={655}
+                loading="eager"
+                fetchPriority="high"
+                sizes="(max-width: 768px) 100vw, 58vw"
+                srcSet="/hero-mecca-sm.webp 400w, /hero-mecca-md.webp 768w, /hero-mecca.webp 1200w"
                 className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
               />
               <div className="absolute inset-0 bg-linear-to-t from-black/90 via-black/40 to-transparent" />
@@ -115,8 +146,13 @@ export function Destinations() {
           <Card className="card card-hover lg:col-span-5 overflow-hidden border-border/30 bg-card flex flex-col justify-between min-h-100 relative">
             <div className="absolute inset-0 z-0">
               <img
-                src="madinah.webp"
-                alt="Madinah"
+                src="/madinah.webp"
+                alt="Al-Madinah Al-Munawwarah with the Prophet's Mosque"
+                width={1200}
+                height={655}
+                loading="lazy"
+                sizes="(max-width: 768px) 100vw, 42vw"
+                srcSet="/madinah-sm.webp 400w, /madinah-md.webp 768w, /madinah.webp 1200w"
                 className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
               />
               <div className="absolute inset-0 bg-linear-to-t from-black/90 via-black/40 to-transparent" />
@@ -143,8 +179,13 @@ export function Destinations() {
           <Card className="card card-hover lg:col-span-12 overflow-hidden border-border/30 bg-card p-6 flex flex-col md:flex-row justify-between items-center gap-6 min-h-60 relative">
             <div className="absolute inset-0 z-0 opacity-35">
               <img
-                src="addis-departure.webp"
-                alt="Ethiopian Airlines Aircraft"
+                src="/addis-departure.webp"
+                alt="Ethiopian Airlines aircraft at Addis Ababa departure"
+                width={1200}
+                height={655}
+                loading="lazy"
+                sizes="(max-width: 768px) 100vw, 100vw"
+                srcSet="/addis-departure-sm.webp 400w, /addis-departure-md.webp 768w, /addis-departure.webp 1200w"
                 className="w-full h-full object-cover"
               />
             </div>
@@ -284,7 +325,71 @@ export function Features() {
  * - Presents Economy, Comfort, and Premium package options.
  * - Highlights the Comfort package as the recommended choice for most travelers.
  */
+function tierKey(pkg: PublicPackageVersion): string {
+  const template = pkg.package_template?.name ?? pkg.version_name ?? '';
+  return template.split(' ')[0]?.toLowerCase() ?? '';
+}
+
+/**
+ * Renders the pricing section showcasing the available pilgrimage packages.
+ *
+ * @returns The pricing section component for the home page.
+ *
+ * @remarks
+ * - Presents Economy, Comfort, and Premium package options.
+ * - Highlights the Comfort package as the recommended choice for most travelers.
+ * - Fetches live package slugs from the API so links point to real published
+ *   package versions, not hardcoded routes that may 404.
+ * - Falls back to `/packages` if the API is unreachable so the link always works.
+ */
 export function Pricing() {
+  const [slugs, setSlugs] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    listPublicPackages()
+      .then((res) => {
+        const now = new Date();
+        const groups = new Map<string, PublicPackageVersion[]>();
+        for (const v of res.data) {
+          const key = tierKey(v);
+          const list = groups.get(key);
+          if (list) list.push(v);
+          else groups.set(key, [v]);
+        }
+        const map: Record<string, string> = {};
+        for (const [key, versions] of groups) {
+          const withDates = versions
+            .filter((v) => v.departure_date)
+            .map((v) => ({ v, d: new Date(v.departure_date!) }));
+          const upcoming = withDates
+            .filter((x) => x.d >= now)
+            .sort((a, b) => a.d.getTime() - b.d.getTime());
+          if (upcoming.length > 0) map[key] = upcoming[0]!.v.slug;
+          else {
+            const past = withDates.sort(
+              (a, b) => b.d.getTime() - a.d.getTime(),
+            );
+            if (past.length > 0) map[key] = past[0]!.v.slug;
+            else map[key] = versions[0]!.slug;
+          }
+        }
+        setSlugs(map);
+      })
+      .catch(() => {
+        // API unreachable — links will fall back to /packages
+      });
+  }, []);
+
+  const economySlug = slugs['economy']
+    ? `/packages/${slugs['economy']}`
+    : '/packages';
+  const comfortSlug = slugs['comfort']
+    ? `/packages/${slugs['comfort']}`
+    : '/packages';
+  const premiumSlug = slugs['premium']
+    ? `/packages/${slugs['premium']}`
+    : '/packages';
+
   return (
     <section
       id="pricing"
@@ -347,7 +452,7 @@ export function Pricing() {
                 </li>
               </ul>
             </div>
-            <Link to="/packages/economy">
+            <Link to={economySlug}>
               <Button
                 variant={'outline'}
                 className="w-full btn-outline h-10 mt-8 text-xs"
@@ -403,7 +508,7 @@ export function Pricing() {
                 </li>
               </ul>
             </div>
-            <Link to="/packages/comfort">
+            <Link to={comfortSlug}>
               <Button className="w-full btn-primary h-10 mt-8 text-xs shadow-soft">
                 Explore Comfort
               </Button>
@@ -450,7 +555,7 @@ export function Pricing() {
                 </li>
               </ul>
             </div>
-            <Link to="/packages/premium">
+            <Link to={premiumSlug}>
               <Button
                 variant={'outline'}
                 className="w-full btn-outline h-10 mt-8 text-xs"
@@ -497,7 +602,16 @@ export function CTA() {
           </div>
 
           <div className="flex justify-center relative z-10">
-            <InlineCallbackForm />
+            <Suspense
+              fallback={
+                <div className="flex w-full max-w-md gap-3">
+                  <div className="h-11 flex-1 animate-pulse rounded-xl bg-muted/30" />
+                  <div className="h-11 w-32 animate-pulse rounded-xl bg-muted/30" />
+                </div>
+              }
+            >
+              <InlineCallbackForm />
+            </Suspense>
           </div>
         </div>
       </div>

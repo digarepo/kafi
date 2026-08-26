@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router';
 import { ArrowLeft } from 'lucide-react';
 import { Button, Skeleton, buttonVariants } from '@kafi/ui';
 import { usePermissions } from '../../../core/permissions';
+import { useDestructiveConfirmation } from '../../../shared/delete-dialog';
 import { AsyncState } from '../../../shared/operational-ui';
 import { api, type ContactPerson } from '../../../lib/api.js';
 import { ContactPersonDetailCard } from '../components/contact-person-detail-card';
@@ -55,6 +56,7 @@ function ContactDetailSkeleton() {
 
 export function ContactDetailPage({ id }: ContactDetailPageProps) {
   const { can } = usePermissions();
+  const { confirm } = useDestructiveConfirmation();
   const navigate = useNavigate();
   const [contact, setContact] = useState<ContactPerson | null>(null);
   const [loading, setLoading] = useState(true);
@@ -82,7 +84,15 @@ export function ContactDetailPage({ id }: ContactDetailPageProps) {
   }, [loadContact]);
 
   async function handleArchive(contactId: string) {
-    if (!window.confirm('Archive this contact person?')) return;
+    if (
+      !(await confirm({
+        title: 'Archive contact person?',
+        description:
+          'The contact person will be removed from active records and can be restored later.',
+        confirmLabel: 'Archive',
+      }))
+    )
+      return;
     try {
       await api.archiveContactPerson(contactId);
       navigate('/contact-persons');

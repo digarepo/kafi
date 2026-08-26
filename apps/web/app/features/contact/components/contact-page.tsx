@@ -15,7 +15,7 @@ import {
   PhoneIcon,
   WhatsappLogoIcon,
 } from '@phosphor-icons/react';
-import { Badge } from '@kafi/ui';
+import { Badge } from '@ui/components/ui/badge';
 
 import ContactPanel from './contact-panel';
 import EnquiryForm from './contact-form';
@@ -35,7 +35,7 @@ const LOCATION = {
 
 export default function ContactPage() {
   return (
-    <main>
+    <main id="main-content">
       <section className="relative overflow-hidden border-b border-border/10 bg-linear-to-b from-muted/10 to-background pt-28 pb-12 md:pt-32 md:pb-16">
         <div className="mx-auto max-w-7xl px-6 sm:px-8 lg:px-12">
           <div className="max-w-3xl">

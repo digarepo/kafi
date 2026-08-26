@@ -6,6 +6,7 @@ import { Button } from '@kafi/ui';
 import { usePermissions } from '../../../core/permissions';
 import { formatPhone } from '../../../shared/format';
 import { DataTable } from '../../../shared/data-table';
+import { useDestructiveConfirmation } from '../../../shared/delete-dialog';
 import { actionsColumn, textColumn } from '../../../shared/data-table/columns';
 import { api, type Traveller } from '../../../lib/api.js';
 
@@ -20,6 +21,7 @@ const DEFAULT_PAGE_SIZE = 10;
 
 export function TravellerListPage() {
   const { can } = usePermissions();
+  const { confirm } = useDestructiveConfirmation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -115,7 +117,15 @@ export function TravellerListPage() {
   );
 
   async function handleArchive(id: string) {
-    if (!confirm('Archive this traveller?')) return;
+    if (
+      !(await confirm({
+        title: 'Archive traveller?',
+        description:
+          'The traveller will be removed from active records and can be restored later.',
+        confirmLabel: 'Archive',
+      }))
+    )
+      return;
     try {
       await api.archiveTraveller(id);
       const result = await api.listTravellers(
@@ -182,6 +192,7 @@ export function TravellerListPage() {
           {
             label: 'Archive',
             icon: Archive,
+            variant: 'destructive',
             onClick: (t) => void handleArchive(t.id),
             disabled: () => !can('TRAVELLER_DELETE'),
           },
