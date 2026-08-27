@@ -35,7 +35,7 @@ const adjustmentRow = {
   updated_at: new Date(),
 };
 
-describe('ExpenseAdjustmentsService — Round 7', () => {
+describe('ExpenseAdjustmentsService', () => {
   describe('createAdjustment', () => {
     it('creates a supplier refund adjustment linked to an expense', async () => {
       const db = createMockDb([

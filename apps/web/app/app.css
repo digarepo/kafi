@@ -227,30 +227,6 @@ h6 {
 }
 
 @layer components {
-  .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 bg-brand-primary text-white px-5 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 hover:bg-brand-light hover:shadow-soft active:scale-[0.98];
-  }
-
-  .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 bg-brand-gold text-white px-5 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 hover:bg-brand-goldLight hover:shadow-soft active:scale-[0.98];
-  }
-
-  .btn-outline {
-    @apply inline-flex items-center justify-center gap-2 border border-brand-primary/20 bg-white dark:bg-transparent text-brand-primary px-5 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 hover:bg-brand-primary hover:text-white hover:border-brand-primary dark:border-brand-primary/40;
-  }
-
-  /* Dark mode: lighten btn-outline text for WCAG AA contrast */
-  .dark .btn-outline {
-    color: hsl(150 50% 55%);
-  }
-  .dark .btn-outline:hover {
-    color: white;
-  }
-
-  .btn-ghost {
-    @apply inline-flex items-center justify-center gap-2 text-gray-600 dark:text-gray-300 px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 hover:bg-gray-100 dark:hover:bg-white/5;
-  }
-
   .card {
     @apply bg-card text-card-foreground rounded-2xl border border-border/50 shadow-card transition-all duration-300;
   }

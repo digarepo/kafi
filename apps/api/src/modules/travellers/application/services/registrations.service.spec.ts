@@ -167,9 +167,22 @@ describe('RegistrationsService', () => {
 
       const db = createMockDb([
         [{ id: '01KZ4TRV', is_deleted: false }],
+        // assertNoActiveRegistrationForPackage does Promise.all with 3
+        // status lookups (DRAFT, PROCESSING, READY_FOR_TRAVEL) — the mock
+        // queue is consumed in Promise.all resolution order, so provide
+        // the same status row for all 3.
         [{ id: 'RS-DRAFT', status_code: 'DRAFT' }],
-        [{ max: null }],
+        [{ id: 'RS-PROC', status_code: 'PROCESSING' }],
+        [{ id: 'RS-READY', status_code: 'READY_FOR_TRAVEL' }],
+        // No existing active registration found
         [],
+        // getRegistrationStatus('DRAFT') for the new registration
+        [{ id: 'RS-DRAFT', status_code: 'DRAFT' }],
+        // generateRegistrationNumber
+        [{ max: null }],
+        // insert (no result)
+        [],
+        // getRegistration(id) — returns the full registration row
         registrationRow('DRAFT'),
       ]);
       const emitter = { emit: vi.fn() };
@@ -516,7 +529,7 @@ describe('RegistrationsService', () => {
       expect(result.status).toBe('CANCELLED');
     });
 
-    // ---- Round 7: Cancellation accounting ----
+    // ---- Cancellation accounting ----
 
     it('cancelRegistration records ONLY the service charge as an expense, not visa/flight costs', async () => {
       readiness.isRegistrationComplete.mockReset();

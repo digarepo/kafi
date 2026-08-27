@@ -1,11 +1,16 @@
-import { ConflictException, Inject, Injectable, NotFoundException } from "@nestjs/common";
-import { MySql2Database } from "drizzle-orm/mysql2";
-import { and, desc, eq, sql } from "drizzle-orm";
-import { ulid } from "ulid";
-import { DATABASE } from "../../../../shared/infrastructure/database/database.provider.js";
-import * as schema from "@kafi/database";
-import { CreateRefundDto, RefundFiltersDto } from "../dto/refunds.dto.js";
-import { PaymentsService } from "./payments.service.js";
+import {
+  ConflictException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { MySql2Database } from 'drizzle-orm/mysql2';
+import { and, desc, eq, sql } from 'drizzle-orm';
+import { ulid } from 'ulid';
+import { DATABASE } from '../../../../shared/infrastructure/database/database.provider.js';
+import * as schema from '@kafi/database';
+import { CreateRefundDto, RefundFiltersDto } from '../dto/refunds.dto.js';
+import { PaymentsService } from './payments.service.js';
 
 function toTwoDecimals(value: number): number {
   return Math.round(value * 100) / 100;
@@ -28,16 +33,25 @@ export class RefundsService {
   constructor(
     @Inject(DATABASE)
     private readonly db: MySql2Database<typeof schema>,
-    private readonly paymentsService: PaymentsService
+    private readonly paymentsService: PaymentsService,
   ) {}
 
   async listRefunds(dto: RefundFiltersDto) {
-    const { page, page_size, payment_id, payer_id, refund_status_id, registration_id } = dto;
+    const {
+      page,
+      page_size,
+      payment_id,
+      payer_id,
+      refund_status_id,
+      registration_id,
+    } = dto;
     const filters = [eq(schema.refunds.is_deleted, false)];
     if (payment_id) filters.push(eq(schema.refunds.payment_id, payment_id));
     if (payer_id) filters.push(eq(schema.refunds.payer_id, payer_id));
-    if (refund_status_id) filters.push(eq(schema.refunds.refund_status_id, refund_status_id));
-    if (registration_id) filters.push(eq(schema.refunds.registration_id, registration_id));
+    if (refund_status_id)
+      filters.push(eq(schema.refunds.refund_status_id, refund_status_id));
+    if (registration_id)
+      filters.push(eq(schema.refunds.registration_id, registration_id));
 
     const [rows, count] = await Promise.all([
       this.db
@@ -45,9 +59,12 @@ export class RefundsService {
         .from(schema.refunds)
         .leftJoin(
           schema.refundStatuses,
-          eq(schema.refunds.refund_status_id, schema.refundStatuses.id)
+          eq(schema.refunds.refund_status_id, schema.refundStatuses.id),
         )
-        .leftJoin(schema.payments, eq(schema.refunds.payment_id, schema.payments.id))
+        .leftJoin(
+          schema.payments,
+          eq(schema.refunds.payment_id, schema.payments.id),
+        )
         .leftJoin(schema.payers, eq(schema.refunds.payer_id, schema.payers.id))
         .where(and(...filters))
         .orderBy(desc(schema.refunds.created_at))
@@ -86,15 +103,17 @@ export class RefundsService {
       .from(schema.paymentStatuses)
       .where(eq(schema.paymentStatuses.id, payment.payment_status_id))
       .limit(1);
-    if (paymentStatus?.status_code === "CANCELLED") {
-      throw new ConflictException("Cannot create a refund against a cancelled payment");
+    if (paymentStatus?.status_code === 'CANCELLED') {
+      throw new ConflictException(
+        'Cannot create a refund against a cancelled payment',
+      );
     }
 
     // Use a transaction with a row lock on the payment so that concurrent
     // refund requests cannot both read the same available balance and
     // over-refund. SELECT ... FOR UPDATE locks the payment row for the
     // duration of the transaction.
-    const approvedStatus = await this.getRefundStatusByCode("APPROVED");
+    const approvedStatus = await this.getRefundStatusByCode('APPROVED');
     const id = ulid();
     const number = await this.generateRefundNumber();
     const now = new Date();
@@ -104,11 +123,16 @@ export class RefundsService {
       const [lockedPayment] = await tx
         .select()
         .from(schema.payments)
-        .where(and(eq(schema.payments.id, dto.payment_id), eq(schema.payments.is_deleted, false)))
-        .for("update")
+        .where(
+          and(
+            eq(schema.payments.id, dto.payment_id),
+            eq(schema.payments.is_deleted, false),
+          ),
+        )
+        .for('update')
         .limit(1);
 
-      if (!lockedPayment) throw new NotFoundException("Payment not found");
+      if (!lockedPayment) throw new NotFoundException('Payment not found');
 
       // Re-check status under lock
       const [lockedStatus] = await tx
@@ -116,8 +140,10 @@ export class RefundsService {
         .from(schema.paymentStatuses)
         .where(eq(schema.paymentStatuses.id, lockedPayment.payment_status_id))
         .limit(1);
-      if (lockedStatus?.status_code === "CANCELLED") {
-        throw new ConflictException("Cannot create a refund against a cancelled payment");
+      if (lockedStatus?.status_code === 'CANCELLED') {
+        throw new ConflictException(
+          'Cannot create a refund against a cancelled payment',
+        );
       }
 
       // Compute refundable (unallocated) balance under lock
@@ -129,15 +155,15 @@ export class RefundsService {
         .where(
           and(
             eq(schema.paymentAllocations.payment_id, dto.payment_id),
-            eq(schema.paymentAllocations.is_deleted, false)
-          )
+            eq(schema.paymentAllocations.is_deleted, false),
+          ),
         );
       const unallocated = toTwoDecimals(
-        Number(lockedPayment.amount) - Number(allocRow?.allocated ?? 0)
+        Number(lockedPayment.amount) - Number(allocRow?.allocated ?? 0),
       );
 
       // Check for existing pending/approved refunds against this payment
-      const cancelledStatus = await this.getRefundStatusByCode("CANCELLED");
+      const cancelledStatus = await this.getRefundStatusByCode('CANCELLED');
       const [refundRow] = await tx
         .select({
           total: sql<number>`coalesce(sum(${schema.refunds.amount}), 0)`,
@@ -147,15 +173,17 @@ export class RefundsService {
           and(
             eq(schema.refunds.payment_id, dto.payment_id),
             eq(schema.refunds.is_deleted, false),
-            sql`${schema.refunds.refund_status_id} != ${cancelledStatus.id}`
-          )
+            sql`${schema.refunds.refund_status_id} != ${cancelledStatus.id}`,
+          ),
         );
       const existingRefundsTotal = toTwoDecimals(Number(refundRow?.total ?? 0));
 
-      const availableForRefund = toTwoDecimals(unallocated - existingRefundsTotal);
+      const availableForRefund = toTwoDecimals(
+        unallocated - existingRefundsTotal,
+      );
       if (dto.amount > availableForRefund) {
         throw new ConflictException(
-          `Refund amount (${dto.amount}) exceeds the refundable balance (${availableForRefund})`
+          `Refund amount (${dto.amount}) exceeds the refundable balance (${availableForRefund})`,
         );
       }
 
@@ -182,7 +210,7 @@ export class RefundsService {
 
   async completeRefund(id: string, actorId: string) {
     const refund = await this.getRefundOrThrow(id);
-    const completedStatus = await this.getRefundStatusByCode("COMPLETED");
+    const completedStatus = await this.getRefundStatusByCode('COMPLETED');
     await this.db
       .update(schema.refunds)
       .set({
@@ -196,7 +224,7 @@ export class RefundsService {
 
   async cancelRefund(id: string, actorId: string) {
     const refund = await this.getRefundOrThrow(id);
-    const cancelledStatus = await this.getRefundStatusByCode("CANCELLED");
+    const cancelledStatus = await this.getRefundStatusByCode('CANCELLED');
     await this.db
       .update(schema.refunds)
       .set({
@@ -235,9 +263,11 @@ export class RefundsService {
     const [row] = await this.db
       .select()
       .from(schema.refunds)
-      .where(and(eq(schema.refunds.id, id), eq(schema.refunds.is_deleted, false)))
+      .where(
+        and(eq(schema.refunds.id, id), eq(schema.refunds.is_deleted, false)),
+      )
       .limit(1);
-    if (!row) throw new NotFoundException("Refund not found");
+    if (!row) throw new NotFoundException('Refund not found');
     return row;
   }
 
@@ -245,9 +275,11 @@ export class RefundsService {
     const [row] = await this.db
       .select()
       .from(schema.payments)
-      .where(and(eq(schema.payments.id, id), eq(schema.payments.is_deleted, false)))
+      .where(
+        and(eq(schema.payments.id, id), eq(schema.payments.is_deleted, false)),
+      )
       .limit(1);
-    if (!row) throw new NotFoundException("Payment not found");
+    if (!row) throw new NotFoundException('Payment not found');
     return row;
   }
 
@@ -258,8 +290,8 @@ export class RefundsService {
       .where(
         and(
           eq(schema.refundStatuses.status_code, code),
-          eq(schema.refundStatuses.is_deleted, false)
-        )
+          eq(schema.refundStatuses.is_deleted, false),
+        ),
       )
       .limit(1);
     if (!row) throw new NotFoundException(`Refund status ${code} not found`);
@@ -267,7 +299,7 @@ export class RefundsService {
   }
 
   private async getExistingRefundsTotal(paymentId: string): Promise<number> {
-    const cancelledStatus = await this.getRefundStatusByCode("CANCELLED");
+    const cancelledStatus = await this.getRefundStatusByCode('CANCELLED');
     const [row] = await this.db
       .select({
         total: sql<number>`coalesce(sum(${schema.refunds.amount}), 0)`,
@@ -278,24 +310,25 @@ export class RefundsService {
           eq(schema.refunds.payment_id, paymentId),
           eq(schema.refunds.is_deleted, false),
           // Exclude cancelled refunds from the total
-          sql`${schema.refunds.refund_status_id} != ${cancelledStatus.id}`
-        )
+          sql`${schema.refunds.refund_status_id} != ${cancelledStatus.id}`,
+        ),
       );
     return toTwoDecimals(Number(row?.total ?? 0));
   }
 
   private async generateRefundNumber() {
     const year = new Date().getFullYear();
+    const pattern = `RFD-${year}-%`;
     const [row] = await this.db
       .select({ max: sql<string>`max(${schema.refunds.refund_number})` })
       .from(schema.refunds)
-      .where(sql`${schema.refunds.refund_number} LIKE 'RFD-${year}-%'`);
+      .where(sql`${schema.refunds.refund_number} LIKE ${pattern}`);
     let next = 1;
     if (row?.max) {
-      const parts = (row.max as string).split("-");
+      const parts = (row.max as string).split('-');
       next = Number(parts[parts.length - 1]) + 1;
     }
-    return `RFD-${year}-${String(next).padStart(6, "0")}`;
+    return `RFD-${year}-${String(next).padStart(6, '0')}`;
   }
 
   private mapRefundRow(row: typeof schema.refunds.$inferSelect) {

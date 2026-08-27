@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import type { ColumnDef } from '@tanstack/react-table';
 import { useSearchParams } from 'react-router';
 import { Archive, Pencil, Plus, RotateCcw, Search } from 'lucide-react';
@@ -20,9 +21,11 @@ import { FinanceStatusBadge } from '../../../shared/finance-status';
 import { formatPhone, normalizeLookupOption } from '../../../shared/format';
 import {
   api,
+  type ContactPerson,
   type CreatePayerInput,
   type LookupOption,
   type Payer,
+  type Traveller,
   type UpdatePayerInput,
 } from '../../../lib/api.js';
 import { PayerDialog } from '../components/payer-dialog';
@@ -45,6 +48,8 @@ export function PayersPage() {
   const [payers, setPayers] = useState<Payer[]>([]);
   const [payerTypes, setPayerTypes] = useState<LookupOption[]>([]);
   const [payerStatuses, setPayerStatuses] = useState<LookupOption[]>([]);
+  const [travellers, setTravellers] = useState<Traveller[]>([]);
+  const [contactPersons, setContactPersons] = useState<ContactPerson[]>([]);
   const [loading, setLoading] = useState(false);
   const [referenceLoading, setReferenceLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
@@ -67,13 +72,17 @@ export function PayersPage() {
     async function loadReference() {
       setReferenceLoading(true);
       try {
-        const [types, statuses] = await Promise.all([
+        const [types, statuses, travRes, cpRes] = await Promise.all([
           api.listPayerTypes(),
           api.listPayerStatuses(),
+          api.listTravellers(1, 100),
+          api.listContactPersons(1, 100),
         ]);
         if (!cancelled) {
           setPayerTypes(types.map(normalizeLookupOption));
           setPayerStatuses(statuses.map(normalizeLookupOption));
+          setTravellers(travRes.data);
+          setContactPersons(cpRes.data);
         }
       } catch {
         // non-fatal
@@ -169,25 +178,31 @@ export function PayersPage() {
     });
 
   async function handleCreate(output: PayerFormOutput) {
-    setError(null);
     try {
       await api.createPayer(output as CreatePayerInput);
+      toast.success('Payer created successfully.');
       setRetryNonce((n) => n + 1);
       setCreateOpen(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create payer');
+      const message =
+        err instanceof Error ? err.message : 'Failed to create payer';
+      toast.error(message);
+      throw err;
     }
   }
 
   async function handleUpdate(output: PayerFormOutput) {
     if (!editingPayer) return;
-    setError(null);
     try {
       await api.updatePayer(editingPayer.id, output as UpdatePayerInput);
+      toast.success('Payer updated successfully.');
       setRetryNonce((n) => n + 1);
       setEditingPayer(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update payer');
+      const message =
+        err instanceof Error ? err.message : 'Failed to update payer';
+      toast.error(message);
+      throw err;
     }
   }
 
@@ -196,9 +211,12 @@ export function PayersPage() {
     setDeleteLoading(true);
     try {
       await api.archivePayer(deletingPayer.id);
+      toast.success('Payer archived successfully.');
       setRetryNonce((n) => n + 1);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to archive payer');
+      const message =
+        err instanceof Error ? err.message : 'Failed to archive payer';
+      toast.error(message);
     } finally {
       setDeleteLoading(false);
       setDeletingPayer(null);
@@ -293,20 +311,22 @@ export function PayersPage() {
       <PayerDialog
         mode="create"
         payerTypes={payerTypes}
+        travellers={travellers}
+        contactPersons={contactPersons}
         open={createOpen}
         onOpenChange={setCreateOpen}
         onSubmit={handleCreate}
-        error={createOpen ? error : null}
       />
 
       <PayerDialog
         mode="edit"
         payer={editingPayer}
         payerTypes={payerTypes}
+        travellers={travellers}
+        contactPersons={contactPersons}
         open={editingPayer !== null}
         onOpenChange={(open) => !open && setEditingPayer(null)}
         onSubmit={handleUpdate}
-        error={editingPayer !== null ? error : null}
       />
 
       <DeleteDialog

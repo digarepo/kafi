@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
+import { toast } from 'sonner';
 import { Button, Card, CardContent, CardHeader, CardTitle } from '@kafi/ui';
 
 import { usePermissions } from '../../../core/permissions';
@@ -55,21 +56,26 @@ export function InvoiceDetailPage({ id }: InvoiceDetailPageProps) {
       return;
     try {
       await api.archiveInvoice(invoice.id);
+      toast.success('Invoice archived successfully.');
       navigate('/invoices');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Archive failed');
+      const message = err instanceof Error ? err.message : 'Archive failed';
+      toast.error(message);
     }
   }
 
   async function handleUpdate(values: UpdateInvoiceInput) {
     if (!invoice) return;
-    setError(null);
     try {
       await api.updateInvoice(invoice.id, values);
+      toast.success('Invoice updated successfully.');
       await reload();
       setEditOpen(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update invoice');
+      const message =
+        err instanceof Error ? err.message : 'Failed to update invoice';
+      toast.error(message);
+      throw err;
     }
   }
 
@@ -108,7 +114,6 @@ export function InvoiceDetailPage({ id }: InvoiceDetailPageProps) {
         onOpenChange={setEditOpen}
         invoice={invoice}
         onSubmit={handleUpdate}
-        error={editOpen ? error : null}
       />
 
       <Card>

@@ -42,7 +42,7 @@ export function UserMenu() {
         render={
           <SidebarMenuButton size="lg" tooltip={user.full_name}>
             <Avatar className="h-8 w-8 rounded-full">
-              <AvatarFallback className="rounded-full bg-accent/40 text-primary text-xs font-medium">
+              <AvatarFallback className="rounded-full bg-primary text-primary-foreground text-xs font-semibold">
                 {initials ?? 'U'}
               </AvatarFallback>
             </Avatar>

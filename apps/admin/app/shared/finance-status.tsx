@@ -35,6 +35,9 @@ const financeStatusVariants: Record<string, FinanceStatusVariant> = {
   REVOKED: 'destructive',
   EXPIRED: 'stale',
 
+  // Credit exception request statuses reuse PENDING, APPROVED, and REJECTED
+  // which are already mapped above. No additional entries needed.
+
   // Payer / payment-method statuses
   INACTIVE: 'stale',
 };

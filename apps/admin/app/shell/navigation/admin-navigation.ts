@@ -136,6 +136,13 @@ const navigationSections: AdminNavigationSection[] = [
         permission: 'FINANCE_VIEW',
       },
       {
+        id: 'credit-exception-requests',
+        label: 'Credit Requests',
+        href: '/credit-exception-requests',
+        icon: ShieldCheck,
+        permission: 'FINANCE_VIEW',
+      },
+      {
         id: 'refunds',
         label: 'Refunds',
         href: '/refunds',

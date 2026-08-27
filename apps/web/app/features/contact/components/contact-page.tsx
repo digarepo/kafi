@@ -16,6 +16,7 @@ import {
   WhatsappLogoIcon,
 } from '@phosphor-icons/react';
 import { Badge } from '@ui/components/ui/badge';
+import { Button } from '@ui/components/ui/button';
 
 import ContactPanel from './contact-panel';
 import EnquiryForm from './contact-form';
@@ -149,14 +150,19 @@ export default function ContactPage() {
                     </p>
                   </div>
                 </div>
-                <a
-                  href={LOCATION.directionsUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="btn-outline inline-flex h-11 items-center gap-2 px-5 text-sm"
+                <Button
+                  variant="outline"
+                  render={
+                    <a
+                      href={LOCATION.directionsUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                    />
+                  }
+                  className="h-11 gap-2 px-5 text-sm"
                 >
                   Get directions <ArrowRightIcon className="size-4" />
-                </a>
+                </Button>
               </div>
             </div>
 

@@ -2,7 +2,7 @@ import { LoginForm } from './login-form';
 import { useLogin } from '../hooks/use-login';
 
 export function LoginPage() {
-  const { onSubmit, error } = useLogin();
+  const { onSubmit } = useLogin();
 
   return (
     <div className="flex min-h-svh flex-col items-center justify-center overflow-hidden bg-background p-4 md:p-8">
@@ -19,7 +19,7 @@ export function LoginPage() {
           </div>
         </div>
 
-        <LoginForm onSubmit={onSubmit} error={error} />
+        <LoginForm onSubmit={onSubmit} />
       </div>
     </div>
   );

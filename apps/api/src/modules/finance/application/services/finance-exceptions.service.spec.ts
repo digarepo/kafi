@@ -40,9 +40,9 @@ describe('FinanceExceptionsService', () => {
     });
   });
 
-  // ---- Round 7: Concurrency protection via active_lock ----
+  // ---- Concurrency protection via active_lock ----
 
-  describe('createException — Round 7 active_lock concurrency', () => {
+  describe('createException — active_lock concurrency', () => {
     it('sets active_lock to the exception id when creating ACTIVE exception', async () => {
       const db = createMockDb([
         [{ id: 'reg-1' }], // registration lookup
@@ -93,7 +93,7 @@ describe('FinanceExceptionsService', () => {
     });
   });
 
-  describe('revokeException — Round 7 clears active_lock', () => {
+  describe('revokeException — clears active_lock', () => {
     it('clears active_lock when revoking', async () => {
       const db = createMockDb([
         [{ id: 'exc-1' }], // getExceptionOrThrow

@@ -1,6 +1,6 @@
-import { Badge } from '@ui/components/ui/badge'
-import { Button } from '@ui/components/ui/button'
-import { Card } from '@ui/components/ui/card'
+import { Badge } from '@ui/components/ui/badge';
+import { Button } from '@ui/components/ui/button';
+import { Card } from '@ui/components/ui/card';
 import { Separator } from '@ui/components/ui/separator';
 import {
   ArrowRightIcon,
@@ -281,7 +281,7 @@ export function Features() {
           <div className="pt-2">
             <Link to="/services">
               <Button
-                className="btn-outline flex items-center gap-2 text-xs hover:scale-110"
+                className="flex items-center gap-2 text-xs hover:scale-110"
                 variant={'outline'}
               >
                 Explore Services
@@ -453,10 +453,7 @@ export function Pricing() {
               </ul>
             </div>
             <Link to={economySlug}>
-              <Button
-                variant={'outline'}
-                className="w-full btn-outline h-10 mt-8 text-xs"
-              >
+              <Button variant={'outline'} className="w-full h-10 mt-8 text-xs">
                 Explore Economy
               </Button>
             </Link>
@@ -509,7 +506,7 @@ export function Pricing() {
               </ul>
             </div>
             <Link to={comfortSlug}>
-              <Button className="w-full btn-primary h-10 mt-8 text-xs shadow-soft">
+              <Button className="w-full h-10 mt-8 text-xs shadow-soft">
                 Explore Comfort
               </Button>
             </Link>
@@ -556,10 +553,7 @@ export function Pricing() {
               </ul>
             </div>
             <Link to={premiumSlug}>
-              <Button
-                variant={'outline'}
-                className="w-full btn-outline h-10 mt-8 text-xs"
-              >
+              <Button variant={'outline'} className="w-full h-10 mt-8 text-xs">
                 Explore Premium
               </Button>
             </Link>

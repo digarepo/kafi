@@ -1,4 +1,4 @@
--- Round 6 — Finance Integration
+-- Finance Integration
 -- Expenses, Finance Exceptions, Refunds, Expense Allocations, and operational cost fields.
 
 -- Operational cost fields

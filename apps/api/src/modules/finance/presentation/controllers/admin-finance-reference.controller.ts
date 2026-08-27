@@ -21,8 +21,8 @@ import {
  *
  * @remarks
  * - **Scope:** admin-only; guarded by `JwtAuthGuard` and `PermissionsGuard`.
- * - `payment_methods` is the only finance lookup with admin CRUD in
- *   Slice 4; all other lookups are read-only and seeded via
+ * - `payment_methods` is the only finance lookup with admin CRUD;
+ *   all other lookups are read-only and seeded via
  *   `database/seeds/seed.ts`.
  */
 @Controller('admin')
@@ -94,6 +94,12 @@ export class AdminFinanceReferenceController {
   @RequirePermissions('FINANCE_VIEW')
   listRefundStatuses() {
     return this.referenceData.listRefundStatuses();
+  }
+
+  @Get('credit-exception-request-statuses')
+  @RequirePermissions('FINANCE_VIEW')
+  listCreditExceptionRequestStatuses() {
+    return this.referenceData.listCreditExceptionRequestStatuses();
   }
 
   @Post('payment-methods')

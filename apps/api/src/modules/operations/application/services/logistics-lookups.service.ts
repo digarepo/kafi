@@ -5,7 +5,7 @@ import { DATABASE } from '../../../../shared/infrastructure/database/database.pr
 import * as schema from '@kafi/database';
 
 /**
- * Read-only catalog of Slice 6 logistics lookup values.
+ * Read-only catalog of logistics lookup values.
  */
 @Injectable()
 export class LogisticsLookupsService {

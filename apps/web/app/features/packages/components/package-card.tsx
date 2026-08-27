@@ -7,7 +7,7 @@ import {
   UsersIcon,
 } from '@phosphor-icons/react';
 
-import { Button } from '@ui/components/ui/button'
+import { Button } from '@ui/components/ui/button';
 import { Card } from '@ui/components/ui/card';
 
 import type { PublicPackageVersion } from '../../../lib/public-api';
@@ -205,9 +205,7 @@ export function PackageCard({
         <Link to={`/packages/${pkg.slug}`} className="block">
           <Button
             variant={popular ? 'default' : 'outline'}
-            className={`h-11 w-full text-xs ${
-              popular ? 'btn-primary' : 'btn-outline'
-            }`}
+            className="h-11 w-full text-xs"
           >
             Explore {name}
             <ArrowRightIcon weight="bold" className="h-3.5 w-3.5" />

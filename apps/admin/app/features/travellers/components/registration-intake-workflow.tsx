@@ -26,6 +26,7 @@ import {
   FileUp,
   Loader2,
   Plus,
+  ShieldCheck,
   Trash2,
   Upload,
 } from 'lucide-react';
@@ -47,18 +48,23 @@ import {
 } from '@kafi/ui';
 
 import { api, ApiError } from '../../../lib/api.js';
+import { usePermissions } from '../../../core/permissions';
 import {
   documentsApi,
   type DocumentListItem,
   type DocumentType,
 } from '../../documents/lib/api.js';
 import { ContactPersonDialog } from './contact-person-dialog';
+import { CreditExceptionRequestDialog } from '../../finance/components/credit-exception-request-dialog';
 import { FormProgress } from '../../../shared/form-progress';
+import { formatBlockers } from '../../../shared/blocker-labels';
 import { RegistrationForm } from './registration-form';
 import { DatePicker } from './date-picker';
 import type {
   ContactPerson,
   Country,
+  CreditExceptionRequestListItem,
+  FinanceExceptionListItem,
   Guarantee,
   Language,
   LookupOption,
@@ -108,6 +114,7 @@ export function RegistrationIntakeWorkflow({
   registrationId?: string;
 }) {
   const navigate = useNavigate();
+  const { can } = usePermissions();
   const [stepIndex, setStepIndex] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [resuming, setResuming] = useState(!!registrationId);
@@ -189,6 +196,11 @@ export function RegistrationIntakeWorkflow({
   const [showCustomPayerForm, setShowCustomPayerForm] = useState(false);
   const [customPayerName, setCustomPayerName] = useState('');
   const [customPayerPhone, setCustomPayerPhone] = useState('');
+  const [activeException, setActiveException] =
+    useState<FinanceExceptionListItem | null>(null);
+  const [pendingRequest, setPendingRequest] =
+    useState<CreditExceptionRequestListItem | null>(null);
+  const [requestDialogOpen, setRequestDialogOpen] = useState(false);
 
   // Step 6-7: Review & complete
   const [operationalSummary, setOperationalSummary] =
@@ -451,10 +463,18 @@ export function RegistrationIntakeWorkflow({
       api.listRegistrationGuarantees(registration.id),
       api.getRegistrationFinanceSummary(registration.id),
       api.getRegistrationOperationalSummary(registration.id),
+      api.listFinanceExceptions(1, 10, registration.id),
+      api.listCreditExceptionRequests(1, 10, registration.id),
     ]);
 
-    const [documentsResult, guaranteesResult, financeResult, summaryResult] =
-      results;
+    const [
+      documentsResult,
+      guaranteesResult,
+      financeResult,
+      summaryResult,
+      exceptionsResult,
+      requestsResult,
+    ] = results;
     if (documentsResult.status === 'fulfilled') {
       setRegistrationDocuments(documentsResult.value.data);
     } else {
@@ -484,6 +504,18 @@ export function RegistrationIntakeWorkflow({
       setOperationalSummary(summaryResult.value);
     } else {
       console.error('Failed to load operational summary', summaryResult.reason);
+    }
+    if (exceptionsResult.status === 'fulfilled') {
+      const active = exceptionsResult.value.data.find(
+        (e) => e.status?.code === 'ACTIVE',
+      );
+      setActiveException(active ?? null);
+    }
+    if (requestsResult.status === 'fulfilled') {
+      const pending = requestsResult.value.data.find(
+        (r) => r.status?.code === 'PENDING',
+      );
+      setPendingRequest(pending ?? null);
     }
   }, [registration]);
 
@@ -555,6 +587,28 @@ export function RegistrationIntakeWorkflow({
           err instanceof Error ? err.message : 'Failed to create registration',
         );
       }
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  // ---- Step 1: Update existing registration (e.g. package change) ----
+  async function handleUpdateRegistration() {
+    if (!registration || !selectedPackageVersionId) return;
+    setSubmitting(true);
+    try {
+      const reg = await api.updateRegistration(registration.id, {
+        package_version_id: selectedPackageVersionId,
+        expected_departure_date: expectedDepartureDate || undefined,
+        expected_return_date: expectedReturnDate || undefined,
+        remarks: remarks || undefined,
+      });
+      setRegistration(reg);
+      await loadRegistrationIntakeData();
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : 'Failed to update registration',
+      );
     } finally {
       setSubmitting(false);
     }
@@ -645,11 +699,26 @@ export function RegistrationIntakeWorkflow({
           traveller_contact_status_id: activeStatus.id,
         });
       } catch (err) {
-        // 409 Conflict means the contact is already linked — that's fine
+        // 409 Conflict means the contact is already linked.
+        // Update the existing link to set primary + emergency flags
+        // so the readiness gate is satisfied.
         const status = (err as { status?: number }).status;
         if (status !== 409) throw err;
+        const existingContacts =
+          await api.listTravellerContacts(selectedTravellerId);
+        const existing = existingContacts.find(
+          (c) => c.contact_person?.id === selectedContactId,
+        );
+        if (existing) {
+          await api.updateTravellerContact(selectedTravellerId, existing.id, {
+            is_primary_contact: true,
+            is_emergency_contact: true,
+            traveller_contact_status_id: activeStatus.id,
+          });
+        }
       }
       setLinkedContactId(selectedContactId);
+      await loadRegistrationIntakeData();
       setStepIndex(3);
     } catch (err) {
       toast.error(
@@ -894,9 +963,12 @@ export function RegistrationIntakeWorkflow({
     (operationalSummary?.invoices?.length ?? 0) > 0 ||
     (financeSummary?.total_invoiced ?? 0) > 0;
   const outstandingBalance = financeSummary?.outstanding_balance ?? 0;
-  const paymentSatisfied = hasInvoice && outstandingBalance <= 0;
-
   const readiness = operationalSummary?.readiness;
+  // Use the readiness service's payment_satisfied as the source of truth —
+  // it accounts for both zero balance AND active credit exceptions.
+  const paymentSatisfied =
+    hasInvoice && (readiness?.payment_satisfied ?? outstandingBalance <= 0);
+
   const canComplete = readiness?.can_start_processing ?? false;
 
   const currentStep = WORKFLOW_STEPS[stepIndex];
@@ -923,10 +995,14 @@ export function RegistrationIntakeWorkflow({
     }
   }
 
-  function handleNext() {
+  async function handleNext() {
     if (currentStep.key === 'traveler' && !registration) {
       void handleCreateRegistration();
       return;
+    }
+    if (currentStep.key === 'traveler' && registration) {
+      // Save any changes (e.g. package version change) before advancing
+      await handleUpdateRegistration();
     }
     if (currentStep.key === 'contact' && !linkedContactId) {
       void handleLinkContact();
@@ -969,9 +1045,11 @@ export function RegistrationIntakeWorkflow({
           // In workflow mode, onSubmit is triggered by the Next button
           // via form validation. The actual API call is handled by
           // handleCreateRegistration, but if the registration already
-          // exists (resume), we update it.
+          // exists (resume), we update it — including the package version
+          // in case the original package was cancelled or closed.
           if (registration) {
             await api.updateRegistration(registration.id, {
+              package_version_id: values.package_version_id,
               expected_departure_date: values.expected_departure_date,
               expected_return_date: values.expected_return_date,
               remarks: values.remarks,
@@ -1578,7 +1656,7 @@ export function RegistrationIntakeWorkflow({
                 <div className="space-y-2 rounded-md border p-3">
                   <div className="grid gap-2 md:grid-cols-2">
                     <div className="space-y-1">
-                      <Label className="text-xs">Payer name</Label>
+                      <Label className="xs">Payer name</Label>
                       <Input
                         value={customPayerName}
                         onChange={(e) => setCustomPayerName(e.target.value)}
@@ -1679,11 +1757,91 @@ export function RegistrationIntakeWorkflow({
           </div>
         )}
 
+        {hasInvoice && outstandingBalance > 0 && !activeException && (
+          <div className="space-y-3 rounded-md border border-warning/30 bg-warning/5 p-4">
+            <div className="flex items-start gap-2">
+              <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+              <div>
+                <p className="text-sm font-medium">Request credit exception</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Payment is required to continue. You can request an exception
+                  for Admin approval instead of recording a payment.
+                </p>
+              </div>
+            </div>
+            {pendingRequest ? (
+              <div className="rounded-md bg-warning/10 p-3 text-sm">
+                <p className="font-medium text-warning">
+                  Credit exception requested
+                </p>
+                <p className="mt-0.5 text-muted-foreground">
+                  Awaiting Admin approval — {pendingRequest.request_number}
+                </p>
+              </div>
+            ) : can('FINANCE_CREDIT_REQUEST') ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={submitting || !registration}
+                onClick={() => setRequestDialogOpen(true)}
+              >
+                <ShieldCheck className="mr-1.5 h-4 w-4" />
+                Request credit exception
+              </Button>
+            ) : can('FINANCE_CREDIT_AUTHORIZE') ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={submitting || !registration}
+                onClick={() =>
+                  navigate(
+                    `/finance-exceptions/new?registration_id=${registration?.id}`,
+                  )
+                }
+              >
+                <ShieldCheck className="mr-1.5 h-4 w-4" />
+                Authorize credit
+              </Button>
+            ) : null}
+          </div>
+        )}
+
+        {hasInvoice && activeException && outstandingBalance > 0 && (
+          <div className="space-y-2 rounded-md bg-primary/5 p-3 text-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Authorized credit</span>
+              <span className="font-medium text-primary">
+                {formatMoney(
+                  readiness?.authorized_credit_amount ??
+                    activeException.authorized_amount,
+                )}
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Credit exception {activeException.exception_number} approved.
+              Payment requirement is satisfied.
+            </p>
+          </div>
+        )}
+
         {hasInvoice && outstandingBalance <= 0 && (
           <div className="rounded-md bg-success/10 p-3 text-sm text-success">
             <CheckCircle2 className="inline h-4 w-4 mr-1" />
             Payment requirement satisfied. Outstanding balance is zero.
           </div>
+        )}
+
+        {registration && requestDialogOpen && (
+          <CreditExceptionRequestDialog
+            open={requestDialogOpen}
+            onOpenChange={setRequestDialogOpen}
+            registrationId={registration.id}
+            registrationNumber={registration.registration_number}
+            outstandingBalance={outstandingBalance}
+            onRequested={() => void loadRegistrationIntakeData()}
+          />
         )}
       </div>
     );
@@ -1725,7 +1883,9 @@ export function RegistrationIntakeWorkflow({
         label: 'Payment requirement',
         satisfied: paymentSatisfied,
         detail: paymentSatisfied
-          ? 'Invoice paid in full'
+          ? outstandingBalance > 0 && activeException
+            ? `Credit exception approved: ${formatMoney(activeException.authorized_amount)}`
+            : 'Invoice paid in full'
           : hasInvoice
             ? `Outstanding: ${formatMoney(outstandingBalance)}`
             : 'No invoice created',
@@ -1773,10 +1933,10 @@ export function RegistrationIntakeWorkflow({
 
         {readiness && readiness.blockers.length > 0 && (
           <div className="rounded-md border p-3 text-sm">
-            <p className="font-medium mb-1">System blockers:</p>
+            <p className="font-medium mb-1">Requirements to resolve:</p>
             <ul className="list-disc list-inside text-muted-foreground">
-              {readiness.blockers.map((b) => (
-                <li key={b}>{b}</li>
+              {formatBlockers(readiness.blockers).map((label, i) => (
+                <li key={readiness.blockers[i]}>{label}</li>
               ))}
             </ul>
           </div>

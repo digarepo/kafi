@@ -181,7 +181,7 @@ export default function ServiceDetailPage({ slug }: ServiceDetailPageProps) {
                     to={`/enquiry?service=${service.slug}`}
                     className="block"
                   >
-                    <Button className="btn-primary flex h-11 w-full items-center justify-center gap-2 text-sm hover:scale-105">
+                    <Button className="flex h-11 w-full items-center justify-center gap-2 text-sm hover:scale-105">
                       Get Help With This Service
                       <ArrowRightIcon weight="bold" className="h-3.5 w-3.5" />
                     </Button>

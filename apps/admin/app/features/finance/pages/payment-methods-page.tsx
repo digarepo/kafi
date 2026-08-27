@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import type { ColumnDef } from '@tanstack/react-table';
 import { Archive, Pencil, Plus, RotateCcw, Search } from 'lucide-react';
 import { Button } from '@kafi/ui';
@@ -61,32 +62,34 @@ export function PaymentMethodsPage() {
   }, []);
 
   async function handleCreate(output: PaymentMethodFormOutput) {
-    setError(null);
     try {
       await api.createPaymentMethod(output as CreatePaymentMethodInput);
+      toast.success('Payment method created successfully.');
       await reload();
       setCreateOpen(false);
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'Failed to create payment method',
-      );
+      const message =
+        err instanceof Error ? err.message : 'Failed to create payment method';
+      toast.error(message);
+      throw err;
     }
   }
 
   async function handleUpdate(output: PaymentMethodFormOutput) {
     if (!editingMethod) return;
-    setError(null);
     try {
       await api.updatePaymentMethod(
         editingMethod.id,
         output as UpdatePaymentMethodInput,
       );
+      toast.success('Payment method updated successfully.');
       await reload();
       setEditingMethod(null);
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'Failed to update payment method',
-      );
+      const message =
+        err instanceof Error ? err.message : 'Failed to update payment method';
+      toast.error(message);
+      throw err;
     }
   }
 
@@ -95,11 +98,12 @@ export function PaymentMethodsPage() {
     setDeleteLoading(true);
     try {
       await api.archivePaymentMethod(deletingMethod.id);
+      toast.success('Payment method archived successfully.');
       await reload();
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'Failed to archive payment method',
-      );
+      const message =
+        err instanceof Error ? err.message : 'Failed to archive payment method';
+      toast.error(message);
     } finally {
       setDeleteLoading(false);
       setDeletingMethod(null);
@@ -189,7 +193,6 @@ export function PaymentMethodsPage() {
         open={createOpen}
         onOpenChange={setCreateOpen}
         onSubmit={handleCreate}
-        error={createOpen ? error : null}
       />
 
       <PaymentMethodDialog
@@ -198,7 +201,6 @@ export function PaymentMethodsPage() {
         open={editingMethod !== null}
         onOpenChange={(open) => !open && setEditingMethod(null)}
         onSubmit={handleUpdate}
-        error={editingMethod !== null ? error : null}
       />
 
       <DeleteDialog

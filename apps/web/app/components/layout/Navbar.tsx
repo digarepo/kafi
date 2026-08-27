@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Button } from '@ui/components/ui/button'
+import { Button } from '@ui/components/ui/button';
 import { ThemeToggle } from '@ui/components/theme-toggle';
 import { ArrowRightIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
@@ -184,7 +184,7 @@ export function Navbar() {
             />
 
             <Link to="/booking">
-              <Button className="relative btn-primary flex h-8 items-center rounded-full hover:scale-110 gap-1.5 px-4 mx-4 text-xs shadow-soft">
+              <Button className="relative flex h-8 items-center rounded-full hover:scale-110 gap-1.5 px-4 mx-4 text-xs shadow-soft">
                 Plan My Umrah
                 <ArrowRightIcon weight="bold" className="h-3.5 w-3.5" />
               </Button>

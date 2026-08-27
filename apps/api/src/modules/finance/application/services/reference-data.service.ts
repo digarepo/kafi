@@ -16,7 +16,7 @@ import {
  *
  * @remarks
  * - **Authority:** Read-only for most lookups; `payment_methods` is the only
- *   finance lookup with admin CRUD in Slice 4.
+ *   finance lookup with admin CRUD support.
  * - Also exposes `getStatusByCode()` helpers used internally by
  *   `InvoicesService`, `PaymentsService`, and `PayersService` to resolve a
  *   status/type row from its stable `*_code` (e.g. `DRAFT`, `COMPLETED`)
@@ -97,6 +97,13 @@ export class ReferenceDataService {
       .select()
       .from(schema.refundStatuses)
       .where(eq(schema.refundStatuses.is_deleted, false));
+  }
+
+  listCreditExceptionRequestStatuses() {
+    return this.db
+      .select()
+      .from(schema.creditExceptionRequestStatuses)
+      .where(eq(schema.creditExceptionRequestStatuses.is_deleted, false));
   }
 
   async listPaymentMethods() {

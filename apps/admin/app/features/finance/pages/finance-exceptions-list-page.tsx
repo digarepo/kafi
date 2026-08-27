@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router';
 import type { ColumnDef } from '@tanstack/react-table';
 import { useNavigate, useSearchParams } from 'react-router';
 import { Eye, Plus, RotateCcw, Search } from 'lucide-react';
@@ -20,6 +21,7 @@ import { formatMoney, normalizeLookupOption } from '../../../shared/format';
 import { displayDate } from '../../operations/lib/date';
 import {
   api,
+  type CreditExceptionRequestListItem,
   type FinanceExceptionListItem,
   type LookupOption,
 } from '../../../lib/api.js';
@@ -39,7 +41,11 @@ export function FinanceExceptionsListPage() {
     DEFAULT_PAGE_SIZE;
 
   const [exceptions, setExceptions] = useState<FinanceExceptionListItem[]>([]);
+  const [pendingRequests, setPendingRequests] = useState<
+    CreditExceptionRequestListItem[]
+  >([]);
   const [statuses, setStatuses] = useState<LookupOption[]>([]);
+  const [requestStatuses, setRequestStatuses] = useState<LookupOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [referenceLoading, setReferenceLoading] = useState(true);
@@ -47,6 +53,8 @@ export function FinanceExceptionsListPage() {
   const [total, setTotal] = useState(0);
 
   const selectedStatusId = statuses.find((s) => s.code === statusFilter)?.id;
+  const pendingStatusId = requestStatuses.find((s) => s.code === 'PENDING')?.id;
+  const pendingCount = pendingRequests.length;
 
   const hasActiveFilters = Boolean(search || statusFilter);
 
@@ -55,8 +63,14 @@ export function FinanceExceptionsListPage() {
     async function loadReference() {
       setReferenceLoading(true);
       try {
-        const result = await api.listFinanceExceptionStatuses();
-        if (!cancelled) setStatuses(result.map(normalizeLookupOption));
+        const [excStatuses, reqStatuses] = await Promise.all([
+          api.listFinanceExceptionStatuses(),
+          api.listCreditExceptionRequestStatuses(),
+        ]);
+        if (!cancelled) {
+          setStatuses(excStatuses.map(normalizeLookupOption));
+          setRequestStatuses(reqStatuses.map(normalizeLookupOption));
+        }
       } catch {
         // non-fatal
       } finally {
@@ -99,6 +113,30 @@ export function FinanceExceptionsListPage() {
       cancelled = true;
     };
   }, [page, pageSize, selectedStatusId, retryNonce]);
+
+  // Load pending credit exception requests for the admin notification banner.
+  // Only fetched for users who can authorize (admins); others don't need it.
+  useEffect(() => {
+    if (!can('FINANCE_CREDIT_AUTHORIZE') || !pendingStatusId) return;
+    let cancelled = false;
+    async function loadPending() {
+      try {
+        const res = await api.listCreditExceptionRequests(
+          1,
+          50,
+          undefined,
+          pendingStatusId,
+        );
+        if (!cancelled) setPendingRequests(res.data);
+      } catch {
+        // non-fatal — banner just won't show
+      }
+    }
+    void loadPending();
+    return () => {
+      cancelled = true;
+    };
+  }, [can, pendingStatusId]);
 
   const updateParams = (mutator: (next: URLSearchParams) => void) => {
     const next = new URLSearchParams(searchParams);
@@ -219,6 +257,35 @@ export function FinanceExceptionsListPage() {
       </div>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
+
+      {can('FINANCE_CREDIT_AUTHORIZE') && pendingCount > 0 && (
+        <div className="rounded-lg border border-warning/30 bg-warning/5 p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-warning/10 text-warning">
+                <span className="text-sm font-bold">{pendingCount}</span>
+              </div>
+              <div>
+                <p className="text-sm font-medium">
+                  {pendingCount === 1
+                    ? '1 credit exception request awaiting review'
+                    : `${pendingCount} credit exception requests awaiting review`}
+                </p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Agents or managers have requested credit authorization. Review
+                  and approve or reject them to release registrations.
+                </p>
+              </div>
+            </div>
+            <Link
+              to="/credit-exception-requests"
+              className="inline-flex h-9 shrink-0 items-center justify-center rounded-md bg-warning px-4 text-sm font-medium text-warning-foreground transition-colors hover:bg-warning/90"
+            >
+              Review requests
+            </Link>
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-3">
         <div className="relative w-full lg:max-w-xs">

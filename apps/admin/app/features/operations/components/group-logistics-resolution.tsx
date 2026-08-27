@@ -32,10 +32,10 @@ import {
 
 export type LogisticsResolutionMode = 'hotel' | 'transport' | 'rooms' | null;
 
-// Note: "hotel" and "rooms" modes are now handled by the AccommodationWorkspace
-// component. This dialog retains only "transport" for the transport resolution
-// flow. The "hotel" and "rooms" modes are kept for backward compatibility but
-// should not be triggered from the UI.
+// "hotel" and "rooms" modes are handled by the AccommodationWorkspace
+// component. This dialog retains only "transport" for the transport
+// resolution flow. The "hotel" and "rooms" modes are kept for backward
+// compatibility but are not triggered from the UI.
 
 interface Props {
   group: TravelGroupOperationalSummary;

@@ -14,6 +14,7 @@ import {
   WhatsappLogoIcon,
 } from '@phosphor-icons/react';
 import { Separator } from '@ui/components/ui/separator';
+import { Button } from '@ui/components/ui/button';
 
 const PHONE_PRIMARY = '+251 111 262 965';
 const PHONE_MOBILE = '+251 930 737 337';
@@ -125,15 +126,16 @@ export default function ContactPanel() {
 
         <PanelSection icon={WhatsappLogoIcon} title="WhatsApp">
           <div className="space-y-3">
-            <a
-              href={WHATSAPP_HREF}
-              target="_blank"
-              rel="noreferrer"
-              className="btn-outline inline-flex h-11 items-center gap-2 px-5 text-sm"
+            <Button
+              variant="outline"
+              render={
+                <a href={WHATSAPP_HREF} target="_blank" rel="noreferrer" />
+              }
+              className="h-11 gap-2 px-5 text-sm"
             >
               <WhatsappLogoIcon className="size-5" weight="fill" />
               Chat on WhatsApp
-            </a>
+            </Button>
             <p className="text-sm text-muted-foreground">{PHONE_MOBILE}</p>
           </div>
         </PanelSection>

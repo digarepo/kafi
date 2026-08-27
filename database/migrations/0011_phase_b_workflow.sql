@@ -1,5 +1,5 @@
--- Phase B workflow migration
--- Adds registration cancellation audit columns and the approved Phase B lifecycle status set.
+-- Registration workflow migration
+-- Adds registration cancellation audit columns and the lifecycle status set.
 
 DELIMITER $$
 
@@ -15,7 +15,7 @@ BEGIN
 
   IF v_count > 0 THEN
     SIGNAL SQLSTATE '45000'
-      SET MESSAGE_TEXT = 'Data guard violation: existing registrations use deprecated status codes. Manual remapping required before Phase B migration.';
+      SET MESSAGE_TEXT = 'Data guard violation: existing registrations use deprecated status codes. Manual remapping required before migration.';
   END IF;
 
   SELECT COUNT(*) INTO v_count
@@ -26,7 +26,7 @@ BEGIN
 
   IF v_count > 0 THEN
     SIGNAL SQLSTATE '45000'
-      SET MESSAGE_TEXT = 'Data guard violation: existing travel groups use deprecated status codes. Manual remapping required before Phase B migration.';
+      SET MESSAGE_TEXT = 'Data guard violation: existing travel groups use deprecated status codes. Manual remapping required before migration.';
   END IF;
 END$$
 

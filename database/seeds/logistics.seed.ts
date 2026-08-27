@@ -18,9 +18,7 @@ const ROOM_TYPES = [
   { type_code: 'FAMILY', name: 'Family' },
 ];
 
-const VENDOR_TYPES = [
-  { type_code: 'AGENCY', name: 'Agency' },
-];
+const VENDOR_TYPES = [{ type_code: 'AGENCY', name: 'Agency' }];
 
 const HOTEL_STATUSES = [
   { status_code: 'ACTIVE', name: 'Active' },
@@ -110,7 +108,7 @@ async function upsertLookupStatusCodes(
 }
 
 /**
- * Seeds Slice 6 logistics lookup values.
+ * Seeds logistics lookup values.
  */
 export async function seedLogistics(db: LogisticsDb) {
   await upsertLookupTypeCodes(db, schema.hotelTypes, HOTEL_TYPES);

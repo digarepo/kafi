@@ -154,10 +154,7 @@ export function JourneySteps() {
           </span>
 
           <Link to="/packages" className="shrink-0">
-            <Button
-              size="sm"
-              className="btn-primary h-9 gap-1.5 px-3 text-[11px]"
-            >
+            <Button size="sm" className="h-9 gap-1.5 px-3 text-[11px]">
               Explore Packages
               <ArrowRightIcon weight="bold" className="h-3 w-3" />
             </Button>

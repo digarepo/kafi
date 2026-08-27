@@ -301,6 +301,29 @@ export class RegistrationsService {
       throw new ConflictException('Cannot update a cancelled registration');
     }
 
+    // Allow changing the package version on a DRAFT registration. This is
+    // needed when the original package was cancelled or closed after the
+    // registration was created.
+    let newPackageVersionId: string | undefined;
+    if (
+      dto.package_version_id &&
+      dto.package_version_id !== existing.package_version?.id
+    ) {
+      if (existing.status !== 'DRAFT') {
+        throw new ConflictException(
+          'Package can only be changed on a draft registration',
+        );
+      }
+      const packageVersion = await this.packages.assertAvailableForRegistration(
+        dto.package_version_id,
+      );
+      await this.assertNoActiveRegistrationForPackage(
+        existing.traveller!.id,
+        packageVersion.id,
+      );
+      newPackageVersionId = packageVersion.id;
+    }
+
     const departure =
       dto.expected_departure_date !== undefined
         ? toDateOrNull(dto.expected_departure_date)
@@ -319,6 +342,9 @@ export class RegistrationsService {
     await this.db
       .update(schema.registrations)
       .set({
+        ...(newPackageVersionId && {
+          package_version_id: newPackageVersionId,
+        }),
         ...(dto.expected_departure_date !== undefined && {
           expected_departure_date: toDateOrNull(dto.expected_departure_date),
         }),
@@ -469,9 +495,9 @@ export class RegistrationsService {
     }
 
     // ---- Financial consequences ----
-    // Per the locked Round 7 principle, cancelling a registration does NOT
-    // cancel or erase the original visa/flight expenses — those represent
-    // real costs incurred by Kafi. The customer-side cancellation effects
+    // Cancelling a registration does NOT cancel or erase the original
+    // visa/flight expenses — those represent real costs incurred by Kafi.
+    // The customer-side cancellation effects
     // (service charge, visa cost recovery, airline cancellation fee) are
     // represented SEPARATELY:
     //   - The Kafi cancellation/service charge is recorded as a new
@@ -622,7 +648,7 @@ export class RegistrationsService {
       total_paid: summary.total_paid,
       refundable_amount: refundableAmount,
       // TODO: Actual refund creation remains subject to final client policy.
-      // For now, we only compute the refundable amount; the admin can create
+      // Only the refundable amount is computed here; the admin can create
       // a refund manually via the refund workflow if needed.
     };
   }

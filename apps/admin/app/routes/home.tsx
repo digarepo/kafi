@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useRouteLoaderData } from 'react-router';
 import {
   buttonVariants,
@@ -34,7 +34,7 @@ export function HydrateFallback() {
       className="space-y-8"
       role="status"
       aria-live="polite"
-      aria-label="Loading operations dashboard"
+      aria-label="Loading dashboard"
     >
       <div className="space-y-2">
         <Skeleton className="h-8 w-64" />
@@ -69,12 +69,37 @@ function getUpcomingWindow() {
   };
 }
 
+function getGreeting(date: Date = new Date()): string {
+  const hour = date.getHours();
+  if (hour >= 5 && hour < 12) return 'Good morning';
+  if (hour >= 12 && hour < 17) return 'Good afternoon';
+  if (hour >= 17 && hour < 23) return 'Good evening';
+  return 'Hello';
+}
+
+function getFirstName(fullName: string | undefined): string {
+  if (!fullName) return '';
+  const trimmed = fullName.trim();
+  if (!trimmed) return '';
+  return trimmed.split(/\s+/)[0] ?? trimmed;
+}
+
 function HomeContent() {
   const adminData = useRouteLoaderData('routes/admin') as
-    { user?: { permissions?: string[] } } | undefined;
+    | {
+        user?: {
+          full_name?: string;
+          permissions?: string[];
+        };
+      }
+    | undefined;
   const permissions = adminData?.user?.permissions ?? [];
   const canViewRegistrations = permissions.includes('REGISTRATION_VIEW');
   const canViewGroups = permissions.includes('TRAVEL_GROUP_VIEW');
+
+  // Greeting is stable for the lifetime of the page mount — compute once.
+  const greeting = useMemo(() => getGreeting(), []);
+  const firstName = getFirstName(adminData?.user?.full_name);
 
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(true);
@@ -178,6 +203,27 @@ function HomeContent() {
     void loadUpcomingGroups();
   }, [loadUpcomingGroups]);
 
+  // Traveler workflows awaiting a staff decision: drafts waiting to enter
+  // processing, processing registrations blocked from ready, ready-for-travel
+  // travellers awaiting group assignment, and active registrations with an
+  // outstanding balance needing payment follow-up.
+  const pendingDecisionCount = canViewRegistrations
+    ? (summary?.registrations_needing_processing ?? 0) +
+      blockedQueue.length +
+      readyForGroupQueue.length +
+      unpaidQueue.length
+    : 0;
+
+  const workLoading = canViewRegistrations && (summaryLoading || queueLoading);
+
+  const heroSubtitle = !canViewRegistrations
+    ? 'Welcome back.'
+    : workLoading
+      ? 'Loading your work for today…'
+      : pendingDecisionCount > 0
+        ? `You have ${pendingDecisionCount} traveler workflow${pendingDecisionCount === 1 ? '' : 's'} that need${pendingDecisionCount === 1 ? 's' : ''} a decision before today's departures are ready.`
+        : "You're all set — nothing needs your attention right now.";
+
   const quickActions = [
     {
       label: 'Create traveller',
@@ -213,14 +259,15 @@ function HomeContent() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">
-          Operations dashboard
+      <section className="space-y-1.5">
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+          {greeting}
+          {firstName ? `, ${firstName}` : ''}.
         </h1>
-        <p className="text-muted-foreground">
-          Focused view of work requiring attention and upcoming departures.
+        <p className="text-sm text-muted-foreground sm:text-base">
+          {heroSubtitle}
         </p>
-      </div>
+      </section>
 
       <section className="space-y-4" aria-labelledby="urgent-work-title">
         <div>

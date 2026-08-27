@@ -46,12 +46,14 @@ apps/admin/tmp/phase0-lighthouse-profile*/
 apps/admin/test-results/
 docs/implementation/phase-c-operational-views-implementation-report.md
 AGENTS.md
-apps/api/storage/documents/DOC-01M0DFYXGA1M3GRKED2G46AX6Y-a9267fd8-6273-4f0c-983a-335f6035ac70.jpeg
-apps/api/storage/documents/DOC-01M0DFZF2WDE1NZ9EDT7GBYWR6-MemesrechaIkiz.pdf
+CLAUDE.md
 
-.claude/worktrees
-.claude/settings.local.json
+# Uploaded document files — never commit user uploads
+apps/api/storage/
+storage/
 
+# AI tool configs (not project source)
+.claude/
 .agents/
 .codex/
 .freebuff/

@@ -10,6 +10,7 @@ import { DocumentsModule } from '../modules/documents/index.js';
 import { FlightsModule } from '../modules/flights/index.js';
 import { DashboardModule } from '../modules/dashboard/index.js';
 import { InquiriesModule } from '../modules/inquiries/index.js';
+import { SearchModule } from '../modules/search/index.js';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { InquiriesModule } from '../modules/inquiries/index.js';
     FlightsModule,
     DashboardModule,
     InquiriesModule,
+    SearchModule,
   ],
   controllers: [AppController],
   providers: [],

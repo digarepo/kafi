@@ -1,14 +1,19 @@
-import { ConflictException, Inject, Injectable, NotFoundException } from "@nestjs/common";
-import { MySql2Database } from "drizzle-orm/mysql2";
-import { and, desc, eq, sql } from "drizzle-orm";
-import { ulid } from "ulid";
-import { DATABASE } from "../../../../shared/infrastructure/database/database.provider.js";
-import * as schema from "@kafi/database";
+import {
+  ConflictException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { MySql2Database } from 'drizzle-orm/mysql2';
+import { and, desc, eq, sql } from 'drizzle-orm';
+import { ulid } from 'ulid';
+import { DATABASE } from '../../../../shared/infrastructure/database/database.provider.js';
+import * as schema from '@kafi/database';
 import {
   CreateFinanceExceptionDto,
   FinanceExceptionFiltersDto,
   UpdateFinanceExceptionDto,
-} from "../dto/finance-exceptions.dto.js";
+} from '../dto/finance-exceptions.dto.js';
 
 /**
  * Owns the `FinanceException` aggregate — authorized credit exceptions that
@@ -25,17 +30,23 @@ import {
 export class FinanceExceptionsService {
   constructor(
     @Inject(DATABASE)
-    private readonly db: MySql2Database<typeof schema>
+    private readonly db: MySql2Database<typeof schema>,
   ) {}
 
   async listExceptions(dto: FinanceExceptionFiltersDto) {
-    const { page, page_size, registration_id, finance_exception_status_id } = dto;
+    const { page, page_size, registration_id, finance_exception_status_id } =
+      dto;
     const filters = [eq(schema.financeExceptions.is_deleted, false)];
     if (registration_id)
-      filters.push(eq(schema.financeExceptions.registration_id, registration_id));
+      filters.push(
+        eq(schema.financeExceptions.registration_id, registration_id),
+      );
     if (finance_exception_status_id)
       filters.push(
-        eq(schema.financeExceptions.finance_exception_status_id, finance_exception_status_id)
+        eq(
+          schema.financeExceptions.finance_exception_status_id,
+          finance_exception_status_id,
+        ),
       );
 
     const [rows, count] = await Promise.all([
@@ -46,8 +57,8 @@ export class FinanceExceptionsService {
           schema.financeExceptionStatuses,
           eq(
             schema.financeExceptions.finance_exception_status_id,
-            schema.financeExceptionStatuses.id
-          )
+            schema.financeExceptionStatuses.id,
+          ),
         )
         .where(and(...filters))
         .orderBy(desc(schema.financeExceptions.created_at))
@@ -81,13 +92,13 @@ export class FinanceExceptionsService {
       .where(
         and(
           eq(schema.registrations.id, dto.registration_id),
-          eq(schema.registrations.is_deleted, false)
-        )
+          eq(schema.registrations.is_deleted, false),
+        ),
       )
       .limit(1);
-    if (!registration) throw new NotFoundException("Registration not found");
+    if (!registration) throw new NotFoundException('Registration not found');
 
-    const activeStatus = await this.getStatusByCode("ACTIVE");
+    const activeStatus = await this.getStatusByCode('ACTIVE');
     const id = ulid();
     const number = await this.generateExceptionNumber();
     const now = new Date();
@@ -117,9 +128,9 @@ export class FinanceExceptionsService {
     } catch (err: any) {
       // MySQL duplicate entry error code 1062 — two concurrent ACTIVE
       // exceptions for the same registration
-      if (err?.code === "ER_DUP_ENTRY" || err?.errno === 1062) {
+      if (err?.code === 'ER_DUP_ENTRY' || err?.errno === 1062) {
         throw new ConflictException(
-          "An active finance exception already exists for this registration"
+          'An active finance exception already exists for this registration',
         );
       }
       throw err;
@@ -128,7 +139,11 @@ export class FinanceExceptionsService {
     return this.getException(id);
   }
 
-  async updateException(id: string, dto: UpdateFinanceExceptionDto, actorId: string) {
+  async updateException(
+    id: string,
+    dto: UpdateFinanceExceptionDto,
+    actorId: string,
+  ) {
     await this.getExceptionOrThrow(id);
     await this.db
       .update(schema.financeExceptions)
@@ -150,7 +165,7 @@ export class FinanceExceptionsService {
 
   async revokeException(id: string, actorId: string) {
     const exception = await this.getExceptionOrThrow(id);
-    const revokedStatus = await this.getStatusByCode("REVOKED");
+    const revokedStatus = await this.getStatusByCode('REVOKED');
     await this.db
       .update(schema.financeExceptions)
       .set({
@@ -181,9 +196,9 @@ export class FinanceExceptionsService {
    * Used by the readiness service to determine if credit is authorized.
    */
   async getActiveExceptionForRegistration(
-    registrationId: string
+    registrationId: string,
   ): Promise<{ authorized_amount: number } | null> {
-    const activeStatus = await this.getStatusByCode("ACTIVE");
+    const activeStatus = await this.getStatusByCode('ACTIVE');
     const [row] = await this.db
       .select({
         id: schema.financeExceptions.id,
@@ -194,9 +209,12 @@ export class FinanceExceptionsService {
       .where(
         and(
           eq(schema.financeExceptions.registration_id, registrationId),
-          eq(schema.financeExceptions.finance_exception_status_id, activeStatus.id),
-          eq(schema.financeExceptions.is_deleted, false)
-        )
+          eq(
+            schema.financeExceptions.finance_exception_status_id,
+            activeStatus.id,
+          ),
+          eq(schema.financeExceptions.is_deleted, false),
+        ),
       )
       .limit(1);
 
@@ -204,7 +222,7 @@ export class FinanceExceptionsService {
 
     // Check if expired (due_date passed)
     if (row.due_date && new Date(row.due_date) < new Date()) {
-      const expiredStatus = await this.getStatusByCode("EXPIRED");
+      const expiredStatus = await this.getStatusByCode('EXPIRED');
       await this.db
         .update(schema.financeExceptions)
         .set({
@@ -226,10 +244,13 @@ export class FinanceExceptionsService {
       .select()
       .from(schema.financeExceptions)
       .where(
-        and(eq(schema.financeExceptions.id, id), eq(schema.financeExceptions.is_deleted, false))
+        and(
+          eq(schema.financeExceptions.id, id),
+          eq(schema.financeExceptions.is_deleted, false),
+        ),
       )
       .limit(1);
-    if (!row) throw new NotFoundException("Finance exception not found");
+    if (!row) throw new NotFoundException('Finance exception not found');
     return row;
   }
 
@@ -240,28 +261,30 @@ export class FinanceExceptionsService {
       .where(
         and(
           eq(schema.financeExceptionStatuses.status_code, code),
-          eq(schema.financeExceptionStatuses.is_deleted, false)
-        )
+          eq(schema.financeExceptionStatuses.is_deleted, false),
+        ),
       )
       .limit(1);
-    if (!row) throw new NotFoundException(`Finance exception status ${code} not found`);
+    if (!row)
+      throw new NotFoundException(`Finance exception status ${code} not found`);
     return row;
   }
 
   private async generateExceptionNumber() {
     const year = new Date().getFullYear();
+    const pattern = `EXC-${year}-%`;
     const [row] = await this.db
       .select({
         max: sql<string>`max(${schema.financeExceptions.exception_number})`,
       })
       .from(schema.financeExceptions)
-      .where(sql`${schema.financeExceptions.exception_number} LIKE 'EXC-${year}-%'`);
+      .where(sql`${schema.financeExceptions.exception_number} LIKE ${pattern}`);
     let next = 1;
     if (row?.max) {
-      const parts = (row.max as string).split("-");
+      const parts = (row.max as string).split('-');
       next = Number(parts[parts.length - 1]) + 1;
     }
-    return `EXC-${year}-${String(next).padStart(6, "0")}`;
+    return `EXC-${year}-${String(next).padStart(6, '0')}`;
   }
 
   private mapExceptionRow(row: typeof schema.financeExceptions.$inferSelect) {

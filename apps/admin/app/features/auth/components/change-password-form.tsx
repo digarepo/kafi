@@ -22,15 +22,11 @@ import { PasswordRequirements } from './password-requirements';
 
 interface ChangePasswordFormProps {
   className?: string;
-  error?: string | null;
-  success?: boolean;
   onSubmit: (values: ChangePasswordFormValues) => Promise<void>;
 }
 
 export function ChangePasswordForm({
   className,
-  error,
-  success,
   onSubmit,
 }: ChangePasswordFormProps) {
   const navigate = useNavigate();
@@ -70,18 +66,6 @@ export function ChangePasswordForm({
             form.handleSubmit().catch(() => null);
           }}
         >
-          {success && (
-            <div className="rounded-md bg-success/10 p-3 text-sm text-success">
-              Password changed successfully.
-            </div>
-          )}
-
-          {!success && error && (
-            <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-              {error}
-            </div>
-          )}
-
           <FieldGroup>
             <form.Field name="oldPassword">
               {(field: AnyFieldApi) => (
@@ -97,7 +81,6 @@ export function ChangePasswordForm({
                     onChange={(e) => field.handleChange(e.target.value)}
                     onBlur={field.handleBlur}
                     aria-invalid={field.state.meta.errors.length > 0}
-                    disabled={success}
                   />
                   <FieldError field={field} />
                 </Field>
@@ -116,7 +99,6 @@ export function ChangePasswordForm({
                     onChange={(e) => field.handleChange(e.target.value)}
                     onBlur={field.handleBlur}
                     aria-invalid={field.state.meta.errors.length > 0}
-                    disabled={success}
                   />
                   <FieldError field={field} />
 
@@ -139,7 +121,6 @@ export function ChangePasswordForm({
                     onChange={(e) => field.handleChange(e.target.value)}
                     onBlur={field.handleBlur}
                     aria-invalid={field.state.meta.errors.length > 0}
-                    disabled={success}
                   />
                   <FieldError field={field} />
                 </Field>
@@ -147,14 +128,14 @@ export function ChangePasswordForm({
             </form.Field>
 
             <div className="flex gap-2 pt-2">
-              <Button type="submit" disabled={isSubmitting || success}>
+              <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting ? 'Changing…' : 'Change Password'}
               </Button>
 
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => navigate('/')}
+                onClick={() => navigate(-1)}
                 disabled={isSubmitting}
               >
                 Cancel

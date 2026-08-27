@@ -3,12 +3,13 @@
  */
 
 import {
-  Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
 } from '@kafi/ui';
 
 import { RegistrationForm } from './registration-form';
@@ -55,41 +56,39 @@ export function RegistrationDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] w-full overflow-y-auto sm:max-w-lg">
-        <DialogHeader className="flex flex-col items-center gap-2 text-left">
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
-        </DialogHeader>
+      <DialogContent className="max-h-[90vh] w-full overflow-y-auto sm:max-w-lg p-0">
+        <Card className="border-0 bg-transparent">
+          <CardHeader className="items-center py-4">
+            <CardTitle>{title}</CardTitle>
+            <CardDescription>{description}</CardDescription>
+          </CardHeader>
 
-        <div className="space-y-4 py-4">
-          {error && (
-            <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-              {error}
-            </div>
-          )}
-          {success && (
-            <div className="rounded-md bg-success/10 p-3 text-sm text-success">
-              {success}
-            </div>
-          )}
+          <CardContent className="space-y-4">
+            {error && (
+              <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+                {error}
+              </div>
+            )}
+            {success && (
+              <div className="rounded-md bg-success/10 p-3 text-sm text-success">
+                {success}
+              </div>
+            )}
 
-          {success ? (
-            <div className="flex justify-end">
-              <Button onClick={() => onOpenChange(false)}>Close</Button>
-            </div>
-          ) : (
-            <RegistrationForm
-              mode={mode}
-              registration={registration}
-              travellers={travellers}
-              packageVersions={packageVersions}
-              onSubmit={onSubmit}
-              submitLabel={
-                mode === 'create' ? 'Create registration' : 'Save changes'
-              }
-            />
-          )}
-        </div>
+            {success ? null : (
+              <RegistrationForm
+                mode={mode}
+                registration={registration}
+                travellers={travellers}
+                packageVersions={packageVersions}
+                onSubmit={onSubmit}
+                submitLabel={
+                  mode === 'create' ? 'Create registration' : 'Save changes'
+                }
+              />
+            )}
+          </CardContent>
+        </Card>
       </DialogContent>
     </Dialog>
   );

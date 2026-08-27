@@ -1188,7 +1188,7 @@ export class TravelGroupsService {
       });
     }
 
-    // Note: The list-level preparation_ready flag is a quick approximation.
+    // The list-level preparation_ready flag is a quick approximation.
     // The authoritative multi-stay room coverage check is performed by the
     // operational summary service and confirmTravelPrepared.
 

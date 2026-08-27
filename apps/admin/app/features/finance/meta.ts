@@ -158,6 +158,40 @@ export const financeMeta: RouteMeta[] = [
     },
   },
   {
+    path: '/credit-exception-requests',
+    title: 'Credit Exception Requests',
+    navigation: {
+      label: 'Credit Requests',
+      icon: ShieldCheck,
+      order: 38,
+      parent: '/finance',
+    },
+    breadcrumb: { label: 'Credit Exception Requests' },
+    permission: 'FINANCE_VIEW',
+  },
+  {
+    path: '/credit-exception-requests/new',
+    title: 'Request credit exception',
+    breadcrumb: { label: 'New request' },
+    permission: 'FINANCE_CREDIT_REQUEST',
+    navigation: {
+      label: 'New request',
+      parent: '/credit-exception-requests',
+      hidden: true,
+    },
+  },
+  {
+    path: '/credit-exception-requests/:id',
+    title: 'Request detail',
+    breadcrumb: { label: 'Detail' },
+    permission: 'FINANCE_VIEW',
+    navigation: {
+      label: 'Detail',
+      parent: '/credit-exception-requests',
+      hidden: true,
+    },
+  },
+  {
     path: '/refunds',
     title: 'Refunds',
     navigation: {

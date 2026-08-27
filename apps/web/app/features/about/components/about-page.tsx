@@ -273,14 +273,18 @@ function Closing() {
             <>
               <Button
                 onClick={() => setShowForm(true)}
-                className="btn-primary h-11 px-6 text-sm"
+                className="h-11 px-6 text-sm"
               >
                 Request a Callback
               </Button>
 
-              <Link to="/packages" className="btn-outline h-11 px-6 text-sm">
+              <Button
+                variant="outline"
+                render={<Link to="/packages" />}
+                className="h-11 px-6 text-sm"
+              >
                 View Packages
-              </Link>
+              </Button>
             </>
           )}
         </div>

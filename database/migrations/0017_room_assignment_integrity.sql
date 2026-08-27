@@ -1,4 +1,4 @@
--- Round 4B-2: Fix ineffective unique constraint on room_assignments.
+-- Fix ineffective unique constraint on room_assignments.
 --
 -- The old constraint (group_membership_id, group_hotel_stay_id, is_active_assignment)
 -- was ineffective because is_active_assignment is nullable and MariaDB treats each

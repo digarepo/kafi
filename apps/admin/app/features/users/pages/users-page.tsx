@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { toast } from 'sonner';
 import type { ColumnDef } from '@tanstack/react-table';
 import { Badge, Button } from '@kafi/ui';
 import {
@@ -46,46 +47,47 @@ export function UsersPage({ initial }: UsersPageProps) {
   const [deletingUsers, setDeletingUsers] = useState<User[]>([]);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [globalFilter, setGlobalFilter] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
 
   const [statuses] = useState<UserStatusOption[]>(initial.statuses);
 
+  async function refreshUsers() {
+    const refreshed = await api.listUsers();
+    setUsers(refreshed.items);
+  }
+
   async function handleCreate(output: UserFormOutput) {
-    setError(null);
-    setSuccess(null);
     try {
       const result = await api.createUser(output as CreateUserInput);
       const emailWarning =
         result.emailErrors.length > 0
           ? ` Email not sent: ${result.emailErrors.join('; ')}`
           : ' A welcome email with the temporary password and a verification email have been sent.';
-      setSuccess(
+      toast.success(
         `User created. Temporary password: ${result.temporary_password} (share securely).${emailWarning}`,
+        { duration: 10000 },
       );
-      const refreshed = await api.listUsers();
-      setUsers(refreshed.items);
+      setCreateOpen(false);
+      await refreshUsers();
     } catch (err) {
       const message =
         err instanceof Error ? err.message : 'Failed to create user';
-      setError(message);
+      toast.error(message);
+      throw err;
     }
   }
 
   async function handleUpdate(output: UserFormOutput) {
     if (!editingUser) return;
-    setError(null);
-    setSuccess(null);
     try {
       await api.updateUser(editingUser.id, output as UpdateUserInput);
-      const refreshed = await api.listUsers();
-      setUsers(refreshed.items);
-      setSuccess('User updated successfully.');
+      toast.success('User updated successfully.');
       setEditingUser(null);
+      await refreshUsers();
     } catch (err) {
       const message =
         err instanceof Error ? err.message : 'Failed to update user';
-      setError(message);
+      toast.error(message);
+      throw err;
     }
   }
 
@@ -98,13 +100,12 @@ export function UsersPage({ initial }: UsersPageProps) {
     setDeleteLoading(true);
     try {
       await api.deleteUser(deletingUser.id);
-      const refreshed = await api.listUsers();
-      setUsers(refreshed.items);
-      setSuccess('User deleted successfully.');
+      toast.success('User archived successfully.');
+      await refreshUsers();
     } catch (err) {
       const message =
-        err instanceof Error ? err.message : 'Failed to delete user';
-      setError(message);
+        err instanceof Error ? err.message : 'Failed to archive user';
+      toast.error(message);
     } finally {
       setDeleteLoading(false);
       setDeletingUser(null);
@@ -116,13 +117,12 @@ export function UsersPage({ initial }: UsersPageProps) {
     setDeleteLoading(true);
     try {
       await Promise.all(deletingUsers.map((user) => api.deleteUser(user.id)));
-      const refreshed = await api.listUsers();
-      setUsers(refreshed.items);
-      setSuccess(`${deletingUsers.length} users deleted successfully.`);
+      toast.success(`${deletingUsers.length} users archived successfully.`);
+      await refreshUsers();
     } catch (err) {
       const message =
-        err instanceof Error ? err.message : 'Failed to delete selected users';
-      setError(message);
+        err instanceof Error ? err.message : 'Failed to archive selected users';
+      toast.error(message);
     } finally {
       setDeleteLoading(false);
       setDeletingUsers([]);
@@ -132,13 +132,13 @@ export function UsersPage({ initial }: UsersPageProps) {
   async function handleResendVerification(user: User) {
     try {
       await api.resendVerification(user.id);
-      setSuccess(`Verification email resent to ${user.email_address}.`);
+      toast.success(`Verification email resent to ${user.email_address}.`);
     } catch (err) {
       const message =
         err instanceof Error
           ? err.message
           : 'Failed to resend verification email';
-      setError(message);
+      toast.error(message);
     }
   }
 
@@ -201,16 +201,8 @@ export function UsersPage({ initial }: UsersPageProps) {
         mode="create"
         roles={roles}
         open={createOpen}
-        onOpenChange={(open) => {
-          setCreateOpen(open);
-          if (open) {
-            setError(null);
-            setSuccess(null);
-          }
-        }}
+        onOpenChange={setCreateOpen}
         onSubmit={handleCreate}
-        error={createOpen ? error : null}
-        success={createOpen ? success : null}
       />
 
       <UserDialog
@@ -219,16 +211,8 @@ export function UsersPage({ initial }: UsersPageProps) {
         roles={roles}
         statuses={statuses}
         open={editingUser !== null}
-        onOpenChange={(open) => {
-          if (!open) setEditingUser(null);
-          if (open) {
-            setError(null);
-            setSuccess(null);
-          }
-        }}
+        onOpenChange={(open) => !open && setEditingUser(null)}
         onSubmit={handleUpdate}
-        error={editingUser !== null ? error : null}
-        success={editingUser !== null ? success : null}
       />
 
       <DeleteDialog

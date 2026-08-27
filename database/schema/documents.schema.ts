@@ -138,7 +138,7 @@ export const visaApplications = mysqlTable(
     expiry_date: date('expiry_date'),
     visa_number: varchar('visa_number', { length: 100 }),
     visa_application_status_id: fkUuid('visa_application_status_id').notNull(),
-    // Round 6: actual visa cost (supplier cost, not customer charge)
+    // actual visa cost (supplier cost, not customer charge)
     visa_cost: decimal('visa_cost', { precision: 18, scale: 2 }),
     notes: text('notes'),
     rejection_date: date('rejection_date'),

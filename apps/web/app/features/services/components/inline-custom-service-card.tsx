@@ -295,7 +295,7 @@ export default function InlineCustomServiceCard() {
           <div className="flex flex-col items-center gap-4">
             <Button
               onClick={() => setIsExpanded(true)}
-              className="btn-primary h-11 px-8 text-sm"
+              className="h-11 px-8 text-sm"
             >
               Request Service Assistance
             </Button>

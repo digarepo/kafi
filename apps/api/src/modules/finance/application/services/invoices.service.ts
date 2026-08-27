@@ -37,11 +37,11 @@ function lineItemTotal(item: {
  * - **Authority:** `subtotal` and `total_amount` are always computed here
  *   from `invoice_line_items` and `discount_amount`; they are never
  *   accepted from a request body (the DTOs simply do not expose them).
- * - **Scope:** Slice 4 accounting is ETB-only. `currency_id` always
+ * - **Scope:** Accounting is ETB-only. `currency_id` always
  *   resolves to the ETB currency row.
  * - **Registration cardinality:** no unique constraint exists on
  *   `registration_id`; multiple invoices per registration are supported
- *   by the schema, but the Slice 4 workflow creates exactly one.
+ *   by the schema, but the current workflow creates exactly one.
  */
 @Injectable()
 export class InvoicesService {

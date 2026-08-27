@@ -11,6 +11,7 @@ import {
   type Payment,
 } from '../../../lib/api.js';
 import { PaymentAllocationDialog } from '../components/payment-allocation-dialog';
+import { RotateCcw } from 'lucide-react';
 
 interface PaymentDetailPageProps {
   id: string;
@@ -95,6 +96,15 @@ export function PaymentDetailPage({ id }: PaymentDetailPageProps) {
         <div className="flex gap-2">
           {can('FINANCE_EDIT') && payment.unallocated_amount > 0 && (
             <Button onClick={() => setAllocateOpen(true)}>Allocate</Button>
+          )}
+          {can('FINANCE_REFUND_APPROVE') && payment.unallocated_amount > 0 && (
+            <Button
+              variant="outline"
+              onClick={() => navigate(`/refunds/new?payment_id=${payment.id}`)}
+            >
+              <RotateCcw className="mr-1.5 h-4 w-4" />
+              Refund
+            </Button>
           )}
           {can('FINANCE_DELETE') && (
             <Button variant="destructive" onClick={() => void handleArchive()}>

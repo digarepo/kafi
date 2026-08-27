@@ -2,6 +2,7 @@ import { Link } from 'react-router';
 import { ArrowLeftIcon, CheckIcon, CalendarIcon } from '@phosphor-icons/react';
 
 import { Separator } from '@ui/components/ui/separator';
+import { Button } from '@ui/components/ui/button';
 
 import type { PublicPackageVersion } from '../../../lib/public-api';
 import { PackageBookingCard } from './package-booking-card';
@@ -272,9 +273,7 @@ export function LivePackageDetail({
           </div>
 
           <Link to={`/booking?package=${pkg.slug}`} className="flex-1">
-            <span className="btn-primary inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl text-sm">
-              Book Now
-            </span>
+            <Button className="h-11 w-full gap-2 text-sm">Book Now</Button>
           </Link>
         </div>
       </div>

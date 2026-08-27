@@ -5,7 +5,7 @@ import { RequirePermissions } from '../../../../shared/application/decorators/re
 import { LogisticsLookupsService } from '../../application/services/logistics-lookups.service.js';
 
 /**
- * Read-only catalog endpoints for Slice 6 logistics lookup tables.
+ * Read-only catalog endpoints for logistics lookup tables.
  */
 @Controller('admin')
 @UseGuards(JwtAuthGuard, PermissionsGuard)

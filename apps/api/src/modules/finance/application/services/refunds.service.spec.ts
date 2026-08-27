@@ -51,9 +51,9 @@ describe('RefundsService', () => {
     });
   });
 
-  // ---- Round 7: Refund safeguards ----
+  // ---- Refund safeguards ----
 
-  describe('createRefund — Round 7 cancelled-payment guard', () => {
+  describe('createRefund — cancelled-payment guard', () => {
     it('rejects refunds against CANCELLED payments', async () => {
       const payment = {
         id: 'pay-1',

@@ -24,7 +24,9 @@ export class RegistrationReadinessService {
    * - package version is PUBLISHED
    * - traveller has an active primary contact
    * - traveller has verified, valid, non-expired PASSPORT and PHOTO documents
-   * - at least one non-CANCELLED invoice exists and the outstanding balance <= 0
+   * - at least one non-CANCELLED invoice exists and the outstanding balance
+   *   is either zero or covered by an authorized credit exception
+   * - an active guarantee exists
    */
   async isRegistrationComplete(registrationId: string): Promise<boolean> {
     const [registration] = await this.db
@@ -268,7 +270,20 @@ export class RegistrationReadinessService {
 
     const balance =
       await this.invoices.getOutstandingBalanceForRegistration(registrationId);
-    return balance <= 0;
+    if (balance <= 0) return true;
+
+    // If there is an outstanding balance, check whether an authorized
+    // credit exception covers it. This allows a registration to proceed
+    // when an admin has approved credit for the remaining balance.
+    const creditException =
+      await this.financeExceptions.getActiveExceptionForRegistration(
+        registrationId,
+      );
+    if (creditException && creditException.authorized_amount >= balance) {
+      return true;
+    }
+
+    return false;
   }
 
   private async hasActiveGuarantee(registrationId: string): Promise<boolean> {
@@ -382,8 +397,15 @@ export class RegistrationReadinessService {
 
     const packagePublished = pkg?.status === 'PUBLISHED';
     const hasPrimaryContact = !!primaryContact;
+    // Intake payment: either the balance is paid in full, or an authorized
+    // credit exception covers the outstanding balance. This mirrors the
+    // ready-for-travel payment check so that an approved credit exception
+    // releases the intake gate as well.
     const hasPaymentForIntake =
-      summary.total_invoiced > 0 && summary.outstanding_balance <= 0;
+      summary.total_invoiced > 0 &&
+      (summary.outstanding_balance <= 0 ||
+        (hasAuthorizedCredit &&
+          authorizedCredit >= summary.outstanding_balance));
     // Ready-for-travel payment: either balance is zero, or an authorized
     // credit exception covers the outstanding balance.
     const hasPaymentForReady =

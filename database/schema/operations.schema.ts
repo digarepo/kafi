@@ -381,7 +381,7 @@ export const groupHotelStays = mysqlTable(
     check_in_date: date('check_in_date').notNull(),
     check_out_date: date('check_out_date').notNull(),
     group_hotel_stay_status_id: fkUuid('group_hotel_stay_status_id').notNull(),
-    // Round 6: accommodation cost for this stay (supplier cost, not customer charge)
+    // accommodation cost for this stay (supplier cost, not customer charge)
     accommodation_cost: decimal('accommodation_cost', {
       precision: 18,
       scale: 2,
@@ -526,7 +526,7 @@ export const transportSegments = mysqlTable(
     transport_segment_status_id: fkUuid(
       'transport_segment_status_id',
     ).notNull(),
-    // Round 6: transport cost for this segment (supplier cost, not customer charge)
+    // transport cost for this segment (supplier cost, not customer charge)
     transport_cost: decimal('transport_cost', { precision: 18, scale: 2 }),
     notes: text('notes'),
     ...auditMetadata,

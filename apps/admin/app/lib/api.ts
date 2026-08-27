@@ -708,6 +708,24 @@ export interface DashboardSummary {
   generated_at: string;
 }
 
+export interface SearchHit {
+  id: string;
+  label: string;
+  secondary: string | null;
+  href: string;
+}
+
+export interface SearchResults {
+  query: string;
+  travellers: SearchHit[];
+  registrations: SearchHit[];
+  travel_groups: SearchHit[];
+  inquiries: SearchHit[];
+  packages: SearchHit[];
+  invoices: SearchHit[];
+  payments: SearchHit[];
+}
+
 export interface RegistrationQueueItem {
   id: string;
   registration_number: string;
@@ -1137,6 +1155,7 @@ export interface CreateRegistrationInput {
 }
 
 export interface UpdateRegistrationInput {
+  package_version_id?: string;
   expected_departure_date?: string | null;
   expected_return_date?: string | null;
   remarks?: string | null;
@@ -1526,6 +1545,72 @@ export interface UpdateFinanceExceptionInput {
   reason?: string;
   due_date?: string;
   notes?: string;
+}
+
+// ---- Credit Exception Requests ----
+
+export interface CreditExceptionRequestListItem {
+  id: string;
+  request_number: string;
+  registration_id: string;
+  requested_amount: string | number;
+  reason: string;
+  requested_due_date: string | null;
+  requested_by: string;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  rejection_reason: string | null;
+  finance_exception_id: string | null;
+  notes: string | null;
+  status: { id: string; code: string; name: string } | null;
+  registration: {
+    id: string;
+    registration_number: string;
+  } | null;
+  traveller: {
+    id: string;
+    first_name: string;
+    last_name: string;
+  } | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreditExceptionRequest {
+  id: string;
+  request_number: string;
+  registration_id: string;
+  requested_amount: string | number;
+  reason: string;
+  requested_due_date: string | null;
+  requested_by: string;
+  credit_exception_request_status_id: string;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  rejection_reason: string | null;
+  finance_exception_id: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PaginatedCreditExceptionRequests {
+  data: CreditExceptionRequestListItem[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export interface CreateCreditExceptionRequestInput {
+  registration_id: string;
+  requested_amount: number;
+  reason: string;
+  requested_due_date?: string;
+  notes?: string;
+}
+
+export interface RejectCreditExceptionRequestInput {
+  rejection_reason: string;
 }
 
 // ---- Refunds ----
@@ -2608,6 +2693,13 @@ export const api = {
     return request<DashboardSummary>('/api/admin/dashboard');
   },
 
+  // ---- Global search ----
+
+  async globalSearch(query: string): Promise<SearchResults> {
+    const qs = new URLSearchParams({ q: query });
+    return request<SearchResults>(`/api/admin/search?${qs.toString()}`);
+  },
+
   // ---- Registrations ----
 
   async listRegistrations(
@@ -3133,6 +3225,66 @@ export const api = {
     });
   },
 
+  // ---- Credit Exception Requests ----
+
+  async listCreditExceptionRequests(
+    page = 1,
+    pageSize = 25,
+    registrationId?: string,
+    statusId?: string,
+  ): Promise<PaginatedCreditExceptionRequests> {
+    const qs = new URLSearchParams({
+      page: String(page),
+      page_size: String(pageSize),
+    });
+    if (registrationId) qs.set('registration_id', registrationId);
+    if (statusId) qs.set('credit_exception_request_status_id', statusId);
+    return request(`/api/admin/credit-exception-requests?${qs.toString()}`);
+  },
+
+  async getCreditExceptionRequest(id: string): Promise<CreditExceptionRequest> {
+    return request<CreditExceptionRequest>(
+      `/api/admin/credit-exception-requests/${id}`,
+    );
+  },
+
+  async createCreditExceptionRequest(
+    input: CreateCreditExceptionRequestInput,
+  ): Promise<CreditExceptionRequest> {
+    return request<CreditExceptionRequest>(
+      '/api/admin/credit-exception-requests',
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+    );
+  },
+
+  async approveCreditExceptionRequest(
+    id: string,
+  ): Promise<CreditExceptionRequest> {
+    return request<CreditExceptionRequest>(
+      `/api/admin/credit-exception-requests/${id}/approve`,
+      { method: 'POST' },
+    );
+  },
+
+  async rejectCreditExceptionRequest(
+    id: string,
+    input: RejectCreditExceptionRequestInput,
+  ): Promise<CreditExceptionRequest> {
+    return request<CreditExceptionRequest>(
+      `/api/admin/credit-exception-requests/${id}/reject`,
+      { method: 'POST', body: JSON.stringify(input) },
+    );
+  },
+
+  async archiveCreditExceptionRequest(id: string): Promise<void> {
+    await request(`/api/admin/credit-exception-requests/${id}/archive`, {
+      method: 'POST',
+    });
+  },
+
   // ---- Refunds ----
 
   async listRefunds(
@@ -3257,6 +3409,12 @@ export const api = {
 
   async listRefundStatuses(): Promise<LookupOption[]> {
     return request<LookupOption[]>('/api/admin/refund-statuses');
+  },
+
+  async listCreditExceptionRequestStatuses(): Promise<LookupOption[]> {
+    return request<LookupOption[]>(
+      '/api/admin/credit-exception-request-statuses',
+    );
   },
 
   // ---- Operations ----

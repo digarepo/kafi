@@ -13,7 +13,7 @@ import {
 
 import { Link } from 'react-router';
 
-import { Badge } from '@ui/components/ui/badge'
+import { Badge } from '@ui/components/ui/badge';
 import { Button } from '@ui/components/ui/button';
 
 import type { PublicPackageVersion } from '../../../lib/public-api';
@@ -274,9 +274,7 @@ export function PackageComparison({
                       <Link to={`/packages/${pkg.slug}`}>
                         <Button
                           variant={popular ? 'default' : 'outline'}
-                          className={`h-9 w-full text-xs ${
-                            popular ? 'btn-primary' : 'btn-outline'
-                          }`}
+                          className="h-9 w-full text-xs"
                         >
                           View Details
                         </Button>

@@ -1,4 +1,4 @@
--- Round 7 — Expense Adjustments
+-- Expense Adjustments
 -- Supplier refunds, cancellation fees, and other adjustments to operational
 -- expenses. The original expense is NEVER modified or deleted — adjustments
 -- are recorded separately and explicitly so that:
@@ -40,7 +40,7 @@ CREATE INDEX `expense_adjustments_traveller_id_idx` ON `expense_adjustments` (`t
 --> statement-breakpoint
 CREATE INDEX `expense_adjustments_registration_id_idx` ON `expense_adjustments` (`registration_id`);
 
--- Round 7 — Finance exception concurrency: unique index on (registration_id)
+-- Finance exception concurrency: unique index on (registration_id)
 -- where status is ACTIVE. MySQL does not support partial/filtered unique
 -- indexes, so we add a nullable `active_lock` column that is set to the
 -- exception id when ACTIVE and NULL otherwise. A unique index on

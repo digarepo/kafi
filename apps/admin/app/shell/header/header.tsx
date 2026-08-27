@@ -1,4 +1,4 @@
-import { SidebarTrigger } from '@kafi/ui';
+import { SidebarTrigger, ThemeToggle } from '@kafi/ui';
 
 import { AppBreadcrumbs } from '../breadcrumbs/breadcrumbs';
 import { GlobalSearch } from './global-search';
@@ -7,8 +7,8 @@ import { InquiryNotificationBadge } from './inquiry-notification-badge';
 /**
  * Top application header.
  *
- * Contains breadcrumbs, the mobile sidebar trigger, an inquiry notification
- * badge, and a visual-only global search placeholder.
+ * Contains breadcrumbs, the mobile sidebar trigger, a global cross-entity
+ * search, a theme toggle, and an inquiry notification badge.
  */
 export function Header() {
   return (
@@ -16,8 +16,11 @@ export function Header() {
       <SidebarTrigger className="lg:hidden" />
       <AppBreadcrumbs />
       <div className="ml-auto flex items-center gap-2">
-        <InquiryNotificationBadge />
         <GlobalSearch />
+        <InquiryNotificationBadge />
+        <div className="hidden md:block">
+          <ThemeToggle />
+        </div>
       </div>
     </header>
   );

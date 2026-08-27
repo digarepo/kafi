@@ -17,6 +17,7 @@ const createRegistrationSchema = z.object({
 });
 
 const updateRegistrationSchema = z.object({
+  package_version_id: ulidSchema.optional(),
   expected_departure_date: optionalDate,
   expected_return_date: optionalDate,
   remarks: z.string().optional(),

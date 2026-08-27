@@ -60,10 +60,10 @@ const recordVisaResultSchema = z
     cancellation_reason: z.string().optional(),
   })
   .superRefine((data, ctx) => {
-    // The service resolves the status code from the ID; however we cannot
+    // The service resolves the status code from the ID; the DTO cannot
     // know the code here without a DB lookup. The service performs the
-    // conditional validation after resolving the status. We still do a
-    // basic shape check: if any result field is provided it must be non-empty.
+    // conditional validation after resolving the status. A basic shape
+    // check is still done here: if any result field is provided it must be non-empty.
     if (
       data.visa_number !== undefined &&
       data.visa_number.trim().length === 0

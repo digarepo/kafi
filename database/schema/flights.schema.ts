@@ -73,7 +73,7 @@ export const flightBookings = mysqlTable(
     cancellation_date: date('cancellation_date'),
     cancellation_reason: text('cancellation_reason'),
 
-    // Round 6: supplier/ticket cost (not customer charge)
+    // supplier/ticket cost (not customer charge)
     supplier_cost: decimal('supplier_cost', { precision: 18, scale: 2 }),
     cancellation_fee: decimal('cancellation_fee', { precision: 18, scale: 2 }),
 

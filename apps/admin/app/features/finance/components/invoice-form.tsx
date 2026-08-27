@@ -10,6 +10,12 @@
 import { AnyFieldApi, useForm, useSelector } from '@tanstack/react-form';
 import {
   Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
   Input,
   Label,
   Select,
@@ -17,6 +23,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Textarea,
 } from '@kafi/ui';
 
 import { DatePicker } from './date-picker';
@@ -81,147 +88,180 @@ export function InvoiceForm({
   const isSubmitting = useSelector(form.store, (state) => state.isSubmitting);
 
   return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        form.handleSubmit().catch(() => null);
-      }}
-      className="space-y-6"
-    >
-      <div className="grid gap-4 md:grid-cols-2">
-        <form.Field name="registration_id">
-          {(field: AnyFieldApi) => (
-            <div className="space-y-2 md:col-span-2">
-              <Label className="text-sm font-medium">Registration</Label>
-              <Select
-                value={field.state.value ?? ''}
-                onValueChange={(v) => field.handleChange(v ?? '')}
-              >
-                <SelectTrigger
-                  className="h-9 w-full"
-                  aria-invalid={field.state.meta.errors.length > 0}
-                >
-                  <SelectValue>
-                    {registrations
-                      .map((r) => ({
-                        value: r.id,
-                        label: `${r.registration_number} — ${r.traveller?.full_name ?? '-'}`,
-                      }))
-                      .find((o) => o.value === field.state.value)?.label ??
-                      'Select registration'}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {registrations
-                    .map((r) => ({
-                      value: r.id,
-                      label: `${r.registration_number} — ${r.traveller?.full_name ?? '-'}`,
-                    }))
-                    .map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-              <FieldError field={field} />
+    <>
+      <Card className="mx-auto w-full max-w-2xl">
+        <CardHeader>
+          <CardTitle>Create invoice</CardTitle>
+          <CardDescription>
+            Bill a registration for its package cost and any additional charges.
+            Totals are always computed from the line items below.
+          </CardDescription>
+        </CardHeader>
+
+        <CardContent className="space-y-6">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              form.handleSubmit().catch(() => null);
+            }}
+            className="space-y-6"
+          >
+            <div className="grid gap-4 md:grid-cols-2">
+              <form.Field name="registration_id">
+                {(field: AnyFieldApi) => (
+                  <div className="space-y-2 md:col-span-2">
+                    <Label className="text-sm font-medium">Registration</Label>
+                    <Select
+                      value={field.state.value ?? ''}
+                      onValueChange={(v) => field.handleChange(v ?? '')}
+                    >
+                      <SelectTrigger
+                        className="h-9 w-full"
+                        aria-invalid={field.state.meta.errors.length > 0}
+                      >
+                        <SelectValue>
+                          {registrations
+                            .map((r) => ({
+                              value: r.id,
+                              label: `${r.registration_number} — ${r.traveller?.full_name ?? '-'}`,
+                            }))
+                            .find((o) => o.value === field.state.value)
+                            ?.label ?? 'Select registration'}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {registrations
+                          .map((r) => ({
+                            value: r.id,
+                            label: `${r.registration_number} — ${r.traveller?.full_name ?? '-'}`,
+                          }))
+                          .map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                    <FieldError field={field} />
+                  </div>
+                )}
+              </form.Field>
+
+              <form.Field name="invoice_date">
+                {(field: AnyFieldApi) => (
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="invoice_date"
+                      className="text-sm font-medium"
+                    >
+                      Invoice date
+                    </Label>
+                    <DatePicker
+                      id="invoice_date"
+                      value={field.state.value}
+                      onChange={(value) => field.handleChange(value)}
+                    />
+                    <FieldError field={field} />
+                  </div>
+                )}
+              </form.Field>
+
+              <form.Field name="due_date">
+                {(field: AnyFieldApi) => (
+                  <div className="space-y-2">
+                    <Label htmlFor="due_date" className="text-sm font-medium">
+                      Due date
+                    </Label>
+                    <DatePicker
+                      id="due_date"
+                      value={field.state.value}
+                      onChange={(value) => field.handleChange(value)}
+                    />
+                  </div>
+                )}
+              </form.Field>
+
+              <form.Field name="discount_amount">
+                {(field: AnyFieldApi) => (
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="discount_amount"
+                      className="text-sm font-medium"
+                    >
+                      Discount (ETB)
+                    </Label>
+                    <Input
+                      id="discount_amount"
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      value={field.state.value ?? ''}
+                      onChange={(e) => field.handleChange(e.target.value)}
+                      onBlur={field.handleBlur}
+                      className="h-9 w-full"
+                    />
+                    <FieldError field={field} />
+                  </div>
+                )}
+              </form.Field>
+
+              <form.Field name="notes">
+                {(field: AnyFieldApi) => (
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="notes" className="text-sm font-medium">
+                      Notes
+                    </Label>
+                    <Textarea
+                      id="notes"
+                      value={field.state.value ?? ''}
+                      onChange={(e) => field.handleChange(e.target.value)}
+                      onBlur={field.handleBlur}
+                      className="min-h-20"
+                    />
+                  </div>
+                )}
+              </form.Field>
             </div>
-          )}
-        </form.Field>
 
-        <form.Field name="invoice_date">
-          {(field: AnyFieldApi) => (
-            <div className="space-y-2">
-              <Label htmlFor="invoice_date" className="text-sm font-medium">
-                Invoice date
-              </Label>
-              <DatePicker
-                id="invoice_date"
-                value={field.state.value}
-                onChange={(value) => field.handleChange(value)}
-              />
-              <FieldError field={field} />
-            </div>
-          )}
-        </form.Field>
+            <form.Field name="line_items">
+              {(field: AnyFieldApi) => (
+                <div className="space-y-2">
+                  <InvoiceLineItemsEditor
+                    lineItems={field.state.value ?? []}
+                    lineItemTypes={lineItemTypes}
+                    onChange={(items) => field.handleChange(items)}
+                  />
+                  <FieldError field={field} />
+                </div>
+              )}
+            </form.Field>
+          </form>
+        </CardContent>
 
-        <form.Field name="due_date">
-          {(field: AnyFieldApi) => (
-            <div className="space-y-2">
-              <Label htmlFor="due_date" className="text-sm font-medium">
-                Due date
-              </Label>
-              <DatePicker
-                id="due_date"
-                value={field.state.value}
-                onChange={(value) => field.handleChange(value)}
-              />
-            </div>
-          )}
-        </form.Field>
+        {/* Desktop/tablet: actions inside card footer */}
+        <CardFooter className="hidden gap-3 sm:flex">
+          <Button
+            type="button"
+            disabled={isSubmitting}
+            onClick={() => form.handleSubmit().catch(() => null)}
+            className="h-9"
+          >
+            {isSubmitting ? 'Creating…' : (submitLabel ?? 'Create invoice')}
+          </Button>
+        </CardFooter>
+      </Card>
 
-        <form.Field name="discount_amount">
-          {(field: AnyFieldApi) => (
-            <div className="space-y-2">
-              <Label htmlFor="discount_amount" className="text-sm font-medium">
-                Discount (ETB)
-              </Label>
-              <Input
-                id="discount_amount"
-                type="number"
-                min={0}
-                step="0.01"
-                value={field.state.value ?? ''}
-                onChange={(e) => field.handleChange(e.target.value)}
-                onBlur={field.handleBlur}
-                className="h-9 w-full"
-              />
-              <FieldError field={field} />
-            </div>
-          )}
-        </form.Field>
-
-        <form.Field name="notes">
-          {(field: AnyFieldApi) => (
-            <div className="space-y-2">
-              <Label htmlFor="notes" className="text-sm font-medium">
-                Notes
-              </Label>
-              <Input
-                id="notes"
-                value={field.state.value ?? ''}
-                onChange={(e) => field.handleChange(e.target.value)}
-                onBlur={field.handleBlur}
-                className="h-9 w-full"
-              />
-            </div>
-          )}
-        </form.Field>
-      </div>
-
-      <form.Field name="line_items">
-        {(field: AnyFieldApi) => (
-          <div className="space-y-2">
-            <InvoiceLineItemsEditor
-              lineItems={field.state.value ?? []}
-              lineItemTypes={lineItemTypes}
-              onChange={(items) => field.handleChange(items)}
-            />
-            <FieldError field={field} />
-          </div>
-        )}
-      </form.Field>
-
-      <div className="flex gap-3 border-t border-border pt-6">
+      {/* Mobile: fixed bottom bar */}
+      <div className="fixed inset-x-0 bottom-0 z-50 flex gap-3 border-t bg-background p-3 sm:hidden">
         <Button
           type="button"
           disabled={isSubmitting}
           onClick={() => form.handleSubmit().catch(() => null)}
-          className="h-9 flex-1 sm:flex-none"
+          className="h-9 flex-1"
         >
           {isSubmitting ? 'Creating…' : (submitLabel ?? 'Create invoice')}
         </Button>
       </div>
-    </form>
+    </>
   );
 }

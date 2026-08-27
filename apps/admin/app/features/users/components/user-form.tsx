@@ -2,7 +2,17 @@ import { useEffect, useMemo } from 'react';
 import { AnyFieldApi, useForm, useSelector } from '@tanstack/react-form';
 import { AsYouType, parsePhoneNumberWithError } from 'libphonenumber-js';
 
-import { Button, Input, Label } from '@kafi/ui';
+import {
+  Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+  Input,
+  Label,
+} from '@kafi/ui';
 
 import { FieldError } from '../../../shared/field-error';
 import { userFormSchema } from '../validation/users.schema';
@@ -38,6 +48,12 @@ export function UserForm({
   onSubmit,
   submitLabel,
 }: UserFormProps) {
+  const title = mode === 'create' ? 'Create user' : 'Edit user';
+  const description =
+    mode === 'create'
+      ? 'Add a new staff member and assign their role.'
+      : `Update ${user?.full_name ?? 'user'}'s details and role assignments.`;
+
   const schema = useMemo(() => userFormSchema(mode), [mode]);
 
   const defaultValues = useMemo<UserFormValues>(() => {
@@ -101,245 +117,175 @@ export function UserForm({
   const isSubmitting = useSelector(form.store, (state) => state.isSubmitting);
 
   return (
-    <div className="space-y-6">
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          form.handleSubmit().catch(() => null);
-        }}
-        className="space-y-6"
-      >
-        <div className="space-y-4">
-          <h3 className="text-sm font-semibold text-foreground">
-            Personal Information
-          </h3>
+    <Card className="border-0 bg-transparent">
+      <CardHeader className="items-center py-4">
+        <CardTitle className="">{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
 
-          {mode === 'create' && (
-            <form.Field name="employee_number">
-              {(field: AnyFieldApi) => (
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="employee_number"
-                    className="text-sm font-medium"
-                  >
-                    Employee number
-                  </Label>
-                  <Input
-                    id="employee_number"
-                    value={field.state.value ?? ''}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                    onBlur={field.handleBlur}
-                    className="h-9"
-                    aria-invalid={field.state.meta.errors.length > 0}
-                  />
-                  <FieldError field={field} />
-                </div>
-              )}
-            </form.Field>
-          )}
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <form.Field name="firstName">
-              {(field: AnyFieldApi) => (
-                <div className="space-y-2">
-                  <Label htmlFor="firstName" className="text-sm font-medium">
-                    First name
-                  </Label>
-                  <Input
-                    id="firstName"
-                    value={field.state.value ?? ''}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                    onBlur={field.handleBlur}
-                    className="h-9"
-                    aria-invalid={field.state.meta.errors.length > 0}
-                  />
-                  <FieldError field={field} />
-                </div>
-              )}
-            </form.Field>
-
-            <form.Field name="lastName">
-              {(field: AnyFieldApi) => (
-                <div className="space-y-2">
-                  <Label htmlFor="lastName" className="text-sm font-medium">
-                    Last name
-                  </Label>
-                  <Input
-                    id="lastName"
-                    value={field.state.value ?? ''}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                    onBlur={field.handleBlur}
-                    className="h-9"
-                    aria-invalid={field.state.meta.errors.length > 0}
-                  />
-                  <FieldError field={field} />
-                </div>
-              )}
-            </form.Field>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <form.Field name="email">
-              {(field: AnyFieldApi) => (
-                <div className="space-y-2">
-                  <Label htmlFor="email" className="text-sm font-medium">
-                    Email address
-                  </Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={field.state.value ?? ''}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                    onBlur={field.handleBlur}
-                    className="h-9"
-                    aria-invalid={field.state.meta.errors.length > 0}
-                  />
-                  <FieldError field={field} />
-                </div>
-              )}
-            </form.Field>
-
-            <form.Field name="phone">
-              {(field: AnyFieldApi) => (
-                <div className="space-y-2">
-                  <Label htmlFor="phone" className="text-sm font-medium">
-                    Phone number
-                  </Label>
-                  <Input
-                    id="phone"
-                    type="tel"
-                    value={field.state.value ?? ''}
-                    onChange={(e) =>
-                      field.handleChange(formatAsPhone(e.target.value))
-                    }
-                    onBlur={field.handleBlur}
-                    placeholder="+251 91 123 4567"
-                    className="h-9"
-                    aria-invalid={field.state.meta.errors.length > 0}
-                  />
-                  <FieldError field={field} />
-                </div>
-              )}
-            </form.Field>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <form.Field name="job_title">
-              {(field: AnyFieldApi) => (
-                <div className="space-y-2">
-                  <Label htmlFor="job_title" className="text-sm font-medium">
-                    Job title
-                  </Label>
-                  <Input
-                    id="job_title"
-                    value={field.state.value ?? ''}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                    onBlur={field.handleBlur}
-                    className="h-9"
-                    aria-invalid={field.state.meta.errors.length > 0}
-                  />
-                  <FieldError field={field} />
-                </div>
-              )}
-            </form.Field>
-
-            <form.Field name="gender">
-              {(field: AnyFieldApi) => (
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">Gender</Label>
-                  <div className="flex h-9 items-center gap-6">
-                    {(['Male', 'Female'] as const).map((option) => (
-                      <div key={option} className="flex items-center gap-2">
-                        <input
-                          type="radio"
-                          id={`gender_${option.toLowerCase()}`}
-                          name={field.name}
-                          value={option}
-                          checked={field.state.value === option}
-                          onChange={() => field.handleChange(option)}
-                          className="h-4 w-4 accent-primary"
-                        />
-                        <Label
-                          htmlFor={`gender_${option.toLowerCase()}`}
-                          className="cursor-pointer font-normal"
-                        >
-                          {option}
-                        </Label>
-                      </div>
-                    ))}
-                  </div>
-                  <FieldError field={field} />
-                </div>
-              )}
-            </form.Field>
-          </div>
-        </div>
-
-        <div className="border-t border-border pt-4">
+      <CardContent className="space-y-4">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            form.handleSubmit().catch(() => null);
+          }}
+          className="space-y-6"
+        >
           <div className="space-y-4">
             <h3 className="text-sm font-semibold text-foreground">
-              Access & Permissions
+              Personal Information
             </h3>
 
-            <form.Field name="role_id">
-              {(field: AnyFieldApi) => (
-                <div className="space-y-3">
-                  <Label className="text-sm font-semibold text-foreground">
-                    Role
-                  </Label>
-                  <div className="flex flex-wrap items-center gap-6">
-                    {roles.map((role) => (
-                      <div key={role.id} className="flex items-center gap-2">
-                        <input
-                          type="radio"
-                          id={`role_${role.id}`}
-                          name={field.name}
-                          value={role.id}
-                          checked={field.state.value === role.id}
-                          onChange={() => field.handleChange(role.id)}
-                          className="h-4 w-4 accent-primary"
-                        />
-                        <Label
-                          htmlFor={`role_${role.id}`}
-                          className="cursor-pointer font-normal"
-                        >
-                          {role.name}
-                        </Label>
-                      </div>
-                    ))}
-                  </div>
-                  <FieldError field={field} />
-                </div>
-              )}
-            </form.Field>
-
-            {mode === 'edit' && (
-              <form.Field name="user_status_id">
+            {mode === 'create' && (
+              <form.Field name="employee_number">
                 {(field: AnyFieldApi) => (
-                  <div className="space-y-3">
-                    <Label className="text-sm font-semibold text-foreground">
-                      Status
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="employee_number"
+                      className="text-sm font-medium"
+                    >
+                      Employee number
                     </Label>
-                    <div className="flex flex-wrap items-center gap-6">
-                      {statuses.map((status) => (
-                        <div
-                          key={status.id}
-                          className="flex items-center gap-2"
-                        >
+                    <Input
+                      id="employee_number"
+                      value={field.state.value ?? ''}
+                      onChange={(e) => field.handleChange(e.target.value)}
+                      onBlur={field.handleBlur}
+                      className="h-9"
+                      aria-invalid={field.state.meta.errors.length > 0}
+                    />
+                    <FieldError field={field} />
+                  </div>
+                )}
+              </form.Field>
+            )}
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <form.Field name="firstName">
+                {(field: AnyFieldApi) => (
+                  <div className="space-y-2">
+                    <Label htmlFor="firstName" className="text-sm font-medium">
+                      First name
+                    </Label>
+                    <Input
+                      id="firstName"
+                      value={field.state.value ?? ''}
+                      onChange={(e) => field.handleChange(e.target.value)}
+                      onBlur={field.handleBlur}
+                      className="h-9"
+                      aria-invalid={field.state.meta.errors.length > 0}
+                    />
+                    <FieldError field={field} />
+                  </div>
+                )}
+              </form.Field>
+
+              <form.Field name="lastName">
+                {(field: AnyFieldApi) => (
+                  <div className="space-y-2">
+                    <Label htmlFor="lastName" className="text-sm font-medium">
+                      Last name
+                    </Label>
+                    <Input
+                      id="lastName"
+                      value={field.state.value ?? ''}
+                      onChange={(e) => field.handleChange(e.target.value)}
+                      onBlur={field.handleBlur}
+                      className="h-9"
+                      aria-invalid={field.state.meta.errors.length > 0}
+                    />
+                    <FieldError field={field} />
+                  </div>
+                )}
+              </form.Field>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <form.Field name="email">
+                {(field: AnyFieldApi) => (
+                  <div className="space-y-2">
+                    <Label htmlFor="email" className="text-sm font-medium">
+                      Email address
+                    </Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={field.state.value ?? ''}
+                      onChange={(e) => field.handleChange(e.target.value)}
+                      onBlur={field.handleBlur}
+                      className="h-9"
+                      aria-invalid={field.state.meta.errors.length > 0}
+                    />
+                    <FieldError field={field} />
+                  </div>
+                )}
+              </form.Field>
+
+              <form.Field name="phone">
+                {(field: AnyFieldApi) => (
+                  <div className="space-y-2">
+                    <Label htmlFor="phone" className="text-sm font-medium">
+                      Phone number
+                    </Label>
+                    <Input
+                      id="phone"
+                      type="tel"
+                      value={field.state.value ?? ''}
+                      onChange={(e) =>
+                        field.handleChange(formatAsPhone(e.target.value))
+                      }
+                      onBlur={field.handleBlur}
+                      placeholder="+251 91 123 4567"
+                      className="h-9"
+                      aria-invalid={field.state.meta.errors.length > 0}
+                    />
+                    <FieldError field={field} />
+                  </div>
+                )}
+              </form.Field>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <form.Field name="job_title">
+                {(field: AnyFieldApi) => (
+                  <div className="space-y-2">
+                    <Label htmlFor="job_title" className="text-sm font-medium">
+                      Job title
+                    </Label>
+                    <Input
+                      id="job_title"
+                      value={field.state.value ?? ''}
+                      onChange={(e) => field.handleChange(e.target.value)}
+                      onBlur={field.handleBlur}
+                      className="h-9"
+                      aria-invalid={field.state.meta.errors.length > 0}
+                    />
+                    <FieldError field={field} />
+                  </div>
+                )}
+              </form.Field>
+
+              <form.Field name="gender">
+                {(field: AnyFieldApi) => (
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Gender</Label>
+                    <div className="flex h-9 items-center gap-6">
+                      {(['Male', 'Female'] as const).map((option) => (
+                        <div key={option} className="flex items-center gap-2">
                           <input
                             type="radio"
-                            id={`status_${status.id}`}
+                            id={`gender_${option.toLowerCase()}`}
                             name={field.name}
-                            value={status.id}
-                            checked={field.state.value === status.id}
-                            onChange={() => field.handleChange(status.id)}
+                            value={option}
+                            checked={field.state.value === option}
+                            onChange={() => field.handleChange(option)}
                             className="h-4 w-4 accent-primary"
                           />
                           <Label
-                            htmlFor={`status_${status.id}`}
+                            htmlFor={`gender_${option.toLowerCase()}`}
                             className="cursor-pointer font-normal"
                           >
-                            {status.status_code}
+                            {option}
                           </Label>
                         </div>
                       ))}
@@ -348,12 +294,89 @@ export function UserForm({
                   </div>
                 )}
               </form.Field>
-            )}
+            </div>
           </div>
-        </div>
-      </form>
 
-      <div className="border-t border-border pt-6 flex gap-3">
+          <div className="border-t border-border pt-4">
+            <div className="space-y-4">
+              <h3 className="text-sm font-semibold text-foreground">
+                Access & Permissions
+              </h3>
+
+              <form.Field name="role_id">
+                {(field: AnyFieldApi) => (
+                  <div className="space-y-3">
+                    <Label className="text-sm font-semibold text-foreground">
+                      Role
+                    </Label>
+                    <div className="flex flex-wrap items-center gap-6">
+                      {roles.map((role) => (
+                        <div key={role.id} className="flex items-center gap-2">
+                          <input
+                            type="radio"
+                            id={`role_${role.id}`}
+                            name={field.name}
+                            value={role.id}
+                            checked={field.state.value === role.id}
+                            onChange={() => field.handleChange(role.id)}
+                            className="h-4 w-4 accent-primary"
+                          />
+                          <Label
+                            htmlFor={`role_${role.id}`}
+                            className="cursor-pointer font-normal"
+                          >
+                            {role.name}
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
+                    <FieldError field={field} />
+                  </div>
+                )}
+              </form.Field>
+
+              {mode === 'edit' && (
+                <form.Field name="user_status_id">
+                  {(field: AnyFieldApi) => (
+                    <div className="space-y-3">
+                      <Label className="text-sm font-semibold text-foreground">
+                        Status
+                      </Label>
+                      <div className="flex flex-wrap items-center gap-6">
+                        {statuses.map((status) => (
+                          <div
+                            key={status.id}
+                            className="flex items-center gap-2"
+                          >
+                            <input
+                              type="radio"
+                              id={`status_${status.id}`}
+                              name={field.name}
+                              value={status.id}
+                              checked={field.state.value === status.id}
+                              onChange={() => field.handleChange(status.id)}
+                              className="h-4 w-4 accent-primary"
+                            />
+                            <Label
+                              htmlFor={`status_${status.id}`}
+                              className="cursor-pointer font-normal"
+                            >
+                              {status.status_code}
+                            </Label>
+                          </div>
+                        ))}
+                      </div>
+                      <FieldError field={field} />
+                    </div>
+                  )}
+                </form.Field>
+              )}
+            </div>
+          </div>
+        </form>
+      </CardContent>
+
+      <CardFooter className="gap-3">
         <Button
           type="button"
           disabled={isSubmitting}
@@ -367,7 +390,7 @@ export function UserForm({
             : (submitLabel ??
               (mode === 'edit' ? 'Save changes' : 'Create user'))}
         </Button>
-      </div>
-    </div>
+      </CardFooter>
+    </Card>
   );
 }

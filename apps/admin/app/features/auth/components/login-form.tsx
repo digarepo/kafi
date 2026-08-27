@@ -23,11 +23,10 @@ import { FieldError } from '../../../shared/field-error';
 
 interface LoginFormProps {
   className?: string;
-  error?: string | null;
   onSubmit: (values: LoginFormValues) => Promise<void>;
 }
 
-export function LoginForm({ className, error, onSubmit }: LoginFormProps) {
+export function LoginForm({ className, onSubmit }: LoginFormProps) {
   const [showPassword, setShowPassword] = useState(false);
 
   const form = useForm({
@@ -68,12 +67,6 @@ export function LoginForm({ className, error, onSubmit }: LoginFormProps) {
                   Sign in to access the Kafi administration panel
                 </p>
               </div>
-
-              {error && (
-                <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-                  {error}
-                </div>
-              )}
 
               <form.Field name="email">
                 {(field: AnyFieldApi) => (

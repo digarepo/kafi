@@ -5,7 +5,18 @@
 import { useEffect, useMemo } from 'react';
 import { AnyFieldApi, useForm, useSelector } from '@tanstack/react-form';
 
-import { Button, Input, Label } from '@kafi/ui';
+import {
+  Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+  Input,
+  Label,
+  Textarea,
+} from '@kafi/ui';
 
 import { FieldError } from '../../../shared/field-error';
 import { paymentMethodFormSchema } from '../validation/finance.schema';
@@ -43,6 +54,13 @@ export function PaymentMethodForm({
   onSubmit,
   submitLabel,
 }: PaymentMethodFormProps) {
+  const title =
+    mode === 'create' ? 'Create payment method' : 'Edit payment method';
+  const description =
+    mode === 'create'
+      ? 'Add a new master payment method.'
+      : `Update ${paymentMethod?.name ?? 'this payment method'}.`;
+
   const defaultValues = useMemo<PaymentMethodFormValues>(
     () => buildDefaultValues(mode, paymentMethod),
     [mode, paymentMethod],
@@ -58,7 +76,9 @@ export function PaymentMethodForm({
         method_code: value.method_code,
         name: value.name,
         description: value.description || undefined,
-        display_order: value.display_order ? Number(value.display_order) : undefined,
+        display_order: value.display_order
+          ? Number(value.display_order)
+          : undefined,
       };
       await onSubmit(output);
       form.reset();
@@ -72,98 +92,112 @@ export function PaymentMethodForm({
   const isSubmitting = useSelector(form.store, (state) => state.isSubmitting);
 
   return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        form.handleSubmit().catch(() => null);
-      }}
-      className="space-y-6"
-    >
-      <div className="grid gap-4 md:grid-cols-2">
-        <form.Field name="method_code">
-          {(field: AnyFieldApi) => (
-            <div className="space-y-2">
-              <Label htmlFor="method_code" className="text-sm font-medium">
-                Code
-              </Label>
-              <Input
-                id="method_code"
-                value={field.state.value ?? ''}
-                onChange={(e) => field.handleChange(e.target.value.toUpperCase())}
-                onBlur={field.handleBlur}
-                disabled={mode === 'edit'}
-                className="h-9 w-full"
-                aria-invalid={field.state.meta.errors.length > 0}
-              />
-              <FieldError field={field} />
-            </div>
-          )}
-        </form.Field>
+    <Card className="border-0 bg-transparent">
+      <CardHeader className="items-center py-4">
+        <CardTitle>{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
 
-        <form.Field name="name">
-          {(field: AnyFieldApi) => (
-            <div className="space-y-2">
-              <Label htmlFor="name" className="text-sm font-medium">
-                Name
-              </Label>
-              <Input
-                id="name"
-                value={field.state.value ?? ''}
-                onChange={(e) => field.handleChange(e.target.value)}
-                onBlur={field.handleBlur}
-                className="h-9 w-full"
-                aria-invalid={field.state.meta.errors.length > 0}
-              />
-              <FieldError field={field} />
-            </div>
-          )}
-        </form.Field>
+      <CardContent className="space-y-4">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            form.handleSubmit().catch(() => null);
+          }}
+          className="space-y-6"
+        >
+          <div className="grid gap-4 md:grid-cols-2">
+            <form.Field name="method_code">
+              {(field: AnyFieldApi) => (
+                <div className="space-y-2">
+                  <Label htmlFor="method_code" className="text-sm font-medium">
+                    Code
+                  </Label>
+                  <Input
+                    id="method_code"
+                    value={field.state.value ?? ''}
+                    onChange={(e) =>
+                      field.handleChange(e.target.value.toUpperCase())
+                    }
+                    onBlur={field.handleBlur}
+                    disabled={mode === 'edit'}
+                    className="h-9 w-full"
+                    aria-invalid={field.state.meta.errors.length > 0}
+                  />
+                  <FieldError field={field} />
+                </div>
+              )}
+            </form.Field>
 
-        <form.Field name="display_order">
-          {(field: AnyFieldApi) => (
-            <div className="space-y-2">
-              <Label htmlFor="display_order" className="text-sm font-medium">
-                Display order
-              </Label>
-              <Input
-                id="display_order"
-                type="number"
-                min={1}
-                value={field.state.value ?? ''}
-                onChange={(e) => field.handleChange(e.target.value)}
-                onBlur={field.handleBlur}
-                className="h-9 w-full"
-                aria-invalid={field.state.meta.errors.length > 0}
-              />
-              <FieldError field={field} />
-            </div>
-          )}
-        </form.Field>
-      </div>
+            <form.Field name="name">
+              {(field: AnyFieldApi) => (
+                <div className="space-y-2">
+                  <Label htmlFor="name" className="text-sm font-medium">
+                    Name
+                  </Label>
+                  <Input
+                    id="name"
+                    value={field.state.value ?? ''}
+                    onChange={(e) => field.handleChange(e.target.value)}
+                    onBlur={field.handleBlur}
+                    className="h-9 w-full"
+                    aria-invalid={field.state.meta.errors.length > 0}
+                  />
+                  <FieldError field={field} />
+                </div>
+              )}
+            </form.Field>
 
-      <form.Field name="description">
-        {(field: AnyFieldApi) => (
-          <div className="space-y-2">
-            <Label htmlFor="description" className="text-sm font-medium">
-              Description
-            </Label>
-            <Input
-              id="description"
-              value={field.state.value ?? ''}
-              onChange={(e) => field.handleChange(e.target.value)}
-              onBlur={field.handleBlur}
-              className="h-9 w-full"
-            />
+            <form.Field name="display_order">
+              {(field: AnyFieldApi) => (
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="display_order"
+                    className="text-sm font-medium"
+                  >
+                    Display order
+                  </Label>
+                  <Input
+                    id="display_order"
+                    type="number"
+                    min={1}
+                    value={field.state.value ?? ''}
+                    onChange={(e) => field.handleChange(e.target.value)}
+                    onBlur={field.handleBlur}
+                    className="h-9 w-full"
+                    aria-invalid={field.state.meta.errors.length > 0}
+                  />
+                  <FieldError field={field} />
+                </div>
+              )}
+            </form.Field>
           </div>
-        )}
-      </form.Field>
 
-      <div className="flex gap-3 border-t border-border pt-6">
+          <form.Field name="description">
+            {(field: AnyFieldApi) => (
+              <div className="space-y-2">
+                <Label htmlFor="description" className="text-sm font-medium">
+                  Description
+                </Label>
+                <Textarea
+                  id="description"
+                  value={field.state.value ?? ''}
+                  onChange={(e) => field.handleChange(e.target.value)}
+                  onBlur={field.handleBlur}
+                  className="min-h-20"
+                />
+              </div>
+            )}
+          </form.Field>
+        </form>
+      </CardContent>
+
+      <CardFooter className="gap-3">
         <Button
           type="button"
           disabled={isSubmitting}
           onClick={() => form.handleSubmit().catch(() => null)}
-          className="h-9 flex-1 sm:flex-none"
+          className="h-9 flex-1"
         >
           {isSubmitting
             ? mode === 'edit'
@@ -172,7 +206,7 @@ export function PaymentMethodForm({
             : (submitLabel ??
               (mode === 'edit' ? 'Save changes' : 'Create payment method'))}
         </Button>
-      </div>
-    </form>
+      </CardFooter>
+    </Card>
   );
 }

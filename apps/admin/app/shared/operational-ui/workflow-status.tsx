@@ -14,6 +14,8 @@ export type WorkflowStatusCode =
   | 'ACTIVE'
   | 'PENDING'
   | 'INACTIVE'
+  | 'SUSPENDED'
+  | 'DELETED'
   | 'SUBMITTED'
   | 'APPROVED'
   | 'REJECTED'
@@ -63,7 +65,9 @@ export const workflowStatusPresentation: Record<
 
   // Generic statuses
   PENDING: { label: 'Pending', variant: 'stale' },
-  INACTIVE: { label: 'Inactive', variant: 'stale' },
+  INACTIVE: { label: 'Inactive', variant: 'secondary' },
+  SUSPENDED: { label: 'Suspended', variant: 'warning' },
+  DELETED: { label: 'Deleted', variant: 'destructive' },
 
   // Visa statuses
   SUBMITTED: { label: 'Submitted', variant: 'info' },

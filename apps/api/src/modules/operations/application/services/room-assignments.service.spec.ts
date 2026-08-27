@@ -85,7 +85,7 @@ function activeMembershipRow(overrides: any = {}) {
   };
 }
 
-describe('RoomAssignmentsService — Round 4B-2 Hardening', () => {
+describe('RoomAssignmentsService — Hardening', () => {
   describe('createAssignment', () => {
     it('rejects when group is TRAVEL_PREPARED', async () => {
       const db = createMockDb([

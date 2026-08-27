@@ -6,8 +6,8 @@ import {
 } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 
-import { Button } from '@ui/components/ui/button'
-import { Card } from '@ui/components/ui/card'
+import { Button } from '@ui/components/ui/button';
+import { Card } from '@ui/components/ui/card';
 import { Separator } from '@ui/components/ui/separator';
 
 import type { PublicPackageVersion } from '../../../lib/public-api';
@@ -106,17 +106,14 @@ export function PackageBookingCard({ package: pkg }: PackageBookingCardProps) {
         {/* Actions */}
         <div className="space-y-3">
           <Link to={`/booking?package=${pkg.slug}`} className="block">
-            <Button className="btn-primary h-12 w-full text-sm">
+            <Button className="h-12 w-full text-sm">
               Book This Package
               <ArrowRightIcon weight="bold" className="h-4 w-4" />
             </Button>
           </Link>
 
           <Link to={`/enquiry?package=${pkg.slug}`} className="block">
-            <Button
-              variant="outline"
-              className="btn-outline h-12 w-full text-sm"
-            >
+            <Button variant="outline" className="h-12 w-full text-sm">
               Ask a Question
             </Button>
           </Link>

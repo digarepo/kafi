@@ -28,6 +28,7 @@ import {
   FileTextIcon,
   MoreVerticalIcon,
   PencilIcon,
+  ShieldCheckIcon,
 } from 'lucide-react';
 import { usePermissions } from '../../../core/permissions';
 import { useDestructiveConfirmation } from '../../../shared/delete-dialog';
@@ -42,7 +43,13 @@ import { formatMoney, formatPhone } from '../../../shared/format';
 import { displayDate } from '../../operations/lib/date';
 import { AssignToGroupDialog } from '../../operations/components/assign-to-group-dialog';
 import { documentsApi } from '../../documents/lib/api';
-import { api, type RegistrationOperationalSummary } from '../../../lib/api.js';
+import {
+  api,
+  type CreditExceptionRequestListItem,
+  type FinanceExceptionListItem,
+  type RegistrationOperationalSummary,
+} from '../../../lib/api.js';
+import { CreditExceptionRequestDialog } from '../../finance/components/credit-exception-request-dialog';
 
 interface RegistrationDetailPageProps {
   id: string;
@@ -205,16 +212,30 @@ export function RegistrationDetailPage({ id }: RegistrationDetailPageProps) {
   const [summary, setSummary] = useState<RegistrationOperationalSummary | null>(
     null,
   );
+  const [activeException, setActiveException] =
+    useState<FinanceExceptionListItem | null>(null);
+  const [pendingRequest, setPendingRequest] =
+    useState<CreditExceptionRequestListItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [assignGroupOpen, setAssignGroupOpen] = useState(false);
   const [hotelsExpanded, setHotelsExpanded] = useState(false);
+  const [requestDialogOpen, setRequestDialogOpen] = useState(false);
 
   const loadSummary = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      setSummary(await api.getRegistrationOperationalSummary(id));
+      const [s, excRes, reqRes] = await Promise.all([
+        api.getRegistrationOperationalSummary(id),
+        api.listFinanceExceptions(1, 10, id),
+        api.listCreditExceptionRequests(1, 10, id),
+      ]);
+      setSummary(s);
+      const active = excRes.data.find((e) => e.status?.code === 'ACTIVE');
+      setActiveException(active ?? null);
+      const pending = reqRes.data.find((r) => r.status?.code === 'PENDING');
+      setPendingRequest(pending ?? null);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : 'Registration could not be loaded',
@@ -620,6 +641,17 @@ export function RegistrationDetailPage({ id }: RegistrationDetailPageProps) {
             onAssigned={() => void loadSummary()}
           />
 
+          {requestDialogOpen && (
+            <CreditExceptionRequestDialog
+              open={requestDialogOpen}
+              onOpenChange={setRequestDialogOpen}
+              registrationId={summary.id}
+              registrationNumber={summary.registration_number}
+              outstandingBalance={summary.finance.outstanding_balance}
+              onRequested={() => void loadSummary()}
+            />
+          )}
+
           {/* Detailed information — 6 cards in 2 rows */}
           <div className="grid gap-6 xl:grid-cols-2">
             {/* Card 1: Traveler */}
@@ -783,19 +815,69 @@ export function RegistrationDetailPage({ id }: RegistrationDetailPageProps) {
                         {formatMoney(summary.finance.outstanding_balance)}
                       </span>
                     </div>
-                    {summary.readiness?.has_authorized_credit &&
-                      summary.readiness.authorized_credit_amount > 0 && (
+                    {activeException ? (
+                      <div className="space-y-2">
                         <div className="flex items-center justify-between gap-3 rounded-md bg-primary/5 p-3 text-xs sm:text-sm">
                           <span className="text-muted-foreground">
                             Authorized credit
                           </span>
                           <span className="font-medium text-primary">
                             {formatMoney(
-                              summary.readiness.authorized_credit_amount,
+                              summary.readiness?.authorized_credit_amount ??
+                                activeException.authorized_amount,
                             )}
                           </span>
                         </div>
-                      )}
+                        <Link
+                          to={`/finance-exceptions/${activeException.id}`}
+                          className="flex items-center gap-1.5 text-xs text-primary hover:underline sm:text-sm"
+                        >
+                          <ExternalLinkIcon className="h-3 w-3" />
+                          {activeException.exception_number}
+                        </Link>
+                      </div>
+                    ) : pendingRequest ? (
+                      <div className="rounded-md bg-warning/10 p-3 text-xs sm:text-sm">
+                        <p className="font-medium text-warning">
+                          Credit exception requested
+                        </p>
+                        <p className="mt-0.5 text-muted-foreground">
+                          Awaiting Admin approval —{' '}
+                          {pendingRequest.request_number}
+                        </p>
+                      </div>
+                    ) : (
+                      summary.finance.outstanding_balance > 0 && (
+                        <div className="space-y-2">
+                          {can('FINANCE_CREDIT_REQUEST') && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8 w-full text-xs"
+                              onClick={() => setRequestDialogOpen(true)}
+                            >
+                              <ShieldCheckIcon className="mr-1.5 h-3.5 w-3.5" />
+                              Request credit exception
+                            </Button>
+                          )}
+                          {can('FINANCE_CREDIT_AUTHORIZE') && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8 w-full text-xs"
+                              onClick={() =>
+                                navigate(
+                                  `/finance-exceptions/new?registration_id=${summary.id}`,
+                                )
+                              }
+                            >
+                              <ShieldCheckIcon className="mr-1.5 h-3.5 w-3.5" />
+                              Authorize credit
+                            </Button>
+                          )}
+                        </div>
+                      )
+                    )}
                   </>
                 )}
               </CardContent>

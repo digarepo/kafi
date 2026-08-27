@@ -12,7 +12,7 @@
 
 import { useState } from 'react';
 import { CheckIcon } from '@phosphor-icons/react';
-import { Button } from '@ui/components/ui/button'
+import { Button } from '@ui/components/ui/button';
 import { Card } from '@ui/components/ui/card';
 import { cn } from '@ui/lib/utils';
 
@@ -60,7 +60,7 @@ export default function InlineCustomPackageCard() {
         {!isExpanded && !isSuccess && (
           <Button
             onClick={() => setIsExpanded(true)}
-            className="btn-primary h-11 px-8 text-sm"
+            className="h-11 px-8 text-sm"
           >
             Request Custom Package
           </Button>

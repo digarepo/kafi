@@ -7,6 +7,7 @@ import mysql from 'mysql2/promise';
 import {
   contactPersonStatuses,
   countries,
+  creditExceptionRequestStatuses,
   currencies,
   expenseCategories,
   expenseSources,
@@ -56,7 +57,6 @@ const USER_STATUS_CODES = [
   { status_code: 'ACTIVE', name: 'Active' },
   { status_code: 'INACTIVE', name: 'Inactive' },
   { status_code: 'SUSPENDED', name: 'Suspended' },
-  { status_code: 'LOCKED', name: 'Locked' },
   { status_code: 'DELETED', name: 'Deleted' },
 ];
 
@@ -175,6 +175,11 @@ const PERMISSION_CODES = [
     module: 'Financial',
   },
   {
+    permission_code: 'FINANCE_CREDIT_REQUEST',
+    name: 'Request finance credit exceptions',
+    module: 'Financial',
+  },
+  {
     permission_code: 'FINANCE_REFUND_APPROVE',
     name: 'Approve refunds',
     module: 'Financial',
@@ -252,6 +257,7 @@ const ROLE_PERMISSION_MAP: Record<string, string[]> = {
     'FINANCE_VIEW',
     'FINANCE_CREATE',
     'FINANCE_EDIT',
+    'FINANCE_CREDIT_REQUEST',
     'VISA_VIEW',
     'VISA_MANAGE',
     'DOCUMENT_VIEW',
@@ -353,7 +359,7 @@ const INVOICE_LINE_ITEM_TYPE_CODES = [
   { line_item_type_code: 'OTHER_SERVICE_CHARGE', name: 'Other Service Charge' },
 ];
 
-// Round 6 — Finance Integration reference data
+// Finance Integration reference data
 
 const EXPENSE_STATUS_CODES = [
   { status_code: 'PENDING', name: 'Pending', display_order: 1 },
@@ -414,6 +420,12 @@ const REFUND_STATUS_CODES = [
   { status_code: 'APPROVED', name: 'Approved', display_order: 2 },
   { status_code: 'COMPLETED', name: 'Completed', display_order: 3 },
   { status_code: 'CANCELLED', name: 'Cancelled', display_order: 4 },
+];
+
+const CREDIT_EXCEPTION_REQUEST_STATUS_CODES = [
+  { status_code: 'PENDING', name: 'Pending', display_order: 1 },
+  { status_code: 'APPROVED', name: 'Approved', display_order: 2 },
+  { status_code: 'REJECTED', name: 'Rejected', display_order: 3 },
 ];
 
 /**
@@ -756,7 +768,7 @@ async function seed() {
         });
     }
 
-    // Round 6 — Finance Integration reference data
+    // Finance Integration reference data
     for (const status of EXPENSE_STATUS_CODES) {
       await db
         .insert(expenseStatuses)
@@ -812,6 +824,19 @@ async function seed() {
     for (const status of REFUND_STATUS_CODES) {
       await db
         .insert(refundStatuses)
+        .values({ id: ulid(), ...status, is_active: true })
+        .onDuplicateKeyUpdate({
+          set: {
+            name: status.name,
+            is_active: true,
+            display_order: status.display_order,
+          },
+        });
+    }
+
+    for (const status of CREDIT_EXCEPTION_REQUEST_STATUS_CODES) {
+      await db
+        .insert(creditExceptionRequestStatuses)
         .values({ id: ulid(), ...status, is_active: true })
         .onDuplicateKeyUpdate({
           set: {

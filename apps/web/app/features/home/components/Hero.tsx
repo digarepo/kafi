@@ -1,7 +1,7 @@
-import { Button } from '@ui/components/ui/button'
-import { Card } from '@ui/components/ui/card'
-import { Badge } from '@ui/components/ui/badge'
-import { Separator } from '@ui/components/ui/separator'
+import { Button } from '@ui/components/ui/button';
+import { Card } from '@ui/components/ui/card';
+import { Badge } from '@ui/components/ui/badge';
+import { Separator } from '@ui/components/ui/separator';
 import { TypingAnimation } from '@ui/components/TypingAnimation';
 import { SparkleIcon, AirplaneIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
@@ -59,7 +59,7 @@ export function Hero() {
 
           <div className="flex flex-wrap gap-4 pt-2">
             <Link to="/packages">
-              <Button className="btn-primary py-3 px-6 h-12 text-sm shadow-soft">
+              <Button className="py-3 px-6 h-12 text-sm shadow-soft">
                 Explore Packages
               </Button>
             </Link>

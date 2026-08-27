@@ -122,7 +122,7 @@ async function upsertStatusCodes(
 }
 
 /**
- * Seeds Slice 7 documents and visa lookup values.
+ * Seeds documents and visa lookup values.
  */
 export async function seedDocuments(db: DocumentsDb) {
   await upsertTypeCodes(db, schema.documentTypes, DOCUMENT_TYPES);

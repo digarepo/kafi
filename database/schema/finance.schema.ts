@@ -1,4 +1,4 @@
-import { relations, sql } from "drizzle-orm";
+import { relations, sql } from 'drizzle-orm';
 import {
   boolean,
   datetime,
@@ -10,7 +10,7 @@ import {
   text,
   unique,
   varchar,
-} from "drizzle-orm/mysql-core";
+} from 'drizzle-orm/mysql-core';
 import {
   actorMetadata,
   auditMetadata,
@@ -20,25 +20,34 @@ import {
   idColumn,
   nameColumn,
   softDeleteMetadata,
-} from "./common.schema.js";
-import { users } from "./iam.schema.js";
-import { contactPersons, registrations, travellers } from "./travellers.schema.js";
-import { packageVersions } from "./packages.schema.js";
-import { travelGroups, groupHotelStays, transportSegments, vendors } from "./operations.schema.js";
-import { visaApplications } from "./documents.schema.js";
-import { flightBookings } from "./flights.schema.js";
+} from './common.schema.js';
+import { users } from './iam.schema.js';
+import {
+  contactPersons,
+  registrations,
+  travellers,
+} from './travellers.schema.js';
+import { packageVersions } from './packages.schema.js';
+import {
+  travelGroups,
+  groupHotelStays,
+  transportSegments,
+  vendors,
+} from './operations.schema.js';
+import { visaApplications } from './documents.schema.js';
+import { flightBookings } from './flights.schema.js';
 
 /**
  * Lifecycle states for invoices: Draft, Sent, Partially Paid, Paid, Overdue,
  * Cancelled.
  */
-export const invoiceStatuses = mysqlTable("invoice_statuses", {
+export const invoiceStatuses = mysqlTable('invoice_statuses', {
   id: idColumn,
-  status_code: codeColumn("status_code"),
+  status_code: codeColumn('status_code'),
   name: nameColumn(),
-  description: text("description"),
-  display_order: int("display_order").notNull().default(1),
-  is_active: boolean("is_active").notNull().default(true),
+  description: text('description'),
+  display_order: int('display_order').notNull().default(1),
+  is_active: boolean('is_active').notNull().default(true),
   ...auditMetadata,
   ...softDeleteMetadata,
 });
@@ -46,13 +55,13 @@ export const invoiceStatuses = mysqlTable("invoice_statuses", {
 /**
  * Lifecycle states for payments: Pending, Completed, Cancelled, Reconciled.
  */
-export const paymentStatuses = mysqlTable("payment_statuses", {
+export const paymentStatuses = mysqlTable('payment_statuses', {
   id: idColumn,
-  status_code: codeColumn("status_code"),
+  status_code: codeColumn('status_code'),
   name: nameColumn(),
-  description: text("description"),
-  display_order: int("display_order").notNull().default(1),
-  is_active: boolean("is_active").notNull().default(true),
+  description: text('description'),
+  display_order: int('display_order').notNull().default(1),
+  is_active: boolean('is_active').notNull().default(true),
   ...auditMetadata,
   ...softDeleteMetadata,
 });
@@ -60,13 +69,13 @@ export const paymentStatuses = mysqlTable("payment_statuses", {
 /**
  * Payer classification: Individual or Organization.
  */
-export const payerTypes = mysqlTable("payer_types", {
+export const payerTypes = mysqlTable('payer_types', {
   id: idColumn,
-  type_code: codeColumn("type_code"),
+  type_code: codeColumn('type_code'),
   name: nameColumn(),
-  description: text("description"),
-  display_order: int("display_order").notNull().default(1),
-  is_active: boolean("is_active").notNull().default(true),
+  description: text('description'),
+  display_order: int('display_order').notNull().default(1),
+  is_active: boolean('is_active').notNull().default(true),
   ...auditMetadata,
   ...softDeleteMetadata,
 });
@@ -74,13 +83,13 @@ export const payerTypes = mysqlTable("payer_types", {
 /**
  * Lifecycle states for payers: Active, Inactive, Blacklisted.
  */
-export const payerStatuses = mysqlTable("payer_statuses", {
+export const payerStatuses = mysqlTable('payer_statuses', {
   id: idColumn,
-  status_code: codeColumn("status_code"),
+  status_code: codeColumn('status_code'),
   name: nameColumn(),
-  description: text("description"),
-  display_order: int("display_order").notNull().default(1),
-  is_active: boolean("is_active").notNull().default(true),
+  description: text('description'),
+  display_order: int('display_order').notNull().default(1),
+  is_active: boolean('is_active').notNull().default(true),
   ...auditMetadata,
   ...softDeleteMetadata,
 });
@@ -88,13 +97,13 @@ export const payerStatuses = mysqlTable("payer_statuses", {
 /**
  * Lifecycle states for payment methods: Active, Inactive.
  */
-export const paymentMethodStatuses = mysqlTable("payment_method_statuses", {
+export const paymentMethodStatuses = mysqlTable('payment_method_statuses', {
   id: idColumn,
-  status_code: codeColumn("status_code"),
+  status_code: codeColumn('status_code'),
   name: nameColumn(),
-  description: text("description"),
-  display_order: int("display_order").notNull().default(1),
-  is_active: boolean("is_active").notNull().default(true),
+  description: text('description'),
+  display_order: int('display_order').notNull().default(1),
+  is_active: boolean('is_active').notNull().default(true),
   ...auditMetadata,
   ...softDeleteMetadata,
 });
@@ -104,32 +113,32 @@ export const paymentMethodStatuses = mysqlTable("payment_method_statuses", {
  * Gateway.
  */
 export const paymentMethods = mysqlTable(
-  "payment_methods",
+  'payment_methods',
   {
     id: idColumn,
-    method_code: codeColumn("method_code"),
+    method_code: codeColumn('method_code'),
     name: nameColumn(),
-    description: text("description"),
-    payment_method_status_id: fkUuid("payment_method_status_id").notNull(),
-    display_order: int("display_order").notNull().default(1),
+    description: text('description'),
+    payment_method_status_id: fkUuid('payment_method_status_id').notNull(),
+    display_order: int('display_order').notNull().default(1),
     ...auditMetadata,
     ...softDeleteMetadata,
   },
-  (table) => []
+  (table) => [],
 );
 
 /**
  * Optional classification for invoice line items (e.g. Package Cost, Visa
  * Processing, Hotel Upgrade). Seeded for future reporting use; not required
- * on `invoice_line_items` in Slice 4.
+ * on `invoice_line_items` in the current workflow.
  */
-export const invoiceLineItemTypes = mysqlTable("invoice_line_item_types", {
+export const invoiceLineItemTypes = mysqlTable('invoice_line_item_types', {
   id: idColumn,
-  line_item_type_code: codeColumn("line_item_type_code"),
+  line_item_type_code: codeColumn('line_item_type_code'),
   name: nameColumn(),
-  description: text("description"),
-  display_order: int("display_order").notNull().default(1),
-  is_active: boolean("is_active").notNull().default(true),
+  description: text('description'),
+  display_order: int('display_order').notNull().default(1),
+  is_active: boolean('is_active').notNull().default(true),
   ...auditMetadata,
   ...softDeleteMetadata,
 });
@@ -138,37 +147,41 @@ export const invoiceLineItemTypes = mysqlTable("invoice_line_item_types", {
  * A financial obligation arising from a registration.
  *
  * Payments are never stored here; outstanding balances are derived from
- * `payment_allocations`. Accounting is ETB-only in Slice 4: `currency_id`
+ * `payment_allocations`. Accounting is ETB-only: `currency_id`
  * always references the ETB currency row. `subtotal` and `total_amount` are
  * always computed server-side from `invoice_line_items` and are never
  * accepted from a client request.
  *
  * No unique constraint exists on `registration_id`; the schema supports
- * multiple invoices per registration, but the Slice 4 workflow manages
+ * multiple invoices per registration, but the current workflow manages
  * exactly one invoice per registration.
  */
 export const invoices = mysqlTable(
-  "invoices",
+  'invoices',
   {
     id: idColumn,
-    invoice_number: varchar("invoice_number", { length: 30 }).notNull().unique(),
-    registration_id: fkUuid("registration_id").notNull(),
-    invoice_date: datetime("invoice_date", { mode: "date" }).notNull(),
-    due_date: datetime("due_date", { mode: "date" }),
-    subtotal: decimal("subtotal", { precision: 18, scale: 2 }).notNull(),
-    discount_amount: decimal("discount_amount", { precision: 18, scale: 2 }).notNull().default("0"),
-    total_amount: decimal("total_amount", {
+    invoice_number: varchar('invoice_number', { length: 30 })
+      .notNull()
+      .unique(),
+    registration_id: fkUuid('registration_id').notNull(),
+    invoice_date: datetime('invoice_date', { mode: 'date' }).notNull(),
+    due_date: datetime('due_date', { mode: 'date' }),
+    subtotal: decimal('subtotal', { precision: 18, scale: 2 }).notNull(),
+    discount_amount: decimal('discount_amount', { precision: 18, scale: 2 })
+      .notNull()
+      .default('0'),
+    total_amount: decimal('total_amount', {
       precision: 18,
       scale: 2,
     }).notNull(),
-    currency_id: fkUuid("currency_id").notNull(),
-    invoice_status_id: fkUuid("invoice_status_id").notNull(),
-    notes: text("notes"),
+    currency_id: fkUuid('currency_id').notNull(),
+    invoice_status_id: fkUuid('invoice_status_id').notNull(),
+    notes: text('notes'),
     ...auditMetadata,
     ...actorMetadata,
     ...softDeleteMetadata,
   },
-  (table) => [index("invoices_registration_id_idx").on(table.registration_id)]
+  (table) => [index('invoices_registration_id_idx').on(table.registration_id)],
 );
 
 /**
@@ -178,21 +191,23 @@ export const invoices = mysqlTable(
  * items are the source of truth for what is owed.
  */
 export const invoiceLineItems = mysqlTable(
-  "invoice_line_items",
+  'invoice_line_items',
   {
     id: idColumn,
-    invoice_id: fkUuid("invoice_id").notNull(),
-    line_item_type_id: fkUuid("line_item_type_id"),
-    description: varchar("description", { length: 255 }).notNull(),
-    quantity: decimal("quantity", { precision: 18, scale: 2 }).notNull().default("1"),
-    unit_price: decimal("unit_price", { precision: 18, scale: 2 }).notNull(),
-    total_price: decimal("total_price", { precision: 18, scale: 2 }).notNull(),
-    notes: text("notes"),
+    invoice_id: fkUuid('invoice_id').notNull(),
+    line_item_type_id: fkUuid('line_item_type_id'),
+    description: varchar('description', { length: 255 }).notNull(),
+    quantity: decimal('quantity', { precision: 18, scale: 2 })
+      .notNull()
+      .default('1'),
+    unit_price: decimal('unit_price', { precision: 18, scale: 2 }).notNull(),
+    total_price: decimal('total_price', { precision: 18, scale: 2 }).notNull(),
+    notes: text('notes'),
     ...auditMetadata,
     ...actorMetadata,
     ...softDeleteMetadata,
   },
-  (table) => [index("invoice_line_items_invoice_id_idx").on(table.invoice_id)]
+  (table) => [index('invoice_line_items_invoice_id_idx').on(table.invoice_id)],
 );
 
 /**
@@ -203,30 +218,30 @@ export const invoiceLineItems = mysqlTable(
  * `contact_person_id`.
  */
 export const payers = mysqlTable(
-  "payers",
+  'payers',
   {
     id: idColumn,
-    payer_number: varchar("payer_number", { length: 30 }).notNull().unique(),
-    payer_type_id: fkUuid("payer_type_id").notNull(),
-    traveller_id: fkUuid("traveller_id"),
-    contact_person_id: fkUuid("contact_person_id"),
-    organization_name: varchar("organization_name", { length: 255 }),
-    contact_name: varchar("contact_name", { length: 255 }),
-    phone_number: varchar("phone_number", { length: 30 }),
-    email_address: varchar("email_address", { length: 255 }),
-    payer_status_id: fkUuid("payer_status_id").notNull(),
-    notes: text("notes"),
+    payer_number: varchar('payer_number', { length: 30 }).notNull().unique(),
+    payer_type_id: fkUuid('payer_type_id').notNull(),
+    traveller_id: fkUuid('traveller_id'),
+    contact_person_id: fkUuid('contact_person_id'),
+    organization_name: varchar('organization_name', { length: 255 }),
+    contact_name: varchar('contact_name', { length: 255 }),
+    phone_number: varchar('phone_number', { length: 30 }),
+    email_address: varchar('email_address', { length: 255 }),
+    payer_status_id: fkUuid('payer_status_id').notNull(),
+    notes: text('notes'),
     ...auditMetadata,
     ...actorMetadata,
     ...softDeleteMetadata,
   },
-  (table) => []
+  (table) => [],
 );
 
 /**
  * Money received by the company.
  *
- * Slice 4 accounting is entirely ETB. `amount` is the ETB accounting value
+ * Accounting is entirely ETB. `amount` is the ETB accounting value
  * used for all allocation and balance calculations. `original_amount`,
  * `original_currency_id`, and `exchange_rate` are stored for audit and
  * historical reference only and are never used in balance math.
@@ -236,32 +251,34 @@ export const payers = mysqlTable(
  * remains on the payment for future allocation.
  */
 export const payments = mysqlTable(
-  "payments",
+  'payments',
   {
     id: idColumn,
-    payment_number: varchar("payment_number", { length: 30 }).notNull().unique(),
-    payer_id: fkUuid("payer_id").notNull(),
-    payment_method_id: fkUuid("payment_method_id").notNull(),
-    payment_date: datetime("payment_date", { mode: "date" }).notNull(),
-    original_amount: decimal("original_amount", {
+    payment_number: varchar('payment_number', { length: 30 })
+      .notNull()
+      .unique(),
+    payer_id: fkUuid('payer_id').notNull(),
+    payment_method_id: fkUuid('payment_method_id').notNull(),
+    payment_date: datetime('payment_date', { mode: 'date' }).notNull(),
+    original_amount: decimal('original_amount', {
       precision: 18,
       scale: 2,
     }).notNull(),
-    original_currency_id: fkUuid("original_currency_id").notNull(),
-    exchange_rate: decimal("exchange_rate", {
+    original_currency_id: fkUuid('original_currency_id').notNull(),
+    exchange_rate: decimal('exchange_rate', {
       precision: 18,
       scale: 6,
     }).notNull(),
-    amount: decimal("amount", { precision: 18, scale: 2 }).notNull(),
-    reference_number: varchar("reference_number", { length: 100 }),
-    received_by: fkUuid("received_by").notNull(),
-    payment_status_id: fkUuid("payment_status_id").notNull(),
-    notes: text("notes"),
+    amount: decimal('amount', { precision: 18, scale: 2 }).notNull(),
+    reference_number: varchar('reference_number', { length: 100 }),
+    received_by: fkUuid('received_by').notNull(),
+    payment_status_id: fkUuid('payment_status_id').notNull(),
+    notes: text('notes'),
     ...auditMetadata,
     ...actorMetadata,
     ...softDeleteMetadata,
   },
-  (table) => [index("payments_payer_id_idx").on(table.payer_id)]
+  (table) => [index('payments_payer_id_idx').on(table.payer_id)],
 );
 
 /**
@@ -274,32 +291,35 @@ export const payments = mysqlTable(
  * unallocated ETB balance.
  */
 export const paymentAllocations = mysqlTable(
-  "payment_allocations",
+  'payment_allocations',
   {
     id: idColumn,
-    payment_id: fkUuid("payment_id").notNull(),
-    invoice_id: fkUuid("invoice_id").notNull(),
-    allocated_amount: decimal("allocated_amount", {
+    payment_id: fkUuid('payment_id').notNull(),
+    invoice_id: fkUuid('invoice_id').notNull(),
+    allocated_amount: decimal('allocated_amount', {
       precision: 18,
       scale: 2,
     }).notNull(),
-    allocation_date: datetime("allocation_date", { mode: "date" })
+    allocation_date: datetime('allocation_date', { mode: 'date' })
       .notNull()
       .default(sql`CURRENT_TIMESTAMP`),
-    notes: text("notes"),
+    notes: text('notes'),
     ...auditMetadata,
     ...actorMetadata,
     ...softDeleteMetadata,
   },
   (table) => [
-    unique("payment_allocations_payment_invoice_unique").on(table.payment_id, table.invoice_id),
-    index("payment_allocations_invoice_id_idx").on(table.invoice_id),
-    index("payment_allocations_payment_id_idx").on(table.payment_id),
-  ]
+    unique('payment_allocations_payment_invoice_unique').on(
+      table.payment_id,
+      table.invoice_id,
+    ),
+    index('payment_allocations_invoice_id_idx').on(table.invoice_id),
+    index('payment_allocations_payment_id_idx').on(table.payment_id),
+  ],
 );
 
 // ---------------------------------------------------------------------------
-// Round 6 — Expenses, Finance Exceptions, Refunds, and Expense Allocations
+// Expenses, Finance Exceptions, Refunds, and Expense Allocations
 // ---------------------------------------------------------------------------
 
 /**
@@ -309,13 +329,13 @@ export const paymentAllocations = mysqlTable(
  * is drafted but not yet confirmed; CONFIRMED means the cost is committed;
  * CANCELLED voids the expense without deleting it.
  */
-export const expenseStatuses = mysqlTable("expense_statuses", {
+export const expenseStatuses = mysqlTable('expense_statuses', {
   id: idColumn,
-  status_code: codeColumn("status_code"),
+  status_code: codeColumn('status_code'),
   name: nameColumn(),
-  description: text("description"),
-  display_order: int("display_order").notNull().default(1),
-  is_active: boolean("is_active").notNull().default(true),
+  description: text('description'),
+  display_order: int('display_order').notNull().default(1),
+  is_active: boolean('is_active').notNull().default(true),
   ...auditMetadata,
   ...softDeleteMetadata,
 });
@@ -326,13 +346,13 @@ export const expenseStatuses = mysqlTable("expense_statuses", {
  * Seeded categories align with the operational modules that generate expenses:
  * VISA, FLIGHT, ACCOMMODATION, TRANSPORT, CANCELLATION_CHARGE, OTHER.
  */
-export const expenseCategories = mysqlTable("expense_categories", {
+export const expenseCategories = mysqlTable('expense_categories', {
   id: idColumn,
-  category_code: codeColumn("category_code"),
+  category_code: codeColumn('category_code'),
   name: nameColumn(),
-  description: text("description"),
-  display_order: int("display_order").notNull().default(1),
-  is_active: boolean("is_active").notNull().default(true),
+  description: text('description'),
+  display_order: int('display_order').notNull().default(1),
+  is_active: boolean('is_active').notNull().default(true),
   ...auditMetadata,
   ...softDeleteMetadata,
 });
@@ -341,13 +361,13 @@ export const expenseCategories = mysqlTable("expense_categories", {
  * The origin of an expense — whether it was created from an operational
  * workflow or entered directly in Finance.
  */
-export const expenseSources = mysqlTable("expense_sources", {
+export const expenseSources = mysqlTable('expense_sources', {
   id: idColumn,
-  source_code: codeColumn("source_code"),
+  source_code: codeColumn('source_code'),
   name: nameColumn(),
-  description: text("description"),
-  display_order: int("display_order").notNull().default(1),
-  is_active: boolean("is_active").notNull().default(true),
+  description: text('description'),
+  display_order: int('display_order').notNull().default(1),
+  is_active: boolean('is_active').notNull().default(true),
   ...auditMetadata,
   ...softDeleteMetadata,
 });
@@ -371,60 +391,66 @@ export const expenseSources = mysqlTable("expense_sources", {
  * via `expense_allocations` for per-traveler profitability reporting.
  */
 export const expenses = mysqlTable(
-  "expenses",
+  'expenses',
   {
     id: idColumn,
-    expense_number: varchar("expense_number", { length: 30 }).notNull().unique(),
-    expense_category_id: fkUuid("expense_category_id").notNull(),
-    expense_source_id: fkUuid("expense_source_id").notNull(),
-    expense_status_id: fkUuid("expense_status_id").notNull(),
+    expense_number: varchar('expense_number', { length: 30 })
+      .notNull()
+      .unique(),
+    expense_category_id: fkUuid('expense_category_id').notNull(),
+    expense_source_id: fkUuid('expense_source_id').notNull(),
+    expense_status_id: fkUuid('expense_status_id').notNull(),
 
     // Financial (ETB accounting)
-    amount: decimal("amount", { precision: 18, scale: 2 }).notNull(),
-    original_amount: decimal("original_amount", { precision: 18, scale: 2 }),
-    original_currency_id: fkUuid("original_currency_id"),
-    exchange_rate: decimal("exchange_rate", { precision: 18, scale: 6 }),
+    amount: decimal('amount', { precision: 18, scale: 2 }).notNull(),
+    original_amount: decimal('original_amount', { precision: 18, scale: 2 }),
+    original_currency_id: fkUuid('original_currency_id'),
+    exchange_rate: decimal('exchange_rate', { precision: 18, scale: 6 }),
 
     // Date the expense was incurred
-    expense_date: datetime("expense_date", { mode: "date" }).notNull(),
+    expense_date: datetime('expense_date', { mode: 'date' }).notNull(),
 
     // Description / notes
-    description: varchar("description", { length: 255 }),
-    notes: text("notes"),
+    description: varchar('description', { length: 255 }),
+    notes: text('notes'),
 
     // Payee / vendor
-    vendor_id: fkUuid("vendor_id"),
-    payee_name: varchar("payee_name", { length: 255 }),
+    vendor_id: fkUuid('vendor_id'),
+    payee_name: varchar('payee_name', { length: 255 }),
 
     // Attribution scope
-    attribution_scope: mysqlEnum("attribution_scope", ["TRAVELER", "GROUP", "GENERAL"]).notNull(),
+    attribution_scope: mysqlEnum('attribution_scope', [
+      'TRAVELER',
+      'GROUP',
+      'GENERAL',
+    ]).notNull(),
 
     // Business dimensions (derived from source where possible)
-    traveller_id: fkUuid("traveller_id"),
-    registration_id: fkUuid("registration_id"),
-    travel_group_id: fkUuid("travel_group_id"),
-    package_version_id: fkUuid("package_version_id"),
+    traveller_id: fkUuid('traveller_id'),
+    registration_id: fkUuid('registration_id'),
+    travel_group_id: fkUuid('travel_group_id'),
+    package_version_id: fkUuid('package_version_id'),
 
     // Source operational record linkage
-    source_visa_application_id: fkUuid("source_visa_application_id"),
-    source_flight_booking_id: fkUuid("source_flight_booking_id"),
-    source_group_hotel_stay_id: fkUuid("source_group_hotel_stay_id"),
-    source_transport_segment_id: fkUuid("source_transport_segment_id"),
+    source_visa_application_id: fkUuid('source_visa_application_id'),
+    source_flight_booking_id: fkUuid('source_flight_booking_id'),
+    source_group_hotel_stay_id: fkUuid('source_group_hotel_stay_id'),
+    source_transport_segment_id: fkUuid('source_transport_segment_id'),
 
     ...auditMetadata,
     ...actorMetadata,
     ...softDeleteMetadata,
   },
   (table) => [
-    index("expenses_category_id_idx").on(table.expense_category_id),
-    index("expenses_source_id_idx").on(table.expense_source_id),
-    index("expenses_status_id_idx").on(table.expense_status_id),
-    index("expenses_traveller_id_idx").on(table.traveller_id),
-    index("expenses_registration_id_idx").on(table.registration_id),
-    index("expenses_travel_group_id_idx").on(table.travel_group_id),
-    index("expenses_package_version_id_idx").on(table.package_version_id),
-    index("expenses_expense_date_idx").on(table.expense_date),
-  ]
+    index('expenses_category_id_idx').on(table.expense_category_id),
+    index('expenses_source_id_idx').on(table.expense_source_id),
+    index('expenses_status_id_idx').on(table.expense_status_id),
+    index('expenses_traveller_id_idx').on(table.traveller_id),
+    index('expenses_registration_id_idx').on(table.registration_id),
+    index('expenses_travel_group_id_idx').on(table.travel_group_id),
+    index('expenses_package_version_id_idx').on(table.package_version_id),
+    index('expenses_expense_date_idx').on(table.expense_date),
+  ],
 );
 
 /**
@@ -435,27 +461,30 @@ export const expenses = mysqlTable(
  * transactions. For MVP, equal allocation is used.
  */
 export const expenseAllocations = mysqlTable(
-  "expense_allocations",
+  'expense_allocations',
   {
     id: idColumn,
-    expense_id: fkUuid("expense_id").notNull(),
-    traveller_id: fkUuid("traveller_id").notNull(),
-    registration_id: fkUuid("registration_id"),
-    allocated_amount: decimal("allocated_amount", {
+    expense_id: fkUuid('expense_id').notNull(),
+    traveller_id: fkUuid('traveller_id').notNull(),
+    registration_id: fkUuid('registration_id'),
+    allocated_amount: decimal('allocated_amount', {
       precision: 18,
       scale: 2,
     }).notNull(),
-    notes: text("notes"),
+    notes: text('notes'),
     ...auditMetadata,
     ...actorMetadata,
     ...softDeleteMetadata,
   },
   (table) => [
-    unique("expense_allocations_expense_traveller_unique").on(table.expense_id, table.traveller_id),
-    index("expense_allocations_expense_id_idx").on(table.expense_id),
-    index("expense_allocations_traveller_id_idx").on(table.traveller_id),
-    index("expense_allocations_registration_id_idx").on(table.registration_id),
-  ]
+    unique('expense_allocations_expense_traveller_unique').on(
+      table.expense_id,
+      table.traveller_id,
+    ),
+    index('expense_allocations_expense_id_idx').on(table.expense_id),
+    index('expense_allocations_traveller_id_idx').on(table.traveller_id),
+    index('expense_allocations_registration_id_idx').on(table.registration_id),
+  ],
 );
 
 /**
@@ -465,16 +494,19 @@ export const expenseAllocations = mysqlTable(
  * exception's due date has passed. REVOKED means an admin cancelled the
  * exception.
  */
-export const financeExceptionStatuses = mysqlTable("finance_exception_statuses", {
-  id: idColumn,
-  status_code: codeColumn("status_code"),
-  name: nameColumn(),
-  description: text("description"),
-  display_order: int("display_order").notNull().default(1),
-  is_active: boolean("is_active").notNull().default(true),
-  ...auditMetadata,
-  ...softDeleteMetadata,
-});
+export const financeExceptionStatuses = mysqlTable(
+  'finance_exception_statuses',
+  {
+    id: idColumn,
+    status_code: codeColumn('status_code'),
+    name: nameColumn(),
+    description: text('description'),
+    display_order: int('display_order').notNull().default(1),
+    is_active: boolean('is_active').notNull().default(true),
+    ...auditMetadata,
+    ...softDeleteMetadata,
+  },
+);
 
 /**
  * An authorized credit exception that allows a registration to proceed
@@ -488,50 +520,56 @@ export const financeExceptionStatuses = mysqlTable("finance_exception_statuses",
  * approved it, when, the authorized amount, and the reason.
  */
 export const financeExceptions = mysqlTable(
-  "finance_exceptions",
+  'finance_exceptions',
   {
     id: idColumn,
-    exception_number: varchar("exception_number", { length: 30 }).notNull().unique(),
-    registration_id: fkUuid("registration_id").notNull(),
-    authorized_amount: decimal("authorized_amount", {
+    exception_number: varchar('exception_number', { length: 30 })
+      .notNull()
+      .unique(),
+    registration_id: fkUuid('registration_id').notNull(),
+    authorized_amount: decimal('authorized_amount', {
       precision: 18,
       scale: 2,
     }).notNull(),
-    reason: text("reason").notNull(),
-    approved_by: fkUuid("approved_by").notNull(),
-    approved_at: datetime("approved_at", { mode: "date" }).notNull(),
-    due_date: datetime("due_date", { mode: "date" }),
-    finance_exception_status_id: fkUuid("finance_exception_status_id").notNull(),
+    reason: text('reason').notNull(),
+    approved_by: fkUuid('approved_by').notNull(),
+    approved_at: datetime('approved_at', { mode: 'date' }).notNull(),
+    due_date: datetime('due_date', { mode: 'date' }),
+    finance_exception_status_id: fkUuid(
+      'finance_exception_status_id',
+    ).notNull(),
     // Concurrency lock: set to the exception id when ACTIVE, NULL otherwise.
     // A unique index on (registration_id, active_lock) prevents two concurrent
     // ACTIVE exceptions for the same registration.
-    active_lock: fkUuid("active_lock"),
-    notes: text("notes"),
+    active_lock: fkUuid('active_lock'),
+    notes: text('notes'),
     ...auditMetadata,
     ...actorMetadata,
     ...softDeleteMetadata,
   },
   (table) => [
-    index("finance_exceptions_registration_id_idx").on(table.registration_id),
-    index("finance_exceptions_status_id_idx").on(table.finance_exception_status_id),
-    // Enforce at most one ACTIVE exception per registration.
-    unique("finance_exceptions_active_per_registration_unique").on(
-      table.registration_id,
-      table.active_lock
+    index('finance_exceptions_registration_id_idx').on(table.registration_id),
+    index('finance_exceptions_status_id_idx').on(
+      table.finance_exception_status_id,
     ),
-  ]
+    // Enforce at most one ACTIVE exception per registration.
+    unique('finance_exceptions_active_per_registration_unique').on(
+      table.registration_id,
+      table.active_lock,
+    ),
+  ],
 );
 
 /**
  * Lifecycle states for refunds: PENDING, APPROVED, COMPLETED, CANCELLED.
  */
-export const refundStatuses = mysqlTable("refund_statuses", {
+export const refundStatuses = mysqlTable('refund_statuses', {
   id: idColumn,
-  status_code: codeColumn("status_code"),
+  status_code: codeColumn('status_code'),
   name: nameColumn(),
-  description: text("description"),
-  display_order: int("display_order").notNull().default(1),
-  is_active: boolean("is_active").notNull().default(true),
+  description: text('description'),
+  display_order: int('display_order').notNull().default(1),
+  is_active: boolean('is_active').notNull().default(true),
   ...auditMetadata,
   ...softDeleteMetadata,
 });
@@ -550,35 +588,120 @@ export const refundStatuses = mysqlTable("refund_statuses", {
  * returning overpayment after a registration is cancelled).
  */
 export const refunds = mysqlTable(
-  "refunds",
+  'refunds',
   {
     id: idColumn,
-    refund_number: varchar("refund_number", { length: 30 }).notNull().unique(),
-    payment_id: fkUuid("payment_id").notNull(),
-    payer_id: fkUuid("payer_id").notNull(),
-    amount: decimal("amount", { precision: 18, scale: 2 }).notNull(),
-    reason: text("reason").notNull(),
-    refund_date: datetime("refund_date", { mode: "date" }).notNull(),
-    approved_by: fkUuid("approved_by").notNull(),
-    approved_at: datetime("approved_at", { mode: "date" }).notNull(),
-    refund_status_id: fkUuid("refund_status_id").notNull(),
+    refund_number: varchar('refund_number', { length: 30 }).notNull().unique(),
+    payment_id: fkUuid('payment_id').notNull(),
+    payer_id: fkUuid('payer_id').notNull(),
+    amount: decimal('amount', { precision: 18, scale: 2 }).notNull(),
+    reason: text('reason').notNull(),
+    refund_date: datetime('refund_date', { mode: 'date' }).notNull(),
+    approved_by: fkUuid('approved_by').notNull(),
+    approved_at: datetime('approved_at', { mode: 'date' }).notNull(),
+    refund_status_id: fkUuid('refund_status_id').notNull(),
     // Optional linkage to a registration for cancellation adjustments
-    registration_id: fkUuid("registration_id"),
-    notes: text("notes"),
+    registration_id: fkUuid('registration_id'),
+    notes: text('notes'),
     ...auditMetadata,
     ...actorMetadata,
     ...softDeleteMetadata,
   },
   (table) => [
-    index("refunds_payment_id_idx").on(table.payment_id),
-    index("refunds_payer_id_idx").on(table.payer_id),
-    index("refunds_status_id_idx").on(table.refund_status_id),
-    index("refunds_registration_id_idx").on(table.registration_id),
-  ]
+    index('refunds_payment_id_idx').on(table.payment_id),
+    index('refunds_payer_id_idx').on(table.payer_id),
+    index('refunds_status_id_idx').on(table.refund_status_id),
+    index('refunds_registration_id_idx').on(table.registration_id),
+  ],
 );
 
 // ---------------------------------------------------------------------------
-// Round 7 — Expense Adjustments (supplier refunds, cancellation fees, etc.)
+// Expense Adjustments (supplier refunds, cancellation fees, etc.)
+// ---------------------------------------------------------------------------
+
+/**
+ * Lifecycle states for credit exception requests: PENDING, APPROVED, REJECTED.
+ *
+ * A PENDING request awaits admin review. APPROVED means an admin approved it
+ * and an ACTIVE finance exception was created. REJECTED means an admin
+ * declined the request.
+ */
+export const creditExceptionRequestStatuses = mysqlTable(
+  'credit_exception_request_statuses',
+  {
+    id: idColumn,
+    status_code: codeColumn('status_code'),
+    name: nameColumn(),
+    description: text('description'),
+    display_order: int('display_order').notNull().default(1),
+    is_active: boolean('is_active').notNull().default(true),
+    ...auditMetadata,
+    ...softDeleteMetadata,
+  },
+);
+
+/**
+ * A request from an agent or manager to authorize a credit exception for a
+ * registration with an outstanding balance.
+ *
+ * This is NOT a finance exception. Only when an admin APPROVES the request
+ * does a `finance_exceptions` row get created with ACTIVE status. The request
+ * preserves who asked, when, how much, and the reason — separate from the
+ * authorization record.
+ *
+ * The `active_request_lock` + unique index on
+ * `(registration_id, active_request_lock)` prevents duplicate PENDING
+ * requests for the same registration.
+ */
+export const creditExceptionRequests = mysqlTable(
+  'credit_exception_requests',
+  {
+    id: idColumn,
+    request_number: varchar('request_number', { length: 30 })
+      .notNull()
+      .unique(),
+    registration_id: fkUuid('registration_id').notNull(),
+    requested_amount: decimal('requested_amount', {
+      precision: 18,
+      scale: 2,
+    }).notNull(),
+    reason: text('reason').notNull(),
+    requested_due_date: datetime('requested_due_date', { mode: 'date' }),
+    requested_by: fkUuid('requested_by').notNull(),
+    credit_exception_request_status_id: fkUuid(
+      'credit_exception_request_status_id',
+    ).notNull(),
+    // Concurrency lock: set to the request id when PENDING, NULL otherwise.
+    // Prevents two concurrent PENDING requests for the same registration.
+    active_request_lock: fkUuid('active_request_lock'),
+    reviewed_by: fkUuid('reviewed_by'),
+    reviewed_at: datetime('reviewed_at', { mode: 'date' }),
+    rejection_reason: text('rejection_reason'),
+    // Link to the finance exception created on approval
+    finance_exception_id: fkUuid('finance_exception_id'),
+    notes: text('notes'),
+    ...auditMetadata,
+    ...actorMetadata,
+    ...softDeleteMetadata,
+  },
+  (table) => [
+    index('credit_exception_requests_registration_id_idx').on(
+      table.registration_id,
+    ),
+    index('credit_exception_requests_status_id_idx').on(
+      table.credit_exception_request_status_id,
+    ),
+    index('credit_exception_requests_requested_by_idx').on(table.requested_by),
+    // Enforce at most one PENDING request per registration.
+    unique('credit_exception_requests_active_per_registration_unique').on(
+      table.registration_id,
+      table.active_request_lock,
+    ),
+  ],
+);
+
+// ---------------------------------------------------------------------------
+// Expense Adjustments (supplier refunds, cancellation fees, etc.)
 // ---------------------------------------------------------------------------
 
 /**
@@ -600,46 +723,48 @@ export const refunds = mysqlTable(
  *   per expense, enforced by a unique constraint.
  */
 export const expenseAdjustments = mysqlTable(
-  "expense_adjustments",
+  'expense_adjustments',
   {
     id: idColumn,
-    adjustment_number: varchar("adjustment_number", { length: 30 }).notNull().unique(),
-    expense_id: fkUuid("expense_id").notNull(),
+    adjustment_number: varchar('adjustment_number', { length: 30 })
+      .notNull()
+      .unique(),
+    expense_id: fkUuid('expense_id').notNull(),
 
     // Adjustment type
-    adjustment_type: mysqlEnum("adjustment_type", [
-      "SUPPLIER_REFUND",
-      "CANCELLATION_FEE",
-      "OTHER_ADJUSTMENT",
+    adjustment_type: mysqlEnum('adjustment_type', [
+      'SUPPLIER_REFUND',
+      'CANCELLATION_FEE',
+      'OTHER_ADJUSTMENT',
     ]).notNull(),
 
     // Financial (ETB accounting)
-    amount: decimal("amount", { precision: 18, scale: 2 }).notNull(),
+    amount: decimal('amount', { precision: 18, scale: 2 }).notNull(),
 
     // Date the adjustment was recorded
-    adjustment_date: datetime("adjustment_date", { mode: "date" }).notNull(),
+    adjustment_date: datetime('adjustment_date', { mode: 'date' }).notNull(),
 
     // Description / reason
-    description: varchar("description", { length: 255 }),
-    reason: text("reason").notNull(),
+    description: varchar('description', { length: 255 }),
+    reason: text('reason').notNull(),
 
     // Source operational record reference (preserved even if source is
     // hard-deleted). No DB-level FK so hard-deleted sources don't violate
     // the constraint.
-    source_record_type: mysqlEnum("source_record_type", [
-      "FLIGHT_BOOKING",
-      "GROUP_HOTEL_STAY",
-      "TRANSPORT_SEGMENT",
-      "VISA_APPLICATION",
-      "REGISTRATION",
+    source_record_type: mysqlEnum('source_record_type', [
+      'FLIGHT_BOOKING',
+      'GROUP_HOTEL_STAY',
+      'TRANSPORT_SEGMENT',
+      'VISA_APPLICATION',
+      'REGISTRATION',
     ]).notNull(),
-    source_record_id: fkUuid("source_record_id").notNull(),
-    source_record_number: varchar("source_record_number", { length: 30 }),
+    source_record_id: fkUuid('source_record_id').notNull(),
+    source_record_number: varchar('source_record_number', { length: 30 }),
 
     // Business dimensions (copied from expense for reporting convenience)
-    traveller_id: fkUuid("traveller_id"),
-    registration_id: fkUuid("registration_id"),
-    travel_group_id: fkUuid("travel_group_id"),
+    traveller_id: fkUuid('traveller_id'),
+    registration_id: fkUuid('registration_id'),
+    travel_group_id: fkUuid('travel_group_id'),
 
     ...auditMetadata,
     ...actorMetadata,
@@ -647,25 +772,34 @@ export const expenseAdjustments = mysqlTable(
   },
   (table) => [
     // Duplicate prevention: one adjustment of each type per expense
-    unique("expense_adjustments_expense_type_unique").on(table.expense_id, table.adjustment_type),
-    index("expense_adjustments_expense_id_idx").on(table.expense_id),
-    index("expense_adjustments_source_record_idx").on(
-      table.source_record_id,
-      table.source_record_type
+    unique('expense_adjustments_expense_type_unique').on(
+      table.expense_id,
+      table.adjustment_type,
     ),
-    index("expense_adjustments_traveller_id_idx").on(table.traveller_id),
-    index("expense_adjustments_registration_id_idx").on(table.registration_id),
-  ]
+    index('expense_adjustments_expense_id_idx').on(table.expense_id),
+    index('expense_adjustments_source_record_idx').on(
+      table.source_record_id,
+      table.source_record_type,
+    ),
+    index('expense_adjustments_traveller_id_idx').on(table.traveller_id),
+    index('expense_adjustments_registration_id_idx').on(table.registration_id),
+  ],
 );
 
 // Relations
-export const invoiceStatusesRelations = relations(invoiceStatuses, ({ many }) => ({
-  invoices: many(invoices),
-}));
+export const invoiceStatusesRelations = relations(
+  invoiceStatuses,
+  ({ many }) => ({
+    invoices: many(invoices),
+  }),
+);
 
-export const paymentStatusesRelations = relations(paymentStatuses, ({ many }) => ({
-  payments: many(payments),
-}));
+export const paymentStatusesRelations = relations(
+  paymentStatuses,
+  ({ many }) => ({
+    payments: many(payments),
+  }),
+);
 
 export const payerTypesRelations = relations(payerTypes, ({ many }) => ({
   payers: many(payers),
@@ -675,21 +809,30 @@ export const payerStatusesRelations = relations(payerStatuses, ({ many }) => ({
   payers: many(payers),
 }));
 
-export const paymentMethodStatusesRelations = relations(paymentMethodStatuses, ({ many }) => ({
-  paymentMethods: many(paymentMethods),
-}));
-
-export const paymentMethodsRelations = relations(paymentMethods, ({ one, many }) => ({
-  status: one(paymentMethodStatuses, {
-    fields: [paymentMethods.payment_method_status_id],
-    references: [paymentMethodStatuses.id],
+export const paymentMethodStatusesRelations = relations(
+  paymentMethodStatuses,
+  ({ many }) => ({
+    paymentMethods: many(paymentMethods),
   }),
-  payments: many(payments),
-}));
+);
 
-export const invoiceLineItemTypesRelations = relations(invoiceLineItemTypes, ({ many }) => ({
-  lineItems: many(invoiceLineItems),
-}));
+export const paymentMethodsRelations = relations(
+  paymentMethods,
+  ({ one, many }) => ({
+    status: one(paymentMethodStatuses, {
+      fields: [paymentMethods.payment_method_status_id],
+      references: [paymentMethodStatuses.id],
+    }),
+    payments: many(payments),
+  }),
+);
+
+export const invoiceLineItemTypesRelations = relations(
+  invoiceLineItemTypes,
+  ({ many }) => ({
+    lineItems: many(invoiceLineItems),
+  }),
+);
 
 export const invoicesRelations = relations(invoices, ({ one, many }) => ({
   registration: one(registrations, {
@@ -716,24 +859,27 @@ export const invoicesRelations = relations(invoices, ({ one, many }) => ({
   allocations: many(paymentAllocations),
 }));
 
-export const invoiceLineItemsRelations = relations(invoiceLineItems, ({ one }) => ({
-  invoice: one(invoices, {
-    fields: [invoiceLineItems.invoice_id],
-    references: [invoices.id],
+export const invoiceLineItemsRelations = relations(
+  invoiceLineItems,
+  ({ one }) => ({
+    invoice: one(invoices, {
+      fields: [invoiceLineItems.invoice_id],
+      references: [invoices.id],
+    }),
+    lineItemType: one(invoiceLineItemTypes, {
+      fields: [invoiceLineItems.line_item_type_id],
+      references: [invoiceLineItemTypes.id],
+    }),
+    createdBy: one(users, {
+      fields: [invoiceLineItems.created_by],
+      references: [users.id],
+    }),
+    updatedBy: one(users, {
+      fields: [invoiceLineItems.updated_by],
+      references: [users.id],
+    }),
   }),
-  lineItemType: one(invoiceLineItemTypes, {
-    fields: [invoiceLineItems.line_item_type_id],
-    references: [invoiceLineItemTypes.id],
-  }),
-  createdBy: one(users, {
-    fields: [invoiceLineItems.created_by],
-    references: [users.id],
-  }),
-  updatedBy: one(users, {
-    fields: [invoiceLineItems.updated_by],
-    references: [users.id],
-  }),
-}));
+);
 
 export const payersRelations = relations(payers, ({ one, many }) => ({
   payerType: one(payerTypes, {
@@ -795,38 +941,50 @@ export const paymentsRelations = relations(payments, ({ one, many }) => ({
   allocations: many(paymentAllocations),
 }));
 
-export const paymentAllocationsRelations = relations(paymentAllocations, ({ one }) => ({
-  payment: one(payments, {
-    fields: [paymentAllocations.payment_id],
-    references: [payments.id],
+export const paymentAllocationsRelations = relations(
+  paymentAllocations,
+  ({ one }) => ({
+    payment: one(payments, {
+      fields: [paymentAllocations.payment_id],
+      references: [payments.id],
+    }),
+    invoice: one(invoices, {
+      fields: [paymentAllocations.invoice_id],
+      references: [invoices.id],
+    }),
+    createdBy: one(users, {
+      fields: [paymentAllocations.created_by],
+      references: [users.id],
+    }),
+    updatedBy: one(users, {
+      fields: [paymentAllocations.updated_by],
+      references: [users.id],
+    }),
   }),
-  invoice: one(invoices, {
-    fields: [paymentAllocations.invoice_id],
-    references: [invoices.id],
+);
+
+// Relations for finance entities
+
+export const expenseStatusesRelations = relations(
+  expenseStatuses,
+  ({ many }) => ({
+    expenses: many(expenses),
   }),
-  createdBy: one(users, {
-    fields: [paymentAllocations.created_by],
-    references: [users.id],
+);
+
+export const expenseCategoriesRelations = relations(
+  expenseCategories,
+  ({ many }) => ({
+    expenses: many(expenses),
   }),
-  updatedBy: one(users, {
-    fields: [paymentAllocations.updated_by],
-    references: [users.id],
+);
+
+export const expenseSourcesRelations = relations(
+  expenseSources,
+  ({ many }) => ({
+    expenses: many(expenses),
   }),
-}));
-
-// Round 6 — Relations for new finance entities
-
-export const expenseStatusesRelations = relations(expenseStatuses, ({ many }) => ({
-  expenses: many(expenses),
-}));
-
-export const expenseCategoriesRelations = relations(expenseCategories, ({ many }) => ({
-  expenses: many(expenses),
-}));
-
-export const expenseSourcesRelations = relations(expenseSources, ({ many }) => ({
-  expenses: many(expenses),
-}));
+);
 
 export const expensesRelations = relations(expenses, ({ one, many }) => ({
   category: one(expenseCategories, {
@@ -889,54 +1047,63 @@ export const expensesRelations = relations(expenses, ({ one, many }) => ({
   }),
 }));
 
-export const expenseAllocationsRelations = relations(expenseAllocations, ({ one }) => ({
-  expense: one(expenses, {
-    fields: [expenseAllocations.expense_id],
-    references: [expenses.id],
+export const expenseAllocationsRelations = relations(
+  expenseAllocations,
+  ({ one }) => ({
+    expense: one(expenses, {
+      fields: [expenseAllocations.expense_id],
+      references: [expenses.id],
+    }),
+    traveller: one(travellers, {
+      fields: [expenseAllocations.traveller_id],
+      references: [travellers.id],
+    }),
+    registration: one(registrations, {
+      fields: [expenseAllocations.registration_id],
+      references: [registrations.id],
+    }),
   }),
-  traveller: one(travellers, {
-    fields: [expenseAllocations.traveller_id],
-    references: [travellers.id],
-  }),
-  registration: one(registrations, {
-    fields: [expenseAllocations.registration_id],
-    references: [registrations.id],
-  }),
-}));
+);
 
 export const financeExceptionStatusesRelations = relations(
   financeExceptionStatuses,
   ({ many }) => ({
     exceptions: many(financeExceptions),
-  })
+  }),
 );
 
-export const financeExceptionsRelations = relations(financeExceptions, ({ one }) => ({
-  registration: one(registrations, {
-    fields: [financeExceptions.registration_id],
-    references: [registrations.id],
+export const financeExceptionsRelations = relations(
+  financeExceptions,
+  ({ one }) => ({
+    registration: one(registrations, {
+      fields: [financeExceptions.registration_id],
+      references: [registrations.id],
+    }),
+    status: one(financeExceptionStatuses, {
+      fields: [financeExceptions.finance_exception_status_id],
+      references: [financeExceptionStatuses.id],
+    }),
+    approvedBy: one(users, {
+      fields: [financeExceptions.approved_by],
+      references: [users.id],
+    }),
+    createdBy: one(users, {
+      fields: [financeExceptions.created_by],
+      references: [users.id],
+    }),
+    updatedBy: one(users, {
+      fields: [financeExceptions.updated_by],
+      references: [users.id],
+    }),
   }),
-  status: one(financeExceptionStatuses, {
-    fields: [financeExceptions.finance_exception_status_id],
-    references: [financeExceptionStatuses.id],
-  }),
-  approvedBy: one(users, {
-    fields: [financeExceptions.approved_by],
-    references: [users.id],
-  }),
-  createdBy: one(users, {
-    fields: [financeExceptions.created_by],
-    references: [users.id],
-  }),
-  updatedBy: one(users, {
-    fields: [financeExceptions.updated_by],
-    references: [users.id],
-  }),
-}));
+);
 
-export const refundStatusesRelations = relations(refundStatuses, ({ many }) => ({
-  refunds: many(refunds),
-}));
+export const refundStatusesRelations = relations(
+  refundStatuses,
+  ({ many }) => ({
+    refunds: many(refunds),
+  }),
+);
 
 export const refundsRelations = relations(refunds, ({ one }) => ({
   payment: one(payments, {
@@ -969,31 +1136,77 @@ export const refundsRelations = relations(refunds, ({ one }) => ({
   }),
 }));
 
-// Round 7 — Expense adjustment relations
+// Expense adjustment relations
 
-export const expenseAdjustmentsRelations = relations(expenseAdjustments, ({ one }) => ({
-  expense: one(expenses, {
-    fields: [expenseAdjustments.expense_id],
-    references: [expenses.id],
+export const expenseAdjustmentsRelations = relations(
+  expenseAdjustments,
+  ({ one }) => ({
+    expense: one(expenses, {
+      fields: [expenseAdjustments.expense_id],
+      references: [expenses.id],
+    }),
+    traveller: one(travellers, {
+      fields: [expenseAdjustments.traveller_id],
+      references: [travellers.id],
+    }),
+    registration: one(registrations, {
+      fields: [expenseAdjustments.registration_id],
+      references: [registrations.id],
+    }),
+    travelGroup: one(travelGroups, {
+      fields: [expenseAdjustments.travel_group_id],
+      references: [travelGroups.id],
+    }),
+    createdBy: one(users, {
+      fields: [expenseAdjustments.created_by],
+      references: [users.id],
+    }),
+    updatedBy: one(users, {
+      fields: [expenseAdjustments.updated_by],
+      references: [users.id],
+    }),
   }),
-  traveller: one(travellers, {
-    fields: [expenseAdjustments.traveller_id],
-    references: [travellers.id],
+);
+
+// Credit exception request relations
+
+export const creditExceptionRequestStatusesRelations = relations(
+  creditExceptionRequestStatuses,
+  ({ many }) => ({
+    requests: many(creditExceptionRequests),
   }),
-  registration: one(registrations, {
-    fields: [expenseAdjustments.registration_id],
-    references: [registrations.id],
+);
+
+export const creditExceptionRequestsRelations = relations(
+  creditExceptionRequests,
+  ({ one }) => ({
+    registration: one(registrations, {
+      fields: [creditExceptionRequests.registration_id],
+      references: [registrations.id],
+    }),
+    status: one(creditExceptionRequestStatuses, {
+      fields: [creditExceptionRequests.credit_exception_request_status_id],
+      references: [creditExceptionRequestStatuses.id],
+    }),
+    requestedBy: one(users, {
+      fields: [creditExceptionRequests.requested_by],
+      references: [users.id],
+    }),
+    reviewedBy: one(users, {
+      fields: [creditExceptionRequests.reviewed_by],
+      references: [users.id],
+    }),
+    financeException: one(financeExceptions, {
+      fields: [creditExceptionRequests.finance_exception_id],
+      references: [financeExceptions.id],
+    }),
+    createdBy: one(users, {
+      fields: [creditExceptionRequests.created_by],
+      references: [users.id],
+    }),
+    updatedBy: one(users, {
+      fields: [creditExceptionRequests.updated_by],
+      references: [users.id],
+    }),
   }),
-  travelGroup: one(travelGroups, {
-    fields: [expenseAdjustments.travel_group_id],
-    references: [travelGroups.id],
-  }),
-  createdBy: one(users, {
-    fields: [expenseAdjustments.created_by],
-    references: [users.id],
-  }),
-  updatedBy: one(users, {
-    fields: [expenseAdjustments.updated_by],
-    references: [users.id],
-  }),
-}));
+);

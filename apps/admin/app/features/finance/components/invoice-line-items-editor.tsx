@@ -64,60 +64,77 @@ export function InvoiceLineItemsEditor({
     <div className="space-y-4">
       <Label className="text-sm font-medium">Line items</Label>
 
-      <div className="grid gap-2 rounded-md border border-border p-3 md:grid-cols-5">
-        <Input
-          value={draft.description}
-          onChange={(e) =>
-            setDraft((d) => ({ ...d, description: e.target.value }))
-          }
-          placeholder="Description"
-          className="md:col-span-2"
-        />
-        <Input
-          type="number"
-          min={0}
-          step="0.01"
-          value={draft.quantity}
-          onChange={(e) =>
-            setDraft((d) => ({ ...d, quantity: e.target.value }))
-          }
-          placeholder="Qty"
-        />
-        <Input
-          type="number"
-          min={0}
-          step="0.01"
-          value={draft.unit_price}
-          onChange={(e) =>
-            setDraft((d) => ({ ...d, unit_price: e.target.value }))
-          }
-          placeholder="Unit price (ETB)"
-        />
-        <Select
-          value={draft.line_item_type_id ?? ''}
-          onValueChange={(v) =>
-            setDraft((d) => ({ ...d, line_item_type_id: v ?? '' }))
-          }
-        >
-          <SelectTrigger className="h-9 w-full">
-            <SelectValue>
-              {lineItemTypes
-                .map((t) => ({ value: t.id, label: t.name }))
-                .find((o) => o.value === draft.line_item_type_id)?.label ??
-                'Type (optional)'}
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            {lineItemTypes
-              .map((t) => ({ value: t.id, label: t.name }))
-              .map((opt) => (
-                <SelectItem key={opt.value} value={opt.value}>
-                  {opt.label}
-                </SelectItem>
-              ))}
-          </SelectContent>
-        </Select>
-        <div className="md:col-span-5 flex justify-end">
+      <div className="space-y-3 rounded-md border border-border p-4">
+        <div className="grid gap-3 md:grid-cols-2">
+          <div className="space-y-2 md:col-span-2">
+            <Label className="text-sm font-medium">Description</Label>
+            <Input
+              value={draft.description}
+              onChange={(e) =>
+                setDraft((d) => ({ ...d, description: e.target.value }))
+              }
+              placeholder="Description"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Quantity</Label>
+            <Input
+              type="number"
+              min={0}
+              step="0.01"
+              value={draft.quantity}
+              onChange={(e) =>
+                setDraft((d) => ({ ...d, quantity: e.target.value }))
+              }
+              placeholder="Qty"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Unit price (ETB)</Label>
+            <Input
+              type="number"
+              min={0}
+              step="0.01"
+              value={draft.unit_price}
+              onChange={(e) =>
+                setDraft((d) => ({ ...d, unit_price: e.target.value }))
+              }
+              placeholder="Unit price (ETB)"
+            />
+          </div>
+
+          <div className="space-y-2 md:col-span-2">
+            <Label className="text-sm font-medium">Type (optional)</Label>
+            <Select
+              value={draft.line_item_type_id ?? ''}
+              onValueChange={(v) =>
+                setDraft((d) => ({ ...d, line_item_type_id: v ?? '' }))
+              }
+            >
+              <SelectTrigger className="h-9 w-full">
+                <SelectValue>
+                  {lineItemTypes
+                    .map((t) => ({ value: t.id, label: t.name }))
+                    .find((o) => o.value === draft.line_item_type_id)?.label ??
+                    'Select type'}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {lineItemTypes
+                  .map((t) => ({ value: t.id, label: t.name }))
+                  .map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div className="flex justify-end">
           <Button type="button" onClick={addLineItem}>
             Add line item
           </Button>

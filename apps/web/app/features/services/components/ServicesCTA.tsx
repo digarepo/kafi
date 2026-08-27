@@ -81,7 +81,7 @@ export function ServicesCTA() {
           <Link to="/contact">
             <Button
               size={'lg'}
-              className="btn-primary h-10 w-full gap-2 px-5 sm:text-lg sm:w-48 hover:scale-105"
+              className="h-10 w-full gap-2 px-5 sm:text-lg sm:w-48 hover:scale-105"
             >
               Book Now
               <ArrowRightIcon weight="bold" className="h-3.5 w-3.5" />

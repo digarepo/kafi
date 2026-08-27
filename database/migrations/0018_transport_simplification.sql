@@ -1,4 +1,4 @@
--- Round 4C: Ground Transport Simplification
+-- Ground Transport Simplification
 -- Make vendor_id and transport_type nullable (optional for MVP)
 -- Clean up any soft-deleted transport segments to avoid unique constraint conflicts
 
