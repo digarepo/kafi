@@ -10,8 +10,12 @@
 import { useEffect, useState } from 'react';
 import { AnyFieldApi, useForm, useSelector } from '@tanstack/react-form';
 import { CheckIcon } from '@phosphor-icons/react';
-import { Button, Card, Input, Label, Textarea } from '@kafi/ui';
-import { cn } from '@kafi/ui';
+import { Button } from '@ui/components/ui/button';
+import { Card } from '@ui/components/ui/card';
+import { Input } from '@ui/components/ui/input';
+import { Label } from '@ui/components/ui/label';
+import { Textarea } from '@ui/components/ui/textarea';
+import { cn } from '@ui/lib/utils';
 import { toast } from 'sonner';
 import { z } from 'zod';
 
@@ -248,7 +252,7 @@ export default function InlineFaqQuestionCard() {
           <div className="flex flex-col items-center gap-4">
             <Button
               onClick={() => setIsExpanded(true)}
-              className="btn-primary h-11 px-8 text-sm"
+              className="h-11 px-8 text-sm"
             >
               Ask a Question
             </Button>
@@ -261,14 +265,19 @@ export default function InlineFaqQuestionCard() {
               <div className="h-px flex-1 bg-border" />
             </div>
 
-            <a
-              href={WHATSAPP_LINK}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn-outline inline-flex h-11 items-center justify-center gap-2 px-8 text-sm"
+            <Button
+              variant="outline"
+              render={
+                <a
+                  href={WHATSAPP_LINK}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                />
+              }
+              className="h-11 gap-2 px-8 text-sm"
             >
               Chat on WhatsApp
-            </a>
+            </Button>
           </div>
         )}
       </div>

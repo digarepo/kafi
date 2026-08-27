@@ -18,8 +18,25 @@ export default defineConfig(() => {
         '@kafi/ui': path.resolve(__dirname, '../../packages/ui/src/index.ts'),
       },
     },
-    ssr: {
-      noExternal: ['@kafi/ui'],
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks(id: string): string | undefined {
+            // Bundle all Phosphor icons into a single chunk instead of
+            // 12+ separate 1-3KB requests that cause waterfall latency.
+            if (id.includes('node_modules/@phosphor-icons')) {
+              return 'icons';
+            }
+            // Keep Zod in its own chunk so it can be lazy-loaded away
+            // from the initial page bundle by code that only needs it
+            // on interaction (forms, validation).
+            if (id.includes('node_modules/zod')) {
+              return 'schemas';
+            }
+            return undefined;
+          },
+        },
+      },
     },
   };
 });

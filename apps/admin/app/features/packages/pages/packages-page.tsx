@@ -1,14 +1,42 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { toast } from 'sonner';
 import type { ColumnDef } from '@tanstack/react-table';
-import { Button, Tabs, TabsList, TabsTrigger, TabsContent } from '@kafi/ui';
+import {
+  Archive,
+  Ban,
+  DoorClosed,
+  Eye,
+  Globe,
+  Pencil,
+  Plus,
+  RotateCcw,
+  Search,
+} from 'lucide-react';
+import {
+  Button,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+  cn,
+} from '@kafi/ui';
 
 import { usePermissions } from '../../../core/permissions';
-import { DataTable, DataTableToolbar } from '../../../shared/data-table';
+import { useRenderProfile } from '../../../dev/render-profile';
+import { DataTable } from '../../../shared/data-table';
+import { useDestructiveConfirmation } from '../../../shared/delete-dialog';
 import {
   actionsColumn,
   statusColumn,
   textColumn,
 } from '../../../shared/data-table/columns';
+import { formatMoney } from '../../../shared/format';
+import { displayDate } from '../../operations/lib/date';
 import {
   api,
   type Currency,
@@ -31,8 +59,12 @@ import type {
 
 type Tab = 'templates' | 'versions';
 
+const DEFAULT_PAGE_SIZE = 10;
+
 export function PackagesPage() {
+  useRenderProfile('PackagesPage');
   const { can } = usePermissions();
+  const { confirm } = useDestructiveConfirmation();
   const [tab, setTab] = useState<Tab>('templates');
 
   const [categories, setCategories] = useState<PackageCategory[]>([]);
@@ -43,9 +75,19 @@ export function PackagesPage() {
   const [versions, setVersions] = useState<PackageVersion[]>([]);
 
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
-  const [globalFilter, setGlobalFilter] = useState('');
+  const [templateSearch, setTemplateSearch] = useState('');
+  const [versionSearch, setVersionSearch] = useState('');
+  const [versionTemplateFilter, setVersionTemplateFilter] = useState('');
+  const [templatePagination, setTemplatePagination] = useState({
+    pageIndex: 0,
+    pageSize: DEFAULT_PAGE_SIZE,
+    total: 0,
+  });
+  const [versionPagination, setVersionPagination] = useState({
+    pageIndex: 0,
+    pageSize: DEFAULT_PAGE_SIZE,
+    total: 0,
+  });
 
   const [createTemplateOpen, setCreateTemplateOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] =
@@ -60,44 +102,101 @@ export function PackagesPage() {
     null,
   );
 
-  async function refreshAll() {
-    setLoading(true);
-    try {
-      const [cat, pt, cur, sea, tpl, ver] = await Promise.all([
-        api.listPackageCategories(),
-        api.listPilgrimageTypes(),
-        api.listCurrencies(),
-        api.listSeasons(),
-        api.listPackageTemplates(1, 100),
-        api.listPackageVersions(1, 100),
-      ]);
-      setCategories(cat);
-      setPilgrimageTypes(pt);
-      setCurrencies(cur);
-      setSeasons(sea);
-      setTemplates(tpl.data);
-      setVersions(ver.data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load packages');
-    } finally {
-      setLoading(false);
-    }
-  }
+  const loadPackages = useCallback(
+    async (scope: 'all' | 'templates' | 'versions' = 'all') => {
+      setLoading(true);
+      try {
+        const referencesPromise =
+          scope === 'all'
+            ? Promise.all([
+                api.listPackageCategories(),
+                api.listPilgrimageTypes(),
+                api.listCurrencies(),
+                api.listSeasons(),
+                api.listPackageTemplates(1, 100),
+              ])
+            : Promise.resolve(null);
+        const templatesPromise =
+          scope === 'all' || scope === 'templates'
+            ? api.listPackageTemplates(
+                templatePagination.pageIndex + 1,
+                templatePagination.pageSize,
+                scope === 'templates' || tab === 'templates'
+                  ? templateSearch || undefined
+                  : undefined,
+              )
+            : Promise.resolve(null);
+        const versionsPromise =
+          scope === 'all' || scope === 'versions'
+            ? api.listPackageVersions(
+                versionPagination.pageIndex + 1,
+                versionPagination.pageSize,
+                versionTemplateFilter || undefined,
+                scope === 'versions' || tab === 'versions'
+                  ? versionSearch || undefined
+                  : undefined,
+              )
+            : Promise.resolve(null);
+        const [references, tpl, ver] = await Promise.all([
+          referencesPromise,
+          templatesPromise,
+          versionsPromise,
+        ]);
+
+        if (references) {
+          const [cat, pt, cur, sea, allTemplates] = references;
+          setCategories(cat);
+          setPilgrimageTypes(pt);
+          setCurrencies(cur);
+          setSeasons(sea);
+          setTemplates(allTemplates.data);
+        }
+        if (tpl) {
+          setTemplates(tpl.data);
+          setTemplatePagination((current) => ({
+            ...current,
+            total: tpl.total,
+          }));
+        }
+        if (ver) {
+          setVersions(ver.data);
+          setVersionPagination((current) => ({
+            ...current,
+            total: ver.total,
+          }));
+        }
+      } catch (err) {
+        toast.error(
+          err instanceof Error ? err.message : 'Failed to load packages',
+        );
+      } finally {
+        setLoading(false);
+      }
+    },
+    [
+      tab,
+      templatePagination.pageIndex,
+      templatePagination.pageSize,
+      templateSearch,
+      versionPagination.pageIndex,
+      versionPagination.pageSize,
+      versionSearch,
+      versionTemplateFilter,
+    ],
+  );
 
   useEffect(() => {
-    void refreshAll();
-  }, []);
+    void loadPackages();
+  }, [loadPackages]);
 
   async function handleCreateTemplate(values: PackageTemplateFormOutput) {
-    setError(null);
-    setSuccess(null);
     try {
       await api.createPackageTemplate(values as CreatePackageTemplateInput);
-      setSuccess('Template created');
+      toast.success('Template created');
       setCreateTemplateOpen(false);
-      await refreshAll();
+      await loadPackages('templates');
     } catch (err) {
-      setError(
+      toast.error(
         err instanceof Error ? err.message : 'Failed to create template',
       );
     }
@@ -105,201 +204,289 @@ export function PackagesPage() {
 
   async function handleUpdateTemplate(values: PackageTemplateFormOutput) {
     if (!editingTemplate) return;
-    setError(null);
-    setSuccess(null);
     try {
       await api.updatePackageTemplate(
         editingTemplate.id,
         values as UpdatePackageTemplateInput,
       );
-      setSuccess('Template updated');
+      toast.success('Template updated');
       setEditingTemplate(null);
-      await refreshAll();
+      await loadPackages('templates');
     } catch (err) {
-      setError(
+      toast.error(
         err instanceof Error ? err.message : 'Failed to update template',
       );
     }
   }
 
-  async function handleArchiveTemplate(id: string) {
-    if (!confirm('Archive this template?')) return;
-    setError(null);
-    setSuccess(null);
-    try {
-      await api.archivePackageTemplate(id);
-      setSuccess('Template archived');
-      await refreshAll();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Archive failed');
-    }
-  }
+  const handleArchiveTemplate = useCallback(
+    async (id: string) => {
+      if (
+        !(await confirm({
+          title: 'Archive package template?',
+          description:
+            'The template will be removed from active records and can be restored later.',
+          confirmLabel: 'Archive',
+        }))
+      )
+        return;
+      try {
+        await api.archivePackageTemplate(id);
+        toast.success('Template archived');
+        await loadPackages('templates');
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Archive failed');
+      }
+    },
+    [loadPackages],
+  );
 
   async function handleCreateVersion(values: PackageVersionFormOutput) {
-    setError(null);
-    setSuccess(null);
     try {
       await api.createPackageVersion(values as CreatePackageVersionInput);
-      setSuccess('Version created');
+      toast.success('Version created');
       setCreateVersionOpen(false);
-      await refreshAll();
+      await loadPackages('versions');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create version');
+      toast.error(
+        err instanceof Error ? err.message : 'Failed to create version',
+      );
     }
   }
 
   async function handleUpdateVersion(values: PackageVersionFormOutput) {
     if (!editingVersion) return;
-    setError(null);
-    setSuccess(null);
     try {
       await api.updatePackageVersion(editingVersion.id, values);
-      setSuccess('Version updated');
+      toast.success('Version updated');
       setEditingVersion(null);
-      await refreshAll();
+      await loadPackages('versions');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update version');
+      toast.error(
+        err instanceof Error ? err.message : 'Failed to update version',
+      );
     }
   }
 
-  async function handlePublishVersion(id: string) {
-    setError(null);
-    setSuccess(null);
-    try {
-      await api.publishPackageVersion(id);
-      setSuccess('Version published');
-      await refreshAll();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Publish failed');
-    }
-  }
+  const handlePublishVersion = useCallback(
+    async (id: string) => {
+      try {
+        await api.publishPackageVersion(id);
+        toast.success('Version published');
+        await loadPackages('versions');
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Publish failed');
+      }
+    },
+    [loadPackages],
+  );
 
-  async function handleArchiveVersion(id: string) {
-    if (!confirm('Archive this version?')) return;
-    setError(null);
-    setSuccess(null);
-    try {
-      await api.archivePackageVersion(id);
-      setSuccess('Version archived');
-      await refreshAll();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Archive failed');
-    }
-  }
+  const handleCloseVersion = useCallback(
+    async (id: string) => {
+      if (
+        !(await confirm({
+          title: 'Close package version early?',
+          description: 'It will stop accepting new registrations.',
+          confirmLabel: 'Close version',
+        }))
+      )
+        return;
+      try {
+        await api.closePackageVersion(id);
+        toast.success('Version closed');
+        await loadPackages('versions');
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Close failed');
+      }
+    },
+    [loadPackages],
+  );
 
-  async function handleEditVersion(v: PackageVersion) {
-    setError(null);
-    setSuccess(null);
+  const handleCancelVersion = useCallback(
+    async (id: string) => {
+      if (
+        !(await confirm({
+          title: 'Cancel package version?',
+          description:
+            'This package version will no longer be available for operations.',
+          confirmLabel: 'Cancel version',
+        }))
+      )
+        return;
+      try {
+        await api.cancelPackageVersion(id);
+        toast.success('Version cancelled');
+        await loadPackages('versions');
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Cancellation failed');
+      }
+    },
+    [loadPackages],
+  );
+
+  const handleEditVersion = useCallback(async (v: PackageVersion) => {
     setLoading(true);
     try {
       const full = await api.getPackageVersion(v.id);
       setEditingVersion(full);
     } catch (err) {
-      setError(
+      toast.error(
         err instanceof Error ? err.message : 'Failed to load version details',
       );
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
-  const templateColumns: ColumnDef<PackageTemplate>[] = [
-    textColumn<PackageTemplate>({
-      accessorKey: 'package_template_code',
-      header: 'Code',
-    }),
-    textColumn<PackageTemplate>({ accessorKey: 'name', header: 'Name' }),
-    {
-      id: 'category',
-      header: 'Category',
-      enableSorting: false,
-      cell: ({ row }) => row.original.package_category?.name ?? '-',
-    },
-    {
-      id: 'type',
-      header: 'Type',
-      enableSorting: false,
-      cell: ({ row }) => row.original.pilgrimage_type?.name ?? '-',
-    },
-    textColumn<PackageTemplate>({
-      accessorKey: 'default_duration_days',
-      header: 'Duration',
-    }),
-    actionsColumn<PackageTemplate>({
-      actions: [
-        {
-          label: 'View',
-          onClick: (t) => {
-            setViewingTemplate(t);
-            setViewingVersion(null);
+  const templateColumns = useMemo<ColumnDef<PackageTemplate>[]>(
+    () => [
+      textColumn<PackageTemplate>({
+        accessorKey: 'package_template_code',
+        header: 'Code',
+      }),
+      textColumn<PackageTemplate>({ accessorKey: 'name', header: 'Name' }),
+      {
+        id: 'category',
+        header: 'Category',
+        enableSorting: false,
+        cell: ({ row }) => row.original.package_category?.name ?? '-',
+      },
+      {
+        id: 'type',
+        header: 'Type',
+        enableSorting: false,
+        cell: ({ row }) => row.original.pilgrimage_type?.name ?? '-',
+      },
+      textColumn<PackageTemplate>({
+        accessorKey: 'default_duration_days',
+        header: 'Duration',
+      }),
+      statusColumn<PackageTemplate>({
+        accessorKey: 'status',
+        header: 'Status',
+      }),
+      actionsColumn<PackageTemplate>({
+        actions: [
+          {
+            label: 'View',
+            icon: Eye,
+            onClick: (t) => {
+              setViewingTemplate(t);
+              setViewingVersion(null);
+            },
+            disabled: () => !can('PACKAGE_VIEW'),
           },
-          disabled: () => !can('PACKAGE_VIEW'),
-        },
-        {
-          label: 'Edit',
-          onClick: (t) => setEditingTemplate(t),
-          disabled: () => !can('PACKAGE_EDIT'),
-        },
-        {
-          label: 'Archive',
-          onClick: (t) => handleArchiveTemplate(t.id),
-          disabled: () => !can('PACKAGE_DELETE'),
-        },
-      ],
-    }),
-  ];
+          {
+            label: 'Edit',
+            icon: Pencil,
+            onClick: (t) => setEditingTemplate(t),
+            disabled: () => !can('PACKAGE_EDIT'),
+          },
+          {
+            label: 'Archive',
+            icon: Archive,
+            variant: 'destructive',
+            onClick: (t) => handleArchiveTemplate(t.id),
+            disabled: (t) => !can('PACKAGE_DELETE') || t.status !== 'ACTIVE',
+          },
+        ],
+      }),
+    ],
+    [can, handleArchiveTemplate],
+  );
 
-  const versionColumns: ColumnDef<PackageVersion>[] = [
-    textColumn<PackageVersion>({
-      accessorKey: 'package_version_code',
-      header: 'Code',
-    }),
-    textColumn<PackageVersion>({ accessorKey: 'version_name', header: 'Name' }),
-    {
-      id: 'template',
-      header: 'Template',
-      enableSorting: false,
-      cell: ({ row }) => row.original.package_template?.name ?? '-',
-    },
-    textColumn<PackageVersion>({ accessorKey: 'slug', header: 'Slug' }),
-    statusColumn<PackageVersion>({
-      accessorKey: 'status',
-      header: 'Status',
-    }),
-    {
-      id: 'price',
-      header: 'Price',
-      enableSorting: false,
-      cell: ({ row }) => row.original.base_price,
-    },
-    actionsColumn<PackageVersion>({
-      actions: [
-        {
-          label: 'View',
-          onClick: (v) => {
-            setViewingVersion(v);
-            setViewingTemplate(null);
+  const versionColumns = useMemo<ColumnDef<PackageVersion>[]>(
+    () => [
+      textColumn<PackageVersion>({
+        accessorKey: 'package_version_code',
+        header: 'Code',
+      }),
+      textColumn<PackageVersion>({
+        accessorKey: 'version_name',
+        header: 'Name',
+      }),
+      {
+        id: 'template',
+        header: 'Template',
+        enableSorting: false,
+        cell: ({ row }) => row.original.package_template?.name ?? '-',
+      },
+      {
+        id: 'departure_date',
+        header: 'Departure',
+        accessorKey: 'departure_date',
+        enableSorting: false,
+        cell: ({ row }) => displayDate(row.original.departure_date),
+      },
+      {
+        id: 'return_date',
+        header: 'Return',
+        accessorKey: 'return_date',
+        enableSorting: false,
+        cell: ({ row }) => displayDate(row.original.return_date),
+      },
+      {
+        id: 'base_price',
+        header: 'Price',
+        enableSorting: false,
+        cell: ({ row }) => formatMoney(row.original.base_price),
+      },
+      statusColumn<PackageVersion>({
+        accessorKey: 'status',
+        header: 'Status',
+      }),
+      actionsColumn<PackageVersion>({
+        actions: [
+          {
+            label: 'View',
+            icon: Eye,
+            onClick: (v) => {
+              setViewingVersion(v);
+              setViewingTemplate(null);
+            },
+            disabled: () => !can('PACKAGE_VIEW'),
           },
-          disabled: () => !can('PACKAGE_VIEW'),
-        },
-        {
-          label: 'Edit',
-          onClick: (v) => void handleEditVersion(v),
-          disabled: () => !can('PACKAGE_EDIT'),
-        },
-        {
-          label: 'Publish',
-          onClick: (v) => handlePublishVersion(v.id),
-          disabled: (v) => !can('PACKAGE_EDIT') || v.status === 'PUBLISHED',
-        },
-        {
-          label: 'Archive',
-          onClick: (v) => handleArchiveVersion(v.id),
-          disabled: () => !can('PACKAGE_DELETE'),
-        },
-      ],
-    }),
-  ];
+          {
+            label: 'Edit draft',
+            icon: Pencil,
+            onClick: (v) => void handleEditVersion(v),
+            disabled: (v) => !can('PACKAGE_EDIT') || v.status !== 'DRAFT',
+          },
+          {
+            label: 'Publish',
+            icon: Globe,
+            onClick: (v) => handlePublishVersion(v.id),
+            disabled: (v) => !can('PACKAGE_EDIT') || v.status !== 'DRAFT',
+          },
+          {
+            label: 'Close early',
+            icon: DoorClosed,
+            onClick: (v) => handleCloseVersion(v.id),
+            disabled: (v) => !can('PACKAGE_EDIT') || v.status !== 'PUBLISHED',
+          },
+          {
+            label: 'Cancel',
+            icon: Ban,
+            variant: 'destructive',
+            onClick: (v) => handleCancelVersion(v.id),
+            disabled: (v) =>
+              !can('PACKAGE_EDIT') ||
+              !['DRAFT', 'PUBLISHED'].includes(v.status),
+          },
+        ],
+      }),
+    ],
+    [
+      can,
+      handleCancelVersion,
+      handleCloseVersion,
+      handleEditVersion,
+      handlePublishVersion,
+    ],
+  );
+
+  const hasTemplateFilters = Boolean(templateSearch);
+  const hasVersionFilters = Boolean(versionSearch || versionTemplateFilter);
 
   return (
     <div className="space-y-6">
@@ -310,32 +497,13 @@ export function PackagesPage() {
         </p>
       </div>
 
-      {error && (
-        <div className="rounded border border-red-200 bg-red-50 p-3 text-red-800">
-          {error}
-        </div>
-      )}
-      {success && (
-        <div className="rounded border border-green-200 bg-green-50 p-3 text-green-800">
-          {success}
-        </div>
-      )}
-
       <PackageTemplateDialog
         mode="create"
         categories={categories}
         pilgrimageTypes={pilgrimageTypes}
         open={createTemplateOpen}
-        onOpenChange={(open) => {
-          setCreateTemplateOpen(open);
-          if (open) {
-            setError(null);
-            setSuccess(null);
-          }
-        }}
+        onOpenChange={setCreateTemplateOpen}
         onSubmit={handleCreateTemplate}
-        error={createTemplateOpen ? error : null}
-        success={createTemplateOpen ? success : null}
       />
 
       <PackageTemplateDialog
@@ -346,32 +514,18 @@ export function PackagesPage() {
         open={editingTemplate !== null}
         onOpenChange={(open) => {
           if (!open) setEditingTemplate(null);
-          if (open) {
-            setError(null);
-            setSuccess(null);
-          }
         }}
         onSubmit={handleUpdateTemplate}
-        error={editingTemplate !== null ? error : null}
-        success={editingTemplate !== null ? success : null}
       />
 
       <PackageVersionDialog
         mode="create"
-        templates={templates}
+        templates={templates.filter((template) => template.status === 'ACTIVE')}
         currencies={currencies}
         seasons={seasons}
         open={createVersionOpen}
-        onOpenChange={(open) => {
-          setCreateVersionOpen(open);
-          if (open) {
-            setError(null);
-            setSuccess(null);
-          }
-        }}
+        onOpenChange={setCreateVersionOpen}
         onSubmit={handleCreateVersion}
-        error={createVersionOpen ? error : null}
-        success={createVersionOpen ? success : null}
       />
 
       <PackageVersionDialog
@@ -383,14 +537,8 @@ export function PackagesPage() {
         open={editingVersion !== null}
         onOpenChange={(open) => {
           if (!open) setEditingVersion(null);
-          if (open) {
-            setError(null);
-            setSuccess(null);
-          }
         }}
         onSubmit={handleUpdateVersion}
-        error={editingVersion !== null ? error : null}
-        success={editingVersion !== null ? success : null}
       />
 
       <PackageDetailPanel
@@ -414,54 +562,166 @@ export function PackagesPage() {
 
         <TabsContent value="templates" className="space-y-4">
           <div className="space-y-4">
-            <div className="flex flex-row items-center justify-between">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <h2 className="text-xl font-semibold tracking-tight">
                 Templates
               </h2>
               {can('PACKAGE_CREATE') && (
-                <Button onClick={() => setCreateTemplateOpen(true)}>
-                  + Add template
+                <Button
+                  className="hidden sm:inline-flex"
+                  onClick={() => setCreateTemplateOpen(true)}
+                >
+                  <Plus className="mr-1.5 h-4 w-4" />
+                  Add template
+                </Button>
+              )}
+              {can('PACKAGE_CREATE') && (
+                <Button
+                  size="icon"
+                  className="h-10 w-10 shrink-0 self-end rounded-full sm:hidden"
+                  onClick={() => setCreateTemplateOpen(true)}
+                  aria-label="Add template"
+                >
+                  <Plus className="h-5 w-5" />
                 </Button>
               )}
             </div>
 
-            <DataTableToolbar
-              filter={globalFilter}
-              onFilterChange={setGlobalFilter}
-            />
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-3">
+              <div className="relative w-full lg:max-w-xs">
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="search"
+                  value={templateSearch}
+                  onChange={(e) => {
+                    setTemplateSearch(e.target.value);
+                    setTemplatePagination((c) => ({ ...c, pageIndex: 0 }));
+                  }}
+                  placeholder="Search templates…"
+                  className="h-9 w-full rounded-md border border-input bg-background pl-9 pr-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50"
+                  aria-label="Search templates"
+                />
+              </div>
+              {hasTemplateFilters && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-9 shrink-0 self-start text-muted-foreground lg:self-center"
+                  onClick={() => {
+                    setTemplateSearch('');
+                    setTemplatePagination((c) => ({ ...c, pageIndex: 0 }));
+                  }}
+                  aria-label="Clear filters"
+                >
+                  <RotateCcw className="mr-1.5 h-4 w-4" />
+                  Clear
+                </Button>
+              )}
+            </div>
 
             <DataTable
               columns={templateColumns}
               data={templates}
               loading={loading}
-              globalFilter={globalFilter}
-              onGlobalFilterChange={setGlobalFilter}
+              pagination={templatePagination}
+              onPaginationChange={setTemplatePagination}
             />
           </div>
         </TabsContent>
 
         <TabsContent value="versions" className="space-y-4">
           <div className="space-y-4">
-            <div className="flex flex-row items-center justify-between">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <h2 className="text-xl font-semibold tracking-tight">Versions</h2>
               {can('PACKAGE_CREATE') && (
-                <Button onClick={() => setCreateVersionOpen(true)}>
-                  + Add version
+                <Button
+                  className="hidden sm:inline-flex"
+                  onClick={() => setCreateVersionOpen(true)}
+                >
+                  <Plus className="mr-1.5 h-4 w-4" />
+                  Add version
+                </Button>
+              )}
+              {can('PACKAGE_CREATE') && (
+                <Button
+                  size="icon"
+                  className="h-10 w-10 shrink-0 self-end rounded-full sm:hidden"
+                  onClick={() => setCreateVersionOpen(true)}
+                  aria-label="Add version"
+                >
+                  <Plus className="h-5 w-5" />
                 </Button>
               )}
             </div>
 
-            <DataTableToolbar
-              filter={globalFilter}
-              onFilterChange={setGlobalFilter}
-            />
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-3">
+              <div className="relative w-full lg:max-w-xs">
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="search"
+                  value={versionSearch}
+                  onChange={(e) => {
+                    setVersionSearch(e.target.value);
+                    setVersionPagination((c) => ({ ...c, pageIndex: 0 }));
+                  }}
+                  placeholder="Search versions…"
+                  className="h-9 w-full rounded-md border border-input bg-background pl-9 pr-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50"
+                  aria-label="Search versions"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2 lg:flex lg:flex-nowrap lg:items-center lg:gap-2">
+                <div className="lg:w-56">
+                  <Select
+                    value={versionTemplateFilter}
+                    onValueChange={(v) => {
+                      setVersionTemplateFilter(v ?? '');
+                      setVersionPagination((c) => ({ ...c, pageIndex: 0 }));
+                    }}
+                  >
+                    <SelectTrigger className={cn('h-9 w-full')}>
+                      <SelectValue>
+                        {versionTemplateFilter
+                          ? (templates.find(
+                              (t) => t.id === versionTemplateFilter,
+                            )?.name ?? 'Template')
+                          : 'All templates'}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">All templates</SelectItem>
+                      {templates.map((t) => (
+                        <SelectItem key={t.id} value={t.id}>
+                          {t.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              {hasVersionFilters && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-9 shrink-0 self-start text-muted-foreground lg:self-center"
+                  onClick={() => {
+                    setVersionSearch('');
+                    setVersionTemplateFilter('');
+                    setVersionPagination((c) => ({ ...c, pageIndex: 0 }));
+                  }}
+                  aria-label="Clear filters"
+                >
+                  <RotateCcw className="mr-1.5 h-4 w-4" />
+                  Clear
+                </Button>
+              )}
+            </div>
 
             <DataTable
               columns={versionColumns}
               data={versions}
               loading={loading}
-              globalFilter={globalFilter}
-              onGlobalFilterChange={setGlobalFilter}
+              pagination={versionPagination}
+              onPaginationChange={setVersionPagination}
             />
           </div>
         </TabsContent>

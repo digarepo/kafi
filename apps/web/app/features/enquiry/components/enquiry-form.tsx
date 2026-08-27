@@ -4,7 +4,7 @@
  * @remarks
  * Uses TanStack Form with the Zod enquiry schema for client-side validation.
  * Resolves package and service select options from existing feature data.
- * Falls back to a simulated submission when `VITE_API_URL` is not configured.
+ * Submits to `${VITE_API_URL}/api/public/inquiries/enquiry`.
  */
 
 import { useState } from 'react';
@@ -14,17 +14,17 @@ import {
   ArrowRightIcon,
   CheckCircleIcon,
 } from '@phosphor-icons/react';
+import { Button } from '@ui/components/ui/button';
+import { Input } from '@ui/components/ui/input';
+import { Label } from '@ui/components/ui/label';
 import {
-  Button,
-  Input,
-  Label,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Textarea,
-} from '@kafi/ui';
+} from '@ui/components/ui/select';
+import { Textarea } from '@ui/components/ui/textarea';
 
 import { packages } from '../../packages/data/packages';
 import { services } from '../../services/data/services';
@@ -139,7 +139,7 @@ function SelectField({
         <SelectTrigger
           id={id}
           aria-invalid={field.state.meta.errors.length > 0}
-          className="h-11 w-full"
+          className="data-[size=default]:h-11 w-full"
         >
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>

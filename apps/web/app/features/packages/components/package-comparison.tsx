@@ -13,114 +13,133 @@ import {
 
 import { Link } from 'react-router';
 
-import { Badge, Button } from '@kafi/ui';
+import { Badge } from '@ui/components/ui/badge';
+import { Button } from '@ui/components/ui/button';
 
-import { packages } from '../data/packages';
-import type { PackageItem } from '../types/package.types';
+import type { PublicPackageVersion } from '../../../lib/public-api';
+import { tierKey } from './live-packages';
 
 /**
- * One row in the comparison matrix.
- *
- * `getValue` is used when the value can be read straight from a package's data
- * (price, duration). `values` is used for curated, semantic rows (e.g.
- * accommodation tier) keyed by package slug so the matrix never drifts.
+ * Formats the price with the currency code.
  */
-interface ComparisonRow {
-  label: string;
-  icon: typeof CheckIcon;
-  getValue?: (pkg: PackageItem) => string;
-  values?: Record<string, string>;
+function formatPrice(pkg: PublicPackageVersion): string {
+  const code = pkg.currency?.code ?? '';
+  const formatted = new Intl.NumberFormat('en-US').format(pkg.base_price);
+  return `${code} ${formatted}`;
 }
 
-const ROWS: ComparisonRow[] = [
-  {
-    label: 'Starting price',
-    icon: TagIcon,
-    getValue: (pkg) => pkg.price,
-  },
-  {
-    label: 'Duration',
-    icon: CalendarIcon,
-    getValue: (pkg) => pkg.duration,
-  },
-  {
-    label: 'Accommodation',
-    icon: HouseIcon,
-    values: {
-      economy: '3-star near the Haram',
-      comfort: '4-star near the Haram',
-      premium: '5-star premium',
-    },
-  },
-  {
-    label: 'Flights',
-    icon: AirplaneIcon,
-    values: {
-      economy: 'Return economy',
-      comfort: 'Return economy',
-      premium: 'Return premium',
-    },
-  },
-  {
-    label: 'Visa processing',
-    icon: ScrollIcon,
-    values: {
-      economy: 'Complete',
-      comfort: 'Complete',
-      premium: 'Express',
-    },
-  },
-  {
-    label: 'Ground transport',
-    icon: CarIcon,
-    values: {
-      economy: 'Shared transfers',
-      comfort: 'All ground transport',
-      premium: 'Private transport',
-    },
-  },
-  {
-    label: 'Spiritual guidance',
-    icon: GraduationCapIcon,
-    values: {
-      economy: 'Guided Umrah',
-      comfort: 'Scholar-led guidance',
-      premium: 'Senior scholar-led',
-    },
-  },
-  {
-    label: 'Meals',
-    icon: ForkKnifeIcon,
-    values: {
-      economy: '—',
-      comfort: 'Breakfast & dinner',
-      premium: 'Full-board',
-    },
-  },
-  {
-    label: 'Ziyarah visits',
-    icon: FootprintsIcon,
-    values: {
-      economy: 'Guided',
-      comfort: 'Full Makkah & Madinah',
-      premium: 'VIP experience',
-    },
-  },
+/**
+ * Computes a human-readable duration from departure and return dates.
+ */
+function formatDuration(pkg: PublicPackageVersion): string {
+  if (!pkg.departure_date || !pkg.return_date) return 'Dates TBD';
+  const start = new Date(pkg.departure_date);
+  const end = new Date(pkg.return_date);
+  const nights = Math.round(
+    (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24),
+  );
+  return `${nights} Days`;
+}
+
+/**
+ * Searches a package's inclusions for a keyword (case-insensitive) and returns
+ * the matching inclusion text, or `null` if not found.
+ */
+function findInclusion(
+  pkg: PublicPackageVersion,
+  keyword: string,
+): string | null {
+  const match = pkg.inclusions.find((inc) =>
+    inc.inclusion_text.toLowerCase().includes(keyword),
+  );
+  return match ? match.inclusion_text : null;
+}
+
+/**
+ * Derives a comparison value for a given row from the live package data.
+ *
+ * @remarks
+ * - Structural rows (price, duration) are computed directly.
+ * - Semantic rows (accommodation, flights, etc.) are derived from the
+ *   package's inclusions list when possible, falling back to the tier name.
+ */
+function getValue(rowId: string, pkg: PublicPackageVersion): string {
+  switch (rowId) {
+    case 'price':
+      return formatPrice(pkg);
+    case 'duration':
+      return formatDuration(pkg);
+    case 'accommodation':
+      return (
+        findInclusion(pkg, 'hotel') ??
+        findInclusion(pkg, 'accommodation') ??
+        '—'
+      );
+    case 'flights':
+      return (
+        findInclusion(pkg, 'flight') ?? findInclusion(pkg, 'airline') ?? '—'
+      );
+    case 'visa':
+      return findInclusion(pkg, 'visa') ?? '—';
+    case 'transport':
+      return (
+        findInclusion(pkg, 'transport') ?? findInclusion(pkg, 'transfer') ?? '—'
+      );
+    case 'guidance':
+      return (
+        findInclusion(pkg, 'guidance') ??
+        findInclusion(pkg, 'scholar') ??
+        findInclusion(pkg, 'umrah') ??
+        '—'
+      );
+    case 'meals':
+      return (
+        findInclusion(pkg, 'meal') ??
+        findInclusion(pkg, 'breakfast') ??
+        findInclusion(pkg, 'dinner') ??
+        findInclusion(pkg, 'full-board') ??
+        '—'
+      );
+    case 'ziyarah':
+      return (
+        findInclusion(pkg, 'ziyarah') ??
+        findInclusion(pkg, 'historical') ??
+        findInclusion(pkg, 'sites') ??
+        '—'
+      );
+    default:
+      return '—';
+  }
+}
+
+const ROWS: { id: string; label: string; icon: typeof CheckIcon }[] = [
+  { id: 'price', label: 'Starting price', icon: TagIcon },
+  { id: 'duration', label: 'Duration', icon: CalendarIcon },
+  { id: 'accommodation', label: 'Accommodation', icon: HouseIcon },
+  { id: 'flights', label: 'Flights', icon: AirplaneIcon },
+  { id: 'visa', label: 'Visa processing', icon: ScrollIcon },
+  { id: 'transport', label: 'Ground transport', icon: CarIcon },
+  { id: 'guidance', label: 'Spiritual guidance', icon: GraduationCapIcon },
+  { id: 'meals', label: 'Meals', icon: ForkKnifeIcon },
+  { id: 'ziyarah', label: 'Ziyarah visits', icon: FootprintsIcon },
 ];
 
 /**
- * Renders a feature × package comparison matrix derived from the packages data.
- *
- * @returns The comparison matrix section for the packages listing page.
+ * Renders a feature × package comparison matrix using live API data.
  *
  * @remarks
- * - Structural rows (price, duration) are read directly from each package's data
- *   so the table can never drift from the source of truth.
- * - Curated rows are keyed by package slug to stay explicit and in sync.
+ * - All values are derived from the `PublicPackageVersion` data passed in,
+ *   so the matrix can never drift from the cards above it.
  * - Horizontally scrolls on small screens; the sticky first column has a solid
  *   background so package cells pass cleanly underneath when scrolling.
  */
-export function PackageComparison() {
+export function PackageComparison({
+  packages,
+}: {
+  packages: PublicPackageVersion[];
+}) {
+  if (packages.length === 0) return null;
+
   return (
     <section className="section-padding border-t border-border/20 bg-muted/20">
       <div className="mx-auto max-w-7xl px-6 sm:px-8 lg:px-12">
@@ -162,27 +181,31 @@ export function PackageComparison() {
                   Feature
                 </th>
 
-                {packages.map((pkg) => (
-                  <th
-                    key={pkg.id}
-                    scope="col"
-                    className={`p-4 align-top sm:p-5 ${
-                      pkg.popular ? 'bg-accent/10' : ''
-                    }`}
-                  >
-                    <div className="space-y-1">
-                      <p className="text-[10px] font-semibold uppercase tracking-widest text-accent">
-                        {pkg.name}
-                      </p>
+                {packages.map((pkg) => {
+                  const key = tierKey(pkg);
+                  const popular = key === 'comfort';
+                  return (
+                    <th
+                      key={pkg.id}
+                      scope="col"
+                      className={`p-4 align-top sm:p-5 ${
+                        popular ? 'bg-accent/10' : ''
+                      }`}
+                    >
+                      <div className="space-y-1">
+                        <p className="text-sm font-bold tracking-tight text-foreground">
+                          {key.charAt(0).toUpperCase() + key.slice(1)}
+                        </p>
 
-                      {pkg.badge && (
-                        <span className="inline-flex rounded-full bg-accent/10 px-2 py-0.5 text-[9px] font-semibold tracking-wide text-accent">
-                          {pkg.badge}
-                        </span>
-                      )}
-                    </div>
-                  </th>
-                ))}
+                        {popular && (
+                          <span className="inline-flex rounded-full bg-accent/20 px-2 py-0.5 text-[9px] font-semibold tracking-wide text-foreground">
+                            Most Popular
+                          </span>
+                        )}
+                      </div>
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
 
@@ -207,19 +230,18 @@ export function PackageComparison() {
                       </span>
                     </th>
 
-                    {packages.map((pkg) => (
-                      <td
-                        key={pkg.id}
-                        className={`p-4 align-top sm:p-5 ${
-                          pkg.popular ? 'bg-accent/10' : ''
-                        }`}
-                      >
-                        {(() => {
-                          const value = row.getValue
-                            ? row.getValue(pkg)
-                            : row.values?.[pkg.slug];
+                    {packages.map((pkg) => {
+                      const popular = tierKey(pkg) === 'comfort';
+                      const value = getValue(row.id, pkg);
 
-                          return value && value !== '—' ? (
+                      return (
+                        <td
+                          key={pkg.id}
+                          className={`p-4 align-top sm:p-5 ${
+                            popular ? 'bg-accent/10' : ''
+                          }`}
+                        >
+                          {value && value !== '—' ? (
                             <span className="flex items-start gap-2 text-xs leading-relaxed text-foreground">
                               <CheckIcon
                                 weight="bold"
@@ -231,10 +253,10 @@ export function PackageComparison() {
                             <span className="text-xs text-muted-foreground/60">
                               —
                             </span>
-                          );
-                        })()}
-                      </td>
-                    ))}
+                          )}
+                        </td>
+                      );
+                    })}
                   </tr>
                 );
               })}
@@ -242,25 +264,24 @@ export function PackageComparison() {
               {/* CTA row */}
               <tr className="bg-card">
                 <th className="sticky left-0 z-10 bg-card p-4 sm:p-5" />
-                {packages.map((pkg) => (
-                  <td
-                    key={pkg.id}
-                    className={`p-4 sm:p-5 ${
-                      pkg.popular ? 'bg-accent/10' : ''
-                    }`}
-                  >
-                    <Link to={`/packages/${pkg.slug}`}>
-                      <Button
-                        variant={pkg.popular ? 'default' : 'outline'}
-                        className={`h-9 w-full text-xs ${
-                          pkg.popular ? 'btn-primary' : 'btn-outline'
-                        }`}
-                      >
-                        View Details
-                      </Button>
-                    </Link>
-                  </td>
-                ))}
+                {packages.map((pkg) => {
+                  const popular = tierKey(pkg) === 'comfort';
+                  return (
+                    <td
+                      key={pkg.id}
+                      className={`p-4 sm:p-5 ${popular ? 'bg-accent/10' : ''}`}
+                    >
+                      <Link to={`/packages/${pkg.slug}`}>
+                        <Button
+                          variant={popular ? 'default' : 'outline'}
+                          className="h-9 w-full text-xs"
+                        >
+                          View Details
+                        </Button>
+                      </Link>
+                    </td>
+                  );
+                })}
               </tr>
             </tbody>
           </table>

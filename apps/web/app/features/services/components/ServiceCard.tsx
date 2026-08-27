@@ -1,5 +1,6 @@
 import { ArrowRightIcon } from '@phosphor-icons/react';
-import { Card, Separator } from '@kafi/ui';
+import { Card } from '@ui/components/ui/card'
+import { Separator } from '@ui/components/ui/separator';
 import { Link } from 'react-router';
 
 import type { ServiceItem } from '../types/service.types';

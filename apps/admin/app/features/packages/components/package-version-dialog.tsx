@@ -1,5 +1,4 @@
 import {
-  Button,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -25,8 +24,6 @@ interface PackageVersionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (values: PackageVersionFormOutput) => Promise<void>;
-  error?: string | null;
-  success?: string | null;
 }
 
 export function PackageVersionDialog({
@@ -38,8 +35,6 @@ export function PackageVersionDialog({
   open,
   onOpenChange,
   onSubmit,
-  error,
-  success,
 }: PackageVersionDialogProps) {
   const title = mode === 'create' ? 'Create version' : 'Edit version';
   const description =
@@ -56,32 +51,15 @@ export function PackageVersionDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          {error && (
-            <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-              {error}
-            </div>
-          )}
-          {success && (
-            <div className="rounded-md bg-green-500/10 p-3 text-sm text-green-700">
-              {success}
-            </div>
-          )}
-
-          {success ? (
-            <div className="flex justify-end">
-              <Button onClick={() => onOpenChange(false)}>Close</Button>
-            </div>
-          ) : (
-            <PackageVersionForm
-              mode={mode}
-              version={version}
-              templates={templates}
-              currencies={currencies}
-              seasons={seasons}
-              onSubmit={onSubmit}
-              submitLabel={mode === 'create' ? 'Create version' : 'Save changes'}
-            />
-          )}
+          <PackageVersionForm
+            mode={mode}
+            version={version}
+            templates={templates}
+            currencies={currencies}
+            seasons={seasons}
+            onSubmit={onSubmit}
+            submitLabel={mode === 'create' ? 'Create version' : 'Save changes'}
+          />
         </div>
       </DialogContent>
     </Dialog>

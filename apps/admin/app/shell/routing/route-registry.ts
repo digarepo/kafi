@@ -1,5 +1,9 @@
 import { dashboardMeta } from '../../features/dashboard/meta';
+import { documentsMeta } from '../../features/documents/meta';
 import { financeMeta } from '../../features/finance/meta';
+import { flightsMeta } from '../../features/flights/meta';
+import { inquiriesMeta } from '../../features/inquiries/meta';
+import { operationsMeta } from '../../features/operations/meta';
 import { packagesMeta } from '../../features/packages/meta';
 import { profileMeta } from '../../features/profile/meta';
 import { rolesMeta } from '../../features/roles/meta';
@@ -17,6 +21,10 @@ export const routeRegistry = [
   usersMeta,
   packagesMeta,
   ...travellersMeta,
+  ...inquiriesMeta,
+  ...operationsMeta,
+  ...documentsMeta,
+  ...flightsMeta,
   ...financeMeta,
   rolesMeta,
   profileMeta,

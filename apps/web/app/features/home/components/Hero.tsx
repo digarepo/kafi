@@ -1,4 +1,8 @@
-import { Button, Card, Badge, Separator, TypingAnimation } from '@kafi/ui';
+import { Button } from '@ui/components/ui/button';
+import { Card } from '@ui/components/ui/card';
+import { Badge } from '@ui/components/ui/badge';
+import { Separator } from '@ui/components/ui/separator';
+import { TypingAnimation } from '@ui/components/TypingAnimation';
 import { SparkleIcon, AirplaneIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 
@@ -29,31 +33,33 @@ export function Hero() {
           </Badge>
 
           <div className="space-y-4">
-            <h1 className="font-heading text-3xl sm:text-5xl font-extrabold tracking-tight text-balance leading-[1.1] text-foreground">
-              A Spiritual Journey <br />
-              <span className="text-primary">
+            <h1
+              className="font-heading text-3xl sm:text-5xl font-extrabold tracking-tight text-balance leading-[1.1] text-foreground"
+              aria-label="Umrah made Simple"
+            >
+              <span> Umrah </span> <br />
+              made &nbsp;
+              <span className="text-primary" aria-hidden="true">
                 <TypingAnimation
-                  words={['Perfected In Comfort', 'Designed For You']}
+                  words={['Simple', 'Easy', 'Accessible']}
                   loop
-                  typeSpeed={150}
-                  deleteSpeed={30}
+                  typeSpeed={50}
+                  deleteSpeed={50}
                   pauseDelay={2000}
                 />
               </span>
             </h1>
-            <p className="max-w-xl text-sm sm:text-md text-muted-foreground font-light leading-relaxed">
-              We align premium accommodation and travel schedules in
-              coordination with{' '}
-              <span className="text-accent font-semibold">
-                Ethiopian Airlines
-              </span>{' '}
-              to support Hajj & Umrah pilgrimages.
+            <p className="max-w-xl text-sm sm:text-md text-muted-foreground font-heading font-medium leading-relaxed">
+              We align premium accommodation and travel schedules to provide you
+              with &nbsp;
+              <span className="font-semibold text-primary text-lg">Umrah</span>
+              &nbsp; travels.
             </p>
           </div>
 
           <div className="flex flex-wrap gap-4 pt-2">
             <Link to="/packages">
-              <Button className="btn-primary py-3 px-6 h-12 text-sm shadow-soft">
+              <Button className="py-3 px-6 h-12 text-sm shadow-soft">
                 Explore Packages
               </Button>
             </Link>
@@ -69,9 +75,9 @@ export function Hero() {
                   <span className="text-[10px] text-accent uppercase tracking-widest font-semibold">
                     Next Departure
                   </span>
-                  <h3 className="font-heading text-md font-bold text-foreground">
+                  <h2 className="font-heading text-md font-bold text-foreground">
                     Addis Ababa Hub
-                  </h3>
+                  </h2>
                 </div>
                 <div className="p-2 rounded-full bg-accent/10 text-accent">
                   <AirplaneIcon weight="light" className="w-7 h-7 rotate-45" />

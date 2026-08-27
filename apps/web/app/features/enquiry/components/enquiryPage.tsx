@@ -9,7 +9,7 @@
  */
 
 import { useSearchParams } from "react-router";
-import { Badge } from "@kafi/ui";
+import { Badge } from '@ui/components/ui/badge';
 
 import { packages } from "@/features/packages/data/packages";
 import { services } from "@/features/services/data/services";

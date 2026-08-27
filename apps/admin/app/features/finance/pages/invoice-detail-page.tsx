@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
+import { toast } from 'sonner';
 import { Button, Card, CardContent, CardHeader, CardTitle } from '@kafi/ui';
 
 import { usePermissions } from '../../../core/permissions';
+import { useDestructiveConfirmation } from '../../../shared/delete-dialog';
 import {
   api,
   type Invoice,
@@ -16,6 +18,7 @@ interface InvoiceDetailPageProps {
 
 export function InvoiceDetailPage({ id }: InvoiceDetailPageProps) {
   const { can } = usePermissions();
+  const { confirm } = useDestructiveConfirmation();
   const navigate = useNavigate();
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [loading, setLoading] = useState(true);
@@ -42,24 +45,37 @@ export function InvoiceDetailPage({ id }: InvoiceDetailPageProps) {
 
   async function handleArchive() {
     if (!invoice) return;
-    if (!confirm('Archive this invoice?')) return;
+    if (
+      !(await confirm({
+        title: 'Archive invoice?',
+        description:
+          'The invoice will be removed from active records and can be restored later.',
+        confirmLabel: 'Archive',
+      }))
+    )
+      return;
     try {
       await api.archiveInvoice(invoice.id);
+      toast.success('Invoice archived successfully.');
       navigate('/invoices');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Archive failed');
+      const message = err instanceof Error ? err.message : 'Archive failed';
+      toast.error(message);
     }
   }
 
   async function handleUpdate(values: UpdateInvoiceInput) {
     if (!invoice) return;
-    setError(null);
     try {
       await api.updateInvoice(invoice.id, values);
+      toast.success('Invoice updated successfully.');
       await reload();
       setEditOpen(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update invoice');
+      const message =
+        err instanceof Error ? err.message : 'Failed to update invoice';
+      toast.error(message);
+      throw err;
     }
   }
 
@@ -98,7 +114,6 @@ export function InvoiceDetailPage({ id }: InvoiceDetailPageProps) {
         onOpenChange={setEditOpen}
         invoice={invoice}
         onSubmit={handleUpdate}
-        error={editOpen ? error : null}
       />
 
       <Card>

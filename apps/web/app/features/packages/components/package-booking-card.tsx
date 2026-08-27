@@ -1,12 +1,37 @@
-import { AirplaneIcon, ArrowRightIcon, PhoneIcon, ShieldCheckIcon } from "@phosphor-icons/react";
-import { Link } from "react-router";
+import {
+  AirplaneIcon,
+  ArrowRightIcon,
+  PhoneIcon,
+  ShieldCheckIcon,
+} from '@phosphor-icons/react';
+import { Link } from 'react-router';
 
-import { Button, Card, Separator } from "@kafi/ui";
+import { Button } from '@ui/components/ui/button';
+import { Card } from '@ui/components/ui/card';
+import { Separator } from '@ui/components/ui/separator';
 
-import type { PackageItem } from "../types/package.types";
+import type { PublicPackageVersion } from '../../../lib/public-api';
 
 interface PackageBookingCardProps {
-  package: PackageItem;
+  package: PublicPackageVersion;
+}
+
+/**
+ * Derives a display name from the version — uses the template name's first
+ * word (e.g. "Comfort" from "Comfort Umrah Package") to keep the card concise.
+ */
+function tierName(pkg: PublicPackageVersion): string {
+  const template = pkg.package_template?.name ?? pkg.version_name;
+  return template.split(' ')[0] ?? pkg.version_name;
+}
+
+/**
+ * Formats the price with the currency code.
+ */
+function formatPrice(pkg: PublicPackageVersion): string {
+  const code = pkg.currency?.code ?? '';
+  const formatted = new Intl.NumberFormat('en-US').format(pkg.base_price);
+  return `${code} ${formatted}`;
 }
 
 /**
@@ -19,8 +44,11 @@ interface PackageBookingCardProps {
  * - Inspired by the home hero flight-preview card and the services "How it
  *   works" card — a compact route motif (Addis Ababa → Jeddah) anchors the top,
  *   followed by price, actions, trust, and a phone contact.
+ * - Accepts the API's `PublicPackageVersion` shape.
  */
 export function PackageBookingCard({ package: pkg }: PackageBookingCardProps) {
+  const name = tierName(pkg);
+
   return (
     <Card className="card w-full max-w-105 overflow-hidden border-border/40 bg-linear-to-b from-accent/0 to-accent/10 p-6 shadow-elevated backdrop-blur-md">
       <div className="space-y-5">
@@ -28,10 +56,12 @@ export function PackageBookingCard({ package: pkg }: PackageBookingCardProps) {
         <div className="flex items-start justify-between">
           <div className="space-y-1">
             <span className="text-[10px] font-semibold uppercase tracking-widest text-accent">
-              {pkg.name} Journey
+              {name} Journey
             </span>
 
-            <h3 className="font-heading text-sm font-bold text-foreground">Start Your Journey</h3>
+            <h3 className="font-heading text-sm font-bold text-foreground">
+              Start Your Journey
+            </h3>
           </div>
 
           <div className="rounded-full bg-accent/10 p-2 text-accent">
@@ -47,7 +77,9 @@ export function PackageBookingCard({ package: pkg }: PackageBookingCardProps) {
           </div>
 
           <div className="flex flex-1 flex-col items-center px-4">
-            <span className="text-[9px] font-semibold text-accent">Direct Route</span>
+            <span className="text-[9px] font-semibold text-accent">
+              Direct Route
+            </span>
 
             <div className="relative my-1 h-px w-full bg-border">
               <span className="absolute right-0 top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full bg-accent" />
@@ -62,22 +94,26 @@ export function PackageBookingCard({ package: pkg }: PackageBookingCardProps) {
 
         {/* Price */}
         <div className="flex items-baseline gap-1.5">
-          <span className="text-3xl font-bold tracking-tight text-primary">{pkg.price}</span>
+          <span className="text-3xl font-bold tracking-tight text-primary">
+            {formatPrice(pkg)}
+          </span>
 
-          <span className="text-[10px] font-light text-muted-foreground">/ traveler</span>
+          <span className="text-[10px] font-light text-muted-foreground">
+            / traveler
+          </span>
         </div>
 
         {/* Actions */}
         <div className="space-y-3">
           <Link to={`/booking?package=${pkg.slug}`} className="block">
-            <Button className="btn-primary h-12 w-full text-sm">
+            <Button className="h-12 w-full text-sm">
               Book This Package
               <ArrowRightIcon weight="bold" className="h-4 w-4" />
             </Button>
           </Link>
 
           <Link to={`/enquiry?package=${pkg.slug}`} className="block">
-            <Button variant="outline" className="btn-outline h-12 w-full text-sm">
+            <Button variant="outline" className="h-12 w-full text-sm">
               Ask a Question
             </Button>
           </Link>
@@ -88,8 +124,8 @@ export function PackageBookingCard({ package: pkg }: PackageBookingCardProps) {
           <ShieldCheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
 
           <p className="text-xs font-light leading-relaxed text-muted-foreground">
-            No payment required to enquire. Our team will confirm availability and tailor the
-            details with you.
+            No payment required to enquire. Our team will confirm availability
+            and tailor the details with you.
           </p>
         </div>
 

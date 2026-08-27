@@ -1,72 +1,31 @@
- /* @import '../../../packages/ui/src/styles/base.css'; */
-
-/* @source ".*.{ts,tsx}"; */
-/*
-:root {
-  --radius: 0.5rem;
-
-  --background: hsl(0 0% 100%);
-  --foreground: hsl(0 0% 3.9%);
-
-  --card: hsl(0 0% 100%);
-  --card-foreground: hsl(0 0% 3.9%);
-
-  --popover: hsl(0 0% 100%);
-  --popover-foreground: hsl(0 0% 3.9%);
-
-  --primary: hsl(308 42% 39%);
-  --primary-foreground: hsl(0 0% 100%);
-
-  --secondary: hsl(0 0% 96.1%);
-  --secondary-foreground: hsl(0 0% 9%);
-
-  --muted: hsl(0 0% 96.1%);
-  --muted-foreground: hsl(0 0% 45.1%);
-
-  --accent: hsl(0 0% 96.1%);
-  --accent-foreground: hsl(0 0% 9%);
-
-  --destructive: hsl(0 84.2% 60.2%);
-  --destructive-foreground: hsl(0 0% 98%);
-
-  --border: hsl(0 0% 89.8%);
-  --input: hsl(0 0% 89.8%);
-  --ring: hsl(308 42% 39%);
+/* Self-hosted fonts — only critical weights to minimize transfer.
+   font-display: optional eliminates CLS from font swap entirely.
+   Fonts are preloaded via <link rel="preload"> in root.tsx so they
+   are available within the browser's ~100ms block period. */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400;
+  font-display: optional;
+  src: url('/fonts/inter-400.woff2') format('woff2');
+  size-adjust: 90%;
 }
-
-.dark {
-  --background: hsl(0 0% 3.9%);
-  --foreground: hsl(0 0% 98%);
-
-  --card: hsl(0 0% 3.9%);
-  --card-foreground: hsl(0 0% 98%);
-
-  --popover: hsl(0 0% 3.9%);
-  --popover-foreground: hsl(0 0% 98%);
-
-  --primary: hsl(308 42% 49%);
-  --primary-foreground: hsl(0 0% 3.9%);
-
-  --secondary: hsl(0 0% 14.9%);
-  --secondary-foreground: hsl(0 0% 98%);
-
-  --muted: hsl(0 0% 14.9%);
-  --muted-foreground: hsl(0 0% 63.7%);
-
-  --accent: hsl(0 0% 14.9%);
-  --accent-foreground: hsl(0 0% 98%);
-
-  --destructive: hsl(0 62.8% 30.6%);
-  --destructive-foreground: hsl(0 0% 98%);
-
-  --border: hsl(0 0% 14.9%);
-  --input: hsl(0 0% 14.9%);
-  --ring: hsl(308 42% 49%);
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 700;
+  font-display: optional;
+  src: url('/fonts/inter-700.woff2') format('woff2');
+  size-adjust: 90%;
 }
-
- */
-
- @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@400;500;600;700;800&display=swap');
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-weight: 700;
+  font-display: optional;
+  src: url('/fonts/montserrat-700.woff2') format('woff2');
+  size-adjust: 92%;
+}
 
 @import '../../../packages/ui/src/styles/base.css';
 
@@ -99,6 +58,16 @@
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
 
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+
+  --color-stale: var(--stale);
+  --color-stale-foreground: var(--stale-foreground);
+
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -111,8 +80,8 @@
 
   --radius-xl: var(--radius);
 
-  --font-sans: Inter, sans-serif;
-  --font-heading: Montserrat, sans-serif;
+  --font-sans: Inter, ui-sans-serif, system-ui, sans-serif;
+  --font-heading: Montserrat, ui-sans-serif, system-ui, sans-serif;
 
   --shadow-soft: 0 4px 20px rgba(0, 84, 48, 0.08);
   --shadow-card: 0 2px 10px rgba(0, 84, 48, 0.06);
@@ -124,49 +93,65 @@
   --color-brand-goldLight: hsl(40 45% 62%);
 }
 
-/* Web application theme */
+/* Admin application theme — light mode */
 :root {
   /* Base layers */
   --background: hsl(0 0% 100%);
   --foreground: hsl(150 70% 10%);
 
-  /* Card layer - elevated surface */
+  /* Card layer — elevated surface */
   --card: hsl(0 0% 100%);
   --card-foreground: hsl(150 70% 10%);
 
-  /* Popover layer - overlay surface */
+  /* Popover layer — overlay surface */
   --popover: hsl(0 0% 100%);
   --popover-foreground: hsl(150 70% 10%);
 
-  /* Primary brand - Deep Emerald */
+  /* Primary brand — Deep Emerald */
   --primary: hsl(150 100% 16%);
   --primary-foreground: hsl(0 0% 100%);
 
-  /* Secondary - muted variant */
+  /* Secondary — muted variant */
   --secondary: hsl(40 30% 97%);
   --secondary-foreground: hsl(150 10% 45%);
 
-  /* Muted - subtle backgrounds */
+  /* Muted — subtle backgrounds */
   --muted: hsl(40 30% 97%);
   --muted-foreground: hsl(150 10% 45%);
 
-  /* Accent - Lime-Gold secondary */
+  /* Accent — Lime-Gold secondary */
   --accent: hsl(40 45% 56%);
   --accent-foreground: hsl(0 0% 100%);
 
-  /* Destructive - error states */
-  --destructive: hsl(0 84% 60%);
-  --destructive-foreground: hsl(0 0% 100%);
+  /* Destructive — error states */
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.46 0.19 25);
+
+  /* Success — emerald (ready, confirmed, satisfied) */
+  --success: oklch(0.46 0.17 155);
+  --success-foreground: oklch(0.38 0.15 155);
+
+  /* Warning — amber (needs review, not recorded) */
+  --warning: oklch(0.6 0.17 75);
+  --warning-foreground: oklch(0.42 0.13 65);
+
+  /* Info — blue (in progress, informational) */
+  --info: oklch(0.48 0.19 255);
+  --info-foreground: oklch(0.36 0.17 255);
+
+  /* Stale — zinc/gray (draft, inactive, pending) */
+  --stale: hsl(240 5% 64%);
+  --stale-foreground: hsl(0 0% 100%);
 
   /* Borders and inputs */
   --border: hsl(150 15% 90%);
   --input: hsl(150 15% 90%);
   --ring: hsl(150 100% 16%);
 
-  /* Radius - matches existing rounded-xl (12px) */
+  /* Radius — matches existing rounded-xl (12px) */
   --radius: 0.75rem;
 
-  /* Sidebar elevation - higher than card */
+  /* Sidebar elevation — higher than card */
   --sidebar: hsl(0 0% 98%);
   --sidebar-accent: hsl(150 20% 92%);
   --sidebar-accent-foreground: hsl(150 70% 10%);
@@ -174,45 +159,62 @@
   --sidebar-border: hsl(150 15% 92%);
 }
 
+/* Admin application theme — dark mode */
 .dark {
-  /* Base layers - deep obsidian */
+  /* Base layers — deep obsidian */
   --background: hsl(150 40% 8%);
   --foreground: hsl(0 0% 98%);
 
-  /* Card layer - elevated surface */
+  /* Card layer — elevated surface */
   --card: hsl(150 35% 12%);
   --card-foreground: hsl(0 0% 98%);
 
-  /* Popover layer - overlay surface */
+  /* Popover layer — overlay surface */
   --popover: hsl(150 35% 10%);
   --popover-foreground: hsl(0 0% 98%);
 
-  /* Primary brand - Deep Emerald (slightly lighter for dark mode) */
+  /* Primary brand — Deep Emerald (lighter for dark mode contrast) */
   --primary: hsl(150 100% 20%);
   --primary-foreground: hsl(0 0% 100%);
 
-  /* Secondary - muted variant */
+  /* Secondary — muted variant */
   --secondary: hsl(150 30% 15%);
   --secondary-foreground: hsl(150 10% 60%);
 
-  /* Muted - subtle backgrounds */
+  /* Muted — subtle backgrounds */
   --muted: hsl(150 30% 15%);
   --muted-foreground: hsl(150 10% 60%);
 
-  /* Accent - Lime-Gold secondary */
+  /* Accent — Lime-Gold secondary */
   --accent: hsl(40 45% 56%);
   --accent-foreground: hsl(0 0% 100%);
 
-  /* Destructive - error states */
-  --destructive: hsl(0 62% 50%);
-  --destructive-foreground: hsl(0 0% 100%);
+  /* Destructive — error states (lighter for dark mode visibility) */
+  --destructive: oklch(0.704 0.191 22.216);
+  --destructive-foreground: oklch(0.78 0.16 25);
+
+  /* Success — emerald (lighter for dark mode visibility) */
+  --success: oklch(0.74 0.16 155);
+  --success-foreground: oklch(0.78 0.16 155);
+
+  /* Warning — amber (lighter for dark mode visibility) */
+  --warning: oklch(0.84 0.16 85);
+  --warning-foreground: oklch(0.84 0.16 85);
+
+  /* Info — blue (lighter for dark mode visibility) */
+  --info: oklch(0.78 0.15 255);
+  --info-foreground: oklch(0.78 0.15 255);
+
+  /* Stale — zinc/gray (lighter for dark mode visibility) */
+  --stale: hsl(240 5% 55%);
+  --stale-foreground: hsl(0 0% 100%);
 
   /* Borders and inputs */
   --border: hsl(150 25% 18%);
   --input: hsl(150 25% 18%);
   --ring: hsl(150 100% 20%);
 
-  /* Sidebar elevation - higher than card */
+  /* Sidebar elevation — higher than card */
   --sidebar: hsl(150 35% 10%);
   --sidebar-accent: hsl(150 20% 18%);
   --sidebar-accent-foreground: hsl(0 0% 98%);
@@ -242,22 +244,6 @@ h6 {
 }
 
 @layer components {
-  .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 bg-brand-primary text-white px-5 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 hover:bg-brand-light hover:shadow-soft active:scale-[0.98];
-  }
-
-  .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 bg-brand-gold text-white px-5 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 hover:bg-brand-goldLight hover:shadow-soft active:scale-[0.98];
-  }
-
-  .btn-outline {
-    @apply inline-flex items-center justify-center gap-2 border border-brand-primary/20 bg-white dark:bg-transparent text-brand-primary px-5 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 hover:bg-brand-primary hover:text-white hover:border-brand-primary dark:border-brand-primary/40;
-  }
-
-  .btn-ghost {
-    @apply inline-flex items-center justify-center gap-2 text-gray-600 dark:text-gray-300 px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 hover:bg-gray-100 dark:hover:bg-white/5;
-  }
-
   .card {
     @apply bg-card text-card-foreground rounded-2xl border border-border/50 shadow-card transition-all duration-300;
   }
@@ -267,7 +253,7 @@ h6 {
   }
 
   .input {
-    @apply w-full px-4 py-3 bg-white dark:bg-white/5 border border-border rounded-xl text-sm outline-none transition-all duration-200 focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary dark:border-border/50 dark:text-white placeholder:text-gray-400;
+    @apply w-full px-4 py-3 bg-background border border-border rounded-xl text-sm outline-none transition-all duration-200 focus:ring-2 focus:ring-ring/20 focus:border-ring placeholder:text-muted-foreground;
   }
 
   .section-padding {
@@ -279,11 +265,15 @@ h6 {
   }
 
   .glow-emerald {
-    box-shadow: 0 0 60px rgba(0, 84, 48, 0.15), 0 0 100px rgba(0, 84, 48, 0.1);
+    box-shadow:
+      0 0 60px rgba(0, 84, 48, 0.15),
+      0 0 100px rgba(0, 84, 48, 0.1);
   }
 
   .glow-emerald-strong {
-    box-shadow: 0 0 80px rgba(0, 84, 48, 0.25), 0 0 120px rgba(0, 84, 48, 0.15);
+    box-shadow:
+      0 0 80px rgba(0, 84, 48, 0.25),
+      0 0 120px rgba(0, 84, 48, 0.15);
   }
 }
 

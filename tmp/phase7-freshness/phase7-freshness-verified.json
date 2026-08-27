@@ -1,0 +1,66 @@
+{
+  "benchmarkRunId": "phase7-freshness-verified",
+  "timestamp": "2026-08-19T10:57:25.498Z",
+  "apiBaseUrl": "http://localhost:4001",
+  "fixtureTier": null,
+  "results": {
+    "registration": {
+      "scenario": "registration-re-fetch-only",
+      "registrationId": "01M0ASWK9T3V4CMPZF8897V8QS",
+      "registrationNumber": "BR-medium-BC9ZV8KY-000005",
+      "initialState": "DRAFT",
+      "mutationApplied": false,
+      "mutationStatus": 409,
+      "staleReadsBeforeReFetch": 0,
+      "reFetchDurationMs": 31.289,
+      "reFetchStatus": 200,
+      "consistencyAchieved": true,
+      "transport": "manual-re-fetch",
+      "requestsGenerated": 2
+    },
+    "travelGroup": {
+      "scenario": "travel-group-re-fetch",
+      "groupId": "01M0ASWKB10KQ7TAQ05YQYZAVN",
+      "groupName": "Benchmark Group 30",
+      "initialState": "PLANNING",
+      "reFetchDurationMs": 20.435,
+      "reFetchStatus": 200,
+      "consistencyAchieved": true,
+      "transport": "manual-re-fetch",
+      "requestsGenerated": 2
+    },
+    "dashboard": {
+      "scenario": "dashboard-re-fetch",
+      "initialReadDurationMs": 11.737,
+      "initialReadStatus": 200,
+      "reFetchDurationMs": 12.421,
+      "reFetchStatus": 200,
+      "consistencyAchieved": true,
+      "transport": "manual-re-fetch",
+      "requestsGenerated": 2
+    },
+    "financeDashboard": {
+      "scenario": "finance-dashboard-re-fetch",
+      "initialReadDurationMs": 12.594,
+      "initialReadStatus": 200,
+      "reFetchDurationMs": 10.608,
+      "reFetchStatus": 200,
+      "consistencyAchieved": true,
+      "transport": "manual-re-fetch",
+      "requestsGenerated": 2
+    },
+    "concurrentReads": {
+      "scenario": "concurrent-read-consistency",
+      "endpoint": "/api/admin/dashboard",
+      "concurrency": 10,
+      "totalDurationMs": 28.05,
+      "successfulReads": 10,
+      "failedReads": 0,
+      "uniqueResultShapes": 1,
+      "consistent": true,
+      "p50Ms": 23.783,
+      "maxMs": 26.83
+    }
+  },
+  "outputPath": "/Users/feysel/Developer/02_Projects/02_Development/01_Web/kafi/tmp/phase7-freshness/phase7-freshness-verified.json"
+}

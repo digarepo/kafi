@@ -1,106 +1,125 @@
-import { useEffect, useState } from 'react';
-import { Link } from 'react-router';
-import { Card, Button } from '@kafi/ui';
-import { listPublicPackages, type PublicPackageVersion, type PublicPackageFilters } from '../../../lib/public-api';
+import { type PublicPackageVersion } from '../../../lib/public-api';
+import { PackageCard } from './package-card';
 
-export function LivePackages() {
-  const [packages, setPackages] = useState<PublicPackageVersion[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState<PublicPackageFilters>({});
+/**
+ * Tier display order — lowest tier on the left, highest on the right,
+ * matching the original static packages page layout (Economy, Comfort, Premium).
+ * The "Comfort" tier is the popular/middle one.
+ */
+const TIER_ORDER = ['economy', 'comfort', 'premium', 'standard', 'luxury'];
 
-  useEffect(() => {
-    setLoading(true);
-    listPublicPackages(filters)
-      .then((res) => setPackages(res.data))
-      .finally(() => setLoading(false));
-  }, [filters]);
+function tierKey(pkg: PublicPackageVersion): string {
+  const template = pkg.package_template?.name ?? pkg.version_name;
+  return (template.split(' ')[0] ?? '').toLowerCase();
+}
+
+function tierRank(pkg: PublicPackageVersion): number {
+  const key = tierKey(pkg);
+  const idx = TIER_ORDER.indexOf(key);
+  return idx === -1 ? TIER_ORDER.length : idx;
+}
+
+/**
+ * Picks the next upcoming version for a given set of versions belonging to the
+ * same template (tier). "Next upcoming" = the version with the nearest
+ * `departure_date` that is today or later. If no future departures exist, falls
+ * back to the most recent past departure so the card still shows something.
+ */
+function pickNextUpcoming(
+  versions: PublicPackageVersion[],
+): PublicPackageVersion {
+  const now = new Date();
+  const withDates = versions
+    .filter((v) => v.departure_date)
+    .map((v) => ({ v, d: new Date(v.departure_date!) }));
+
+  const upcoming = withDates
+    .filter((x) => x.d >= now)
+    .sort((a, b) => a.d.getTime() - b.d.getTime());
+
+  if (upcoming.length > 0) return upcoming[0]!.v;
+
+  // No future departures — fall back to the most recent past one.
+  const past = withDates.sort((a, b) => b.d.getTime() - a.d.getTime());
+  if (past.length > 0) return past[0]!.v;
+
+  // No dates at all — just return the first one.
+  return versions[0]!;
+}
+
+/**
+ * Groups versions by `package_template_id`, picks the next upcoming version per
+ * group, and returns them sorted by tier rank.
+ */
+export function selectShowcasePackages(
+  all: PublicPackageVersion[],
+): PublicPackageVersion[] {
+  const groups = new Map<string, PublicPackageVersion[]>();
+
+  for (const v of all) {
+    const key = v.package_template?.id ?? v.id;
+    const list = groups.get(key);
+    if (list) list.push(v);
+    else groups.set(key, [v]);
+  }
+
+  const showcase: PublicPackageVersion[] = [];
+  for (const versions of groups.values()) {
+    showcase.push(pickNextUpcoming(versions));
+  }
+
+  return showcase.sort((a, b) => tierRank(a) - tierRank(b));
+}
+
+export { tierKey };
+
+/**
+ * Renders the live package cards in a responsive grid.
+ *
+ * @remarks
+ * - Receives already-fetched showcase packages from the parent so the same
+ *   data can be shared with the comparison matrix without a second fetch.
+ * - Tiers with no published versions are hidden (the parent simply passes
+ *   fewer packages).
+ * - The "Comfort" tier is marked "popular" to preserve the elevated center card.
+ */
+export function LivePackages({
+  packages,
+  loading,
+}: {
+  packages: PublicPackageVersion[];
+  loading: boolean;
+}) {
+  if (loading) {
+    return (
+      <div className="grid grid-cols-1 gap-8 md:grid-cols-3 md:items-stretch">
+        {[0, 1, 2].map((i) => (
+          <div
+            key={i}
+            className="h-96 animate-pulse rounded-xl border border-border/40 bg-muted/20"
+          />
+        ))}
+      </div>
+    );
+  }
+
+  if (packages.length === 0) {
+    return (
+      <p className="py-12 text-center text-sm font-light text-muted-foreground">
+        No packages are currently available. Please check back soon.
+      </p>
+    );
+  }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap gap-3">
-        <input
-          type="text"
-          placeholder="Search"
-          className="h-9 rounded border px-3 text-sm"
-          value={filters.search ?? ''}
-          onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+    <div className="grid grid-cols-1 gap-8 md:grid-cols-3 md:items-stretch">
+      {packages.map((pkg) => (
+        <PackageCard
+          key={pkg.id}
+          package={pkg}
+          popular={tierKey(pkg) === 'comfort'}
         />
-        <input
-          type="text"
-          placeholder="Category"
-          className="h-9 rounded border px-3 text-sm"
-          value={filters.category ?? ''}
-          onChange={(e) => setFilters({ ...filters, category: e.target.value })}
-        />
-        <input
-          type="text"
-          placeholder="Pilgrimage type"
-          className="h-9 rounded border px-3 text-sm"
-          value={filters.pilgrimageType ?? ''}
-          onChange={(e) => setFilters({ ...filters, pilgrimageType: e.target.value })}
-        />
-        <input
-          type="text"
-          placeholder="Year"
-          className="h-9 rounded border px-3 text-sm"
-          value={filters.year ?? ''}
-          onChange={(e) => setFilters({ ...filters, year: e.target.value })}
-        />
-      </div>
-
-      {loading ? (
-        <p className="text-sm text-muted-foreground">Loading packages…</p>
-      ) : packages.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No packages available.</p>
-      ) : (
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {packages.map((pkg) => (
-            <Card key={pkg.id} className="flex flex-col overflow-hidden border border-border/40 p-0">
-              {pkg.hero_image_url ? (
-                <img
-                  src={pkg.hero_image_url}
-                  alt={pkg.version_name}
-                  className="h-40 w-full object-cover"
-                />
-              ) : (
-                <div className="h-40 w-full bg-muted" />
-              )}
-              <div className="space-y-3 p-5">
-                <div>
-                  <h3 className="font-heading text-lg font-bold">{pkg.version_name}</h3>
-                  <p className="text-xs text-muted-foreground">{pkg.package_template?.name}</p>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  {pkg.package_category?.name} • {pkg.pilgrimage_type?.name} • {pkg.year}
-                </p>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-xl font-bold">
-                    {pkg.base_price} {pkg.currency?.code}
-                  </span>
-                </div>
-                {pkg.inclusions.length > 0 && (
-                  <ul className="space-y-1 text-sm text-muted-foreground">
-                    {pkg.inclusions
-                      .filter((inc) => inc.is_highlighted)
-                      .slice(0, 4)
-                      .map((inc) => (
-                        <li key={inc.id} className="flex gap-2">
-                          <span>•</span>
-                          <span>{inc.inclusion_text}</span>
-                        </li>
-                      ))}
-                  </ul>
-                )}
-                <Link to={`/packages/${pkg.slug}`} className="mt-auto block">
-                  <Button variant="outline" className="w-full">
-                    View details
-                  </Button>
-                </Link>
-              </div>
-            </Card>
-          ))}
-        </div>
-      )}
+      ))}
     </div>
   );
 }

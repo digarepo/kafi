@@ -1,5 +1,6 @@
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
+import { toast } from 'sonner';
 
 import type { LoginFormValues } from '../types/auth.types';
 import { api, ApiError } from '../../../lib/api';
@@ -20,13 +21,10 @@ function getSafeRedirect(value: string | null): string {
 export function useLogin() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [error, setError] = useState<string | null>(null);
   const redirectTo = getSafeRedirect(searchParams.get('redirect'));
 
   const onSubmit = useCallback(
     async (values: LoginFormValues) => {
-      setError(null);
-
       try {
         const response = await api.login(
           values.email,
@@ -39,17 +37,18 @@ export function useLogin() {
           return;
         }
 
+        toast.success(`Welcome back, ${response.user.full_name}.`);
         navigate(redirectTo, { replace: true });
       } catch (err) {
         const message =
           err instanceof ApiError
             ? err.message
             : 'Login failed. Please check your credentials and try again.';
-        setError(message);
+        toast.error(message);
       }
     },
     [navigate, redirectTo],
   );
 
-  return { onSubmit, error };
+  return { onSubmit };
 }

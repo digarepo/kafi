@@ -14,9 +14,13 @@ import {
   DialogTitle,
   Input,
   Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from '@kafi/ui';
 
-import { LookupSelect } from './lookup-select';
 import type { InvoiceListItem, Payment } from '../../../lib/api.js';
 import type { AllocationInput } from '../../../lib/api.js';
 
@@ -45,7 +49,9 @@ export function PaymentAllocationDialog({
     if (!invoiceId || !amount) return;
     setSubmitting(true);
     try {
-      await onSubmit([{ invoice_id: invoiceId, allocated_amount: Number(amount) }]);
+      await onSubmit([
+        { invoice_id: invoiceId, allocated_amount: Number(amount) },
+      ]);
       setInvoiceId('');
       setAmount('');
     } finally {
@@ -74,15 +80,34 @@ export function PaymentAllocationDialog({
 
           <div className="space-y-2">
             <Label className="text-sm font-medium">Invoice</Label>
-            <LookupSelect
-              value={invoiceId}
-              options={invoices.map((i) => ({
-                value: i.id,
-                label: `${i.invoice_number} (${Number(i.total_amount).toFixed(2)} ETB)`,
-              }))}
-              placeholder="Select invoice"
-              onChange={setInvoiceId}
-            />
+            <Select
+              value={invoiceId ?? ''}
+              onValueChange={(v) => setInvoiceId(v ?? '')}
+            >
+              <SelectTrigger className="h-9 w-full">
+                <SelectValue>
+                  {invoices
+                    .map((i) => ({
+                      value: i.id,
+                      label: `${i.invoice_number} (${Number(i.total_amount).toFixed(2)} ETB)`,
+                    }))
+                    .find((o) => o.value === invoiceId)?.label ??
+                    'Select invoice'}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {invoices
+                  .map((i) => ({
+                    value: i.id,
+                    label: `${i.invoice_number} (${Number(i.total_amount).toFixed(2)} ETB)`,
+                  }))
+                  .map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">

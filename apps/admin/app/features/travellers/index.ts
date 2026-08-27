@@ -9,6 +9,7 @@ export * from './components/contact-person-dialog';
 export * from './components/contact-person-form';
 export * from './components/registration-dialog';
 export * from './components/registration-form';
+export * from './components/registration-intake-workflow';
 export * from './components/traveller-detail-card';
 export * from './components/traveller-duplicates-alert';
 export * from './components/traveller-contact-form';

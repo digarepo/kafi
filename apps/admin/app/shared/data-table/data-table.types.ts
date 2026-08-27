@@ -1,6 +1,7 @@
 import type {
   ColumnDef,
   SortingState,
+  Table,
   VisibilityState,
 } from '@tanstack/react-table';
 
@@ -25,6 +26,9 @@ export interface DataTableProps<TData, TValue> {
   /** When true, pagination controls are not rendered. */
   hidePagination?: boolean;
 
+  /** When true, the internal column-view-options button is not rendered. */
+  hideViewOptions?: boolean;
+
   pagination?: DataTablePagination;
 
   sorting?: SortingState;
@@ -40,6 +44,9 @@ export interface DataTableProps<TData, TValue> {
   onColumnVisibilityChange?: (visibility: VisibilityState) => void;
 
   onGlobalFilterChange?: (filter: string) => void;
+
+  /** Called once with the TanStack Table instance after it is created. */
+  onTableReady?: (table: Table<TData>) => void;
 
   /** Called when the user chooses the bulk delete action for selected rows. */
   onDeleteSelected?: (rows: TData[]) => void;

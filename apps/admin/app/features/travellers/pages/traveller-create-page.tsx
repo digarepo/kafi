@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
+import { toast } from 'sonner';
 import { TravellerForm } from '../components/traveller-form';
 import { TravellerDuplicatesAlert } from '../components/traveller-duplicates-alert';
 import type { TravellerFormOutput } from '../types/travellers.types';
 import {
   api,
+  ApiError,
   type Country,
   type Language,
   type LookupOption,
@@ -48,12 +50,31 @@ export function TravellerCreatePage() {
   async function handleSubmit(values: TravellerFormOutput) {
     setError(null);
     try {
-      await api.createTraveller(values);
-      navigate('/travellers');
+      const traveller = await api.createTraveller(values);
+      navigate(`/travellers/${traveller.id}`);
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'Failed to create traveller',
-      );
+      if (err instanceof ApiError && err.status === 409) {
+        // Duplicate traveller — persistent toast with action to view existing
+        const match = duplicateMatches[0];
+        toast.error(err.message, {
+          duration: Infinity,
+          action: match
+            ? {
+                label: 'View existing',
+                onClick: () => navigate(`/travellers/${match.id}`),
+              }
+            : undefined,
+        });
+      } else if (err instanceof ApiError && err.status === 400) {
+        toast.error(
+          err.message || 'Please check the form fields and try again.',
+        );
+      } else {
+        const msg =
+          err instanceof Error ? err.message : 'Failed to create traveller';
+        setError(msg);
+        toast.error(msg);
+      }
     }
   }
 
@@ -84,7 +105,7 @@ export function TravellerCreatePage() {
         statuses={statuses}
         onSubmit={handleSubmit}
         onDuplicateChange={setDuplicateMatches}
-        submitLabel="Create"
+        onCancel={() => navigate('/travellers')}
       />
     </div>
   );

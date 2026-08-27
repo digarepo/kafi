@@ -1,20 +1,19 @@
-import { useEffect, useState } from 'react';
-
 interface DecorativeBackgroundProps {
   variant?: 'default' | 'subtle' | 'ambient';
 }
 
+/**
+ * Fixed-position decorative background with grid pattern and floating orbs.
+ *
+ * @remarks
+ * Previously gated behind a `mounted` state to avoid hydration mismatch,
+ * but since all dark-mode styling is CSS-based (not JS-based), the component
+ * is safe to render during SSR. Removing the gate eliminates a layout shift
+ * that occurred when the background appeared after hydration.
+ */
 export function DecorativeBackground({
   variant = 'default',
 }: DecorativeBackgroundProps) {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted) return null;
-
   return (
     <div className="fixed inset-0 overflow-hidden pointer-events-none">
       {/* Grid pattern */}
@@ -68,11 +67,3 @@ export function DecorativeBackground({
     </div>
   );
 }
-
-
-
-
-
-
-
-

@@ -5,8 +5,10 @@ import {
   ShieldCheckIcon,
 } from '@phosphor-icons/react';
 
-import { Badge, Card } from '@kafi/ui';
+import { Badge } from '@ui/components/ui/badge'
+import { Card } from '@ui/components/ui/card';
 
+import { type PublicPackageVersion } from '../../../lib/public-api';
 import { PackageComparison } from './package-comparison';
 import { LivePackages } from './live-packages';
 import InlineCustomPackageCard from './inline-custom-package-card';
@@ -57,12 +59,21 @@ const STEPS = [
  * @remarks
  * - Acts as the exploration hub: hero, comparison cards, a side-by-side matrix,
  *   an "always included" trust strip, a booking steps stepper, and a CTA.
- * - Deliberately distinct from the home Pricing section — richer, comparison-led,
- *   and with CTAs that route to package detail pages rather than directly to contact.
+ * - Package data is provided by the route loader (server-side fetch) and shared
+ *   with both the card grid and the comparison matrix so they never drift.
+ * - The custom-package CTA is lazy-loaded so Zod/TanStack Form are not part of
+ *   the initial bundle.
  */
-export default function PackagesPage() {
+export default function PackagesPage({
+  packages,
+}: {
+  packages: PublicPackageVersion[];
+}) {
   return (
-    <div className="min-h-screen bg-background pb-24 text-foreground md:pb-0">
+    <main
+      id="main-content"
+      className="min-h-screen bg-background pb-24 text-foreground md:pb-0"
+    >
       {/* Hero */}
       <section className="mx-auto max-w-7xl px-6 pb-12 pt-28 sm:px-8 lg:px-12 md:pb-16">
         <div className="max-w-3xl space-y-6">
@@ -109,12 +120,12 @@ export default function PackagesPage() {
             </p>
           </div>
 
-          <LivePackages />
+          <LivePackages packages={packages} loading={false} />
         </div>
       </section>
 
       {/* Comparison matrix */}
-      <PackageComparison />
+      <PackageComparison packages={packages} />
 
       {/* Every package includes */}
       <section className="section-padding border-t border-border/20">
@@ -215,6 +226,6 @@ export default function PackagesPage() {
           <InlineCustomPackageCard />
         </div>
       </section>
-    </div>
+    </main>
   );
 }

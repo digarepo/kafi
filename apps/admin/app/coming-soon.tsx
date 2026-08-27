@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ArrowLeft, Mail, Loader2 } from 'lucide-react';
-import { DecorativeBackground } from '@kafi/ui';
+import { Button, DecorativeBackground } from '@kafi/ui';
 
 interface StatusItem {
   label: string;
@@ -17,9 +17,9 @@ const statusItems: StatusItem[] = [
 function StatusBadge({ status }: { status: StatusItem['status'] }) {
   if (status === 'complete') {
     return (
-      <div className="w-5 h-5 rounded-full bg-brand-primary/10 dark:bg-brand-primary/20 flex items-center justify-center">
+      <div className="w-5 h-5 rounded-full bg-success/10 flex items-center justify-center">
         <svg
-          className="w-3 h-3 text-brand-primary"
+          className="w-3 h-3 text-success"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -37,8 +37,8 @@ function StatusBadge({ status }: { status: StatusItem['status'] }) {
 
   if (status === 'progress') {
     return (
-      <div className="w-5 h-5 rounded-full bg-brand-gold/10 dark:bg-brand-gold/20 flex items-center justify-center">
-        <Loader2 className="w-3 h-3 text-brand-gold animate-spin" />
+      <div className="w-5 h-5 rounded-full bg-warning/10 flex items-center justify-center">
+        <Loader2 className="w-3 h-3 text-warning animate-spin" />
       </div>
     );
   }
@@ -172,12 +172,13 @@ export default function ComingSoonPage() {
             className="flex flex-col sm:flex-row items-center justify-center gap-3 animate-slide-up"
             style={{ animationDelay: '0.4s' }}
           >
-            <a href="/" className="btn-primary">
+            <Button render={<a href="/" />}>
               <ArrowLeft className="w-4 h-4" />
               Back to Home
-            </a>
-            <a
-              href="#/"
+            </Button>
+            <Button
+              variant="outline"
+              render={<a href="#/" />}
               onClick={(e) => {
                 e.preventDefault();
                 setTimeout(
@@ -189,11 +190,10 @@ export default function ComingSoonPage() {
                 );
                 window.location.hash = '/';
               }}
-              className="btn-outline"
             >
               <Mail className="w-4 h-4" />
               Contact Support
-            </a>
+            </Button>
           </div>
         </div>
 

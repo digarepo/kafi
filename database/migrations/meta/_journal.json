@@ -57,6 +57,62 @@
       "when": 1785929783035,
       "tag": "0007_woozy_wendell_vaughn",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "5",
+      "when": 1786017789334,
+      "tag": "0008_short_luckman",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "5",
+      "when": 1786112245185,
+      "tag": "0009_fantastic_night_thrasher",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "5",
+      "when": 1786188853673,
+      "tag": "0010_premium_whistler",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "5",
+      "when": 1786300000000,
+      "tag": "0019_round6_finance_integration",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "5",
+      "when": 1786400000000,
+      "tag": "0020_operational_expense_deduplication",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "5",
+      "when": 1786500000000,
+      "tag": "0021_round7_expense_adjustments",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "5",
+      "when": 1786600000000,
+      "tag": "0022_public_inquiries",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "5",
+      "when": 1786700000000,
+      "tag": "0023_inquiry_first_viewed_at",
+      "breakpoints": true
     }
   ]
 }

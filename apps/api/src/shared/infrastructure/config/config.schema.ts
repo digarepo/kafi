@@ -29,6 +29,10 @@ export const configSchema = z.object({
     .string()
     .default(DEFAULT_ALLOWED_ORIGINS)
     .transform((v) => (v?.trim() ? v : DEFAULT_ALLOWED_ORIGINS)),
+
+  WORKFLOW_TICK_SECRET: z
+    .string()
+    .min(16, 'WORKFLOW_TICK_SECRET must be at least 16 characters'),
 });
 
 /**

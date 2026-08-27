@@ -1,5 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { Mailer } from '../../application/ports/mailer.port.js';
+import {
+  Mailer,
+  type InquiryNotification,
+} from '../../application/ports/mailer.port.js';
 
 /**
  * Options for {@link ResendMailer}.
@@ -40,12 +43,57 @@ export class ResendMailer implements Mailer {
     await this.sendEmail(to, 'Welcome to Kafi Tours', text);
   }
 
+  async sendInquiryNotification(
+    to: string[],
+    inquiry: InquiryNotification,
+  ): Promise<void> {
+    const link = `${this.baseUrl}/inquiries/${inquiry.inquiry_id}`;
+    const typeLabel = inquiry.inquiry_type.toLowerCase();
+
+    const lines = [
+      `New ${typeLabel} inquiry received: ${inquiry.inquiry_number}`,
+      '',
+      `Name:    ${inquiry.full_name ?? 'Not provided'}`,
+      `Phone:   ${inquiry.phone_number}`,
+      `Email:   ${inquiry.email_address ?? 'Not provided'}`,
+    ];
+
+    if (inquiry.enquiry_category)
+      lines.push(`Category: ${inquiry.enquiry_category}`);
+    if (inquiry.package_interest)
+      lines.push(`Package: ${inquiry.package_interest}`);
+    if (inquiry.service_interest)
+      lines.push(`Service: ${inquiry.service_interest}`);
+    if (inquiry.travel_period)
+      lines.push(`Travel period: ${inquiry.travel_period}`);
+    if (inquiry.group_size) lines.push(`Group size: ${inquiry.group_size}`);
+    if (inquiry.source_channel) lines.push(`Source: ${inquiry.source_channel}`);
+
+    if (inquiry.message) {
+      lines.push('', 'Message:', inquiry.message);
+    }
+
+    lines.push(
+      '',
+      `Received: ${inquiry.received_at.toISOString()}`,
+      '',
+      `Open in the admin inbox:`,
+      link,
+    );
+
+    await this.sendEmail(
+      to,
+      `New ${typeLabel} inquiry — ${inquiry.inquiry_number}`,
+      lines.join('\n'),
+    );
+  }
+
   private get baseUrl(): string {
     return this.options.appUrl.replace(/\/+$/, '');
   }
 
   private async sendEmail(
-    to: string,
+    to: string | string[],
     subject: string,
     text: string,
   ): Promise<void> {

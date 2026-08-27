@@ -72,6 +72,7 @@ export interface TravellerFormProps {
   statuses: LookupOption[];
   onSubmit: (values: TravellerFormOutput) => Promise<void>;
   onDuplicateChange?: (matches: Traveller[]) => void;
+  onCancel?: () => void;
   submitLabel?: string;
 }
 
@@ -123,6 +124,7 @@ export interface ContactPersonFormProps {
   languages: Language[];
   statuses: LookupOption[];
   onSubmit: (values: ContactPersonFormOutput) => Promise<void>;
+  onCancel?: () => void;
   submitLabel?: string;
 }
 
@@ -158,4 +160,16 @@ export interface RegistrationFormProps {
   packageVersions: PackageVersion[];
   onSubmit: (values: RegistrationFormOutput) => Promise<void>;
   submitLabel?: string;
+  /**
+   * When true, the form runs in workflow mode:
+   * - No submit button is rendered (navigation is handled externally).
+   * - `onValuesChange` is called whenever any field value changes so the
+   *   parent workflow can track form state without a submit event.
+   */
+  workflowMode?: boolean;
+  /**
+   * Called on every field value change in workflow mode.
+   * Receives the current form values.
+   */
+  onValuesChange?: (values: RegistrationFormValues) => void;
 }

@@ -3,6 +3,8 @@ import { drizzle, MySql2Database } from 'drizzle-orm/mysql2';
 import mysql from 'mysql2/promise';
 import { ConfigService } from '../config/config.service.js';
 import * as schema from '@kafi/database';
+import { instrumentDatabasePool } from '../observability/database-performance.js';
+import { isPerformanceInstrumentationEnabled } from '../observability/performance-context.js';
 
 /**
  * Injection token for the Drizzle database instance.
@@ -26,7 +28,11 @@ export const databaseProvider: Provider = {
       connectionLimit: 10,
     });
 
-    return drizzle(pool, { schema, mode: 'default' });
+    const instrumentedPool = isPerformanceInstrumentationEnabled()
+      ? instrumentDatabasePool(pool)
+      : pool;
+
+    return drizzle(instrumentedPool, { schema, mode: 'default' });
   },
   inject: [ConfigService],
 };

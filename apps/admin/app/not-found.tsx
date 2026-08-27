@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ArrowLeft, Home } from 'lucide-react';
-import { DecorativeBackground } from '@kafi/ui';
+import { Button, DecorativeBackground } from '@kafi/ui';
 
 function NotFoundIllustration() {
   return (
@@ -13,7 +13,12 @@ function NotFoundIllustration() {
         xmlns="http://www.w3.org/2000/svg"
       >
         {/* Background subtle shapes */}
-        <circle cx="160" cy="100" r="80" className="fill-muted/50 dark:fill-muted/30 animate-pulse-glow" />
+        <circle
+          cx="160"
+          cy="100"
+          r="80"
+          className="fill-muted/50 dark:fill-muted/30 animate-pulse-glow"
+        />
 
         {/* Floating rectangular panels */}
         <g className="animate-float">
@@ -62,7 +67,13 @@ function NotFoundIllustration() {
             className="fill-card stroke-border/50"
             strokeWidth="1"
           />
-          <circle cx="230" cy="95" r="15" className="fill-brand-gold/20 stroke-brand-gold/40" strokeWidth="1" />
+          <circle
+            cx="230"
+            cy="95"
+            r="15"
+            className="fill-brand-gold/20 stroke-brand-gold/40"
+            strokeWidth="1"
+          />
           <rect
             x="210"
             y="125"
@@ -83,14 +94,52 @@ function NotFoundIllustration() {
         />
 
         {/* Floating particles */}
-        <circle cx="140" cy="40" r="3" className="fill-brand-gold/50 animate-float" />
-        <circle cx="250" cy="45" r="2" className="fill-brand-primary/40 animate-float-delayed" />
-        <circle cx="80" cy="150" r="2.5" className="fill-brand-gold/30 animate-float" style={{ animationDelay: '1.5s' }} />
-        <circle cx="270" cy="140" r="2" className="fill-brand-primary/30 animate-float-delayed" style={{ animationDelay: '0.5s' }} />
+        <circle
+          cx="140"
+          cy="40"
+          r="3"
+          className="fill-brand-gold/50 animate-float"
+        />
+        <circle
+          cx="250"
+          cy="45"
+          r="2"
+          className="fill-brand-primary/40 animate-float-delayed"
+        />
+        <circle
+          cx="80"
+          cy="150"
+          r="2.5"
+          className="fill-brand-gold/30 animate-float"
+          style={{ animationDelay: '1.5s' }}
+        />
+        <circle
+          cx="270"
+          cy="140"
+          r="2"
+          className="fill-brand-primary/30 animate-float-delayed"
+          style={{ animationDelay: '0.5s' }}
+        />
 
         {/* Small decorative squares */}
-        <rect x="45" y="30" width="8" height="8" rx="2" className="fill-brand-primary/20 animate-float" style={{ animationDelay: '0.8s' }} />
-        <rect x="265" y="160" width="6" height="6" rx="1" className="fill-brand-gold/20 animate-float-delayed" style={{ animationDelay: '1.2s' }} />
+        <rect
+          x="45"
+          y="30"
+          width="8"
+          height="8"
+          rx="2"
+          className="fill-brand-primary/20 animate-float"
+          style={{ animationDelay: '0.8s' }}
+        />
+        <rect
+          x="265"
+          y="160"
+          width="6"
+          height="6"
+          rx="1"
+          className="fill-brand-gold/20 animate-float-delayed"
+          style={{ animationDelay: '1.2s' }}
+        />
       </svg>
 
       {/* Glow effect behind */}
@@ -113,9 +162,14 @@ export default function NotFoundPage() {
       <DecorativeBackground variant="subtle" />
 
       <div className="relative z-10 w-full max-w-lg mx-auto px-6 py-12">
-        <div className={`text-center ${mounted ? 'animate-fade-in' : 'opacity-0'}`}>
+        <div
+          className={`text-center ${mounted ? 'animate-fade-in' : 'opacity-0'}`}
+        >
           {/* Large 404 */}
-          <div className="relative mb-6 animate-scale-in" style={{ animationDelay: '0.1s' }}>
+          <div
+            className="relative mb-6 animate-scale-in"
+            style={{ animationDelay: '0.1s' }}
+          >
             <span className="text-[8rem] md:text-[10rem] font-heading font-bold text-foreground/5 dark:text-foreground/3 select-none block leading-none">
               404
             </span>
@@ -125,17 +179,27 @@ export default function NotFoundPage() {
           </div>
 
           {/* Refined heading */}
-          <h1 className="text-2xl md:text-3xl font-heading font-semibold text-foreground mb-4 animate-slide-up" style={{ animationDelay: '0.2s' }}>
+          <h1
+            className="text-2xl md:text-3xl font-heading font-semibold text-foreground mb-4 animate-slide-up"
+            style={{ animationDelay: '0.2s' }}
+          >
             This Page Has Vanished
           </h1>
 
           {/* Description */}
-          <p className="text-muted-foreground text-base leading-relaxed max-w-sm mx-auto mb-10 animate-slide-up" style={{ animationDelay: '0.25s' }}>
-            The page you're looking for has moved, no longer exists, or never existed in the first place. Let's get you back on track.
+          <p
+            className="text-muted-foreground text-base leading-relaxed max-w-sm mx-auto mb-10 animate-slide-up"
+            style={{ animationDelay: '0.25s' }}
+          >
+            The page you're looking for has moved, no longer exists, or never
+            existed in the first place. Let's get you back on track.
           </p>
 
           {/* Divider with dots */}
-          <div className="flex items-center justify-center gap-3 mb-10 animate-fade-in" style={{ animationDelay: '0.3s' }}>
+          <div
+            className="flex items-center justify-center gap-3 mb-10 animate-fade-in"
+            style={{ animationDelay: '0.3s' }}
+          >
             <div className="flex gap-1.5">
               <div className="w-1 h-1 rounded-full bg-border" />
               <div className="w-1 h-1 rounded-full bg-brand-gold/40" />
@@ -144,26 +208,25 @@ export default function NotFoundPage() {
           </div>
 
           {/* Actions */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 animate-slide-up" style={{ animationDelay: '0.35s' }}>
-            <a
-              href="/"
-              className="btn-primary"
-            >
+          <div
+            className="flex flex-col sm:flex-row items-center justify-center gap-3 animate-slide-up"
+            style={{ animationDelay: '0.35s' }}
+          >
+            <Button render={<a href="/" />}>
               <Home className="w-4 h-4" />
               Back to Home
-            </a>
-            <button
-              onClick={() => window.history.back()}
-              className="btn-outline"
-            >
+            </Button>
+            <Button variant="outline" onClick={() => window.history.back()}>
               <ArrowLeft className="w-4 h-4" />
               Go Back
-            </button>
+            </Button>
           </div>
         </div>
 
         {/* Subtle help text */}
-        <p className={`text-center text-xs text-muted-foreground/50 mt-16 ${mounted ? 'animate-fade-in-slow' : 'opacity-0'}`}>
+        <p
+          className={`text-center text-xs text-muted-foreground/50 mt-16 ${mounted ? 'animate-fade-in-slow' : 'opacity-0'}`}
+        >
           Need assistance? Contact our support team.
         </p>
       </div>

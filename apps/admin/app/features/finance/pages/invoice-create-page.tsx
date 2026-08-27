@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
+import { toast } from 'sonner';
 
 import { InvoiceForm } from '../components/invoice-form';
 import type { InvoiceFormOutput } from '../types/finance.types';
@@ -15,7 +16,6 @@ export function InvoiceCreatePage() {
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [lineItemTypes, setLineItemTypes] = useState<LookupOption[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -27,7 +27,7 @@ export function InvoiceCreatePage() {
         setRegistrations(regs.data);
         setLineItemTypes(types);
       } catch (err) {
-        setError(
+        toast.error(
           err instanceof Error ? err.message : 'Failed to load reference data',
         );
       } finally {
@@ -38,33 +38,22 @@ export function InvoiceCreatePage() {
   }, []);
 
   async function handleSubmit(values: InvoiceFormOutput) {
-    setError(null);
     try {
       const invoice = await api.createInvoice(values as CreateInvoiceInput);
+      toast.success('Invoice created successfully.');
       navigate(`/invoices/${invoice.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create invoice');
+      const message =
+        err instanceof Error ? err.message : 'Failed to create invoice';
+      toast.error(message);
+      throw err;
     }
   }
 
   if (loading) return <p className="text-muted-foreground">Loading...</p>;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Create invoice</h1>
-        <p className="text-muted-foreground">
-          Bill a registration for its package cost and any additional charges.
-          Totals are always computed from the line items below.
-        </p>
-      </div>
-
-      {error && (
-        <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-          {error}
-        </div>
-      )}
-
+    <div className="py-6">
       <InvoiceForm
         registrations={registrations}
         lineItemTypes={lineItemTypes}

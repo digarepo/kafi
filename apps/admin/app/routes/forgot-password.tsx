@@ -18,6 +18,8 @@ export async function clientLoader() {
 /**
  * Public forgot-password route.
  */
+export { RouteHydrateFallback as HydrateFallback } from '../shared/route-hydrate-fallback';
+
 export default function ForgotPasswordRoute() {
   return <ForgotPasswordPage />;
 }

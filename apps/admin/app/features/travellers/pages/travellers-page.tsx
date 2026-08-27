@@ -11,9 +11,11 @@
 import { useEffect, useState } from 'react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { Button, Tabs, TabsList, TabsTrigger, TabsContent } from '@kafi/ui';
+import { Archive, Pencil, Plus, RotateCcw, Search } from 'lucide-react';
 
 import { usePermissions } from '../../../core/permissions';
-import { DataTable, DataTableToolbar } from '../../../shared/data-table';
+import { DataTable } from '../../../shared/data-table';
+import { useDestructiveConfirmation } from '../../../shared/delete-dialog';
 import { actionsColumn, textColumn } from '../../../shared/data-table/columns';
 import {
   api,
@@ -48,6 +50,7 @@ type Tab = 'travellers' | 'contacts' | 'registrations';
  */
 export function TravellersPage() {
   const { can } = usePermissions();
+  const { confirm } = useDestructiveConfirmation();
   const [tab, setTab] = useState<Tab>('travellers');
 
   // Reference data
@@ -212,7 +215,15 @@ export function TravellersPage() {
   }
 
   async function handleArchiveTraveller(id: string) {
-    if (!confirm('Archive this traveller?')) return;
+    if (
+      !(await confirm({
+        title: 'Archive traveller?',
+        description:
+          'The traveller will be removed from active records and can be restored later.',
+        confirmLabel: 'Archive',
+      }))
+    )
+      return;
     setError(null);
     setSuccess(null);
     try {
@@ -271,7 +282,15 @@ export function TravellersPage() {
   }
 
   async function handleArchiveContact(id: string) {
-    if (!confirm('Archive this contact person?')) return;
+    if (
+      !(await confirm({
+        title: 'Archive contact person?',
+        description:
+          'The contact person will be removed from active records and can be restored later.',
+        confirmLabel: 'Archive',
+      }))
+    )
+      return;
     setError(null);
     setSuccess(null);
     try {
@@ -323,7 +342,15 @@ export function TravellersPage() {
   }
 
   async function handleArchiveRegistration(id: string) {
-    if (!confirm('Archive this registration?')) return;
+    if (
+      !(await confirm({
+        title: 'Archive registration?',
+        description:
+          'The registration will be removed from active records and can be restored later.',
+        confirmLabel: 'Archive',
+      }))
+    )
+      return;
     setError(null);
     setSuccess(null);
     try {
@@ -359,11 +386,14 @@ export function TravellersPage() {
       actions: [
         {
           label: 'Edit',
+          icon: Pencil,
           onClick: (t) => void handleEditTraveller(t),
           disabled: () => !can('TRAVELLER_EDIT'),
         },
         {
           label: 'Archive',
+          icon: Archive,
+          variant: 'destructive',
           onClick: (t) => handleArchiveTraveller(t.id),
           disabled: () => !can('TRAVELLER_DELETE'),
         },
@@ -391,11 +421,14 @@ export function TravellersPage() {
       actions: [
         {
           label: 'Edit',
+          icon: Pencil,
           onClick: (c) => void handleEditContact(c),
           disabled: () => !can('TRAVELLER_EDIT'),
         },
         {
           label: 'Archive',
+          icon: Archive,
+          variant: 'destructive',
           onClick: (c) => handleArchiveContact(c.id),
           disabled: () => !can('TRAVELLER_DELETE'),
         },
@@ -430,11 +463,14 @@ export function TravellersPage() {
       actions: [
         {
           label: 'Edit',
+          icon: Pencil,
           onClick: (r) => void handleEditRegistration(r),
           disabled: () => !can('REGISTRATION_EDIT'),
         },
         {
           label: 'Archive',
+          icon: Archive,
+          variant: 'destructive',
           onClick: (r) => handleArchiveRegistration(r.id),
           disabled: () => !can('REGISTRATION_DELETE'),
         },
@@ -457,7 +493,7 @@ export function TravellersPage() {
         </div>
       )}
       {success && (
-        <div className="rounded-md bg-green-500/10 p-3 text-sm text-green-700">
+        <div className="rounded-md bg-success/10 p-3 text-sm text-success">
           {success}
         </div>
       )}
@@ -585,22 +621,53 @@ export function TravellersPage() {
         </TabsList>
 
         <TabsContent value="travellers" className="space-y-4">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <h2 className="text-xl font-semibold tracking-tight">Travellers</h2>
             {can('TRAVELLER_CREATE') && (
               <Button
+                className="hidden sm:inline-flex"
                 onClick={() => setCreateTravellerOpen(true)}
-                className="w-full sm:w-auto"
               >
-                + Add traveller
+                <Plus className="mr-1.5 h-4 w-4" />
+                Add traveller
+              </Button>
+            )}
+            {can('TRAVELLER_CREATE') && (
+              <Button
+                size="icon"
+                className="h-10 w-10 shrink-0 self-end rounded-full sm:hidden"
+                onClick={() => setCreateTravellerOpen(true)}
+                aria-label="Add traveller"
+              >
+                <Plus className="h-5 w-5" />
               </Button>
             )}
           </div>
 
-          <DataTableToolbar
-            filter={globalFilter}
-            onFilterChange={setGlobalFilter}
-          />
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-3">
+            <div className="relative w-full lg:max-w-xs">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="search"
+                value={globalFilter}
+                onChange={(e) => setGlobalFilter(e.target.value)}
+                placeholder="Search travellers…"
+                className="h-9 w-full rounded-md border border-input bg-background pl-9 pr-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50"
+                aria-label="Search travellers"
+              />
+            </div>
+            {globalFilter && (
+              <button
+                type="button"
+                onClick={() => setGlobalFilter('')}
+                className="flex h-9 shrink-0 items-center gap-1.5 self-start text-sm text-muted-foreground transition-colors hover:text-foreground lg:self-center"
+                aria-label="Clear filters"
+              >
+                <RotateCcw className="h-4 w-4" />
+                Clear
+              </button>
+            )}
+          </div>
 
           <DataTable
             columns={travellerColumns}
@@ -612,24 +679,55 @@ export function TravellersPage() {
         </TabsContent>
 
         <TabsContent value="contacts" className="space-y-4">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <h2 className="text-xl font-semibold tracking-tight">
               Contact persons
             </h2>
             {can('TRAVELLER_CREATE') && (
               <Button
+                className="hidden sm:inline-flex"
                 onClick={() => setCreateContactOpen(true)}
-                className="w-full sm:w-auto"
               >
-                + Add contact person
+                <Plus className="mr-1.5 h-4 w-4" />
+                Add contact person
+              </Button>
+            )}
+            {can('TRAVELLER_CREATE') && (
+              <Button
+                size="icon"
+                className="h-10 w-10 shrink-0 self-end rounded-full sm:hidden"
+                onClick={() => setCreateContactOpen(true)}
+                aria-label="Add contact person"
+              >
+                <Plus className="h-5 w-5" />
               </Button>
             )}
           </div>
 
-          <DataTableToolbar
-            filter={globalFilter}
-            onFilterChange={setGlobalFilter}
-          />
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-3">
+            <div className="relative w-full lg:max-w-xs">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="search"
+                value={globalFilter}
+                onChange={(e) => setGlobalFilter(e.target.value)}
+                placeholder="Search contacts…"
+                className="h-9 w-full rounded-md border border-input bg-background pl-9 pr-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50"
+                aria-label="Search contacts"
+              />
+            </div>
+            {globalFilter && (
+              <button
+                type="button"
+                onClick={() => setGlobalFilter('')}
+                className="flex h-9 shrink-0 items-center gap-1.5 self-start text-sm text-muted-foreground transition-colors hover:text-foreground lg:self-center"
+                aria-label="Clear filters"
+              >
+                <RotateCcw className="h-4 w-4" />
+                Clear
+              </button>
+            )}
+          </div>
 
           <DataTable
             columns={contactColumns}
@@ -641,24 +739,55 @@ export function TravellersPage() {
         </TabsContent>
 
         <TabsContent value="registrations" className="space-y-4">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <h2 className="text-xl font-semibold tracking-tight">
               Registrations
             </h2>
             {can('REGISTRATION_CREATE') && (
               <Button
+                className="hidden sm:inline-flex"
                 onClick={() => setCreateRegistrationOpen(true)}
-                className="w-full sm:w-auto"
               >
-                + Add registration
+                <Plus className="mr-1.5 h-4 w-4" />
+                Add registration
+              </Button>
+            )}
+            {can('REGISTRATION_CREATE') && (
+              <Button
+                size="icon"
+                className="h-10 w-10 shrink-0 self-end rounded-full sm:hidden"
+                onClick={() => setCreateRegistrationOpen(true)}
+                aria-label="Add registration"
+              >
+                <Plus className="h-5 w-5" />
               </Button>
             )}
           </div>
 
-          <DataTableToolbar
-            filter={globalFilter}
-            onFilterChange={setGlobalFilter}
-          />
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-3">
+            <div className="relative w-full lg:max-w-xs">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="search"
+                value={globalFilter}
+                onChange={(e) => setGlobalFilter(e.target.value)}
+                placeholder="Search registrations…"
+                className="h-9 w-full rounded-md border border-input bg-background pl-9 pr-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50"
+                aria-label="Search registrations"
+              />
+            </div>
+            {globalFilter && (
+              <button
+                type="button"
+                onClick={() => setGlobalFilter('')}
+                className="flex h-9 shrink-0 items-center gap-1.5 self-start text-sm text-muted-foreground transition-colors hover:text-foreground lg:self-center"
+                aria-label="Clear filters"
+              >
+                <RotateCcw className="h-4 w-4" />
+                Clear
+              </button>
+            )}
+          </div>
 
           <DataTable
             columns={registrationColumns}

@@ -1,4 +1,7 @@
-import { Badge, Button, Card, Separator } from "@kafi/ui";
+import { Badge } from '@ui/components/ui/badge';
+import { Button } from '@ui/components/ui/button';
+import { Card } from '@ui/components/ui/card';
+import { Separator } from '@ui/components/ui/separator';
 import {
   ArrowRightIcon,
   AirplaneIcon,
@@ -6,10 +9,20 @@ import {
   UsersIcon,
   ShieldCheckIcon,
   CheckIcon,
-} from "@phosphor-icons/react";
-import { Link } from "react-router";
+} from '@phosphor-icons/react';
+import { Link } from 'react-router';
+import { lazy, Suspense, useEffect, useState } from 'react';
 
-import { InlineCallbackForm } from "@/features/callback";
+import {
+  listPublicPackages,
+  type PublicPackageVersion,
+} from '@/lib/public-api';
+
+const InlineCallbackForm = lazy(() =>
+  import('@/features/callback/components/inline-callback-form').then((m) => ({
+    default: m.default,
+  })),
+);
 
 /**
  * Renders the partnerships section showcasing trusted travel and pilgrimage partners.
@@ -25,17 +38,29 @@ export function Partners() {
     <section className="py-12 border-t border-b border-border/30 bg-background/50 relative z-10">
       <div className="mx-auto container px-6 sm:px-8 lg:px-12 flex flex-col md:flex-row items-center justify-evenly gap-8 text-center md:text-left">
         <div>
-          <h3 className="font-heading text-xs font-bold text-brand-light dark:text-brand-gold uppercase tracking-wider">
+          <h2 className="font-heading text-xs font-bold text-brand-light dark:text-brand-gold uppercase tracking-wider">
             In Partnership With
-          </h3>
-          <p className="text-[12px] text-muted-foreground font-light mt-0.5">
+          </h2>
+          <p className="text-[12px] text-muted-foreground font-normal mt-0.5">
             Securing safe flights and premium logistics for all pilgrims.
           </p>
         </div>
         <div className="flex flex-wrap justify-center items-center gap-8 md:gap-12 opacity-70  hover:grayscale-0 transition-all duration-300">
-          <img src="/et-large.svg" className="h-20" />
+          <img
+            src="/et-large.svg"
+            alt="Ethiopian Airlines"
+            className="h-20"
+            width="120"
+            height="80"
+          />
 
-          <img src="/hajj-ministry.svg" className="h-20" />
+          <img
+            src="/hajj-ministry.svg"
+            alt="Saudi Hajj Ministry"
+            className="h-20"
+            width="120"
+            height="80"
+          />
         </div>
       </div>
     </section>
@@ -54,7 +79,10 @@ export function Partners() {
 
 export function Destinations() {
   return (
-    <section id="destinations" className="section-padding bg-muted/30 border-t border-border/20">
+    <section
+      id="destinations"
+      className="section-padding bg-muted/30 border-t border-border/20"
+    >
       <div className="mx-auto max-w-7xl px-6 sm:px-8 lg:px-12 space-y-16">
         {/* Title */}
         <div className="space-y-3 max-w-xl text-left">
@@ -67,8 +95,9 @@ export function Destinations() {
           <h2 className="font-heading text-3xl font-extrabold tracking-tight text-foreground">
             Travel Destinations
           </h2>
-          <p className="text-muted-foreground font-light text-sm">
-            Curated packages utilizing high-quality logistics and luxury boarding parameters.
+          <p className="text-muted-foreground font-normal leading-relaxed text-sm">
+            Curated packages utilizing high-quality logistics and memorable
+            Umrah stay.
           </p>
         </div>
 
@@ -78,8 +107,14 @@ export function Destinations() {
           <Card className="card card-hover lg:col-span-7 overflow-hidden border-border/30 bg-card flex flex-col justify-between min-h-100 relative">
             <div className="absolute inset-0 z-0">
               <img
-                src="hero-mecca.webp"
-                alt="Makkah"
+                src="/hero-mecca.webp"
+                alt="Makkah Al-Mukarramah with the Masjid al-Haram"
+                width={1200}
+                height={655}
+                loading="eager"
+                fetchPriority="high"
+                sizes="(max-width: 768px) 100vw, 58vw"
+                srcSet="/hero-mecca-sm.webp 400w, /hero-mecca-md.webp 768w, /hero-mecca.webp 1200w"
                 className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
               />
               <div className="absolute inset-0 bg-linear-to-t from-black/90 via-black/40 to-transparent" />
@@ -96,8 +131,9 @@ export function Destinations() {
                 Makkah Al-Mukarramah
               </h3>
               <p className="text-sm text-accent-foreground font-light leading-relaxed">
-                Perform your umrah with thoughtfully arranged accomodation near al-masjid Al-Haram,
-                Allowing you to focus on your worship with convenience.
+                Perform your umrah with thoughtfully arranged accomodation near
+                al-masjid Al-Haram, Allowing you to focus on your worship with
+                convenience.
               </p>
               <div className="flex gap-4 text-xs font-semibold text-accent">
                 <span>✓ Carefully Selected Accommodations</span>
@@ -110,8 +146,13 @@ export function Destinations() {
           <Card className="card card-hover lg:col-span-5 overflow-hidden border-border/30 bg-card flex flex-col justify-between min-h-100 relative">
             <div className="absolute inset-0 z-0">
               <img
-                src="madinah.webp"
-                alt="Madinah"
+                src="/madinah.webp"
+                alt="Al-Madinah Al-Munawwarah with the Prophet's Mosque"
+                width={1200}
+                height={655}
+                loading="lazy"
+                sizes="(max-width: 768px) 100vw, 42vw"
+                srcSet="/madinah-sm.webp 400w, /madinah-md.webp 768w, /madinah.webp 1200w"
                 className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
               />
               <div className="absolute inset-0 bg-linear-to-t from-black/90 via-black/40 to-transparent" />
@@ -128,8 +169,8 @@ export function Destinations() {
                 Al-Madinah Al-Munawwarah
               </h3>
               <p className="text-sm text-accent-foreground font-light leading-relaxed">
-                Visit the Prophet’s Mosque (Al-Masjid an-Nabawi) and trace historical landmarks in
-                peaceful guided groups.
+                Visit the Prophet’s Mosque (Al-Masjid an-Nabawi) and trace
+                historical landmarks in peaceful guided groups.
               </p>
             </div>
           </Card>
@@ -138,8 +179,13 @@ export function Destinations() {
           <Card className="card card-hover lg:col-span-12 overflow-hidden border-border/30 bg-card p-6 flex flex-col md:flex-row justify-between items-center gap-6 min-h-60 relative">
             <div className="absolute inset-0 z-0 opacity-35">
               <img
-                src="addis-departure.webp"
-                alt="Ethiopian Airlines Aircraft"
+                src="/addis-departure.webp"
+                alt="Ethiopian Airlines aircraft at Addis Ababa departure"
+                width={1200}
+                height={655}
+                loading="lazy"
+                sizes="(max-width: 768px) 100vw, 100vw"
+                srcSet="/addis-departure-sm.webp 400w, /addis-departure-md.webp 768w, /addis-departure.webp 1200w"
                 className="w-full h-full object-cover"
               />
             </div>
@@ -156,8 +202,9 @@ export function Destinations() {
                   Ethiopian Airlines
                 </h3>
                 <p className="text-sm text-foreground/70 font-normal max-w-2xl leading-relaxed">
-                  We coordinate direct Ethiopian Airlines flights from Addis Ababa (ADD) to Jeddah
-                  (JED), helping ensure a comfortable and well-organized start to your pilgrimage.
+                  We coordinate direct Ethiopian Airlines flights from Addis
+                  Ababa (ADD) to Jeddah (JED), helping ensure a comfortable and
+                  well-organized start to your pilgrimage.
                 </p>
               </div>
             </div>
@@ -181,28 +228,36 @@ export function Features() {
   const items = [
     {
       icon: <StarIcon weight="light" className="w-5 h-5 text-accent" />,
-      title: "Carefully Selected Accommodation",
-      desc: "Comfortable hotel accommodations chosen for quality, convenience, and proximity to the Haram where available.",
+      title: 'Carefully Selected Accommodation',
+      desc: 'Comfortable hotel accommodations chosen for quality, convenience, and proximity to the Haram where available.',
     },
     {
-      icon: <AirplaneIcon weight="light" className="w-5 h-5 text-accent rotate-45" />,
-      title: "Flight Coordination",
-      desc: "Travel arrangements coordinated with Ethiopian Airlines to help provide a smooth journey from departure to arrival.",
+      icon: (
+        <AirplaneIcon
+          weight="light"
+          className="w-5 h-5 text-accent rotate-45"
+        />
+      ),
+      title: 'Flight Coordination',
+      desc: 'Travel arrangements coordinated with Ethiopian Airlines to help provide a smooth journey from departure to arrival.',
     },
     {
       icon: <UsersIcon weight="light" className="w-5 h-5 text-accent" />,
-      title: "Guidance Throughout Your Journey",
-      desc: "Support before and during your pilgrimage with organized briefings and experienced group coordinators.",
+      title: 'Guidance Throughout Your Journey',
+      desc: 'Support before and during your pilgrimage with organized briefings and experienced group coordinators.',
     },
     {
       icon: <ShieldCheckIcon weight="light" className="w-5 h-5 text-accent" />,
-      title: "Visa & Travel Assistance",
-      desc: "Assistance with visa processing and the required travel documentation for your pilgrimage.",
+      title: 'Visa & Travel Assistance',
+      desc: 'Assistance with visa processing and the required travel documentation for your pilgrimage.',
     },
   ];
 
   return (
-    <section id="features" className="section-padding border-t border-border/20">
+    <section
+      id="features"
+      className="section-padding border-t border-border/20"
+    >
       <div className="mx-auto max-w-7xl w-full px-6 sm:px-8 lg:px-12 grid gap-12 lg:grid-cols-12 lg:items-center">
         {/* Left Side Content Panel */}
         <div className="lg:col-span-5 space-y-6 text-left">
@@ -217,16 +272,17 @@ export function Features() {
             <span className="font-bold text-primary">KAFI </span>
             <span className="text-accent font-normal">TOURS</span>
           </h2>
-          <p className="text-muted-foreground font-light text-sm leading-relaxed">
-            Every pilgrimage deserves careful planning. We coordinate flights, accommodation,
-            transportation, and essential travel arrangements so you can devote more of your
-            attention to worship and less to logistics.
+          <p className="text-muted-foreground font-normal text-sm leading-relaxed">
+            Every Umrah deserves careful planning. We coordinate visa
+            processing, flights, accommodation, transportation, and essential
+            travel arrangements so you can devote more of your attention to
+            worship and less to logistics.
           </p>
           <div className="pt-2">
             <Link to="/services">
               <Button
-                className="btn-outline flex items-center gap-2 text-xs hover:scale-110"
-                variant={"outline"}
+                className="flex items-center gap-2 text-xs hover:scale-110"
+                variant={'outline'}
               >
                 Explore Services
                 <ArrowRightIcon weight="regular" className="w-3.5 h-3.5 " />
@@ -246,7 +302,9 @@ export function Features() {
               <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-accent/10 border border-accent/15 group-hover:scale-110 transition-transform duration-300">
                 {feat.icon}
               </div>
-              <h3 className="font-heading text-sm font-bold text-foreground mb-1">{feat.title}</h3>
+              <h3 className="font-heading text-sm font-bold text-foreground mb-1">
+                {feat.title}
+              </h3>
               <p className="text-xs text-muted-foreground font-light leading-relaxed">
                 {feat.desc}
               </p>
@@ -267,9 +325,76 @@ export function Features() {
  * - Presents Economy, Comfort, and Premium package options.
  * - Highlights the Comfort package as the recommended choice for most travelers.
  */
+function tierKey(pkg: PublicPackageVersion): string {
+  const template = pkg.package_template?.name ?? pkg.version_name ?? '';
+  return template.split(' ')[0]?.toLowerCase() ?? '';
+}
+
+/**
+ * Renders the pricing section showcasing the available pilgrimage packages.
+ *
+ * @returns The pricing section component for the home page.
+ *
+ * @remarks
+ * - Presents Economy, Comfort, and Premium package options.
+ * - Highlights the Comfort package as the recommended choice for most travelers.
+ * - Fetches live package slugs from the API so links point to real published
+ *   package versions, not hardcoded routes that may 404.
+ * - Falls back to `/packages` if the API is unreachable so the link always works.
+ */
 export function Pricing() {
+  const [slugs, setSlugs] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    listPublicPackages()
+      .then((res) => {
+        const now = new Date();
+        const groups = new Map<string, PublicPackageVersion[]>();
+        for (const v of res.data) {
+          const key = tierKey(v);
+          const list = groups.get(key);
+          if (list) list.push(v);
+          else groups.set(key, [v]);
+        }
+        const map: Record<string, string> = {};
+        for (const [key, versions] of groups) {
+          const withDates = versions
+            .filter((v) => v.departure_date)
+            .map((v) => ({ v, d: new Date(v.departure_date!) }));
+          const upcoming = withDates
+            .filter((x) => x.d >= now)
+            .sort((a, b) => a.d.getTime() - b.d.getTime());
+          if (upcoming.length > 0) map[key] = upcoming[0]!.v.slug;
+          else {
+            const past = withDates.sort(
+              (a, b) => b.d.getTime() - a.d.getTime(),
+            );
+            if (past.length > 0) map[key] = past[0]!.v.slug;
+            else map[key] = versions[0]!.slug;
+          }
+        }
+        setSlugs(map);
+      })
+      .catch(() => {
+        // API unreachable — links will fall back to /packages
+      });
+  }, []);
+
+  const economySlug = slugs['economy']
+    ? `/packages/${slugs['economy']}`
+    : '/packages';
+  const comfortSlug = slugs['comfort']
+    ? `/packages/${slugs['comfort']}`
+    : '/packages';
+  const premiumSlug = slugs['premium']
+    ? `/packages/${slugs['premium']}`
+    : '/packages';
+
   return (
-    <section id="pricing" className="section-padding bg-muted/20 border-t border-border/20">
+    <section
+      id="pricing"
+      className="section-padding bg-muted/20 border-t border-border/20"
+    >
       <div className="mx-auto max-w-7xl px-6 sm:px-8 lg:px-12 text-center space-y-16">
         {/* Title */}
         <div className="space-y-3 max-w-xl mx-auto">
@@ -283,7 +408,8 @@ export function Pricing() {
             Pilgrimage Packages
           </h2>
           <p className="text-muted-foreground font-light text-sm">
-            Choose the package comfort level that best matches your family itinerary.
+            Choose the package comfort level that best matches your family
+            itinerary.
           </p>
         </div>
 
@@ -293,12 +419,18 @@ export function Pricing() {
           <Card className="card flex flex-col justify-between border-border/30 bg-linear-to-b from-card to-muted/10 p-6 relative">
             <div className="space-y-4">
               <div className="space-y-1">
-                <h3 className="font-heading text-sm font-bold text-foreground">Economy Package</h3>
-                <p className="text-[11px] text-muted-foreground">Best vaue for money</p>
+                <h3 className="font-heading text-sm font-bold text-foreground">
+                  Economy Package
+                </h3>
+                <p className="text-[11px] text-muted-foreground">
+                  Best vaue for money
+                </p>
               </div>
               <div className="flex items-baseline gap-1 text-foreground">
                 <span className="text-2xl font-bold">ETB 145,000</span>
-                <span className="text-[10px] text-muted-foreground font-light">/ traveler</span>
+                <span className="text-[10px] text-muted-foreground font-light">
+                  / traveler
+                </span>
               </div>
               <Separator className="opacity-60" />
               <ul className="space-y-3 text-xs text-muted-foreground font-light">
@@ -320,8 +452,8 @@ export function Pricing() {
                 </li>
               </ul>
             </div>
-            <Link to="/packages/economy">
-              <Button variant={"outline"} className="w-full btn-outline h-10 mt-8 text-xs">
+            <Link to={economySlug}>
+              <Button variant={'outline'} className="w-full h-10 mt-8 text-xs">
                 Explore Economy
               </Button>
             </Link>
@@ -338,14 +470,20 @@ export function Pricing() {
 
             <div className="space-y-4">
               <div className="space-y-1">
-                <h3 className="font-heading text-sm font-bold text-foreground">Comfort Package</h3>
+                <h3 className="font-heading text-sm font-bold text-foreground">
+                  Comfort Package
+                </h3>
                 <p className="text-[11px] text-muted-foreground">
                   Optimal balance of service & price
                 </p>
               </div>
               <div className="flex items-baseline gap-1 text-foreground">
-                <span className="text-2xl font-bold text-primary">ETB 160,000</span>
-                <span className="text-[10px] text-muted-foreground font-light">/ traveler</span>
+                <span className="text-2xl font-bold text-primary">
+                  ETB 160,000
+                </span>
+                <span className="text-[10px] text-muted-foreground font-light">
+                  / traveler
+                </span>
               </div>
               <Separator className="opacity-60" />
               <ul className="space-y-3 text-xs text-foreground font-light">
@@ -367,8 +505,8 @@ export function Pricing() {
                 </li>
               </ul>
             </div>
-            <Link to="/packages/comfort">
-              <Button className="w-full btn-primary h-10 mt-8 text-xs shadow-soft">
+            <Link to={comfortSlug}>
+              <Button className="w-full h-10 mt-8 text-xs shadow-soft">
                 Explore Comfort
               </Button>
             </Link>
@@ -378,15 +516,21 @@ export function Pricing() {
           <Card className="card flex flex-col justify-between border-border/30 bg-linear-to-b from-card to-muted/10 p-6 relative">
             <div className="space-y-4">
               <div className="space-y-1">
-                <h3 className="font-heading text-sm font-bold text-foreground">Premium Package</h3>
+                <h3 className="font-heading text-sm font-bold text-foreground">
+                  Premium Package
+                </h3>
                 <p className="text-[11px] text-muted-foreground">
                   Ultimate luxury spiritual experience
                 </p>
               </div>
               <div className="flex items-baseline gap-1 text-foreground">
                 <span className="text-[10px]">starting from </span>
-                <span className="text-2xl text-brand-gold font-bold">ETB 240,000</span>
-                <span className="text-[10px] text-muted-foreground font-light">/ traveler</span>
+                <span className="text-2xl text-brand-gold font-bold">
+                  ETB 240,000
+                </span>
+                <span className="text-[10px] text-muted-foreground font-light">
+                  / traveler
+                </span>
               </div>
               <Separator className="opacity-60" />
               <ul className="space-y-3 text-xs text-muted-foreground font-light">
@@ -408,8 +552,8 @@ export function Pricing() {
                 </li>
               </ul>
             </div>
-            <Link to="/packages/premium">
-              <Button variant={"outline"} className="w-full btn-outline h-10 mt-8 text-xs">
+            <Link to={premiumSlug}>
+              <Button variant={'outline'} className="w-full h-10 mt-8 text-xs">
                 Explore Premium
               </Button>
             </Link>
@@ -446,13 +590,22 @@ export function CTA() {
               Ready to Book Your Pilgrimage?
             </h2>
             <p className="text-xs sm:text-sm text-muted-foreground font-light leading-relaxed">
-              Register your interest and one of our dedicated spiritual travel coordinators will
-              reach out to build your custom itinerary.
+              Register your interest and one of our dedicated spiritual travel
+              coordinators will reach out to build your custom itinerary.
             </p>
           </div>
 
           <div className="flex justify-center relative z-10">
-            <InlineCallbackForm />
+            <Suspense
+              fallback={
+                <div className="flex w-full max-w-md gap-3">
+                  <div className="h-11 flex-1 animate-pulse rounded-xl bg-muted/30" />
+                  <div className="h-11 w-32 animate-pulse rounded-xl bg-muted/30" />
+                </div>
+              }
+            >
+              <InlineCallbackForm />
+            </Suspense>
           </div>
         </div>
       </div>

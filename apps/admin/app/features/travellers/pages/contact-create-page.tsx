@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
+import { toast } from 'sonner';
 import { ContactPersonForm } from '../components/contact-person-form';
 import type { ContactPersonFormOutput } from '../types/travellers.types';
 import {
   api,
+  ApiError,
   type Country,
   type Language,
   type LookupOption,
@@ -42,12 +44,21 @@ export function ContactCreatePage() {
   async function handleSubmit(values: ContactPersonFormOutput) {
     setError(null);
     try {
-      await api.createContactPerson(values);
-      navigate('/contact-persons');
+      const contact = await api.createContactPerson(values);
+      navigate(`/contact-persons/${contact.id}`);
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'Failed to create contact person',
-      );
+      if (err instanceof ApiError && err.status === 400) {
+        toast.error(
+          err.message || 'Please check the form fields and try again.',
+        );
+      } else {
+        const msg =
+          err instanceof Error
+            ? err.message
+            : 'Failed to create contact person';
+        setError(msg);
+        toast.error(msg);
+      }
     }
   }
 
@@ -56,10 +67,12 @@ export function ContactCreatePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">
+        <h1 className="text-xl font-semibold tracking-tight">
           Create contact person
         </h1>
-        <p className="text-muted-foreground">Add a reusable contact person.</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Add a reusable contact person.
+        </p>
       </div>
 
       {error && (
@@ -74,7 +87,7 @@ export function ContactCreatePage() {
         languages={languages}
         statuses={statuses}
         onSubmit={handleSubmit}
-        submitLabel="Create"
+        onCancel={() => navigate('/contact-persons')}
       />
     </div>
   );

@@ -2,17 +2,33 @@
  * Payer form for creating and editing payers.
  *
  * @remarks
- * - `payer_type_id` is locked once a payer exists (Slice 4 does not support
+ * - `payer_type_id` is locked once a payer exists (does not support
  *   changing a payer's type after creation).
  */
 
 import { useEffect, useMemo } from 'react';
 import { AnyFieldApi, useForm, useSelector } from '@tanstack/react-form';
 
-import { Button, Input, Label } from '@kafi/ui';
+import {
+  Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+  Input,
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Textarea,
+  cn,
+} from '@kafi/ui';
 
 import { FieldError } from '../../../shared/field-error';
-import { LookupSelect } from './lookup-select';
 import { payerFormSchema } from '../validation/finance.schema';
 import type {
   PayerFormOutput,
@@ -54,9 +70,17 @@ export function PayerForm({
   mode,
   payer,
   payerTypes,
+  travellers,
+  contactPersons,
   onSubmit,
   submitLabel,
 }: PayerFormProps) {
+  const title = mode === 'create' ? 'Create payer' : 'Edit payer';
+  const description =
+    mode === 'create'
+      ? 'Register a person or organization that pays for registrations.'
+      : `Update ${payer?.organization_name ?? payer?.contact_name ?? 'this payer'}'s details.`;
+
   const defaultValues = useMemo<PayerFormValues>(
     () => buildDefaultValues(mode, payer),
     [mode, payer],
@@ -88,172 +112,301 @@ export function PayerForm({
   }, [defaultValues, form]);
 
   const isSubmitting = useSelector(form.store, (state) => state.isSubmitting);
+  const selectedTypeId = useSelector(
+    form.store,
+    (state) => state.values.payer_type_id,
+  );
+  const selectedTypeCode = payerTypes.find(
+    (t) => t.id === selectedTypeId,
+  )?.code;
+  const isOrganization = selectedTypeCode === 'ORGANIZATION';
+  const isIndividual = selectedTypeCode === 'INDIVIDUAL';
 
   return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        form.handleSubmit().catch(() => null);
-      }}
-      className="space-y-6"
-    >
-      <div className="grid gap-4 md:grid-cols-2">
-        <form.Field name="payer_type_id">
-          {(field: AnyFieldApi) => (
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Payer type</Label>
-              <LookupSelect
-                value={field.state.value}
-                options={payerTypes.map((t) => ({ value: t.id, label: t.name }))}
-                placeholder="Select payer type"
-                onChange={(value) => field.handleChange(value)}
-                aria-invalid={field.state.meta.errors.length > 0}
-                className={mode === 'edit' ? 'pointer-events-none opacity-70' : ''}
-              />
-              <FieldError field={field} />
-            </div>
-          )}
-        </form.Field>
+    <Card className="border-0 bg-transparent">
+      <CardHeader className="items-center py-4">
+        <CardTitle>{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
 
-        <form.Field name="organization_name">
-          {(field: AnyFieldApi) => (
-            <div className="space-y-2">
-              <Label htmlFor="organization_name" className="text-sm font-medium">
-                Organization name
-              </Label>
-              <Input
-                id="organization_name"
-                value={field.state.value ?? ''}
-                onChange={(e) => field.handleChange(e.target.value)}
-                onBlur={field.handleBlur}
-                className="h-9 w-full"
-              />
-            </div>
-          )}
-        </form.Field>
+      <CardContent className="space-y-4">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            form.handleSubmit().catch(() => null);
+          }}
+          className="space-y-6"
+        >
+          <div className="grid gap-4 md:grid-cols-2">
+            <form.Field name="payer_type_id">
+              {(field: AnyFieldApi) => (
+                <div className="space-y-2 md:col-span-2">
+                  <Label className="text-sm font-medium">Payer type</Label>
+                  <Select
+                    value={field.state.value ?? ''}
+                    onValueChange={(v) => field.handleChange(v ?? '')}
+                  >
+                    <SelectTrigger
+                      className={cn(
+                        'h-9 w-full',
+                        mode === 'edit' ? 'pointer-events-none opacity-70' : '',
+                      )}
+                      aria-invalid={field.state.meta.errors.length > 0}
+                    >
+                      <SelectValue>
+                        {payerTypes
+                          .map((t) => ({
+                            value: t.id,
+                            label: t.name,
+                          }))
+                          .find((o) => o.value === field.state.value)?.label ??
+                          'Select payer type'}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {payerTypes
+                        .map((t) => ({
+                          value: t.id,
+                          label: t.name,
+                        }))
+                        .map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                  <FieldError field={field} />
+                </div>
+              )}
+            </form.Field>
 
-        <form.Field name="traveller_id">
-          {(field: AnyFieldApi) => (
-            <div className="space-y-2">
-              <Label htmlFor="traveller_id" className="text-sm font-medium">
-                Traveller ID
-              </Label>
-              <Input
-                id="traveller_id"
-                value={field.state.value ?? ''}
-                onChange={(e) => field.handleChange(e.target.value)}
-                onBlur={field.handleBlur}
-                className="h-9 w-full"
-                placeholder="Optional (INDIVIDUAL payers)"
-              />
-            </div>
-          )}
-        </form.Field>
+            {isOrganization && (
+              <form.Field name="organization_name">
+                {(field: AnyFieldApi) => (
+                  <div className="space-y-2 md:col-span-2">
+                    <Label
+                      htmlFor="organization_name"
+                      className="text-sm font-medium"
+                    >
+                      Organization name
+                    </Label>
+                    <Input
+                      id="organization_name"
+                      value={field.state.value ?? ''}
+                      onChange={(e) => field.handleChange(e.target.value)}
+                      onBlur={field.handleBlur}
+                      className="h-9 w-full"
+                      aria-invalid={field.state.meta.errors.length > 0}
+                    />
+                    <FieldError field={field} />
+                  </div>
+                )}
+              </form.Field>
+            )}
 
-        <form.Field name="contact_person_id">
-          {(field: AnyFieldApi) => (
-            <div className="space-y-2">
-              <Label htmlFor="contact_person_id" className="text-sm font-medium">
-                Contact person ID
-              </Label>
-              <Input
-                id="contact_person_id"
-                value={field.state.value ?? ''}
-                onChange={(e) => field.handleChange(e.target.value)}
-                onBlur={field.handleBlur}
-                className="h-9 w-full"
-                placeholder="Optional (INDIVIDUAL payers)"
-              />
-            </div>
-          )}
-        </form.Field>
+            {isOrganization && (
+              <form.Field name="contact_name">
+                {(field: AnyFieldApi) => (
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="contact_name"
+                      className="text-sm font-medium"
+                    >
+                      Contact name
+                    </Label>
+                    <Input
+                      id="contact_name"
+                      value={field.state.value ?? ''}
+                      onChange={(e) => field.handleChange(e.target.value)}
+                      onBlur={field.handleBlur}
+                      className="h-9 w-full"
+                    />
+                  </div>
+                )}
+              </form.Field>
+            )}
 
-        <form.Field name="contact_name">
-          {(field: AnyFieldApi) => (
-            <div className="space-y-2">
-              <Label htmlFor="contact_name" className="text-sm font-medium">
-                Contact name
-              </Label>
-              <Input
-                id="contact_name"
-                value={field.state.value ?? ''}
-                onChange={(e) => field.handleChange(e.target.value)}
-                onBlur={field.handleBlur}
-                className="h-9 w-full"
-              />
-            </div>
-          )}
-        </form.Field>
+            {isIndividual && (
+              <>
+                <form.Field name="traveller_id">
+                  {(field: AnyFieldApi) => (
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Traveller</Label>
+                      <Select
+                        value={field.state.value ?? ''}
+                        onValueChange={(v) => field.handleChange(v ?? '')}
+                      >
+                        <SelectTrigger className="h-9 w-full">
+                          <SelectValue>
+                            {travellers
+                              .map((t) => ({
+                                value: t.id,
+                                label: `${t.first_name} ${t.last_name}`,
+                              }))
+                              .find((o) => o.value === field.state.value)
+                              ?.label ?? 'Select traveller'}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {travellers
+                            .map((t) => ({
+                              value: t.id,
+                              label: `${t.first_name} ${t.last_name}`,
+                            }))
+                            .map((opt) => (
+                              <SelectItem key={opt.value} value={opt.value}>
+                                {opt.label}
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </form.Field>
 
-        <form.Field name="phone_number">
-          {(field: AnyFieldApi) => (
-            <div className="space-y-2">
-              <Label htmlFor="phone_number" className="text-sm font-medium">
-                Phone number
-              </Label>
-              <Input
-                id="phone_number"
-                value={field.state.value ?? ''}
-                onChange={(e) => field.handleChange(e.target.value)}
-                onBlur={field.handleBlur}
-                className="h-9 w-full"
-              />
-            </div>
-          )}
-        </form.Field>
+                <form.Field name="contact_person_id">
+                  {(field: AnyFieldApi) => (
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">
+                        Contact person
+                      </Label>
+                      <Select
+                        value={field.state.value ?? ''}
+                        onValueChange={(v) => field.handleChange(v ?? '')}
+                      >
+                        <SelectTrigger className="h-9 w-full">
+                          <SelectValue>
+                            {contactPersons
+                              .map((c) => ({
+                                value: c.id,
+                                label: `${c.first_name} ${c.last_name}`,
+                              }))
+                              .find((o) => o.value === field.state.value)
+                              ?.label ?? 'Select contact person'}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {contactPersons
+                            .map((c) => ({
+                              value: c.id,
+                              label: `${c.first_name} ${c.last_name}`,
+                            }))
+                            .map((opt) => (
+                              <SelectItem key={opt.value} value={opt.value}>
+                                {opt.label}
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </form.Field>
 
-        <form.Field name="email_address">
-          {(field: AnyFieldApi) => (
-            <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="email_address" className="text-sm font-medium">
-                Email address
-              </Label>
-              <Input
-                id="email_address"
-                type="email"
-                value={field.state.value ?? ''}
-                onChange={(e) => field.handleChange(e.target.value)}
-                onBlur={field.handleBlur}
-                className="h-9 w-full"
-                aria-invalid={field.state.meta.errors.length > 0}
-              />
-              <FieldError field={field} />
-            </div>
-          )}
-        </form.Field>
-      </div>
+                <form.Field name="contact_name">
+                  {(field: AnyFieldApi) => (
+                    <div className="space-y-2 md:col-span-2">
+                      <Label
+                        htmlFor="contact_name"
+                        className="text-sm font-medium"
+                      >
+                        Contact name
+                      </Label>
+                      <Input
+                        id="contact_name"
+                        value={field.state.value ?? ''}
+                        onChange={(e) => field.handleChange(e.target.value)}
+                        onBlur={field.handleBlur}
+                        className="h-9 w-full"
+                      />
+                    </div>
+                  )}
+                </form.Field>
+              </>
+            )}
 
-      <form.Field name="notes">
-        {(field: AnyFieldApi) => (
-          <div className="space-y-2">
-            <Label htmlFor="notes" className="text-sm font-medium">
-              Notes
-            </Label>
-            <Input
-              id="notes"
-              value={field.state.value ?? ''}
-              onChange={(e) => field.handleChange(e.target.value)}
-              onBlur={field.handleBlur}
-              className="h-9 w-full"
-            />
+            {(isOrganization || isIndividual) && (
+              <>
+                <form.Field name="phone_number">
+                  {(field: AnyFieldApi) => (
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="phone_number"
+                        className="text-sm font-medium"
+                      >
+                        Phone number
+                      </Label>
+                      <Input
+                        id="phone_number"
+                        value={field.state.value ?? ''}
+                        onChange={(e) => field.handleChange(e.target.value)}
+                        onBlur={field.handleBlur}
+                        className="h-9 w-full"
+                      />
+                    </div>
+                  )}
+                </form.Field>
+
+                <form.Field name="email_address">
+                  {(field: AnyFieldApi) => (
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="email_address"
+                        className="text-sm font-medium"
+                      >
+                        Email address
+                      </Label>
+                      <Input
+                        id="email_address"
+                        type="email"
+                        value={field.state.value ?? ''}
+                        onChange={(e) => field.handleChange(e.target.value)}
+                        onBlur={field.handleBlur}
+                        className="h-9 w-full"
+                        aria-invalid={field.state.meta.errors.length > 0}
+                      />
+                      <FieldError field={field} />
+                    </div>
+                  )}
+                </form.Field>
+              </>
+            )}
           </div>
-        )}
-      </form.Field>
 
-      <div className="flex gap-3 border-t border-border pt-6">
+          <form.Field name="notes">
+            {(field: AnyFieldApi) => (
+              <div className="space-y-2">
+                <Label htmlFor="notes" className="text-sm font-medium">
+                  Notes
+                </Label>
+                <Textarea
+                  id="notes"
+                  value={field.state.value ?? ''}
+                  onChange={(e) => field.handleChange(e.target.value)}
+                  onBlur={field.handleBlur}
+                  className="min-h-20"
+                />
+              </div>
+            )}
+          </form.Field>
+        </form>
+      </CardContent>
+
+      <CardFooter className="gap-3">
         <Button
           type="button"
           disabled={isSubmitting}
           onClick={() => form.handleSubmit().catch(() => null)}
-          className="h-9 flex-1 sm:flex-none"
+          className="h-9 flex-1"
         >
           {isSubmitting
             ? mode === 'edit'
               ? 'Saving…'
               : 'Creating…'
-            : (submitLabel ?? (mode === 'edit' ? 'Save changes' : 'Create payer'))}
+            : (submitLabel ??
+              (mode === 'edit' ? 'Save changes' : 'Create payer'))}
         </Button>
-      </div>
-    </form>
+      </CardFooter>
+    </Card>
   );
 }

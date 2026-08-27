@@ -5,43 +5,49 @@
  * - **Scope:** customer
  * - **Authority:** Kafi Tours Travel Services
  */
-import { Link, Navigate, useParams } from "react-router";
-import { ArrowLeftIcon, ArrowRightIcon, CheckIcon, PhoneCallIcon } from "@phosphor-icons/react";
+import { Link } from 'react-router';
+import {
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  CheckIcon,
+  PhoneCallIcon,
+} from '@phosphor-icons/react';
 
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-  Button,
-  Card,
-  Separator,
-} from "@kafi/ui";
+} from '@ui/components/ui/accordion';
+import { Button } from '@ui/components/ui/button';
+import { Card } from '@ui/components/ui/card';
+import { Separator } from '@ui/components/ui/separator';
 
-import { services } from "../data/services";
+import { services } from '../data/services';
 
-export default function ServiceDetailPage() {
-  const { slug } = useParams<{ slug: string }>();
+interface ServiceDetailPageProps {
+  slug: string;
+}
 
-  const service = services.find((item) => item.slug === slug);
+const trustPoints = [
+  'Licensed & government approved operations',
+  '10+ years of pilgrimage logistics support',
+  '24/7 dedicated support team in KSA',
+  'High satisfaction rates from returning pilgrims',
+  'Transparent pricing — no hidden fees',
+  'Full package refund guarantee policies',
+];
 
-  if (!service) {
-    return <Navigate to="/services" replace />;
-  }
-
-  const otherServices = services.filter((item) => item.slug !== service.slug).slice(0, 3);
-
-  const trustPoints = [
-    "Licensed & government approved operations",
-    "10+ years of pilgrimage logistics support",
-    "24/7 dedicated support team in KSA",
-    "High satisfaction rates from returning pilgrims",
-    "Transparent pricing — no hidden fees",
-    "Full package refund guarantee policies",
-  ];
-
+export default function ServiceDetailPage({ slug }: ServiceDetailPageProps) {
+  const service = services.find((item) => item.slug === slug)!;
+  const otherServices = services
+    .filter((item) => item.slug !== service.slug)
+    .slice(0, 3);
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <main
+      id="main-content"
+      className="min-h-screen bg-background text-foreground"
+    >
       <div className="mx-auto max-w-7xl px-6 pb-20 pt-28 sm:px-8 lg:px-12">
         {/* Back Navigation */}
         <Link
@@ -62,7 +68,9 @@ export default function ServiceDetailPage() {
                   {service.name}
                 </h1>
 
-                <p className="text-xs font-medium tracking-wider text-accent">{service.tagline}</p>
+                <p className="text-xs font-medium tracking-wider text-accent">
+                  {service.tagline}
+                </p>
               </div>
             </div>
 
@@ -82,9 +90,10 @@ export default function ServiceDetailPage() {
         {/* Main Content */}
         <div className="grid grid-cols-1 items-start gap-12 lg:grid-cols-12">
           {/* Main Column */}
-          <main className="space-y-14 lg:col-span-8">
+          <article className="space-y-14 lg:col-span-8">
             {/* About */}
             <section className="space-y-4">
+              <h2 className="sr-only">About This Service</h2>
               <SectionLabel>About This Service</SectionLabel>
 
               <p className="max-w-3xl text-sm font-light leading-relaxed text-muted-foreground sm:text-md">
@@ -96,15 +105,16 @@ export default function ServiceDetailPage() {
 
             {/* Process */}
             <section className="space-y-6">
+              <h2 className="sr-only">How We Help You</h2>
               <SectionLabel>How We Help You</SectionLabel>
 
-              <Accordion defaultValue={["step-0"]} className="w-full">
+              <Accordion defaultValue={['step-0']} className="w-full">
                 {service.steps.map((step, index) => (
                   <AccordionItem key={step.title} value={`step-${index}`}>
-                    <AccordionTrigger className={"border-none h-16"}>
+                    <AccordionTrigger className={'border-none h-16'}>
                       <div className="flex items-center gap-3">
                         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent/10 text-xs font-bold text-accent">
-                          {String(index + 1).padStart(2, "0")}
+                          {String(index + 1).padStart(2, '0')}
                         </span>
 
                         <span className="text-left">{step.title}</span>
@@ -125,12 +135,16 @@ export default function ServiceDetailPage() {
 
             {/* Trust */}
             <section className="space-y-6">
+              <h2 className="sr-only">Why Trust Kafi Tours</h2>
               <SectionLabel>Why Trust Kafi Tours</SectionLabel>
 
               <div className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
                 {trustPoints.map((point) => (
                   <div key={point} className="flex items-start gap-3">
-                    <CheckIcon weight="regular" className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                    <CheckIcon
+                      weight="regular"
+                      className="mt-0.5 h-4 w-4 shrink-0 text-primary"
+                    />
 
                     <span className="text-sm font-light leading-relaxed text-muted-foreground">
                       {point}
@@ -139,7 +153,7 @@ export default function ServiceDetailPage() {
                 ))}
               </div>
             </section>
-          </main>
+          </article>
 
           {/* Action Card */}
           <aside className="lg:sticky lg:top-24 lg:col-span-4">
@@ -156,14 +170,18 @@ export default function ServiceDetailPage() {
                   </h2>
 
                   <p className="text-sm font-light leading-relaxed text-muted-foreground">
-                    This service is available as part of our customizable pilgrimage packages.
+                    This service is available as part of our customizable
+                    pilgrimage packages.
                   </p>
                 </div>
 
                 {/* Actions */}
                 <div className="space-y-3">
-                  <Link to={`/enquiry?service=${service.slug}`} className="block">
-                    <Button className="btn-primary flex h-11 w-full items-center justify-center gap-2 text-sm hover:scale-105">
+                  <Link
+                    to={`/enquiry?service=${service.slug}`}
+                    className="block"
+                  >
+                    <Button className="flex h-11 w-full items-center justify-center gap-2 text-sm hover:scale-105">
                       Get Help With This Service
                       <ArrowRightIcon weight="bold" className="h-3.5 w-3.5" />
                     </Button>
@@ -179,7 +197,10 @@ export default function ServiceDetailPage() {
                 <Separator />
 
                 {/* Concierge */}
-                <a href="tel:+251111262965" className="group flex items-center gap-3">
+                <a
+                  href="tel:+251111262965"
+                  className="group flex items-center gap-3"
+                >
                   <div className="rounded-full bg-accent/10 p-2.5 text-primary transition-colors group-hover:bg-accent/20">
                     <PhoneCallIcon weight="light" className="h-5 w-5" />
                   </div>
@@ -206,7 +227,9 @@ export default function ServiceDetailPage() {
           <div className="mb-8">
             <SectionLabel>Explore More</SectionLabel>
 
-            <h2 className="mt-2 font-heading text-xl font-bold text-foreground">Other Services</h2>
+            <h2 className="mt-2 font-heading text-xl font-bold text-foreground">
+              Other Services
+            </h2>
           </div>
 
           <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
@@ -214,7 +237,11 @@ export default function ServiceDetailPage() {
               const OtherIcon = otherService.icon;
 
               return (
-                <Link key={otherService.id} to={`/services/${otherService.slug}`} className="group">
+                <Link
+                  key={otherService.id}
+                  to={`/services/${otherService.slug}`}
+                  className="group"
+                >
                   <Card className="h-full border-border/40 bg-linear-to-b from-accent/0 to-accent/10 p-6 shadow-soft transition-all duration-300 hover:border-accent/30 hover:shadow-elevated">
                     <div className="flex h-full flex-col justify-between gap-8">
                       <div className="flex items-start justify-between">
@@ -245,7 +272,7 @@ export default function ServiceDetailPage() {
           </div>
         </div>
       </section>
-    </div>
+    </main>
   );
 }
 
@@ -254,5 +281,9 @@ interface SectionLabelProps {
 }
 
 function SectionLabel({ children }: SectionLabelProps) {
-  return <span className="text-[10px] font-semibold tracking-widest text-accent">{children}</span>;
+  return (
+    <span className="text-[10px] font-semibold tracking-widest text-accent">
+      {children}
+    </span>
+  );
 }
