@@ -41,7 +41,7 @@ describe('AuthService login and refresh', () => {
     users = {
       findActiveByEmail: vi.fn(),
       findById: vi.fn(),
-      updateLastLogin: vi.fn(),
+      updateLastLogin: vi.fn().mockResolvedValue(undefined),
     };
     password = { verify: vi.fn(), hash: vi.fn() };
     jwt = {
@@ -61,7 +61,7 @@ describe('AuthService login and refresh', () => {
       isBlocked: vi.fn().mockResolvedValue(false),
       block: vi.fn().mockResolvedValue(undefined),
     };
-    audit = { log: vi.fn() };
+    audit = { log: vi.fn().mockResolvedValue(undefined) };
 
     service = new AuthService(
       jwt as any,
