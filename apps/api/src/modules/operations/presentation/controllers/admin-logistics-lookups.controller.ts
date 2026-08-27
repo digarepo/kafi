@@ -1,11 +1,11 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../../../../shared/application/guards/jwt-auth.guard.js';
 import { PermissionsGuard } from '../../../../shared/application/guards/permissions.guard.js';
 import { RequirePermissions } from '../../../../shared/application/decorators/require-permissions.decorator.js';
 import { LogisticsLookupsService } from '../../application/services/logistics-lookups.service.js';
 
 /**
- * Read-only catalog endpoints for Slice 6 logistics lookup tables.
+ * Read-only catalog endpoints for logistics lookup tables.
  */
 @Controller('admin')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -64,5 +64,11 @@ export class AdminLogisticsLookupsController {
   @RequirePermissions('TRAVEL_GROUP_VIEW')
   listTransportSegmentStatuses() {
     return this.lookups.listTransportSegmentStatuses();
+  }
+
+  @Get('cities')
+  @RequirePermissions('TRAVEL_GROUP_VIEW')
+  listCities(@Query('country_id') countryId?: string) {
+    return this.lookups.listCities(countryId);
   }
 }

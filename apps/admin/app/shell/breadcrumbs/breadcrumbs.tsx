@@ -1,5 +1,5 @@
-import { Fragment } from 'react';
-import { Link, useMatches } from 'react-router';
+import { Fragment } from "react";
+import { Link, matchPath, useMatches } from "react-router";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -7,12 +7,14 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
-} from '@kafi/ui';
+} from "@kafi/ui";
 
-import { routeRegistry, type RouteMeta } from '../routing';
+import { routeRegistry, type RouteMeta } from "../routing";
 
 function findMeta(pathname: string): RouteMeta | undefined {
-  return routeRegistry.find((route) => route.path === pathname);
+  return [...routeRegistry]
+    .sort((a, b) => b.path.length - a.path.length)
+    .find((route) => Boolean(matchPath({ path: route.path, end: true }, pathname)));
 }
 
 /**
@@ -26,19 +28,21 @@ export function AppBreadcrumbs() {
   const pathnames = matches
     .map((match) => match.pathname)
     .filter((pathname, index, self) => self.indexOf(pathname) === index)
-    .filter((pathname) => pathname !== '/');
+    .filter((pathname) => pathname !== "/");
 
   if (pathnames.length === 0) {
     return null;
   }
 
-  const items = pathnames.map((pathname) => {
-    const meta = findMeta(pathname);
-    return {
-      path: pathname,
-      label: meta?.breadcrumb?.label ?? meta?.title ?? formatSegment(pathname),
-    };
-  });
+  const items = pathnames
+    .map((pathname) => {
+      const meta = findMeta(pathname);
+      return {
+        path: pathname,
+        label: meta?.breadcrumb?.label ?? meta?.title ?? formatSegment(pathname),
+      };
+    })
+    .filter((item, index, all) => index === 0 || item.label !== all[index - 1].label);
 
   return (
     <Breadcrumb>
@@ -50,9 +54,7 @@ export function AppBreadcrumbs() {
               {index === items.length - 1 ? (
                 <BreadcrumbPage>{item.label}</BreadcrumbPage>
               ) : (
-                <BreadcrumbLink render={<Link to={item.path} />}>
-                  {item.label}
-                </BreadcrumbLink>
+                <BreadcrumbLink render={<Link to={item.path} />}>{item.label}</BreadcrumbLink>
               )}
             </BreadcrumbItem>
           </Fragment>
@@ -63,8 +65,6 @@ export function AppBreadcrumbs() {
 }
 
 function formatSegment(pathname: string): string {
-  const segment = pathname.split('/').pop() ?? pathname;
-  return segment
-    .replace(/-/g, ' ')
-    .replace(/\b\w/g, (char) => char.toUpperCase());
+  const segment = pathname.split("/").pop() ?? pathname;
+  return segment.replace(/-/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
 }

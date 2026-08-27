@@ -3,10 +3,12 @@ import { useParams } from 'react-router';
 import { Button } from '@kafi/ui';
 
 import { usePermissions } from '../../../core/permissions';
+import { useDestructiveConfirmation } from '../../../shared/delete-dialog';
 import { documentsApi, type DocumentDetail } from '../lib/api';
 
 export function DocumentDetailPage() {
   const { can } = usePermissions();
+  const { confirm } = useDestructiveConfirmation();
   const { id } = useParams<{ id: string }>();
   const [doc, setDoc] = useState<DocumentDetail | null>(null);
   const [loading, setLoading] = useState(false);
@@ -37,10 +39,18 @@ export function DocumentDetailPage() {
 
   async function handleDownload() {
     if (!id || !doc?.storage_path) return;
-    const a = window.document.createElement('a');
-    a.href = `/api/admin/documents/${id}/download`;
-    a.download = doc.original_filename ?? 'document';
-    a.click();
+    setError(null);
+    try {
+      const { blob, filename } = await documentsApi.downloadDocument(id);
+      const url = URL.createObjectURL(blob);
+      const anchor = window.document.createElement('a');
+      anchor.href = url;
+      anchor.download = filename;
+      anchor.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Download failed');
+    }
   }
 
   if (loading) return <p>Loading...</p>;
@@ -97,7 +107,13 @@ export function DocumentDetailPage() {
           <Button
             variant="destructive"
             onClick={async () => {
-              if (!confirm('Delete this document?')) return;
+              if (
+                !(await confirm({
+                  title: 'Delete document?',
+                  description: 'This document will be permanently removed.',
+                }))
+              )
+                return;
               try {
                 await documentsApi.deleteDocument(doc.id);
               } catch (err) {

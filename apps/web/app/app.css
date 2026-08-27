@@ -1,4 +1,32 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@400;500;600;700;800&display=swap');
+/* Self-hosted fonts — only critical weights to minimize transfer.
+   font-display: optional eliminates CLS from font swap entirely.
+   Fonts are preloaded via <link rel="preload"> so they are available
+   within the browser's ~100ms block period. If the font isn't ready
+   in time (very slow connection), the fallback is used with no swap. */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400;
+  font-display: optional;
+  src: url('/fonts/inter-400.woff2') format('woff2');
+  size-adjust: 90%;
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 700;
+  font-display: optional;
+  src: url('/fonts/inter-700.woff2') format('woff2');
+  size-adjust: 90%;
+}
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-weight: 700;
+  font-display: optional;
+  src: url('/fonts/montserrat-700.woff2') format('woff2');
+  size-adjust: 92%;
+}
 
 @import '../../../packages/ui/src/styles/base.css';
 
@@ -141,10 +169,11 @@
   --popover: oklch(0.235 0.03 161.19);
   --popover-foreground: oklch(0.985 0 0);
 
-  --primary: oklch(0.447 0.116 152.684);
-  --primary-foreground: oklch(1 0 0);
+  --primary: oklch(0.65 0.1 152.684);
+  --primary-foreground: oklch(0.15 0.02 160);
 
-  --secondary: oklch(0.293 0.036 161.299);
+  --color-brand-primary: hsl(150 60% 42%);
+  --color-brand-light: hsl(150 60% 48%);
   --secondary-foreground: oklch(0.697 0.027 164.075);
 
   --muted: oklch(0.293 0.036 161.299);
@@ -198,22 +227,6 @@ h6 {
 }
 
 @layer components {
-  .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 bg-brand-primary text-white px-5 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 hover:bg-brand-light hover:shadow-soft active:scale-[0.98];
-  }
-
-  .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 bg-brand-gold text-white px-5 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 hover:bg-brand-goldLight hover:shadow-soft active:scale-[0.98];
-  }
-
-  .btn-outline {
-    @apply inline-flex items-center justify-center gap-2 border border-brand-primary/20 bg-white dark:bg-transparent text-brand-primary px-5 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 hover:bg-brand-primary hover:text-white hover:border-brand-primary dark:border-brand-primary/40;
-  }
-
-  .btn-ghost {
-    @apply inline-flex items-center justify-center gap-2 text-gray-600 dark:text-gray-300 px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 hover:bg-gray-100 dark:hover:bg-white/5;
-  }
-
   .card {
     @apply bg-card text-card-foreground rounded-2xl border border-border/50 shadow-card transition-all duration-300;
   }

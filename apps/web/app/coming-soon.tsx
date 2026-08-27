@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ArrowLeft, Mail, Loader2 } from 'lucide-react';
-import { DecorativeBackground } from '@kafi/ui';
+import { DecorativeBackground } from '@ui/components/DecorativeBackground';
+import { Button } from '@ui/components/ui/button';
 
 interface StatusItem {
   label: string;
@@ -159,12 +160,13 @@ export default function ComingSoonPage() {
             className="flex flex-col sm:flex-row items-center justify-center gap-3 animate-slide-up"
             style={{ animationDelay: '0.4s' }}
           >
-            <a href="/" className="btn-primary">
+            <Button render={<a href="/" />}>
               <ArrowLeft className="w-4 h-4" />
               Back to Home
-            </a>
-            <a
-              href="/"
+            </Button>
+            <Button
+              variant="outline"
+              render={<a href="/" />}
               onClick={(e) => {
                 e.preventDefault();
                 setTimeout(
@@ -176,11 +178,10 @@ export default function ComingSoonPage() {
                 );
                 window.location.hash = '/';
               }}
-              className="btn-outline"
             >
               <Mail className="w-4 h-4" />
               Contact Support
-            </a>
+            </Button>
           </div>
         </div>
 

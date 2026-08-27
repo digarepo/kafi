@@ -1,8 +1,8 @@
 /**
  * Injection token and interface for document file storage.
  *
- * Only `LocalStorageProvider` is implemented in Slice 7; an S3-compatible
- * provider can be added in a later slice.
+ * Only `LocalStorageProvider` is implemented; an S3-compatible
+ * provider can be added later.
  */
 export const STORAGE_PROVIDER = 'STORAGE_PROVIDER';
 

@@ -1,16 +1,27 @@
+import { lazy, Suspense } from 'react';
 import { Links, Meta, Outlet, Scripts, ScrollRestoration } from 'react-router';
 import type { Route } from './+types/root';
 
 import './app.css';
-import {
-  ThemeProvider,
-  Toaster,
-  TooltipProvider,
-  UIConfigProvider,
-} from '@kafi/ui';
+import { ThemeProvider } from '@ui/providers/theme-provider';
+import { UIConfigProvider } from '@ui/providers/ui-config-provider';
 import { Navbar } from './components/layout/Navbar';
-import { MobileBottomNav } from './components/layout/MobileMenu';
 import { Footer } from './components/layout/Footer';
+
+// Lazy-load the Sonner Toaster so the toast library (~31KB) is not part of
+// the initial bundle on every page. It loads after hydration and is ready
+// before any user-triggered toast (form submissions, etc.).
+const Toaster = lazy(() =>
+  import('@ui/components/ui/sonner').then((m) => ({ default: m.Toaster })),
+);
+
+// Lazy-load the mobile menu so the Sheet component (and its @base-ui/react
+// dialog dependency) is not part of the initial bundle on every page.
+const MobileBottomNav = lazy(() =>
+  import('./components/layout/MobileMenu').then((m) => ({
+    default: m.MobileBottomNav,
+  })),
+);
 
 export function Layout({ children }: { children: React.ReactNode }) {
   return (
@@ -20,6 +31,34 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <Meta />
         <Links />
+
+        {/* Preconnect to the API to reduce connection setup latency */}
+        <link rel="preconnect" href={import.meta.env.VITE_API_URL} />
+        <link rel="dns-prefetch" href={import.meta.env.VITE_API_URL} />
+
+        {/* Preload critical font weights — body text, bold, and headings.
+            All three are used above the fold on every page. */}
+        <link
+          rel="preload"
+          href="/fonts/inter-400.woff2"
+          as="font"
+          type="font/woff2"
+          crossOrigin="anonymous"
+        />
+        <link
+          rel="preload"
+          href="/fonts/inter-700.woff2"
+          as="font"
+          type="font/woff2"
+          crossOrigin="anonymous"
+        />
+        <link
+          rel="preload"
+          href="/fonts/montserrat-700.woff2"
+          as="font"
+          type="font/woff2"
+          crossOrigin="anonymous"
+        />
 
         <link
           rel="icon"
@@ -40,13 +79,21 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <body>
         <UIConfigProvider style="nova">
           <ThemeProvider defaultTheme="system">
-            <TooltipProvider>
-              <Navbar />
-              {children}
+            <a
+              href="#main-content"
+              className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-lg focus:bg-background focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:shadow-elevated focus:border focus:border-border"
+            >
+              Skip to content
+            </a>
+            <Navbar />
+            {children}
+            <Suspense fallback={null}>
               <Toaster richColors position="top-right" duration={3000} />
-              <Footer />
-            </TooltipProvider>
-            <MobileBottomNav />
+            </Suspense>
+            <Footer />
+            <Suspense fallback={null}>
+              <MobileBottomNav />
+            </Suspense>
           </ThemeProvider>
         </UIConfigProvider>
         <ScrollRestoration />

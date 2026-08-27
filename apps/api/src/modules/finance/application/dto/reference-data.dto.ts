@@ -3,8 +3,8 @@ import { createZodDto } from '../../../../shared/infrastructure/validation/zod-d
 
 /**
  * Validation schemas and DTOs for finance reference data
- * (`payment_methods`), the only finance lookup table with admin CRUD in
- * Slice 4. All other lookups (`invoice_statuses`, `payment_statuses`,
+ * (`payment_methods`), the only finance lookup table with admin CRUD.
+ * All other lookups (`invoice_statuses`, `payment_statuses`,
  * `payer_types`, `payer_statuses`, `invoice_line_item_types`) are
  * read-only in the admin API and seeded via `database/seeds/seed.ts`.
  */

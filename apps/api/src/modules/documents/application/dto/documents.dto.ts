@@ -3,6 +3,13 @@ import { createZodDto } from '../../../../shared/infrastructure/validation/zod-d
 
 const ulidSchema = z.string().ulid();
 
+export const DOCUMENT_MAX_FILE_SIZE = 5 * 1024 * 1024;
+export const DOCUMENT_ALLOWED_MIME_TYPES = [
+  'application/pdf',
+  'image/jpeg',
+] as const;
+export const DOCUMENT_ALLOWED_EXTENSIONS = ['.pdf', '.jpg', '.jpeg'] as const;
+
 const optionalUlid = z
   .union([ulidSchema, z.literal('')])
   .optional()
@@ -21,13 +28,10 @@ const createDocumentSchema = z
     expiry_date: optionalDate,
     remarks: z.string().optional(),
   })
-  .refine(
-    (data) => data.traveller_id || data.registration_id,
-    {
-      message: 'A document must be owned by a traveller or a registration',
-      path: ['traveller_id'],
-    },
-  );
+  .refine((data) => data.traveller_id || data.registration_id, {
+    message: 'A document must be owned by a traveller or a registration',
+    path: ['traveller_id'],
+  });
 
 const updateDocumentSchema = z.object({
   document_type_id: optionalUlid,
@@ -43,6 +47,10 @@ const changeDocumentVerificationSchema = z.object({
 
 const changeDocumentStatusSchema = z.object({
   document_status_id: ulidSchema,
+});
+
+const attachDocumentToRegistrationSchema = z.object({
+  registration_id: ulidSchema,
 });
 
 const documentFiltersSchema = z.object({
@@ -63,5 +71,8 @@ export class ChangeDocumentVerificationDto extends createZodDto(
 ) {}
 export class ChangeDocumentStatusDto extends createZodDto(
   changeDocumentStatusSchema,
+) {}
+export class AttachDocumentToRegistrationDto extends createZodDto(
+  attachDocumentToRegistrationSchema,
 ) {}
 export class DocumentFiltersDto extends createZodDto(documentFiltersSchema) {}

@@ -1,6 +1,8 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app/app.module.js';
 import { ConfigService } from './shared/infrastructure/config/config.service.js';
+import { performanceMiddleware } from './shared/infrastructure/observability/performance.interceptor.js';
+import { isPerformanceInstrumentationEnabled } from './shared/infrastructure/observability/performance-context.js';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -8,6 +10,10 @@ async function bootstrap() {
 
   const config = app.get(ConfigService);
   const isProduction = config.isProduction();
+
+  if (isPerformanceInstrumentationEnabled()) {
+    app.use(performanceMiddleware);
+  }
 
   app.enableCors({
     // In production, only allow configured origins. In development, reflect the
@@ -19,7 +25,8 @@ async function bootstrap() {
           .map((o) => o.trim())
       : true,
     credentials: true,
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-Id'],
+    exposedHeaders: ['X-Request-Id'],
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
   });
 

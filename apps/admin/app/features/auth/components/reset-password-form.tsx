@@ -23,13 +23,11 @@ import { PasswordRequirements } from './password-requirements';
 
 interface ResetPasswordFormProps {
   className?: string;
-  error?: string | null;
   onSubmit: (values: ResetPasswordFormValues) => Promise<void>;
 }
 
 export function ResetPasswordForm({
   className,
-  error,
   onSubmit,
 }: ResetPasswordFormProps) {
   const [showPassword, setShowPassword] = useState(false);
@@ -70,12 +68,6 @@ export function ResetPasswordForm({
                   Enter a new password for your account.
                 </p>
               </div>
-
-              {error && (
-                <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-                  {error}
-                </div>
-              )}
 
               <form.Field name="newPassword">
                 {(field: AnyFieldApi) => (

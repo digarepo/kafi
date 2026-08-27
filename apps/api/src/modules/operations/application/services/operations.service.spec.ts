@@ -11,6 +11,11 @@ const statusTransferred = {
   status_code: 'TRANSFERRED',
   name: 'Transferred',
 };
+const statusCancelled = {
+  id: 'st-cancelled',
+  status_code: 'CANCELLED',
+  name: 'Cancelled',
+};
 
 function membershipRow(overrides: any = {}) {
   const id = overrides.id ?? 'm-1';
@@ -21,7 +26,7 @@ function membershipRow(overrides: any = {}) {
     {
       group_memberships: {
         id,
-        travel_group_id: 'tg-1',
+        travel_group_id: overrides.travel_group_id ?? 'tg-1',
         registration_id: 'reg-1',
         group_membership_status_id: statusActive.id,
         joined_at: new Date(),
@@ -31,7 +36,7 @@ function membershipRow(overrides: any = {}) {
         guarantee_required:
           overrides.guarantee_required !== undefined
             ? overrides.guarantee_required
-            : true,
+            : false,
         guarantee_waived:
           overrides.guarantee_waived !== undefined
             ? overrides.guarantee_waived
@@ -48,7 +53,7 @@ function membershipRow(overrides: any = {}) {
         name: 'Active',
       },
       registrations: { id: 'reg-1', registration_number: 'REG-001' },
-      registrationStatuses: {
+      registration_statuses: {
         id: 'rs-ready',
         status_code: registrationStatusCode,
         name: registrationStatusName,
@@ -66,7 +71,7 @@ function groupRow(overrides: any = {}) {
         id: overrides.id ?? 'tg-1',
         name: 'Group A',
         group_number: 'TGR-1',
-        package_version_id: 'pv-1',
+        package_version_id: overrides.package_version_id ?? 'pv-1',
         maximum_capacity: overrides.maximum_capacity ?? 10,
         departure_date: '2026-01-01',
         return_date: '2026-01-10',
@@ -74,28 +79,25 @@ function groupRow(overrides: any = {}) {
       },
       travel_group_statuses: {
         id: 'tgs-1',
-        status_code: overrides.status_code ?? 'OPEN',
-        name: 'Open',
+        status_code: overrides.status_code ?? 'PLANNING',
+        name: 'Planning',
       },
       package_versions: { id: 'pv-1', version_name: 'V1' },
     },
   ];
 }
 
-function registrationRow(statusCode = 'READY_FOR_TRAVEL') {
-  const name = statusCode;
+function registrationRow(
+  statusCode = 'READY_FOR_TRAVEL',
+  packageVersionId = 'pv-1',
+) {
+  // findRegistration uses a select mapping that returns a flat shape:
+  // { id, status_code, package_version_id }
   return [
     {
-      registrations: {
-        id: 'reg-1',
-        registration_number: 'REG-001',
-        traveller_id: 'trv-1',
-      },
-      registrationStatuses: {
-        id: 'rs-ready',
-        status_code: statusCode,
-        name,
-      },
+      id: 'reg-1',
+      status_code: statusCode,
+      package_version_id: packageVersionId,
     },
   ];
 }
@@ -129,7 +131,7 @@ function guaranteeRow(overrides: any = {}) {
   ];
 }
 
-function membershipWithGroupRow(statusCode = 'OPEN') {
+function membershipWithGroupRow(statusCode = 'PLANNING') {
   return [
     {
       group_memberships: {
@@ -156,7 +158,12 @@ describe('GroupMembershipsService', () => {
       [statusActive],
       [{ group_memberships: { id: 'existing' } }],
     ]);
-    const service = new GroupMembershipsService(db as any);
+    const service = new GroupMembershipsService(
+      db as any,
+      {
+        releaseAssignmentsForMembership: vi.fn().mockResolvedValue(0),
+      } as any,
+    );
 
     await expect(
       service.createMembership(
@@ -178,7 +185,12 @@ describe('GroupMembershipsService', () => {
       [statusActive],
       [{ count: 1 }],
     ]);
-    const service = new GroupMembershipsService(db as any);
+    const service = new GroupMembershipsService(
+      db as any,
+      {
+        releaseAssignmentsForMembership: vi.fn().mockResolvedValue(0),
+      } as any,
+    );
 
     await expect(
       service.createMembership(
@@ -191,7 +203,87 @@ describe('GroupMembershipsService', () => {
     ).rejects.toThrow(ConflictException);
   });
 
-  it('requires an active guarantee or waiver when creating a membership', async () => {
+  it('rejects create when registration package version does not match group', async () => {
+    const db = createMockDb([
+      groupRow({ package_version_id: 'pv-1' }),
+      registrationRow('READY_FOR_TRAVEL', 'pv-2'),
+    ]);
+    const service = new GroupMembershipsService(
+      db as any,
+      {
+        releaseAssignmentsForMembership: vi.fn().mockResolvedValue(0),
+      } as any,
+    );
+
+    await expect(
+      service.createMembership(
+        {
+          travel_group_id: 'tg-1',
+          registration_id: 'reg-1',
+        } as any,
+        actorId,
+      ),
+    ).rejects.toThrow(ConflictException);
+  });
+
+  it('allows create when registration package version matches group', async () => {
+    const db = createMockDb([
+      groupRow({ package_version_id: 'pv-1' }),
+      registrationRow('READY_FOR_TRAVEL', 'pv-1'),
+      [statusActive],
+      [],
+      [statusActive],
+      [{ count: 0 }],
+      [statusActive],
+      [], // insert result
+      membershipRow(), // final getMembership
+    ]);
+    const service = new GroupMembershipsService(
+      db as any,
+      {
+        releaseAssignmentsForMembership: vi.fn().mockResolvedValue(0),
+      } as any,
+    );
+
+    const result = await service.createMembership(
+      {
+        travel_group_id: 'tg-1',
+        registration_id: 'reg-1',
+      } as any,
+      actorId,
+    );
+
+    expect(result.id).toBe('m-1');
+    expect(db.insertValues.length).toBe(1);
+    const insert = db.insertValues[0] as any;
+    expect(insert.guarantee_required).toBe(false);
+    expect(insert.guarantee_waived).toBe(false);
+  });
+
+  it('rejects create when registration is not READY_FOR_TRAVEL', async () => {
+    const db = createMockDb([groupRow(), registrationRow('PROCESSING')]);
+    const service = new GroupMembershipsService(
+      db as any,
+      {
+        releaseAssignmentsForMembership: vi.fn().mockResolvedValue(0),
+      } as any,
+    );
+
+    await expect(
+      service.createMembership(
+        {
+          travel_group_id: 'tg-1',
+          registration_id: 'reg-1',
+        } as any,
+        actorId,
+      ),
+    ).rejects.toThrow(ConflictException);
+  });
+
+  it('does not require guarantee information at membership creation', async () => {
+    // Guarantee is owned by registration intake. A READY_FOR_TRAVEL
+    // registration has already satisfied its guarantee gate, so membership
+    // creation must succeed without any guarantee check.
     const db = createMockDb([
       groupRow(),
       registrationRow(),
@@ -200,40 +292,50 @@ describe('GroupMembershipsService', () => {
       [statusActive],
       [{ count: 0 }],
       [statusActive],
-      [],
+      [], // insert result
+      membershipRow(), // final getMembership
     ]);
-    const service = new GroupMembershipsService(db as any);
+    const service = new GroupMembershipsService(
+      db as any,
+      {
+        releaseAssignmentsForMembership: vi.fn().mockResolvedValue(0),
+      } as any,
+    );
 
-    await expect(
-      service.createMembership(
-        {
-          travel_group_id: 'tg-1',
-          registration_id: 'reg-1',
-          guarantee_required: true,
-          guarantee_waived: false,
-        } as any,
-        actorId,
-      ),
-    ).rejects.toThrow(ConflictException);
+    const result = await service.createMembership(
+      {
+        travel_group_id: 'tg-1',
+        registration_id: 'reg-1',
+      } as any,
+      actorId,
+    );
+
+    expect(result.id).toBe('m-1');
   });
 
   it('records transferred_from_group_membership_id on transfer', async () => {
     const oldId = 'm-old';
     const db = createMockDb([
-      membershipRow({ id: oldId, guarantee_required: false }),
-      groupRow({ id: 'tg-2', maximum_capacity: 10 }),
+      membershipRow({ id: oldId }),
+      groupRow({ id: 'tg-2', package_version_id: 'pv-1' }),
+      registrationRow('READY_FOR_TRAVEL', 'pv-1'),
       [statusActive],
       [{ count: 0 }],
       [statusTransferred],
-      [],
       [statusActive],
+      [],
       [],
       membershipRow({
         id: 'm-new',
         transferred_from_group_membership_id: oldId,
       }),
     ]);
-    const service = new GroupMembershipsService(db as any);
+    const service = new GroupMembershipsService(
+      db as any,
+      {
+        releaseAssignmentsForMembership: vi.fn().mockResolvedValue(0),
+      } as any,
+    );
 
     const result = await service.transferMembership(
       oldId,
@@ -247,16 +349,24 @@ describe('GroupMembershipsService', () => {
     expect(insert.transferred_from_group_membership_id).toBe(oldId);
   });
 
-  it('rejects create when registration is not READY_FOR_TRAVEL', async () => {
-    const db = createMockDb([groupRow(), registrationRow('PROCESSING')]);
-    const service = new GroupMembershipsService(db as any);
+  it('rejects transfer when registration package version does not match target group', async () => {
+    const oldId = 'm-old';
+    const db = createMockDb([
+      membershipRow({ id: oldId }),
+      groupRow({ id: 'tg-2', package_version_id: 'pv-2' }),
+      registrationRow('READY_FOR_TRAVEL', 'pv-1'),
+    ]);
+    const service = new GroupMembershipsService(
+      db as any,
+      {
+        releaseAssignmentsForMembership: vi.fn().mockResolvedValue(0),
+      } as any,
+    );
 
     await expect(
-      service.createMembership(
-        {
-          travel_group_id: 'tg-1',
-          registration_id: 'reg-1',
-        } as any,
+      service.transferMembership(
+        oldId,
+        { target_travel_group_id: 'tg-2' } as any,
         actorId,
       ),
     ).rejects.toThrow(ConflictException);
@@ -267,11 +377,15 @@ describe('GroupMembershipsService', () => {
     const db = createMockDb([
       membershipRow({
         id: oldId,
-        guarantee_required: false,
         registration_status_code: 'PROCESSING',
       }),
     ]);
-    const service = new GroupMembershipsService(db as any);
+    const service = new GroupMembershipsService(
+      db as any,
+      {
+        releaseAssignmentsForMembership: vi.fn().mockResolvedValue(0),
+      } as any,
+    );
 
     await expect(
       service.transferMembership(
@@ -281,6 +395,79 @@ describe('GroupMembershipsService', () => {
       ),
     ).rejects.toThrow(ConflictException);
   });
+
+  it('blocks membership deletion when group is TRAVEL_PREPARED', async () => {
+    const db = createMockDb([
+      membershipRow({ id: 'm-1' }),
+      [{ status_code: 'TRAVEL_PREPARED' }],
+      [statusCancelled],
+    ]);
+    const service = new GroupMembershipsService(
+      db as any,
+      {
+        releaseAssignmentsForMembership: vi.fn().mockResolvedValue(0),
+      } as any,
+    );
+
+    await expect(service.deleteMembership('m-1', actorId)).rejects.toThrow(
+      ConflictException,
+    );
+  });
+
+  it('blocks membership deletion when group is DEPARTED', async () => {
+    const db = createMockDb([
+      membershipRow({ id: 'm-1' }),
+      [{ status_code: 'DEPARTED' }],
+      [statusCancelled],
+    ]);
+    const service = new GroupMembershipsService(
+      db as any,
+      {
+        releaseAssignmentsForMembership: vi.fn().mockResolvedValue(0),
+      } as any,
+    );
+
+    await expect(service.deleteMembership('m-1', actorId)).rejects.toThrow(
+      ConflictException,
+    );
+  });
+
+  it('blocks membership deletion when group is COMPLETED', async () => {
+    const db = createMockDb([
+      membershipRow({ id: 'm-1' }),
+      [{ status_code: 'COMPLETED' }],
+      [statusCancelled],
+    ]);
+    const service = new GroupMembershipsService(
+      db as any,
+      {
+        releaseAssignmentsForMembership: vi.fn().mockResolvedValue(0),
+      } as any,
+    );
+
+    await expect(service.deleteMembership('m-1', actorId)).rejects.toThrow(
+      ConflictException,
+    );
+  });
+
+  it('allows membership deletion when group is PLANNING', async () => {
+    const db = createMockDb([
+      membershipRow({ id: 'm-1' }),
+      [{ status_code: 'PLANNING' }],
+      [statusCancelled],
+    ]);
+    const service = new GroupMembershipsService(
+      db as any,
+      {
+        releaseAssignmentsForMembership: vi.fn().mockResolvedValue(0),
+      } as any,
+    );
+
+    await service.deleteMembership('m-1', actorId);
+    expect(db.updateSets.length).toBe(1);
+    const update = db.updateSets[0] as any;
+    expect(update.is_deleted).toBe(true);
+  });
 });
 
 describe('GuaranteesService', () => {
@@ -288,7 +475,7 @@ describe('GuaranteesService', () => {
     const oldId = 'g-old';
     const db = createMockDb([
       guaranteeRow({ id: oldId, guarantee_status: 'ACTIVE' }),
-      membershipWithGroupRow('OPEN'),
+      membershipWithGroupRow('PLANNING'),
       [],
       [],
       [],

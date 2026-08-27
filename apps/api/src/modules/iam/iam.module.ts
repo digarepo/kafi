@@ -92,6 +92,10 @@ import { RolesController } from './presentation/controllers/roles.controller.js'
     AuditLogger,
     UserRepository,
     RoleRepository,
+    // Exported so other bounded contexts (e.g. inquiries) can send mail
+    // through the single configured driver instead of duplicating the
+    // driver-selection logic.
+    Mailer,
   ],
 })
 export class IAMModule {}

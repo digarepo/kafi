@@ -7,12 +7,18 @@ import mysql from 'mysql2/promise';
 import {
   contactPersonStatuses,
   countries,
+  creditExceptionRequestStatuses,
   currencies,
+  expenseCategories,
+  expenseSources,
+  expenseStatuses,
+  financeExceptionStatuses,
   groupMembershipStatuses,
   invoiceLineItemTypes,
   invoiceStatuses,
   languages,
   packageCategories,
+  packageTemplateStatuses,
   packageVersionStatuses,
   payerStatuses,
   payerTypes,
@@ -21,6 +27,7 @@ import {
   paymentStatuses,
   permissions,
   pilgrimageTypes,
+  refundStatuses,
   regions,
   registrationStatuses,
   relationshipTypes,
@@ -50,7 +57,6 @@ const USER_STATUS_CODES = [
   { status_code: 'ACTIVE', name: 'Active' },
   { status_code: 'INACTIVE', name: 'Inactive' },
   { status_code: 'SUSPENDED', name: 'Suspended' },
-  { status_code: 'LOCKED', name: 'Locked' },
   { status_code: 'DELETED', name: 'Deleted' },
 ];
 
@@ -164,6 +170,21 @@ const PERMISSION_CODES = [
     module: 'Financial',
   },
   {
+    permission_code: 'FINANCE_CREDIT_AUTHORIZE',
+    name: 'Authorize finance credit exceptions',
+    module: 'Financial',
+  },
+  {
+    permission_code: 'FINANCE_CREDIT_REQUEST',
+    name: 'Request finance credit exceptions',
+    module: 'Financial',
+  },
+  {
+    permission_code: 'FINANCE_REFUND_APPROVE',
+    name: 'Approve refunds',
+    module: 'Financial',
+  },
+  {
     permission_code: 'VISA_VIEW',
     name: 'View visas',
     module: 'Visa',
@@ -194,6 +215,26 @@ const PERMISSION_CODES = [
     name: 'Manage travel groups',
     module: 'Travel Groups',
   },
+  {
+    permission_code: 'FLIGHT_VIEW',
+    name: 'View flight bookings',
+    module: 'Flights',
+  },
+  {
+    permission_code: 'FLIGHT_MANAGE',
+    name: 'Manage flight bookings',
+    module: 'Flights',
+  },
+  {
+    permission_code: 'INQUIRY_VIEW',
+    name: 'View inquiries',
+    module: 'Inquiries',
+  },
+  {
+    permission_code: 'INQUIRY_MANAGE',
+    name: 'Manage inquiries',
+    module: 'Inquiries',
+  },
 ];
 
 const ROLE_PERMISSION_MAP: Record<string, string[]> = {
@@ -202,7 +243,8 @@ const ROLE_PERMISSION_MAP: Record<string, string[]> = {
     (code) =>
       !code.startsWith('USER_') &&
       !code.endsWith('_DELETE') &&
-      code !== 'AUTH_MANAGE',
+      code !== 'AUTH_MANAGE' &&
+      code !== 'FINANCE_CREDIT_AUTHORIZE',
   ),
   AGENT: [
     'DASHBOARD_VIEW',
@@ -214,14 +256,27 @@ const ROLE_PERMISSION_MAP: Record<string, string[]> = {
     'REGISTRATION_CREATE',
     'FINANCE_VIEW',
     'FINANCE_CREATE',
+    'FINANCE_EDIT',
+    'FINANCE_CREDIT_REQUEST',
     'VISA_VIEW',
     'VISA_MANAGE',
     'DOCUMENT_VIEW',
     'DOCUMENT_MANAGE',
     'TRAVEL_GROUP_VIEW',
     'TRAVEL_GROUP_MANAGE',
+    'FLIGHT_VIEW',
+    'FLIGHT_MANAGE',
+    // Agents are the front line who call inbound leads, so they need to be
+    // able to action the inbox, not just read it.
+    'INQUIRY_VIEW',
+    'INQUIRY_MANAGE',
   ],
 };
+
+const PACKAGE_TEMPLATE_STATUS_CODES = [
+  { status_code: 'ACTIVE', name: 'Active' },
+  { status_code: 'ARCHIVED', name: 'Archived' },
+];
 
 const PACKAGE_VERSION_STATUS_CODES = [
   { status_code: 'DRAFT', name: 'Draft' },
@@ -302,6 +357,75 @@ const INVOICE_LINE_ITEM_TYPE_CODES = [
   { line_item_type_code: 'INSURANCE', name: 'Insurance' },
   { line_item_type_code: 'EXTRA_LUGGAGE', name: 'Extra Luggage' },
   { line_item_type_code: 'OTHER_SERVICE_CHARGE', name: 'Other Service Charge' },
+];
+
+// Finance Integration reference data
+
+const EXPENSE_STATUS_CODES = [
+  { status_code: 'PENDING', name: 'Pending', display_order: 1 },
+  { status_code: 'CONFIRMED', name: 'Confirmed', display_order: 2 },
+  { status_code: 'CANCELLED', name: 'Cancelled', display_order: 3 },
+];
+
+const EXPENSE_CATEGORY_CODES = [
+  { category_code: 'VISA', name: 'Visa', display_order: 1 },
+  { category_code: 'FLIGHT', name: 'Flight', display_order: 2 },
+  { category_code: 'ACCOMMODATION', name: 'Accommodation', display_order: 3 },
+  { category_code: 'TRANSPORT', name: 'Transport', display_order: 4 },
+  {
+    category_code: 'CANCELLATION_CHARGE',
+    name: 'Cancellation Charge',
+    display_order: 5,
+  },
+  { category_code: 'OTHER', name: 'Other', display_order: 6 },
+];
+
+const EXPENSE_SOURCE_CODES = [
+  {
+    source_code: 'VISA_APPLICATION',
+    name: 'Visa Application',
+    display_order: 1,
+  },
+  { source_code: 'FLIGHT_BOOKING', name: 'Flight Booking', display_order: 2 },
+  {
+    source_code: 'GROUP_HOTEL_STAY',
+    name: 'Group Hotel Stay',
+    display_order: 3,
+  },
+  {
+    source_code: 'TRANSPORT_SEGMENT',
+    name: 'Transport Segment',
+    display_order: 4,
+  },
+  {
+    source_code: 'DIRECT_FINANCE',
+    name: 'Direct Finance Entry',
+    display_order: 5,
+  },
+  {
+    source_code: 'CANCELLATION',
+    name: 'Cancellation Adjustment',
+    display_order: 6,
+  },
+];
+
+const FINANCE_EXCEPTION_STATUS_CODES = [
+  { status_code: 'ACTIVE', name: 'Active', display_order: 1 },
+  { status_code: 'EXPIRED', name: 'Expired', display_order: 2 },
+  { status_code: 'REVOKED', name: 'Revoked', display_order: 3 },
+];
+
+const REFUND_STATUS_CODES = [
+  { status_code: 'PENDING', name: 'Pending', display_order: 1 },
+  { status_code: 'APPROVED', name: 'Approved', display_order: 2 },
+  { status_code: 'COMPLETED', name: 'Completed', display_order: 3 },
+  { status_code: 'CANCELLED', name: 'Cancelled', display_order: 4 },
+];
+
+const CREDIT_EXCEPTION_REQUEST_STATUS_CODES = [
+  { status_code: 'PENDING', name: 'Pending', display_order: 1 },
+  { status_code: 'APPROVED', name: 'Approved', display_order: 2 },
+  { status_code: 'REJECTED', name: 'Rejected', display_order: 3 },
 ];
 
 /**
@@ -395,6 +519,19 @@ async function seed() {
     }
 
     // Package reference data
+    for (const status of PACKAGE_TEMPLATE_STATUS_CODES) {
+      await db
+        .insert(packageTemplateStatuses)
+        .values({
+          id: ulid(),
+          ...status,
+          is_active: true,
+        })
+        .onDuplicateKeyUpdate({
+          set: { name: status.name, is_active: true },
+        });
+    }
+
     for (const status of PACKAGE_VERSION_STATUS_CODES) {
       await db
         .insert(packageVersionStatuses)
@@ -631,6 +768,85 @@ async function seed() {
         });
     }
 
+    // Finance Integration reference data
+    for (const status of EXPENSE_STATUS_CODES) {
+      await db
+        .insert(expenseStatuses)
+        .values({ id: ulid(), ...status, is_active: true })
+        .onDuplicateKeyUpdate({
+          set: {
+            name: status.name,
+            is_active: true,
+            display_order: status.display_order,
+          },
+        });
+    }
+
+    for (const category of EXPENSE_CATEGORY_CODES) {
+      await db
+        .insert(expenseCategories)
+        .values({ id: ulid(), ...category, is_active: true })
+        .onDuplicateKeyUpdate({
+          set: {
+            name: category.name,
+            is_active: true,
+            display_order: category.display_order,
+          },
+        });
+    }
+
+    for (const source of EXPENSE_SOURCE_CODES) {
+      await db
+        .insert(expenseSources)
+        .values({ id: ulid(), ...source, is_active: true })
+        .onDuplicateKeyUpdate({
+          set: {
+            name: source.name,
+            is_active: true,
+            display_order: source.display_order,
+          },
+        });
+    }
+
+    for (const status of FINANCE_EXCEPTION_STATUS_CODES) {
+      await db
+        .insert(financeExceptionStatuses)
+        .values({ id: ulid(), ...status, is_active: true })
+        .onDuplicateKeyUpdate({
+          set: {
+            name: status.name,
+            is_active: true,
+            display_order: status.display_order,
+          },
+        });
+    }
+
+    for (const status of REFUND_STATUS_CODES) {
+      await db
+        .insert(refundStatuses)
+        .values({ id: ulid(), ...status, is_active: true })
+        .onDuplicateKeyUpdate({
+          set: {
+            name: status.name,
+            is_active: true,
+            display_order: status.display_order,
+          },
+        });
+    }
+
+    for (const status of CREDIT_EXCEPTION_REQUEST_STATUS_CODES) {
+      await db
+        .insert(creditExceptionRequestStatuses)
+        .values({ id: ulid(), ...status, is_active: true })
+        .onDuplicateKeyUpdate({
+          set: {
+            name: status.name,
+            is_active: true,
+            display_order: status.display_order,
+          },
+        });
+    }
+
     // Traveller reference data
     const TRAVELLER_STATUS_CODES = [
       { status_code: 'ACTIVE', name: 'Active' },
@@ -667,14 +883,6 @@ async function seed() {
       { status_code: 'ACTIVE', name: 'Active' },
       { status_code: 'INACTIVE', name: 'Inactive' },
       { status_code: 'UNVERIFIED', name: 'Unverified' },
-    ];
-
-    const REGISTRATION_STATUS_CODES = [
-      { status_code: 'DRAFT', name: 'Draft' },
-      { status_code: 'PROCESSING', name: 'Processing' },
-      { status_code: 'READY_FOR_TRAVEL', name: 'Ready for Travel' },
-      { status_code: 'COMPLETED', name: 'Completed' },
-      { status_code: 'CANCELLED', name: 'Cancelled' },
     ];
 
     const COUNTRY_CODES = [
@@ -743,15 +951,6 @@ async function seed() {
     for (const status of TRAVELLER_CONTACT_STATUS_CODES) {
       await db
         .insert(travellerContactStatuses)
-        .values({ id: ulid(), ...status, is_active: true })
-        .onDuplicateKeyUpdate({
-          set: { name: status.name, is_active: true },
-        });
-    }
-
-    for (const status of REGISTRATION_STATUS_CODES) {
-      await db
-        .insert(registrationStatuses)
         .values({ id: ulid(), ...status, is_active: true })
         .onDuplicateKeyUpdate({
           set: { name: status.name, is_active: true },

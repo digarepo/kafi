@@ -11,6 +11,8 @@
 export class MockDb {
   queue: unknown[] = [];
   calls: string[] = [];
+  insertValues: unknown[] = [];
+  updateSets: unknown[] = [];
 
   setQueue(values: unknown[]) {
     this.queue = [...values];
@@ -34,10 +36,12 @@ export class MockDb {
   }
 
   insert(..._args: unknown[]) {
+    this.insertValues.length = 0;
     return this.logCall('insert');
   }
 
   update(..._args: unknown[]) {
+    this.updateSets.length = 0;
     return this.logCall('update');
   }
 
@@ -49,11 +53,13 @@ export class MockDb {
     return this.logCall('from');
   }
 
-  values(..._args: unknown[]) {
+  values(...args: unknown[]) {
+    this.insertValues.push(args[0]);
     return this.logCall('values');
   }
 
-  set(..._args: unknown[]) {
+  set(...args: unknown[]) {
+    this.updateSets.push(args[0]);
     return this.logCall('set');
   }
 
@@ -101,8 +107,17 @@ export class MockDb {
     return this.logCall('offset');
   }
 
+  groupBy(..._args: unknown[]) {
+    return this.logCall('groupBy');
+  }
+
   $dynamic(..._args: unknown[]) {
     return this.logCall('$dynamic');
+  }
+
+  async transaction<T>(callback: (db: MockDb) => Promise<T> | T): Promise<T> {
+    const result = await callback(this);
+    return result as T;
   }
 }
 

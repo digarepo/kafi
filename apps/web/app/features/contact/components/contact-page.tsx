@@ -15,7 +15,8 @@ import {
   PhoneIcon,
   WhatsappLogoIcon,
 } from '@phosphor-icons/react';
-import { Badge } from '@kafi/ui';
+import { Badge } from '@ui/components/ui/badge';
+import { Button } from '@ui/components/ui/button';
 
 import ContactPanel from './contact-panel';
 import EnquiryForm from './contact-form';
@@ -35,7 +36,7 @@ const LOCATION = {
 
 export default function ContactPage() {
   return (
-    <main>
+    <main id="main-content">
       <section className="relative overflow-hidden border-b border-border/10 bg-linear-to-b from-muted/10 to-background pt-28 pb-12 md:pt-32 md:pb-16">
         <div className="mx-auto max-w-7xl px-6 sm:px-8 lg:px-12">
           <div className="max-w-3xl">
@@ -149,14 +150,19 @@ export default function ContactPage() {
                     </p>
                   </div>
                 </div>
-                <a
-                  href={LOCATION.directionsUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="btn-outline inline-flex h-11 items-center gap-2 px-5 text-sm"
+                <Button
+                  variant="outline"
+                  render={
+                    <a
+                      href={LOCATION.directionsUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                    />
+                  }
+                  className="h-11 gap-2 px-5 text-sm"
                 >
                   Get directions <ArrowRightIcon className="size-4" />
-                </a>
+                </Button>
               </div>
             </div>
 

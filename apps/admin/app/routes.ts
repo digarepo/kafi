@@ -29,6 +29,10 @@ export default [
       route(':id', 'routes/admin/registrations/$id.tsx'),
       route(':id/edit', 'routes/admin/registrations/$id-edit.tsx'),
     ]),
+    route('inquiries', 'routes/admin/inquiries.tsx', [
+      index('routes/admin/inquiries/index.tsx'),
+      route(':id', 'routes/admin/inquiries/$id.tsx'),
+    ]),
     route('invoices', 'routes/admin/invoices.tsx', [
       index('routes/admin/invoices/index.tsx'),
       route('new', 'routes/admin/invoices/new.tsx'),
@@ -38,6 +42,30 @@ export default [
       index('routes/admin/payments/index.tsx'),
       route('new', 'routes/admin/payments/new.tsx'),
       route(':id', 'routes/admin/payments/$id.tsx'),
+    ]),
+    route('finance/dashboard', 'routes/admin/finance-dashboard.tsx'),
+    route('expenses', 'routes/admin/expenses.tsx', [
+      index('routes/admin/expenses/index.tsx'),
+      route('new', 'routes/admin/expenses/new.tsx'),
+    ]),
+    route('finance-exceptions', 'routes/admin/finance-exceptions.tsx', [
+      index('routes/admin/finance-exceptions/index.tsx'),
+      route('new', 'routes/admin/finance-exceptions/new.tsx'),
+      route(':id', 'routes/admin/finance-exceptions/$id.tsx'),
+    ]),
+    route(
+      'credit-exception-requests',
+      'routes/admin/credit-exception-requests.tsx',
+      [
+        index('routes/admin/credit-exception-requests/index.tsx'),
+        route('new', 'routes/admin/credit-exception-requests/new.tsx'),
+        route(':id', 'routes/admin/credit-exception-requests/$id.tsx'),
+      ],
+    ),
+    route('refunds', 'routes/admin/refunds.tsx', [
+      index('routes/admin/refunds/index.tsx'),
+      route('new', 'routes/admin/refunds/new.tsx'),
+      route(':id', 'routes/admin/refunds/$id.tsx'),
     ]),
     route('travel-groups', 'routes/admin/travel-groups.tsx', [
       index('routes/admin/travel-groups/index.tsx'),
@@ -57,6 +85,11 @@ export default [
       index('routes/admin/visa-applications/index.tsx'),
       route('new', 'routes/admin/visa-applications/new.tsx'),
       route(':id', 'routes/admin/visa-applications/$id.tsx'),
+    ]),
+    route('flight-bookings', 'routes/admin/flight-bookings.tsx', [
+      index('routes/admin/flight-bookings/index.tsx'),
+      route('new', 'routes/admin/flight-bookings/new.tsx'),
+      route(':id', 'routes/admin/flight-bookings/$id.tsx'),
     ]),
     route('payers', 'routes/admin/payers.tsx'),
     route('payment-methods', 'routes/admin/payment-methods.tsx'),

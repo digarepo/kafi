@@ -3,12 +3,13 @@
  */
 
 import {
-  Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
 } from '@kafi/ui';
 
 import { ContactPersonForm } from './contact-person-form';
@@ -59,42 +60,40 @@ export function ContactPersonDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] w-full overflow-y-auto sm:max-w-2xl">
-        <DialogHeader className="flex flex-col items-center gap-2 text-left">
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
-        </DialogHeader>
+      <DialogContent className="max-h-[90vh] w-full overflow-y-auto sm:max-w-2xl p-0">
+        <Card className="border-0 bg-transparent">
+          <CardHeader className="items-center py-4">
+            <CardTitle>{title}</CardTitle>
+            <CardDescription>{description}</CardDescription>
+          </CardHeader>
 
-        <div className="space-y-4 py-4">
-          {error && (
-            <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-              {error}
-            </div>
-          )}
-          {success && (
-            <div className="rounded-md bg-green-500/10 p-3 text-sm text-green-700">
-              {success}
-            </div>
-          )}
+          <CardContent className="space-y-4">
+            {error && (
+              <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+                {error}
+              </div>
+            )}
+            {success && (
+              <div className="rounded-md bg-success/10 p-3 text-sm text-success">
+                {success}
+              </div>
+            )}
 
-          {success ? (
-            <div className="flex justify-end">
-              <Button onClick={() => onOpenChange(false)}>Close</Button>
-            </div>
-          ) : (
-            <ContactPersonForm
-              mode={mode}
-              contactPerson={contactPerson}
-              countries={countries}
-              languages={languages}
-              statuses={statuses}
-              onSubmit={onSubmit}
-              submitLabel={
-                mode === 'create' ? 'Create contact person' : 'Save changes'
-              }
-            />
-          )}
-        </div>
+            {success ? null : (
+              <ContactPersonForm
+                mode={mode}
+                contactPerson={contactPerson}
+                countries={countries}
+                languages={languages}
+                statuses={statuses}
+                onSubmit={onSubmit}
+                submitLabel={
+                  mode === 'create' ? 'Create contact person' : 'Save changes'
+                }
+              />
+            )}
+          </CardContent>
+        </Card>
       </DialogContent>
     </Dialog>
   );

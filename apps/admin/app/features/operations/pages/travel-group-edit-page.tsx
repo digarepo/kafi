@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { api, type PackageVersion, type TravelGroup } from '../../../lib/api.js';
+import {
+  api,
+  type PackageVersion,
+  type TravelGroup,
+} from '../../../lib/api.js';
 import { TravelGroupForm } from '../components/travel-group-form';
 import type { TravelGroupFormOutput } from '../types/operations.types';
 
@@ -29,9 +33,7 @@ export function TravelGroupEditPage() {
       } catch (err) {
         if (!cancelled)
           setError(
-            err instanceof Error
-              ? err.message
-              : 'Failed to load travel group',
+            err instanceof Error ? err.message : 'Failed to load travel group',
           );
       } finally {
         if (!cancelled) setLoading(false);
@@ -50,7 +52,10 @@ export function TravelGroupEditPage() {
   }
 
   if (loading) return <p className="text-muted-foreground">Loading…</p>;
-  if (error || !group) return <p className="text-destructive">{error ?? 'Travel group not found'}</p>;
+  if (error || !group)
+    return (
+      <p className="text-destructive">{error ?? 'Travel group not found'}</p>
+    );
 
   return (
     <div className="space-y-6">
@@ -63,6 +68,7 @@ export function TravelGroupEditPage() {
         group={group}
         packageVersions={packageVersions}
         onSubmit={handleSubmit}
+        onCancel={() => navigate(`/travel-groups/${id}`)}
       />
     </div>
   );

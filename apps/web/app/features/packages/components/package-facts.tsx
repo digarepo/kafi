@@ -1,33 +1,71 @@
-import { ClockIcon, MapPinIcon } from '@phosphor-icons/react';
+import {
+  ClockIcon,
+  MapPinIcon,
+  CalendarIcon,
+  UsersIcon,
+} from '@phosphor-icons/react';
 
-import type { PackageItem } from '../types/package.types';
+import type { PublicPackageVersion } from '../../../lib/public-api';
 
 interface PackageFactsProps {
-  package: PackageItem;
+  package: PublicPackageVersion;
 }
 
 /**
- * Renders the quick-facts strip for a package: duration and departure.
+ * Computes a human-readable duration from departure and return dates.
+ */
+function formatDuration(pkg: PublicPackageVersion): string {
+  if (!pkg.departure_date || !pkg.return_date) return 'Dates TBD';
+  const start = new Date(pkg.departure_date);
+  const end = new Date(pkg.return_date);
+  const nights = Math.round(
+    (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24),
+  );
+  return `${nights} Days`;
+}
+
+/**
+ * Formats a date as "18 Feb 2027".
+ */
+function formatDate(dateStr: string | null): string {
+  if (!dateStr) return 'TBD';
+  return new Date(dateStr).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
+/**
+ * Renders the quick-facts strip for a package: duration, departure, departure date, and group size.
  *
  * @returns The package facts component.
  *
  * @remarks
  * - The single source of truth for these facts on the detail page; the booking
  *   card deliberately does not repeat them.
+ * - Accepts the API's `PublicPackageVersion` shape.
  */
 export function PackageFacts({ package: pkg }: PackageFactsProps) {
   const facts = [
-    { icon: ClockIcon, label: 'Duration', value: pkg.duration },
+    { icon: ClockIcon, label: 'Duration', value: formatDuration(pkg) },
     { icon: MapPinIcon, label: 'Departure', value: 'Addis Ababa' },
+    {
+      icon: CalendarIcon,
+      label: 'Departure Date',
+      value: formatDate(pkg.departure_date),
+    },
+    {
+      icon: UsersIcon,
+      label: 'Group Size',
+      value: pkg.max_capacity ? `Up to ${pkg.max_capacity} pilgrims` : 'TBD',
+    },
   ];
 
   return (
-    <div className="grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-border/40 bg-border/40 sm:grid-cols-2">
+    <div className="grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-border/40 bg-border/40 sm:grid-cols-2 lg:grid-cols-4">
       {facts.map((fact) => (
-        <div
-          key={fact.label}
-          className="flex items-center gap-3 bg-card p-5"
-        >
+        <div key={fact.label} className="flex items-center gap-3 bg-card p-5">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent/10 text-accent">
             <fact.icon className="h-5 w-5" />
           </div>

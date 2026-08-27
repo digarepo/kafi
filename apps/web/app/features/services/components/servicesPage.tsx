@@ -9,16 +9,20 @@
 
 import { SparkleIcon } from '@phosphor-icons/react';
 
-import { Badge, DecorativeBackground } from '@kafi/ui';
+import { Badge } from '@ui/components/ui/badge';
+import { DecorativeBackground } from '@ui/components/DecorativeBackground';
 
 import { services } from '../data/services';
 import { JourneySteps } from './JourneySteps';
 import { ServiceCard } from './ServiceCard';
-import InlineCustomServiceCard from './inline-custom-service-card';
+import { LazyInlineCustomServiceCard } from './lazy-inline-custom-service-card';
 
 export default function ServicesPage() {
   return (
-    <div className="relative min-h-screen bg-background text-foreground transition-colors duration-300">
+    <main
+      id="main-content"
+      className="relative min-h-screen bg-background text-foreground transition-colors duration-300"
+    >
       <DecorativeBackground variant="ambient" />
 
       <div className="relative z-10 flex min-h-screen flex-col">
@@ -65,11 +69,11 @@ export default function ServicesPage() {
             </div>
 
             <section className="mt-20 rounded-3xl bg-muted/30 p-2 sm:p-4 md:mt-28">
-              <InlineCustomServiceCard />
+              <LazyInlineCustomServiceCard />
             </section>
           </div>
         </section>
       </div>
-    </div>
+    </main>
   );
 }

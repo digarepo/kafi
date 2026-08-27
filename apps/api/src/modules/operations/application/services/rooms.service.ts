@@ -15,6 +15,11 @@ import {
   RoomFiltersDto,
   UpdateRoomDto,
 } from '../dto/operations.dto.js';
+import {
+  assertGroupAllowsAccommodationChange,
+  resolveTravelGroupIdForStay,
+  resolveTravelGroupIdForRoom,
+} from './group-state-guard.js';
 
 /**
  * Room inventory within a group hotel stay.
@@ -94,6 +99,17 @@ export class RoomsService {
     await this.assertRoomNumberUnique(dto.group_hotel_stay_id, dto.room_number);
     await this.getStay(dto.group_hotel_stay_id);
 
+    // Group-state guard
+    const travelGroupId = await resolveTravelGroupIdForStay(
+      this.db,
+      dto.group_hotel_stay_id,
+    );
+    await assertGroupAllowsAccommodationChange(
+      this.db,
+      travelGroupId,
+      'create room',
+    );
+
     const statusId =
       dto.room_status_id ?? (await this.statusIdFor('AVAILABLE'));
 
@@ -117,6 +133,14 @@ export class RoomsService {
 
   async updateRoom(id: string, dto: UpdateRoomDto, actorId: string) {
     const existing = await this.getRoom(id);
+
+    // Group-state guard
+    const travelGroupId = await resolveTravelGroupIdForRoom(this.db, id);
+    await assertGroupAllowsAccommodationChange(
+      this.db,
+      travelGroupId,
+      'update room',
+    );
 
     if (dto.room_number && dto.room_number !== existing.room_number) {
       await this.assertRoomNumberUnique(
@@ -166,6 +190,14 @@ export class RoomsService {
   async deleteRoom(id: string, actorId: string) {
     await this.getRoom(id);
 
+    // Group-state guard
+    const travelGroupId = await resolveTravelGroupIdForRoom(this.db, id);
+    await assertGroupAllowsAccommodationChange(
+      this.db,
+      travelGroupId,
+      'delete room',
+    );
+
     const assigned = await this.db
       .select({ count: sql<number>`count(*)` })
       .from(schema.roomAssignments)
@@ -181,15 +213,10 @@ export class RoomsService {
       throw new ConflictException('Room has active assignments');
     }
 
-    await this.db
-      .update(schema.rooms)
-      .set({
-        is_deleted: true,
-        deleted_at: new Date(),
-        updated_at: new Date(),
-        updated_by: actorId,
-      })
-      .where(eq(schema.rooms.id, id));
+    // Hard delete: soft-deleted rows would block re-creation of the same
+    // room number due to the unique constraint (group_hotel_stay_id, room_number).
+    // Rooms are operational entities; audit trail is not required.
+    await this.db.delete(schema.rooms).where(eq(schema.rooms.id, id));
   }
 
   private async getStay(id: string) {

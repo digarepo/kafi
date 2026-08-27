@@ -1,15 +1,7 @@
 import { useEffect, useState } from 'react';
-import {
-  Button,
-  Sheet,
-  SheetClose,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-  ThemeToggle,
-} from '@kafi/ui';
+import { Button } from '@ui/components/ui/button'
+import { Sheet, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@ui/components/ui/sheet'
+import { ThemeToggle } from '@ui/components/theme-toggle';
 import {
   HouseIcon,
   InfoIcon,

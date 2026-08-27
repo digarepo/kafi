@@ -1,24 +1,16 @@
-import { Outlet, redirect, useLoaderData } from 'react-router';
-import { api } from '../../lib/api.js';
+import { Outlet } from 'react-router';
+import { RequirePermission } from '../../core/permissions';
 
 export function meta() {
   return [{ title: 'Registrations | Kafi Admin' }];
 }
 
-export async function clientLoader() {
-  try {
-    const user = await api.me();
-    if (!user.permissions?.includes('REGISTRATION_VIEW')) {
-      throw redirect('/forbidden');
-    }
-    return {};
-  } catch {
-    api.logout();
-    throw redirect('/login');
-  }
-}
+export { RouteHydrateFallback as HydrateFallback } from '../../shared/route-hydrate-fallback';
 
 export default function RegistrationsLayout() {
-  useLoaderData<typeof clientLoader>();
-  return <Outlet />;
+  return (
+    <RequirePermission permission="REGISTRATION_VIEW">
+      <Outlet />
+    </RequirePermission>
+  );
 }

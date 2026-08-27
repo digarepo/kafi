@@ -91,7 +91,7 @@ export function VerifyEmailPage() {
                 status === 'error'
                   ? 'text-destructive'
                   : status === 'success'
-                    ? 'text-green-700'
+                    ? 'text-success'
                     : 'text-muted-foreground'
               }
             >

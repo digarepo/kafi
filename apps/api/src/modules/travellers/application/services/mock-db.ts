@@ -21,8 +21,13 @@ export class MockDb {
   then(onFulfilled?: (value: unknown) => unknown, onRejected?: unknown) {
     const value = this.queue.shift();
     if (typeof onFulfilled === 'function') {
-      onFulfilled(value);
+      try {
+        return Promise.resolve(onFulfilled(value));
+      } catch (err) {
+        return Promise.reject(err);
+      }
     }
+    return Promise.resolve(value);
   }
 
   select(..._args: unknown[]) {
@@ -74,6 +79,14 @@ export class MockDb {
     return this.logCall('like');
   }
 
+  gte(..._args: unknown[]) {
+    return this.logCall('gte');
+  }
+
+  lte(..._args: unknown[]) {
+    return this.logCall('lte');
+  }
+
   not(..._args: unknown[]) {
     return this.logCall('not');
   }
@@ -104,6 +117,11 @@ export class MockDb {
 
   $dynamic(..._args: unknown[]) {
     return this.logCall('$dynamic');
+  }
+
+  transaction(cb: (tx: MockDb) => unknown) {
+    this.calls.push('transaction');
+    return Promise.resolve(cb(this));
   }
 }
 

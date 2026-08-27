@@ -7,12 +7,19 @@
  */
 
 import type {
+  ContactPerson,
+  CreateCreditExceptionRequestInput,
+  CreateExpenseInput,
+  CreateFinanceExceptionInput,
   CreateInvoiceLineItemInput,
+  CreateRefundInput,
   Invoice,
   LookupOption,
   Payer,
   Payment,
   PaymentMethod,
+  Traveller,
+  UpdateInvoiceInput,
 } from '../../../lib/api.js';
 
 export type PayerFormMode = 'create' | 'edit';
@@ -88,6 +95,8 @@ export interface PayerFormProps {
   mode: PayerFormMode;
   payer?: Payer | null;
   payerTypes: LookupOption[];
+  travellers: Traveller[];
+  contactPersons: ContactPerson[];
   onSubmit: (values: PayerFormOutput) => Promise<void>;
   submitLabel?: string;
 }
@@ -159,3 +168,170 @@ export interface AllocationFormValues {
 }
 
 export type { Invoice, Payer, Payment, PaymentMethod };
+
+/**
+ * Internal state of the invoice edit form.
+ */
+export interface InvoiceEditFormValues {
+  due_date: string;
+  discount_amount: string;
+  notes: string;
+}
+
+/**
+ * Props for the invoice edit form component.
+ */
+export interface InvoiceEditFormProps {
+  invoice: Invoice;
+  onSubmit: (values: UpdateInvoiceInput) => Promise<void>;
+  submitLabel?: string;
+}
+
+/**
+ * Internal state of the expense create form.
+ */
+export interface ExpenseFormValues {
+  expense_category_id: string;
+  expense_source_id: string;
+  amount: string;
+  expense_date: string;
+  description: string;
+  notes: string;
+  vendor_id: string;
+  payee_name: string;
+  attribution_scope: 'TRAVELER' | 'GROUP' | 'GENERAL';
+  traveller_id: string;
+  registration_id: string;
+  travel_group_id: string;
+  package_version_id: string;
+  original_amount: string;
+  original_currency_id: string;
+  exchange_rate: string;
+}
+
+/**
+ * Props for the expense form component.
+ */
+export interface ExpenseFormProps {
+  categories: LookupOption[];
+  sources: LookupOption[];
+  currencies: LookupOption[];
+  travellers: { id: string; full_name: string }[];
+  registrations: {
+    id: string;
+    registration_number: string;
+    traveller?: { full_name: string } | null;
+  }[];
+  travelGroups: { id: string; name: string }[];
+  packageVersions: { id: string; version_name: string }[];
+  defaultCurrencyId?: string;
+  onSubmit: (values: CreateExpenseInput) => Promise<void>;
+  submitLabel?: string;
+}
+
+/**
+ * Internal state of the finance exception create form.
+ */
+export interface FinanceExceptionFormValues {
+  registration_id: string;
+  authorized_amount: string;
+  reason: string;
+  due_date: string;
+  notes: string;
+}
+
+/**
+ * Props for the finance exception form component.
+ */
+export interface FinanceExceptionFormProps {
+  registrations: {
+    id: string;
+    registration_number: string;
+    traveller_full_name: string;
+    outstanding_balance: number;
+  }[];
+  defaultRegistrationId?: string;
+  onSubmit: (values: CreateFinanceExceptionInput) => Promise<void>;
+  submitLabel?: string;
+}
+
+/**
+ * Internal state of the refund create form.
+ */
+export interface RefundFormValues {
+  payment_id: string;
+  amount: string;
+  refund_date: string;
+  reason: string;
+  registration_id: string;
+  notes: string;
+}
+
+/**
+ * Props for the refund form component.
+ */
+export interface RefundFormProps {
+  payments: {
+    id: string;
+    payment_number: string;
+    amount: number;
+    unallocated_amount: number;
+    payer_label: string;
+  }[];
+  registrations: {
+    id: string;
+    registration_number: string;
+    traveller_full_name: string;
+  }[];
+  defaultPaymentId?: string;
+  onSubmit: (values: CreateRefundInput) => Promise<void>;
+  submitLabel?: string;
+}
+
+/**
+ * Internal state of the credit exception request form (inside the dialog).
+ */
+export interface CreditExceptionRequestFormValues {
+  requested_amount: string;
+  reason: string;
+  requested_due_date: string;
+  notes: string;
+}
+
+/**
+ * Props for the credit exception request dialog.
+ */
+export interface CreditExceptionRequestDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  registrationId: string;
+  registrationNumber: string;
+  outstandingBalance: number;
+  onRequested?: () => void;
+}
+
+/**
+ * Full-page credit exception request form values (includes registration_id).
+ */
+export interface CreditExceptionRequestFullFormValues {
+  registration_id: string;
+  requested_amount: string;
+  reason: string;
+  requested_due_date: string;
+  notes: string;
+}
+
+/**
+ * Props for the full-page credit exception request form.
+ */
+export interface CreditExceptionRequestFormProps {
+  registrations: {
+    id: string;
+    registration_number: string;
+    traveller_full_name: string;
+    outstanding_balance: number;
+  }[];
+  defaultRegistrationId?: string;
+  onSubmit: (values: CreateCreditExceptionRequestInput) => Promise<void>;
+  submitLabel?: string;
+}

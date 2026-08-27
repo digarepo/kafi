@@ -15,6 +15,8 @@ import { RequirePermissions } from '../../../../shared/application/decorators/re
 import { RegistrationsService } from '../../application/services/registrations.service.js';
 import { RegistrationOperationalSummaryService } from '../../application/services/registration-operational-summary.service.js';
 import { RegistrationQueuesService } from '../../application/services/registration-queues.service.js';
+import { GuaranteesService } from '../../../operations/application/services/guarantees.service.js';
+import { CreateGuaranteeDto } from '../../../operations/application/dto/operations.dto.js';
 import {
   CancelRegistrationDto,
   CreateRegistrationDto,
@@ -29,6 +31,7 @@ export class AdminRegistrationsController {
     private readonly registrations: RegistrationsService,
     private readonly operationalSummary: RegistrationOperationalSummaryService,
     private readonly queues: RegistrationQueuesService,
+    private readonly guarantees: GuaranteesService,
   ) {}
 
   @Get('registrations')
@@ -103,5 +106,30 @@ export class AdminRegistrationsController {
   @RequirePermissions('REGISTRATION_VIEW')
   getUnpaidQueue() {
     return this.queues.getUnpaidQueue();
+  }
+
+  @Get('registrations/queue/ready-for-group')
+  @RequirePermissions('REGISTRATION_VIEW')
+  getReadyForGroupQueue() {
+    return this.queues.getReadyForGroupQueue();
+  }
+
+  @Get('registrations/:id/guarantees')
+  @RequirePermissions('REGISTRATION_VIEW')
+  listRegistrationGuarantees(@Param('id') id: string) {
+    return this.guarantees.listGuaranteesForRegistration(id);
+  }
+
+  @Post('registrations/:id/guarantees')
+  @RequirePermissions('REGISTRATION_EDIT')
+  createRegistrationGuarantee(
+    @Param('id') id: string,
+    @Body() dto: CreateGuaranteeDto,
+    @Req() req: any,
+  ) {
+    return this.guarantees.createGuarantee(
+      { ...dto, registration_id: id, group_membership_id: undefined },
+      req.user.sub,
+    );
   }
 }

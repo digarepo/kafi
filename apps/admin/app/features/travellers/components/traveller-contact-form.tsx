@@ -1,13 +1,21 @@
 import { useEffect, useMemo } from 'react';
 import { AnyFieldApi, useForm, useSelector } from '@tanstack/react-form';
-import { Button, Input, Label } from '@kafi/ui';
+import {
+  Button,
+  Input,
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@kafi/ui';
 import type {
   CreateTravellerContactInput,
   LookupOption,
   TravellerContact,
   UpdateTravellerContactInput,
 } from '../../../lib/api.js';
-import { LookupSelect } from './lookup-select';
 import { FieldError } from '../../../shared/field-error';
 
 interface TravellerContactFormProps {
@@ -88,15 +96,34 @@ export function TravellerContactForm({
           {(field: AnyFieldApi) => (
             <div className="space-y-2 md:col-span-2">
               <Label className="text-sm font-medium">Contact person</Label>
-              <LookupSelect
-                value={field.state.value}
-                onChange={field.handleChange}
-                options={contactPersons.map((c) => ({
-                  value: c.id,
-                  label: `${c.first_name} ${c.last_name}`,
-                }))}
-                placeholder="Select a contact person"
-              />
+              <Select
+                value={field.state.value ?? ''}
+                onValueChange={(v) => field.handleChange(v ?? '')}
+              >
+                <SelectTrigger className="h-9 w-full">
+                  <SelectValue>
+                    {contactPersons
+                      .map((c) => ({
+                        value: c.id,
+                        label: `${c.first_name} ${c.last_name}`,
+                      }))
+                      .find((o) => o.value === field.state.value)?.label ??
+                      'Select a contact person'}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {contactPersons
+                    .map((c) => ({
+                      value: c.id,
+                      label: `${c.first_name} ${c.last_name}`,
+                    }))
+                    .map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
               <FieldError field={field} />
             </div>
           )}
@@ -106,15 +133,34 @@ export function TravellerContactForm({
           {(field: AnyFieldApi) => (
             <div className="space-y-2">
               <Label className="text-sm font-medium">Relationship</Label>
-              <LookupSelect
-                value={field.state.value}
-                onChange={field.handleChange}
-                options={relationshipTypes.map((r) => ({
-                  value: r.id,
-                  label: r.name,
-                }))}
-                placeholder="Select relationship"
-              />
+              <Select
+                value={field.state.value ?? ''}
+                onValueChange={(v) => field.handleChange(v ?? '')}
+              >
+                <SelectTrigger className="h-9 w-full">
+                  <SelectValue>
+                    {relationshipTypes
+                      .map((r) => ({
+                        value: r.id,
+                        label: r.name,
+                      }))
+                      .find((o) => o.value === field.state.value)?.label ??
+                      'Select relationship'}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {relationshipTypes
+                    .map((r) => ({
+                      value: r.id,
+                      label: r.name,
+                    }))
+                    .map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
               <FieldError field={field} />
             </div>
           )}
@@ -124,12 +170,28 @@ export function TravellerContactForm({
           {(field: AnyFieldApi) => (
             <div className="space-y-2">
               <Label className="text-sm font-medium">Status</Label>
-              <LookupSelect
-                value={field.state.value}
-                onChange={field.handleChange}
-                options={statuses.map((s) => ({ value: s.id, label: s.name }))}
-                placeholder="Select status"
-              />
+              <Select
+                value={field.state.value ?? ''}
+                onValueChange={(v) => field.handleChange(v ?? '')}
+              >
+                <SelectTrigger className="h-9 w-full">
+                  <SelectValue>
+                    {statuses
+                      .map((s) => ({ value: s.id, label: s.name }))
+                      .find((o) => o.value === field.state.value)?.label ??
+                      'Select status'}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {statuses
+                    .map((s) => ({ value: s.id, label: s.name }))
+                    .map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
               <FieldError field={field} />
             </div>
           )}

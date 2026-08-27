@@ -1,15 +1,23 @@
 import { useEffect, useState } from 'react';
 import { Button } from '@kafi/ui';
 import { api, type Guarantee, type GroupMembership } from '../../../lib/api.js';
+import { useDestructiveConfirmation } from '../../../shared/delete-dialog';
 import { displayDate } from '../lib/date';
 
 interface GuaranteeListProps {
   membership: GroupMembership;
+  canManage: boolean;
   onReplace: (g: Guarantee) => void;
   onChanged: () => void;
 }
 
-export function GuaranteeList({ membership, onReplace, onChanged }: GuaranteeListProps) {
+export function GuaranteeList({
+  membership,
+  canManage,
+  onReplace,
+  onChanged,
+}: GuaranteeListProps) {
+  const { confirm } = useDestructiveConfirmation();
   const [guarantees, setGuarantees] = useState<Guarantee[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -23,7 +31,9 @@ export function GuaranteeList({ membership, onReplace, onChanged }: GuaranteeLis
         if (!cancelled) setGuarantees(data);
       } catch (err) {
         if (!cancelled)
-          setError(err instanceof Error ? err.message : 'Failed to load guarantees');
+          setError(
+            err instanceof Error ? err.message : 'Failed to load guarantees',
+          );
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -35,7 +45,13 @@ export function GuaranteeList({ membership, onReplace, onChanged }: GuaranteeLis
   }, [membership.id]);
 
   async function handleDelete(id: string) {
-    if (!confirm('Delete this guarantee?')) return;
+    if (
+      !(await confirm({
+        title: 'Delete guarantee?',
+        description: 'This guarantee will be permanently removed.',
+      }))
+    )
+      return;
     try {
       await api.deleteGuarantee(id);
       onChanged();
@@ -44,11 +60,14 @@ export function GuaranteeList({ membership, onReplace, onChanged }: GuaranteeLis
     }
   }
 
-  if (loading) return <p className="text-muted-foreground">Loading guarantees…</p>;
+  if (loading)
+    return <p className="text-muted-foreground">Loading guarantees…</p>;
   if (error) return <p className="text-destructive text-sm">{error}</p>;
 
   if (guarantees.length === 0) {
-    return <p className="text-muted-foreground text-sm">No guarantees recorded.</p>;
+    return (
+      <p className="text-muted-foreground text-sm">No guarantees recorded.</p>
+    );
   }
 
   return (
@@ -62,7 +81,9 @@ export function GuaranteeList({ membership, onReplace, onChanged }: GuaranteeLis
             <th className="px-3 py-2 text-left font-medium">Amount</th>
             <th className="px-3 py-2 text-left font-medium">Effective</th>
             <th className="px-3 py-2 text-left font-medium">Expiry</th>
-            <th className="px-3 py-2 text-right font-medium">Actions</th>
+            {canManage && (
+              <th className="px-3 py-2 text-right font-medium">Actions</th>
+            )}
           </tr>
         </thead>
         <tbody>
@@ -76,24 +97,32 @@ export function GuaranteeList({ membership, onReplace, onChanged }: GuaranteeLis
               </td>
               <td className="px-3 py-2">{displayDate(g.effective_date)}</td>
               <td className="px-3 py-2">{displayDate(g.expiry_date)}</td>
-              <td className="px-3 py-2 text-right">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onReplace(g)}
-                  disabled={g.guarantee_status === 'REPLACED' || g.guarantee_status === 'REFUNDED'}
-                >
-                  Replace
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => void handleDelete(g.id)}
-                  disabled={g.guarantee_status === 'ACTIVE' || g.guarantee_status === 'REPLACED'}
-                >
-                  Delete
-                </Button>
-              </td>
+              {canManage && (
+                <td className="px-3 py-2 text-right">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onReplace(g)}
+                    disabled={
+                      g.guarantee_status === 'REPLACED' ||
+                      g.guarantee_status === 'REFUNDED'
+                    }
+                  >
+                    Replace
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => void handleDelete(g.id)}
+                    disabled={
+                      g.guarantee_status === 'ACTIVE' ||
+                      g.guarantee_status === 'REPLACED'
+                    }
+                  >
+                    Delete
+                  </Button>
+                </td>
+              )}
             </tr>
           ))}
         </tbody>

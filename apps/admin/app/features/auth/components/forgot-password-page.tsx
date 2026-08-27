@@ -2,7 +2,7 @@ import { ForgotPasswordForm } from './forgot-password-form';
 import { useForgotPassword } from '../hooks/use-forgot-password';
 
 export function ForgotPasswordPage() {
-  const { onSubmit, success, error } = useForgotPassword();
+  const { onSubmit } = useForgotPassword();
 
   return (
     <div className="flex min-h-svh items-center justify-center bg-background p-6 md:p-10">
@@ -19,11 +19,7 @@ export function ForgotPasswordPage() {
           </div>
         </div>
 
-        <ForgotPasswordForm
-          onSubmit={onSubmit}
-          success={success}
-          error={error}
-        />
+        <ForgotPasswordForm onSubmit={onSubmit} />
       </div>
     </div>
   );

@@ -1,9 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, count, eq, gte, lt, not, sql } from 'drizzle-orm';
+import { and, count, eq, gte, isNull, lt, ne, not, or, sql } from 'drizzle-orm';
 import { MySql2Database } from 'drizzle-orm/mysql2';
 import { DATABASE } from '../../../../shared/infrastructure/database/database.provider.js';
 import * as schema from '@kafi/database';
-import { InvoicesService } from '../../../finance/application/services/invoices.service.js';
 
 /**
  * Thin read-only aggregation service for the staff dashboard.
@@ -17,13 +16,13 @@ export class DashboardService {
   constructor(
     @Inject(DATABASE)
     private readonly db: MySql2Database<typeof schema>,
-    private readonly invoices: InvoicesService,
   ) {}
 
   async getDashboard() {
     const [
       registrationsNeedingProcessing,
       registrationsReadyForTravel,
+      registrationsReadyForGroup,
       registrationsWithOutstandingBalance,
       groupsRequiringPreparation,
       groupsReadyToDepart,
@@ -31,6 +30,7 @@ export class DashboardService {
     ] = await Promise.all([
       this.countRegistrationsByStatus('DRAFT'),
       this.countRegistrationsByStatus('READY_FOR_TRAVEL'),
+      this.countRegistrationsReadyForGroup(),
       this.countRegistrationsWithOutstandingBalance(),
       this.countGroupsByStatus('PLANNING'),
       this.countGroupsByStatus('TRAVEL_PREPARED'),
@@ -40,6 +40,7 @@ export class DashboardService {
     return {
       registrations_needing_processing: registrationsNeedingProcessing,
       registrations_ready_for_travel: registrationsReadyForTravel,
+      registrations_ready_for_group: registrationsReadyForGroup,
       registrations_with_outstanding_balance:
         registrationsWithOutstandingBalance,
       groups_requiring_preparation: groupsRequiringPreparation,
@@ -69,9 +70,13 @@ export class DashboardService {
     return row?.value ?? 0;
   }
 
-  private async countRegistrationsWithOutstandingBalance() {
-    const rows = await this.db
-      .select({ id: schema.registrations.id })
+  /**
+   * Registrations that are READY_FOR_TRAVEL and have no ACTIVE group
+   * membership — the queue of travellers waiting for group assignment.
+   */
+  private async countRegistrationsReadyForGroup() {
+    const [row] = await this.db
+      .select({ value: count() })
       .from(schema.registrations)
       .innerJoin(
         schema.registrationStatuses,
@@ -80,22 +85,70 @@ export class DashboardService {
           schema.registrationStatuses.id,
         ),
       )
+      .leftJoin(
+        schema.groupMemberships,
+        and(
+          eq(schema.groupMemberships.registration_id, schema.registrations.id),
+          eq(schema.groupMemberships.is_deleted, false),
+        ),
+      )
+      .leftJoin(
+        schema.groupMembershipStatuses,
+        eq(
+          schema.groupMemberships.group_membership_status_id,
+          schema.groupMembershipStatuses.id,
+        ),
+      )
       .where(
         and(
           eq(schema.registrations.is_deleted, false),
-          not(eq(schema.registrationStatuses.status_code, 'CANCELLED')),
+          eq(schema.registrationStatuses.status_code, 'READY_FOR_TRAVEL'),
+          or(
+            isNull(schema.groupMembershipStatuses.status_code),
+            ne(schema.groupMembershipStatuses.status_code, 'ACTIVE'),
+          ),
         ),
       );
+    return row?.value ?? 0;
+  }
 
-    const ids = rows.map((r) => r.id);
-    if (ids.length === 0) return 0;
+  private async countRegistrationsWithOutstandingBalance() {
+    const allocationsByInvoice = this.db
+      .select({
+        invoiceId: schema.paymentAllocations.invoice_id,
+        allocated:
+          sql<number>`coalesce(sum(${schema.paymentAllocations.allocated_amount}), 0)`.as(
+            'allocated',
+          ),
+      })
+      .from(schema.paymentAllocations)
+      .where(eq(schema.paymentAllocations.is_deleted, false))
+      .groupBy(schema.paymentAllocations.invoice_id)
+      .as('allocations_by_invoice');
 
-    const finance = await this.invoices.getRegistrationFinanceSummaries(ids);
-    return ids.reduce(
-      (total, id) =>
-        (finance.get(id)?.outstanding_balance ?? 0) > 0 ? total + 1 : total,
-      0,
-    );
+    const rows = await this.db
+      .select({ registrationId: schema.invoices.registration_id })
+      .from(schema.invoices)
+      .innerJoin(
+        schema.invoiceStatuses,
+        eq(schema.invoices.invoice_status_id, schema.invoiceStatuses.id),
+      )
+      .leftJoin(
+        allocationsByInvoice,
+        eq(allocationsByInvoice.invoiceId, schema.invoices.id),
+      )
+      .where(
+        and(
+          eq(schema.invoices.is_deleted, false),
+          not(eq(schema.invoiceStatuses.status_code, 'CANCELLED')),
+        ),
+      )
+      .groupBy(schema.invoices.registration_id)
+      .having(
+        sql`sum(${schema.invoices.total_amount}) > coalesce(sum(${allocationsByInvoice.allocated}), 0)`,
+      );
+
+    return rows.length;
   }
 
   private async countGroupsByStatus(statusCode: string) {

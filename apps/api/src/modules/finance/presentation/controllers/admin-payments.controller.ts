@@ -72,6 +72,22 @@ export class AdminPaymentsController {
     return this.payments.allocatePayment(id, dto, req.user.sub);
   }
 
+  @Post('payments/:id/allocations/:allocationId/reverse')
+  @RequirePermissions('FINANCE_EDIT')
+  reverseAllocation(
+    @Param('id') id: string,
+    @Param('allocationId') allocationId: string,
+    @Req() req: any,
+  ) {
+    return this.payments.reverseAllocation(id, allocationId, req.user.sub);
+  }
+
+  @Post('payments/:id/cancel')
+  @RequirePermissions('FINANCE_EDIT')
+  cancelPayment(@Param('id') id: string, @Req() req: any) {
+    return this.payments.cancelPayment(id, req.user.sub);
+  }
+
   @Post('payments/:id/archive')
   @RequirePermissions('FINANCE_DELETE')
   archivePayment(@Param('id') id: string, @Req() req: any) {

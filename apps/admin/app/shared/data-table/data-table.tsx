@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   flexRender,
   getCoreRowModel,
@@ -32,6 +32,7 @@ import type { DataTableProps } from './data-table.types';
 import { DataTablePaginationControls } from './data-table-pagination';
 import { DataTableViewOptions } from './data-table-view-options';
 import { selectionColumn } from './columns/selection-column';
+import { recordRender } from '../../dev/render-profile';
 
 /**
  * Reusable TanStack Table wrapper with sorting, filtering, pagination and
@@ -46,6 +47,7 @@ export function DataTable<TData, TValue>({
   data,
   loading,
   hidePagination = false,
+  hideViewOptions = false,
   pagination: externalPagination,
   sorting: externalSorting,
   columnVisibility: externalColumnVisibility,
@@ -54,9 +56,11 @@ export function DataTable<TData, TValue>({
   onPaginationChange,
   onColumnVisibilityChange,
   onGlobalFilterChange,
+  onTableReady,
   onDeleteSelected,
   enableRowSelection = false,
 }: DataTableProps<TData, TValue>) {
+  const renderStartedAt = performance.now();
   const [internalSorting, setInternalSorting] = useState<SortingState>([]);
   const [internalPagination, setInternalPagination] = useState({
     pageIndex: 0,
@@ -151,6 +155,22 @@ export function DataTable<TData, TValue>({
     enableRowSelection: selectionEnabled,
     enableMultiRowSelection: selectionEnabled,
   });
+  const rowModelStartedAt = performance.now();
+  const rowModel = table.getRowModel();
+  const rowModelDurationMs = performance.now() - rowModelStartedAt;
+
+  useEffect(() => {
+    recordRender(
+      'DataTable',
+      performance.now() - renderStartedAt,
+      rowModelDurationMs,
+      rowModel.rows.length,
+    );
+  });
+
+  useEffect(() => {
+    if (onTableReady) onTableReady(table);
+  }, [onTableReady, table]);
 
   const selectedRows = selectionEnabled
     ? table.getSelectedRowModel().rows.map((row) => row.original)
@@ -171,11 +191,11 @@ export function DataTable<TData, TValue>({
             Delete selected ({selectedCount})
           </Button>
         ) : null}
-        <DataTableViewOptions table={table} />
+        {!hideViewOptions && <DataTableViewOptions table={table} />}
       </div>
 
-      <div className={cn('overflow-hidden rounded-md border bg-background')}>
-        <Table className="min-w-max">
+      <div className={cn('overflow-x-auto rounded-md border bg-background')}>
+        <Table className="min-w-max text-xs font-normal">
           <TableHeader className="bg-muted">
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
@@ -183,6 +203,7 @@ export function DataTable<TData, TValue>({
                   <TableHead
                     key={header.id}
                     className={cn(
+                      'h-8 px-4 text-xs font-medium',
                       header.column.getCanSort() &&
                         'cursor-pointer select-none',
                     )}
@@ -226,19 +247,20 @@ export function DataTable<TData, TValue>({
               <TableRow>
                 <TableCell
                   colSpan={visibleColumnCount}
-                  className="h-24 text-center"
+                  className="h-20 text-center text-xs"
                 >
                   Loading…
                 </TableCell>
               </TableRow>
-            ) : table.getRowModel().rows.length ? (
-              table.getRowModel().rows.map((row) => (
+            ) : rowModel.rows.length ? (
+              rowModel.rows.map((row) => (
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() ? 'selected' : undefined}
+                  className="text-xs"
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
+                    <TableCell key={cell.id} className="px-4 py-1">
                       {flexRender(
                         cell.column.columnDef.cell,
                         cell.getContext(),
@@ -251,7 +273,7 @@ export function DataTable<TData, TValue>({
               <TableRow>
                 <TableCell
                   colSpan={visibleColumnCount}
-                  className="h-24 text-center"
+                  className="h-20 text-center text-xs"
                 >
                   No results.
                 </TableCell>
@@ -261,7 +283,7 @@ export function DataTable<TData, TValue>({
         </Table>
       </div>
 
-      {!hidePagination && table.getPageCount() > 1 && (
+      {!hidePagination && data.length > 0 && (
         <DataTablePaginationControls table={table} />
       )}
     </div>

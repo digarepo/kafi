@@ -15,8 +15,8 @@ import { PermissionsGuard } from '../../../../shared/application/guards/permissi
 import { RequirePermissions } from '../../../../shared/application/decorators/require-permissions.decorator.js';
 import { VisaApplicationsService } from '../../application/services/visa-applications.service.js';
 import {
-  ChangeVisaApplicationStatusDto,
   CreateVisaApplicationDto,
+  RecordVisaResultDto,
   UpdateVisaApplicationDto,
   VisaApplicationFiltersDto,
 } from '../../application/dto/visa-applications.dto.js';
@@ -57,14 +57,14 @@ export class AdminVisaApplicationsController {
     return this.visas.updateVisaApplication(id, dto, req.user.sub);
   }
 
-  @Post('visa-applications/:id/change-status')
+  @Post('visa-applications/:id/record-result')
   @RequirePermissions('VISA_MANAGE')
-  changeStatus(
+  recordVisaResult(
     @Param('id') id: string,
-    @Body() dto: ChangeVisaApplicationStatusDto,
+    @Body() dto: RecordVisaResultDto,
     @Req() req: any,
   ) {
-    return this.visas.changeStatus(id, dto, req.user.sub);
+    return this.visas.recordVisaResult(id, dto, req.user.sub);
   }
 
   @Delete('visa-applications/:id')

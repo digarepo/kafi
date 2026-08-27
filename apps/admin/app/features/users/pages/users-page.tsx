@@ -1,10 +1,19 @@
 import { useState } from 'react';
+import { toast } from 'sonner';
 import type { ColumnDef } from '@tanstack/react-table';
 import { Badge, Button } from '@kafi/ui';
+import {
+  MailCheck,
+  Pencil,
+  Plus,
+  RotateCcw,
+  Search,
+  Archive,
+} from 'lucide-react';
 
 import { usePermissions } from '../../../core/permissions';
 import { DeleteDialog } from '../../../shared/delete-dialog';
-import { DataTable, DataTableToolbar } from '../../../shared/data-table';
+import { DataTable } from '../../../shared/data-table';
 import {
   actionsColumn,
   statusColumn,
@@ -38,46 +47,47 @@ export function UsersPage({ initial }: UsersPageProps) {
   const [deletingUsers, setDeletingUsers] = useState<User[]>([]);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [globalFilter, setGlobalFilter] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
 
   const [statuses] = useState<UserStatusOption[]>(initial.statuses);
 
+  async function refreshUsers() {
+    const refreshed = await api.listUsers();
+    setUsers(refreshed.items);
+  }
+
   async function handleCreate(output: UserFormOutput) {
-    setError(null);
-    setSuccess(null);
     try {
       const result = await api.createUser(output as CreateUserInput);
       const emailWarning =
         result.emailErrors.length > 0
           ? ` Email not sent: ${result.emailErrors.join('; ')}`
           : ' A welcome email with the temporary password and a verification email have been sent.';
-      setSuccess(
+      toast.success(
         `User created. Temporary password: ${result.temporary_password} (share securely).${emailWarning}`,
+        { duration: 10000 },
       );
-      const refreshed = await api.listUsers();
-      setUsers(refreshed.items);
+      setCreateOpen(false);
+      await refreshUsers();
     } catch (err) {
       const message =
         err instanceof Error ? err.message : 'Failed to create user';
-      setError(message);
+      toast.error(message);
+      throw err;
     }
   }
 
   async function handleUpdate(output: UserFormOutput) {
     if (!editingUser) return;
-    setError(null);
-    setSuccess(null);
     try {
       await api.updateUser(editingUser.id, output as UpdateUserInput);
-      const refreshed = await api.listUsers();
-      setUsers(refreshed.items);
-      setSuccess('User updated successfully.');
+      toast.success('User updated successfully.');
       setEditingUser(null);
+      await refreshUsers();
     } catch (err) {
       const message =
         err instanceof Error ? err.message : 'Failed to update user';
-      setError(message);
+      toast.error(message);
+      throw err;
     }
   }
 
@@ -90,13 +100,12 @@ export function UsersPage({ initial }: UsersPageProps) {
     setDeleteLoading(true);
     try {
       await api.deleteUser(deletingUser.id);
-      const refreshed = await api.listUsers();
-      setUsers(refreshed.items);
-      setSuccess('User deleted successfully.');
+      toast.success('User archived successfully.');
+      await refreshUsers();
     } catch (err) {
       const message =
-        err instanceof Error ? err.message : 'Failed to delete user';
-      setError(message);
+        err instanceof Error ? err.message : 'Failed to archive user';
+      toast.error(message);
     } finally {
       setDeleteLoading(false);
       setDeletingUser(null);
@@ -108,13 +117,12 @@ export function UsersPage({ initial }: UsersPageProps) {
     setDeleteLoading(true);
     try {
       await Promise.all(deletingUsers.map((user) => api.deleteUser(user.id)));
-      const refreshed = await api.listUsers();
-      setUsers(refreshed.items);
-      setSuccess(`${deletingUsers.length} users deleted successfully.`);
+      toast.success(`${deletingUsers.length} users archived successfully.`);
+      await refreshUsers();
     } catch (err) {
       const message =
-        err instanceof Error ? err.message : 'Failed to delete selected users';
-      setError(message);
+        err instanceof Error ? err.message : 'Failed to archive selected users';
+      toast.error(message);
     } finally {
       setDeleteLoading(false);
       setDeletingUsers([]);
@@ -124,13 +132,13 @@ export function UsersPage({ initial }: UsersPageProps) {
   async function handleResendVerification(user: User) {
     try {
       await api.resendVerification(user.id);
-      setSuccess(`Verification email resent to ${user.email_address}.`);
+      toast.success(`Verification email resent to ${user.email_address}.`);
     } catch (err) {
       const message =
         err instanceof Error
           ? err.message
           : 'Failed to resend verification email';
-      setError(message);
+      toast.error(message);
     }
   }
 
@@ -157,18 +165,22 @@ export function UsersPage({ initial }: UsersPageProps) {
       actions: [
         {
           label: 'Edit',
+          icon: Pencil,
           onClick: (user) => setEditingUser(user),
           disabled: () => !can('USER_EDIT'),
         },
         {
           label: 'Resend verification',
+          icon: MailCheck,
           onClick: (user) => {
             void handleResendVerification(user);
           },
           disabled: (user) => !can('USER_EDIT') || user.is_email_verified,
         },
         {
-          label: 'Delete',
+          label: 'Archive',
+          icon: Archive,
+          variant: 'destructive',
           onClick: (user) => handleDeleteClick(user),
           disabled: () => !can('USER_DELETE'),
         },
@@ -189,16 +201,8 @@ export function UsersPage({ initial }: UsersPageProps) {
         mode="create"
         roles={roles}
         open={createOpen}
-        onOpenChange={(open) => {
-          setCreateOpen(open);
-          if (open) {
-            setError(null);
-            setSuccess(null);
-          }
-        }}
+        onOpenChange={setCreateOpen}
         onSubmit={handleCreate}
-        error={createOpen ? error : null}
-        success={createOpen ? success : null}
       />
 
       <UserDialog
@@ -207,16 +211,8 @@ export function UsersPage({ initial }: UsersPageProps) {
         roles={roles}
         statuses={statuses}
         open={editingUser !== null}
-        onOpenChange={(open) => {
-          if (!open) setEditingUser(null);
-          if (open) {
-            setError(null);
-            setSuccess(null);
-          }
-        }}
+        onOpenChange={(open) => !open && setEditingUser(null)}
         onSubmit={handleUpdate}
-        error={editingUser !== null ? error : null}
-        success={editingUser !== null ? success : null}
       />
 
       <DeleteDialog
@@ -240,17 +236,53 @@ export function UsersPage({ initial }: UsersPageProps) {
       />
 
       <div className="space-y-4">
-        <div className="flex flex-row items-center justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <h2 className="text-xl font-semibold tracking-tight">Users</h2>
           {can('USER_CREATE') && (
-            <Button onClick={() => setCreateOpen(true)}>+ Add user</Button>
+            <Button
+              className="hidden sm:inline-flex"
+              onClick={() => setCreateOpen(true)}
+            >
+              <Plus className="mr-1.5 h-4 w-4" />
+              Add user
+            </Button>
+          )}
+          {can('USER_CREATE') && (
+            <Button
+              size="icon"
+              className="h-10 w-10 shrink-0 self-end rounded-full sm:hidden"
+              onClick={() => setCreateOpen(true)}
+              aria-label="Add user"
+            >
+              <Plus className="h-5 w-5" />
+            </Button>
           )}
         </div>
 
-        <DataTableToolbar
-          filter={globalFilter}
-          onFilterChange={setGlobalFilter}
-        />
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-3">
+          <div className="relative w-full lg:max-w-xs">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              type="search"
+              value={globalFilter}
+              onChange={(e) => setGlobalFilter(e.target.value)}
+              placeholder="Search users…"
+              className="h-9 w-full rounded-md border border-input bg-background pl-9 pr-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50"
+              aria-label="Search users"
+            />
+          </div>
+          {globalFilter && (
+            <button
+              type="button"
+              onClick={() => setGlobalFilter('')}
+              className="flex h-9 shrink-0 items-center gap-1.5 self-start text-sm text-muted-foreground transition-colors hover:text-foreground lg:self-center"
+              aria-label="Clear filters"
+            >
+              <RotateCcw className="h-4 w-4" />
+              Clear
+            </button>
+          )}
+        </div>
 
         <DataTable
           columns={columns}

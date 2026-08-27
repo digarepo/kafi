@@ -14,11 +14,17 @@
 import { useEffect, useState } from 'react';
 import { AnyFieldApi, useSelector } from '@tanstack/react-form';
 
-import { Label } from '@kafi/ui';
+import {
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@kafi/ui';
 
 import { api } from '../../../lib/api';
 import { FieldError } from '../../../shared/field-error';
-import { LookupSelect } from './lookup-select';
 import type { Country, Region } from '../../../lib/api.js';
 
 interface CountryRegionFieldsProps {
@@ -84,16 +90,34 @@ export function CountryRegionFields({
         {(field: AnyFieldApi) => (
           <div className="space-y-2">
             <Label className="text-sm font-medium">Country</Label>
-            <LookupSelect
-              value={field.state.value}
-              options={countries.map((c) => ({ value: c.id, label: c.name }))}
-              placeholder="Select country"
-              onChange={(value) => {
-                field.handleChange(value);
+            <Select
+              value={field.state.value ?? ''}
+              onValueChange={(v) => {
+                field.handleChange(v ?? '');
                 form.setFieldValue('region_id', '');
               }}
-              aria-invalid={field.state.meta.errors.length > 0}
-            />
+            >
+              <SelectTrigger
+                className="h-9 w-full"
+                aria-invalid={field.state.meta.errors.length > 0}
+              >
+                <SelectValue>
+                  {countries
+                    .map((c) => ({ value: c.id, label: c.name }))
+                    .find((o) => o.value === field.state.value)?.label ??
+                    'Select country'}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {countries
+                  .map((c) => ({ value: c.id, label: c.name }))
+                  .map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
             <FieldError field={field} />
           </div>
         )}
@@ -103,21 +127,35 @@ export function CountryRegionFields({
         {(field: AnyFieldApi) => (
           <div className="space-y-2">
             <Label className="text-sm font-medium">Region</Label>
-            <LookupSelect
-              value={field.state.value}
-              options={regions.map((r) => ({ value: r.id, label: r.name }))}
-              placeholder={
-                regionsLoading
-                  ? 'Loading regions…'
-                  : !country_id
-                    ? 'Select a country first'
-                    : regions.length === 0
-                      ? 'No regions available'
-                      : 'Select region'
-              }
-              onChange={(value) => field.handleChange(value)}
+            <Select
+              value={field.state.value ?? ''}
+              onValueChange={(v) => field.handleChange(v ?? '')}
               disabled={regionsLoading || regions.length === 0}
-            />
+            >
+              <SelectTrigger className="h-9 w-full">
+                <SelectValue>
+                  {regions
+                    .map((r) => ({ value: r.id, label: r.name }))
+                    .find((o) => o.value === field.state.value)?.label ??
+                    (regionsLoading
+                      ? 'Loading regions…'
+                      : !country_id
+                        ? 'Select a country first'
+                        : regions.length === 0
+                          ? 'No regions available'
+                          : 'Select region')}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {regions
+                  .map((r) => ({ value: r.id, label: r.name }))
+                  .map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
           </div>
         )}
       </form.Field>

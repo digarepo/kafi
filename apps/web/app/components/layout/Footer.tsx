@@ -1,4 +1,4 @@
-import { Separator } from "@kafi/ui";
+import { Separator } from '@ui/components/ui/separator';
 import {
   PhoneCallIcon,
   EnvelopeIcon,
@@ -6,8 +6,8 @@ import {
   FacebookLogo,
   InstagramLogo,
   TelegramLogo,
-} from "@phosphor-icons/react";
-import { Link } from "react-router";
+} from '@phosphor-icons/react';
+import { Link } from 'react-router';
 
 /**
  * Renders the site footer with brand info, navigation links, contact details, and social links.
@@ -26,13 +26,17 @@ export function Footer() {
           <div className="flex items-center gap-2">
             <div className="flex h-12 w-12 items-center justify-center rounded-full shadow-soft">
               <img
-                src="/KafiOr.svg"
+                src="/kafi-icon-gold.svg"
                 alt="Kafi Tours Logo"
+                width={40}
+                height={40}
                 className="block h-10 w-10 transition-transform duration-300 hover:rotate-12 dark:hidden"
               />
               <img
-                src="/KafiDef.svg"
+                src="/kafi-icon-green.svg"
                 alt="Kafi Tours Logo"
+                width={40}
+                height={40}
                 className="hidden h-10 w-10 transition-transform duration-300 hover:rotate-12 dark:block"
               />
             </div>
@@ -41,16 +45,16 @@ export function Footer() {
             </span>
           </div>
           <p className="text-[12px] font-light leading-relaxed max-w-sm">
-            Coordinates and delivers high-end Hajj, Umrah, and luxury tours. Fully licensed travel
-            agency providing end-to-end logistics solutions.
+            Coordinates and delivers high-end Umrah tours. Fully licensed travel
+            agency providing end-to-end Umrah services.
           </p>
         </div>
 
         {/* Follow Us */}
         <div className="space-y-3 lg:col-span-2">
-          <h4 className="font-heading text-xs font-bold text-foreground uppercase tracking-wider">
+          <h2 className="font-heading text-xs font-bold text-foreground uppercase tracking-wider">
             Follow Us
-          </h4>
+          </h2>
           <ul className="space-y-2">
             <li>
               <a
@@ -90,9 +94,9 @@ export function Footer() {
 
         {/* Quick Links */}
         <div className="space-y-3 lg:col-span-2">
-          <h4 className="font-heading text-xs font-bold text-foreground uppercase tracking-wider">
+          <h2 className="font-heading text-xs font-bold text-foreground uppercase tracking-wider">
             Quick Links
-          </h4>
+          </h2>
           <ul className="space-y-2 text-xs text-muted-foreground font-light">
             <li>
               <Link to="/" className="hover:text-accent transition-colors">
@@ -100,7 +104,10 @@ export function Footer() {
               </Link>
             </li>
             <li>
-              <Link to="/services" className="hover:text-accent transition-colors">
+              <Link
+                to="/services"
+                className="hover:text-accent transition-colors"
+              >
                 Services
               </Link>
             </li>
@@ -115,12 +122,18 @@ export function Footer() {
               </Link>
             </li>
             <li>
-              <Link to="/packages" className="hover:text-accent transition-colors">
+              <Link
+                to="/packages"
+                className="hover:text-accent transition-colors"
+              >
                 Packages
               </Link>
             </li>
             <li>
-              <Link to="/contact" className="hover:text-accent transition-colors">
+              <Link
+                to="/contact"
+                className="hover:text-accent transition-colors"
+              >
                 Contact
               </Link>
             </li>
@@ -129,9 +142,9 @@ export function Footer() {
 
         {/* Contact Support */}
         <div className="space-y-3 lg:col-span-4">
-          <h4 className="font-heading text-xs font-bold text-foreground uppercase tracking-wider">
+          <h2 className="font-heading text-xs font-bold text-foreground uppercase tracking-wider">
             Contact Support
-          </h4>
+          </h2>
           <ul className="space-y-2 text-xs text-muted-foreground font-light">
             <li className="flex items-center gap-1.5">
               <EnvelopeIcon className="w-4 h-4 text-accent shrink-0" />

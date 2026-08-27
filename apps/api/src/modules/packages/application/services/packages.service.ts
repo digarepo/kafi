@@ -6,7 +6,7 @@ import {
   Inject,
 } from '@nestjs/common';
 import { MySql2Database } from 'drizzle-orm/mysql2';
-import { eq, and, or, like, desc, asc, max, sql } from 'drizzle-orm';
+import { eq, and, or, like, desc, asc, max, sql, not } from 'drizzle-orm';
 import { ulid } from 'ulid';
 import { DATABASE } from '../../../../shared/infrastructure/database/database.provider.js';
 import * as schema from '@kafi/database';
@@ -33,6 +33,138 @@ function toDateOrNull(value: string | undefined | null): Date | null {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return null;
   return d;
+}
+
+function dateKey(value: Date | string | null | undefined): string | null {
+  if (!value) return null;
+  if (typeof value === 'string') return value.slice(0, 10);
+  return value.toISOString().slice(0, 10);
+}
+
+export interface PackageVersionValidationIssue {
+  code: string;
+  field: string;
+  message: string;
+}
+
+export function getPackageVersionPublicationIssues(version: {
+  version_name?: string | null;
+  slug?: string | null;
+  departure_date?: Date | string | null;
+  return_date?: Date | string | null;
+  base_price?: number | string | null;
+  currency_id?: string | null;
+  max_capacity?: number | null;
+  sales_start_date?: Date | string | null;
+  sales_end_date?: Date | string | null;
+  template_status?: string | null;
+}): PackageVersionValidationIssue[] {
+  const issues: PackageVersionValidationIssue[] = [];
+  const departure = dateKey(version.departure_date);
+  const returnDate = dateKey(version.return_date);
+  const salesStart = dateKey(version.sales_start_date);
+  const salesEnd = dateKey(version.sales_end_date);
+
+  if (!version.version_name?.trim()) {
+    issues.push({
+      code: 'VERSION_NAME_REQUIRED',
+      field: 'version_name',
+      message: 'Version name is required.',
+    });
+  }
+  if (!version.slug?.trim()) {
+    issues.push({
+      code: 'SLUG_REQUIRED',
+      field: 'slug',
+      message: 'A URL slug is required before publishing.',
+    });
+  }
+  if (!departure || !returnDate) {
+    issues.push({
+      code: 'TRAVEL_DATES_REQUIRED',
+      field: 'departure_date',
+      message: 'Departure and return dates are required.',
+    });
+  } else if (departure > returnDate) {
+    issues.push({
+      code: 'INVALID_TRAVEL_DATE_ORDER',
+      field: 'return_date',
+      message: 'Return date must be on or after departure date.',
+    });
+  }
+  if (!salesStart || !salesEnd) {
+    issues.push({
+      code: 'REGISTRATION_WINDOW_REQUIRED',
+      field: 'sales_start_date',
+      message: 'Registration start and end dates are required.',
+    });
+  } else if (salesStart > salesEnd) {
+    issues.push({
+      code: 'INVALID_REGISTRATION_WINDOW',
+      field: 'sales_end_date',
+      message: 'Registration end date must be on or after start date.',
+    });
+  } else if (departure && salesEnd && salesEnd > departure) {
+    issues.push({
+      code: 'REGISTRATION_WINDOW_AFTER_DEPARTURE',
+      field: 'sales_end_date',
+      message:
+        'Registration window must close on or before the departure date.',
+    });
+  }
+
+  const price = Number(version.base_price);
+  if (
+    version.base_price === null ||
+    version.base_price === undefined ||
+    !Number.isFinite(price) ||
+    price < 0
+  ) {
+    issues.push({
+      code: 'INVALID_PRICE',
+      field: 'base_price',
+      message: 'Base price must be a valid non-negative amount.',
+    });
+  }
+  if (!version.currency_id) {
+    issues.push({
+      code: 'CURRENCY_REQUIRED',
+      field: 'currency_id',
+      message: 'Currency is required.',
+    });
+  }
+  if (
+    version.max_capacity === null ||
+    version.max_capacity === undefined ||
+    !Number.isInteger(version.max_capacity) ||
+    version.max_capacity < 1
+  ) {
+    issues.push({
+      code: 'INVALID_CAPACITY',
+      field: 'max_capacity',
+      message: 'Maximum capacity must be a positive whole number.',
+    });
+  }
+  if (version.template_status && version.template_status !== 'ACTIVE') {
+    issues.push({
+      code: 'TEMPLATE_NOT_ACTIVE',
+      field: 'package_template_id',
+      message: 'The package template must be active before publication.',
+    });
+  }
+
+  return issues;
+}
+
+export function isWithinRegistrationWindow(
+  salesStart: Date | string | null | undefined,
+  salesEnd: Date | string | null | undefined,
+  now = new Date(),
+): boolean {
+  const start = dateKey(salesStart);
+  const end = dateKey(salesEnd);
+  const today = dateKey(now);
+  return !!start && !!end && !!today && start <= today && today <= end;
 }
 
 @Injectable()
@@ -103,6 +235,13 @@ export class PackagesService {
             schema.pilgrimageTypes.id,
           ),
         )
+        .leftJoin(
+          schema.packageTemplateStatuses,
+          eq(
+            schema.packageTemplates.package_template_status_id,
+            schema.packageTemplateStatuses.id,
+          ),
+        )
         .where(where)
         .orderBy(desc(schema.packageTemplates.created_at))
         .limit(pageSize)
@@ -110,7 +249,7 @@ export class PackagesService {
       this.db
         .select({ count: sql<number>`count(*)` })
         .from(schema.packageTemplates)
-        .where(eq(schema.packageTemplates.is_deleted, false))
+        .where(where)
         .then((r) => r[0]?.count ?? 0),
     ]);
 
@@ -140,13 +279,26 @@ export class PackagesService {
           schema.pilgrimageTypes.id,
         ),
       )
-      .where(eq(schema.packageTemplates.id, id))
+      .leftJoin(
+        schema.packageTemplateStatuses,
+        eq(
+          schema.packageTemplates.package_template_status_id,
+          schema.packageTemplateStatuses.id,
+        ),
+      )
+      .where(
+        and(
+          eq(schema.packageTemplates.id, id),
+          eq(schema.packageTemplates.is_deleted, false),
+        ),
+      )
       .limit(1);
     if (!row) throw new NotFoundException('Package template not found');
     return this.mapTemplateRow(row);
   }
 
   async createTemplate(dto: CreatePackageTemplateDto, actorId: string) {
+    const activeStatus = await this.getTemplateStatus('ACTIVE');
     const code = await this.generateTemplateCode();
     const id = ulid();
     await this.db.insert(schema.packageTemplates).values({
@@ -158,6 +310,7 @@ export class PackagesService {
       pilgrimage_type_id: dto.pilgrimage_type_id,
       package_category_id: dto.package_category_id,
       default_duration_days: dto.default_duration_days,
+      package_template_status_id: activeStatus.id,
       created_by: actorId,
       updated_by: actorId,
     });
@@ -169,6 +322,9 @@ export class PackagesService {
     dto: UpdatePackageTemplateDto,
     actorId: string,
   ) {
+    const existing = await this.getTemplate(id);
+    this.assertTemplateActive(existing);
+
     await this.db
       .update(schema.packageTemplates)
       .set({
@@ -196,15 +352,20 @@ export class PackagesService {
   }
 
   async archiveTemplate(id: string, actorId: string) {
+    const existing = await this.getTemplate(id);
+    this.assertTemplateActive(existing);
+    const archivedStatus = await this.getTemplateStatus('ARCHIVED');
+
     await this.db
       .update(schema.packageTemplates)
       .set({
-        is_deleted: true,
-        deleted_at: new Date(),
+        package_template_status_id: archivedStatus.id,
         updated_at: new Date(),
         updated_by: actorId,
       })
       .where(eq(schema.packageTemplates.id, id));
+
+    return this.getTemplate(id);
   }
 
   private mapTemplateRow(row: any) {
@@ -215,6 +376,10 @@ export class PackagesService {
       short_name: row.package_templates.short_name,
       description: row.package_templates.description,
       default_duration_days: row.package_templates.default_duration_days,
+      package_template_status_id:
+        row.package_templates.package_template_status_id,
+      status: row.package_template_statuses?.status_code,
+      status_name: row.package_template_statuses?.name,
       pilgrimage_type: row.pilgrimage_types
         ? { id: row.pilgrimage_types.id, name: row.pilgrimage_types.name }
         : null,
@@ -260,6 +425,13 @@ export class PackagesService {
           ),
         )
         .leftJoin(
+          schema.packageTemplateStatuses,
+          eq(
+            schema.packageTemplates.package_template_status_id,
+            schema.packageTemplateStatuses.id,
+          ),
+        )
+        .leftJoin(
           schema.packageVersionStatuses,
           eq(
             schema.packageVersions.package_version_status_id,
@@ -281,12 +453,16 @@ export class PackagesService {
       this.db
         .select({ count: sql<number>`count(*)` })
         .from(schema.packageVersions)
-        .where(eq(schema.packageVersions.is_deleted, false))
+        .where(where)
         .then((r) => r[0]?.count ?? 0),
     ]);
 
+    const data = await Promise.all(
+      rows.map(async (row) => this.withAvailability(this.mapVersionRow(row))),
+    );
+
     return {
-      data: rows.map((r) => this.mapVersionRow(r)),
+      data,
       total: count,
       page,
       pageSize,
@@ -302,6 +478,13 @@ export class PackagesService {
         eq(
           schema.packageVersions.package_template_id,
           schema.packageTemplates.id,
+        ),
+      )
+      .leftJoin(
+        schema.packageTemplateStatuses,
+        eq(
+          schema.packageTemplates.package_template_status_id,
+          schema.packageTemplateStatuses.id,
         ),
       )
       .leftJoin(
@@ -333,7 +516,12 @@ export class PackagesService {
           schema.pilgrimageTypes.id,
         ),
       )
-      .where(eq(schema.packageVersions.id, id))
+      .where(
+        and(
+          eq(schema.packageVersions.id, id),
+          eq(schema.packageVersions.is_deleted, false),
+        ),
+      )
       .limit(1);
     if (!row) throw new NotFoundException('Package version not found');
 
@@ -346,13 +534,13 @@ export class PackagesService {
 
   async createVersion(dto: CreatePackageVersionDto, actorId: string) {
     const template = await this.getTemplate(dto.package_template_id);
-    if (!template) throw new NotFoundException('Package template not found');
+    this.assertTemplateActive(template);
 
     const nextNumber = await this.getNextVersionNumber(dto.package_template_id);
     const draftStatus = await this.getVersionStatus('DRAFT');
     const code = await this.generateVersionCode();
     const slug = await this.ensureUniqueSlug(
-      dto.slug ?? slugify(dto.version_name),
+      dto.slug?.trim() || slugify(dto.version_name),
     );
 
     const id = ulid();
@@ -392,13 +580,32 @@ export class PackagesService {
     actorId: string,
   ) {
     const existing = await this.getVersion(id);
-    if (!existing) throw new NotFoundException('Package version not found');
-    if (existing.status === 'PUBLISHED') {
-      this.guardCommercialFieldsOnUpdate(dto);
+    if (existing.status !== 'DRAFT') {
+      throw new ConflictException('Only draft package versions can be edited');
     }
 
-    const slug = dto.slug
-      ? await this.ensureUniqueSlug(dto.slug, id)
+    const departure =
+      dto.departure_date !== undefined
+        ? dto.departure_date
+        : dateKey(existing.departure_date);
+    const returnDate =
+      dto.return_date !== undefined
+        ? dto.return_date
+        : dateKey(existing.return_date);
+    const salesStart =
+      dto.sales_start_date !== undefined
+        ? dto.sales_start_date
+        : dateKey(existing.sales_start_date);
+    const salesEnd =
+      dto.sales_end_date !== undefined
+        ? dto.sales_end_date
+        : dateKey(existing.sales_end_date);
+
+    this.assertDateRangeOrder(departure, returnDate, 'travel dates');
+    this.assertDateRangeOrder(salesStart, salesEnd, 'registration window');
+
+    const slug = dto.slug?.trim()
+      ? await this.ensureUniqueSlug(dto.slug.trim(), id)
       : existing.slug;
 
     await this.db
@@ -449,22 +656,22 @@ export class PackagesService {
 
   async publishVersion(id: string, actorId: string) {
     const existing = await this.getVersion(id);
-    if (!existing) throw new NotFoundException('Package version not found');
-    if (existing.status === 'PUBLISHED')
-      throw new ConflictException('Version is already published');
-
-    const publishedStatus = await this.getVersionStatus('PUBLISHED');
-    if (
-      !existing.departure_date ||
-      !existing.return_date ||
-      existing.base_price === undefined ||
-      !existing.currency_id
-    ) {
-      throw new BadRequestException(
-        'Version must have departure_date, return_date, base_price, and currency before publishing',
+    if (existing.status !== 'DRAFT') {
+      throw new ConflictException(
+        `Only draft package versions can be published; current status is ${existing.status}`,
       );
     }
 
+    const issues = getPackageVersionPublicationIssues(existing);
+    if (issues.length > 0) {
+      throw new BadRequestException({
+        code: 'PACKAGE_VERSION_NOT_READY',
+        message: 'Package version cannot be published.',
+        issues,
+      });
+    }
+
+    const publishedStatus = await this.getVersionStatus('PUBLISHED');
     await this.db
       .update(schema.packageVersions)
       .set({
@@ -478,34 +685,66 @@ export class PackagesService {
     return this.getVersion(id);
   }
 
-  async archiveVersion(id: string, actorId: string) {
+  async closeVersion(id: string, actorId: string) {
+    const existing = await this.getVersion(id);
+    if (existing.status !== 'PUBLISHED') {
+      throw new ConflictException(
+        `Only published package versions can be closed; current status is ${existing.status}`,
+      );
+    }
+
+    const closedStatus = await this.getVersionStatus('CLOSED');
     await this.db
       .update(schema.packageVersions)
       .set({
-        is_deleted: true,
-        deleted_at: new Date(),
+        package_version_status_id: closedStatus.id,
         updated_at: new Date(),
         updated_by: actorId,
       })
       .where(eq(schema.packageVersions.id, id));
+
+    return this.getVersion(id);
   }
 
-  private guardCommercialFieldsOnUpdate(dto: UpdatePackageVersionDto) {
-    const commercial = [
-      'base_price',
-      'currency_id',
-      'departure_date',
-      'return_date',
-      'max_capacity',
-      'sales_start_date',
-      'sales_end_date',
-    ] as const;
-    const touched = commercial.filter(
-      (k) => dto[k as keyof UpdatePackageVersionDto] !== undefined,
-    );
-    if (touched.length > 0) {
+  async cancelVersion(id: string, actorId: string) {
+    const existing = await this.getVersion(id);
+    if (!['DRAFT', 'PUBLISHED'].includes(existing.status)) {
       throw new ConflictException(
-        `Cannot modify commercial fields after publication: ${touched.join(', ')}`,
+        `Only draft or published package versions can be cancelled; current status is ${existing.status}`,
+      );
+    }
+
+    const cancelledStatus = await this.getVersionStatus('CANCELLED');
+    await this.db
+      .update(schema.packageVersions)
+      .set({
+        package_version_status_id: cancelledStatus.id,
+        updated_at: new Date(),
+        updated_by: actorId,
+      })
+      .where(eq(schema.packageVersions.id, id));
+
+    return this.getVersion(id);
+  }
+
+  private assertTemplateActive(template: { status?: string | null }) {
+    if (template.status !== 'ACTIVE') {
+      throw new ConflictException(
+        'Only active package templates can be edited or used for new versions',
+      );
+    }
+  }
+
+  private assertDateRangeOrder(
+    start: Date | string | null | undefined,
+    end: Date | string | null | undefined,
+    label: string,
+  ) {
+    const startKey = dateKey(start);
+    const endKey = dateKey(end);
+    if (startKey && endKey && startKey > endKey) {
+      throw new BadRequestException(
+        `${label} end date must be on or after its start date`,
       );
     }
   }
@@ -518,6 +757,17 @@ export class PackagesService {
     return (row?.max ?? 0) + 1;
   }
 
+  private async getTemplateStatus(code: string) {
+    const [row] = await this.db
+      .select()
+      .from(schema.packageTemplateStatuses)
+      .where(eq(schema.packageTemplateStatuses.status_code, code))
+      .limit(1);
+    if (!row)
+      throw new NotFoundException(`Package template status ${code} not found`);
+    return row;
+  }
+
   private async getVersionStatus(code: string) {
     const [row] = await this.db
       .select()
@@ -527,6 +777,77 @@ export class PackagesService {
     if (!row)
       throw new NotFoundException(`Package version status ${code} not found`);
     return row;
+  }
+
+  async assertAvailableForRegistration(id: string) {
+    const version = await this.getVersion(id);
+    const available = await this.withAvailability(version);
+    if (!available.is_registration_available) {
+      throw new ConflictException({
+        code: 'PACKAGE_VERSION_UNAVAILABLE',
+        message: 'Package version is not available for registration.',
+        blockers: available.availability_blockers,
+      });
+    }
+    return available;
+  }
+
+  private async withAvailability(version: any, now = new Date()) {
+    const registrationCount = await this.countRegistrations(version.id);
+    const remainingCapacity =
+      version.max_capacity === null
+        ? null
+        : Math.max(version.max_capacity - registrationCount, 0);
+    const blockers: string[] = [];
+
+    if (version.status !== 'PUBLISHED') {
+      blockers.push('PACKAGE_VERSION_NOT_PUBLISHED');
+    }
+    if (
+      !isWithinRegistrationWindow(
+        version.sales_start_date,
+        version.sales_end_date,
+        now,
+      )
+    ) {
+      blockers.push('REGISTRATION_WINDOW_CLOSED');
+    }
+    if (
+      version.max_capacity !== null &&
+      registrationCount >= version.max_capacity
+    ) {
+      blockers.push('PACKAGE_VERSION_AT_CAPACITY');
+    }
+
+    return {
+      ...version,
+      registration_count: registrationCount,
+      remaining_capacity: remainingCapacity,
+      available_capacity: remainingCapacity,
+      is_registration_available: blockers.length === 0,
+      availability_blockers: blockers,
+    };
+  }
+
+  private async countRegistrations(packageVersionId: string) {
+    const [row] = await this.db
+      .select({ count: sql<number>`count(*)` })
+      .from(schema.registrations)
+      .innerJoin(
+        schema.registrationStatuses,
+        eq(
+          schema.registrations.registration_status_id,
+          schema.registrationStatuses.id,
+        ),
+      )
+      .where(
+        and(
+          eq(schema.registrations.package_version_id, packageVersionId),
+          eq(schema.registrations.is_deleted, false),
+          not(eq(schema.registrationStatuses.status_code, 'CANCELLED')),
+        ),
+      );
+    return Number(row?.count ?? 0);
   }
 
   private async getVersionInclusions(versionId: string) {
@@ -637,6 +958,7 @@ export class PackagesService {
       sales_end_date: row.package_versions.sales_end_date,
       status: row.package_version_statuses?.status_code,
       status_name: row.package_version_statuses?.name,
+      template_status: row.package_template_statuses?.status_code,
       package_template: row.package_templates
         ? {
             id: row.package_templates.id,
@@ -757,7 +1079,7 @@ export class PackagesService {
       rows.map(async (r) => {
         const version = this.mapVersionRow(r);
         const inclusions = await this.getVersionInclusions(version.id);
-        return { ...version, inclusions };
+        return this.withAvailability({ ...version, inclusions });
       }),
     );
 
@@ -822,7 +1144,6 @@ export class PackagesService {
 
     const version = this.mapVersionRow(row);
     version.inclusions = await this.getVersionInclusions(version.id);
-    version.available_capacity = version.max_capacity; // placeholder until Slice 3
-    return version;
+    return this.withAvailability(version);
   }
 }

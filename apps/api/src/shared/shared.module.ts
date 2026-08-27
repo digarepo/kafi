@@ -8,6 +8,7 @@ import { BusinessNumberService } from './infrastructure/numbering/business-numbe
 import { JwtStrategy } from './application/strategies/jwt.strategy.js';
 import { JwtAuthGuard } from './application/guards/jwt-auth.guard.js';
 import { PermissionsGuard } from './application/guards/permissions.guard.js';
+import { WorkflowTickGuard } from './application/guards/workflow-tick.guard.js';
 import { ZodValidationPipe } from './infrastructure/validation/zod-validation.pipe.js';
 import { GlobalExceptionFilter } from './infrastructure/filters/global-exception.filter.js';
 
@@ -25,6 +26,7 @@ import { GlobalExceptionFilter } from './infrastructure/filters/global-exception
     JwtStrategy,
     JwtAuthGuard,
     PermissionsGuard,
+    WorkflowTickGuard,
     {
       provide: APP_PIPE,
       useClass: ZodValidationPipe,
@@ -42,6 +44,7 @@ import { GlobalExceptionFilter } from './infrastructure/filters/global-exception
     BusinessNumberService,
     JwtAuthGuard,
     PermissionsGuard,
+    WorkflowTickGuard,
   ],
 })
 export class SharedModule {}

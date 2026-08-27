@@ -39,7 +39,9 @@ export function UserMenu() {
   "
       >
         <Avatar>
-          <AvatarFallback>{initials ?? 'U'}</AvatarFallback>
+          <AvatarFallback className="bg-primary text-primary-foreground font-semibold">
+            {initials ?? 'U'}
+          </AvatarFallback>
         </Avatar>
 
         <div className="hidden text-left sm:block">

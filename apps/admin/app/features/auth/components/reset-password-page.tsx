@@ -19,7 +19,7 @@ export function ResetPasswordPage() {
   const initialToken = searchParams.get('token') ?? '';
   const [token, setToken] = useState(initialToken);
   const [manualToken, setManualToken] = useState('');
-  const { onSubmit, error } = useResetPassword(token);
+  const { onSubmit } = useResetPassword(token);
 
   const handleManualTokenSubmit = (event: React.FormEvent) => {
     event.preventDefault();
@@ -48,7 +48,7 @@ export function ResetPasswordPage() {
 
         {token ? (
           <div className="space-y-4">
-            <ResetPasswordForm onSubmit={onSubmit} error={error} />
+            <ResetPasswordForm onSubmit={onSubmit} />
 
             <Button
               type="button"

@@ -24,7 +24,7 @@ export function PasswordRequirements({ password }: PasswordRequirementsProps) {
     <ul className="space-y-1.5">
       {checks.map((check) => {
         const Icon = check.met ? CheckIcon : XIcon;
-        const color = check.met ? 'text-green-700' : 'text-destructive';
+        const color = check.met ? 'text-success' : 'text-destructive';
 
         return (
           <li

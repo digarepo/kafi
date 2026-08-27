@@ -27,6 +27,8 @@ export async function clientLoader({ request }: { request: Request }) {
  * This file is intentionally thin: the login page component lives in the
  * auth feature module and handles its own form state, validation, and API call.
  */
+export { RouteHydrateFallback as HydrateFallback } from '../shared/route-hydrate-fallback';
+
 export default function LoginRoute() {
   return <LoginPage />;
 }

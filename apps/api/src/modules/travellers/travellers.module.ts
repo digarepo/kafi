@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { SharedModule } from '../../shared/shared.module.js';
 import { FinanceModule } from '../finance/finance.module.js';
+import { PackagesModule } from '../packages/packages.module.js';
+import { OperationsModule } from '../operations/operations.module.js';
 import { TravellersService } from './application/services/travellers.service.js';
 import { RegistrationsService } from './application/services/registrations.service.js';
 import { RegistrationReadinessService } from './application/services/registration-readiness.service.js';
@@ -14,7 +16,7 @@ import { AdminRegistrationsController } from './presentation/controllers/admin-r
  * and registrations.
  */
 @Module({
-  imports: [SharedModule, FinanceModule],
+  imports: [SharedModule, FinanceModule, PackagesModule, OperationsModule],
   controllers: [AdminTravellersController, AdminRegistrationsController],
   providers: [
     TravellersService,

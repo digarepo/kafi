@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
 import { ArrowRightIcon } from '@phosphor-icons/react';
 
-import { Badge, Button, Card, Separator } from '@kafi/ui';
+import { Badge } from '@ui/components/ui/badge';
+import { Button } from '@ui/components/ui/button';
+import { Card } from '@ui/components/ui/card';
+import { Separator } from '@ui/components/ui/separator';
 
 import { journeySteps } from '../data/journey-steps';
 import { Link } from 'react-router';
@@ -66,9 +69,9 @@ export function JourneySteps() {
               The Kafi Journey
             </span>
 
-            <h3 className="font-heading text-md font-bold text-foreground">
+            <h2 className="font-heading text-md font-bold text-foreground">
               How It Works
-            </h3>
+            </h2>
           </div>
 
           <Badge
@@ -133,9 +136,9 @@ export function JourneySteps() {
 
         {/* Current Step */}
         <div className="space-y-2">
-          <h4 className="font-heading text-sm font-bold text-primary">
+          <h3 className="font-heading text-sm font-bold text-primary">
             {activeStep.title}
-          </h4>
+          </h3>
 
           <p className="text-xs font-light leading-relaxed text-muted-foreground sm:text-sm">
             {activeStep.description}
@@ -151,10 +154,7 @@ export function JourneySteps() {
           </span>
 
           <Link to="/packages" className="shrink-0">
-            <Button
-              size="sm"
-              className="btn-primary h-9 gap-1.5 px-3 text-[11px]"
-            >
+            <Button size="sm" className="h-9 gap-1.5 px-3 text-[11px]">
               Explore Packages
               <ArrowRightIcon weight="bold" className="h-3 w-3" />
             </Button>

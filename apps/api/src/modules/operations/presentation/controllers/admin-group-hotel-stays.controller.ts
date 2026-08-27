@@ -15,6 +15,7 @@ import { PermissionsGuard } from '../../../../shared/application/guards/permissi
 import { RequirePermissions } from '../../../../shared/application/decorators/require-permissions.decorator.js';
 import { GroupHotelStaysService } from '../../application/services/group-hotel-stays.service.js';
 import { RoomsService } from '../../application/services/rooms.service.js';
+import { RoomAssignmentsService } from '../../application/services/room-assignments.service.js';
 import {
   CreateGroupHotelStayDto,
   CreateRoomForStayDto,
@@ -29,6 +30,7 @@ export class AdminGroupHotelStaysController {
   constructor(
     private readonly groupHotelStays: GroupHotelStaysService,
     private readonly rooms: RoomsService,
+    private readonly roomAssignments: RoomAssignmentsService,
   ) {}
 
   @Get('group-hotel-stays')
@@ -65,6 +67,14 @@ export class AdminGroupHotelStaysController {
     return this.groupHotelStays.deleteStay(id, req.user.sub);
   }
 
+  // ---- Accommodation coverage ----
+
+  @Get('travel-groups/:id/accommodation-coverage')
+  @RequirePermissions('TRAVEL_GROUP_VIEW')
+  getAccommodationCoverage(@Param('id') id: string) {
+    return this.groupHotelStays.getAccommodationCoverage(id);
+  }
+
   // ---- Nested room workflow ----
 
   @Get('stays/:id/rooms')
@@ -87,5 +97,13 @@ export class AdminGroupHotelStaysController {
       { ...dto, group_hotel_stay_id: id } as any,
       req.user.sub,
     );
+  }
+
+  // ---- Auto-assign ----
+
+  @Post('stays/:id/auto-assign')
+  @RequirePermissions('TRAVEL_GROUP_MANAGE')
+  autoAssignForStay(@Param('id') id: string, @Req() req: any) {
+    return this.roomAssignments.autoAssignForStay(id, req.user.sub);
   }
 }

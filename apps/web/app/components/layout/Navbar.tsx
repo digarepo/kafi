@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
-import { Button, ThemeToggle } from "@kafi/ui";
-import { ArrowRightIcon } from "@phosphor-icons/react";
-import { Link } from "react-router";
+import { useEffect, useState } from 'react';
+import { Button } from '@ui/components/ui/button';
+import { ThemeToggle } from '@ui/components/theme-toggle';
+import { ArrowRightIcon } from '@phosphor-icons/react';
+import { Link } from 'react-router';
 
 /**
  * Represents one desktop navigation item in the landing navbar.
@@ -12,11 +13,11 @@ type NavLink = {
 };
 
 const NAV_LINKS: NavLink[] = [
-  { href: "/", label: "Home" },
-  { href: "/packages", label: "Packages" },
-  { href: "/services", label: "Services" },
-  { href: "/about", label: "About" },
-  { href: "/contact", label: "Contact" },
+  { href: '/', label: 'Home' },
+  { href: '/packages', label: 'Packages' },
+  { href: '/services', label: 'Services' },
+  { href: '/about', label: 'About' },
+  { href: '/contact', label: 'Contact' },
 ];
 
 function clamp(value: number, min: number, max: number) {
@@ -35,14 +36,31 @@ export function Navbar() {
   const [scrollProgress, setScrollProgress] = useState(0);
 
   useEffect(() => {
+    // Respect reduced-motion: skip scroll-driven animations entirely.
+    const prefersReduced = window.matchMedia(
+      '(prefers-reduced-motion: reduce)',
+    ).matches;
+    if (prefersReduced) {
+      setScrollProgress(1);
+      return;
+    }
+
+    let rafId = 0;
     const handleScroll = () => {
-      setScrollProgress(clamp(window.scrollY / 180, 0, 1));
+      if (rafId) return; // Throttle to one rAF per frame
+      rafId = requestAnimationFrame(() => {
+        setScrollProgress(clamp(window.scrollY / 180, 0, 1));
+        rafId = 0;
+      });
     };
 
     handleScroll();
-    window.addEventListener("scroll", handleScroll, { passive: true });
+    window.addEventListener('scroll', handleScroll, { passive: true });
 
-    return () => window.removeEventListener("scroll", handleScroll);
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      if (rafId) cancelAnimationFrame(rafId);
+    };
   }, []);
 
   const revealProgress = easeOutCubic(stage(scrollProgress, 0.02, 0.35));
@@ -92,19 +110,19 @@ export function Navbar() {
               }}
             />
 
-            <Link
-              to="/"
-              className="relative flex h-24 items-center gap-2 px-3"
-              aria-label="Kafi Tours home"
-            >
+            <Link to="/" className="relative flex h-24 items-center gap-2 px-3">
               <img
-                src="/KafiOr.svg"
+                src="/kafi-icon-gold.svg"
                 alt="Kafi Tours Logo"
+                width={40}
+                height={40}
                 className="block h-10 w-10 transition-transform duration-300 hover:rotate-12 dark:hidden"
               />
               <img
-                src="/KafiDef.svg"
+                src="/kafi-icon-green.svg"
                 alt="Kafi Tours Logo"
+                width={40}
+                height={40}
                 className="hidden h-10 w-10 transition-transform duration-300 hover:rotate-12 dark:block"
               />
               <span
@@ -124,7 +142,7 @@ export function Navbar() {
             className="pointer-events-auto absolute left-1/2 top-0 hidden h-12 items-center gap-6 px-4 transition-transform duration-300 ease-out md:flex"
             style={{
               transform: `translateX(-50%) scale(${centerScale})`,
-              transformOrigin: "center",
+              transformOrigin: 'center',
             }}
           >
             <div
@@ -166,7 +184,7 @@ export function Navbar() {
             />
 
             <Link to="/booking">
-              <Button className="relative btn-primary flex h-8 items-center rounded-full hover:scale-110 gap-1.5 px-4 mx-4 text-xs shadow-soft">
+              <Button className="relative flex h-8 items-center rounded-full hover:scale-110 gap-1.5 px-4 mx-4 text-xs shadow-soft">
                 Plan My Umrah
                 <ArrowRightIcon weight="bold" className="h-3.5 w-3.5" />
               </Button>

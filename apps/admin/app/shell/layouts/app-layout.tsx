@@ -4,6 +4,7 @@ import { SidebarProvider, SidebarInset } from '@kafi/ui';
 
 import { Sidebar } from '../sidebar/sidebar';
 import { Header } from '../header/header';
+import { DeleteDialogProvider } from '../../shared/delete-dialog';
 
 /**
  * Main authenticated application layout.
@@ -12,14 +13,16 @@ import { Header } from '../header/header';
  */
 export function AppLayout() {
   return (
-    <SidebarProvider className="min-h-svh w-full bg-muted/40">
-      <Sidebar />
-      <SidebarInset className="rounded-2xl bg-background shadow">
-        <Header />
-        <div className="flex-1 overflow-auto px-4">
-          <Outlet />
-        </div>
-      </SidebarInset>
-    </SidebarProvider>
+    <DeleteDialogProvider>
+      <SidebarProvider className="min-h-svh w-full bg-muted/40">
+        <Sidebar />
+        <SidebarInset className="rounded-2xl bg-background shadow">
+          <Header />
+          <div className="flex-1 overflow-auto p-4 ">
+            <Outlet />
+          </div>
+        </SidebarInset>
+      </SidebarProvider>
+    </DeleteDialogProvider>
   );
 }

@@ -19,15 +19,11 @@ import { FieldError } from '../../../shared/field-error';
 
 interface ForgotPasswordFormProps {
   className?: string;
-  error?: string | null;
-  success?: boolean;
   onSubmit: (values: ForgotPasswordFormValues) => Promise<void>;
 }
 
 export function ForgotPasswordForm({
   className,
-  error,
-  success,
   onSubmit,
 }: ForgotPasswordFormProps) {
   const form = useForm({
@@ -66,19 +62,6 @@ export function ForgotPasswordForm({
                 </p>
               </div>
 
-              {success && (
-                <div className="rounded-md bg-green-500/10 p-3 text-sm text-green-700">
-                  If an account exists for that email, a password reset link has
-                  been sent.
-                </div>
-              )}
-
-              {!success && error && (
-                <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-                  {error}
-                </div>
-              )}
-
               <form.Field name="email">
                 {(field: AnyFieldApi) => (
                   <Field>
@@ -93,7 +76,6 @@ export function ForgotPasswordForm({
                       onChange={(e) => field.handleChange(e.target.value)}
                       onBlur={field.handleBlur}
                       aria-invalid={field.state.meta.errors.length > 0}
-                      disabled={success}
                     />
 
                     <FieldError field={field} />
@@ -105,7 +87,7 @@ export function ForgotPasswordForm({
                 <Button
                   type="submit"
                   className="w-full"
-                  disabled={isSubmitting || success}
+                  disabled={isSubmitting}
                 >
                   {isSubmitting ? 'Sending…' : 'Send reset link'}
                 </Button>

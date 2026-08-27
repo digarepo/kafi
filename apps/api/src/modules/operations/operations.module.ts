@@ -22,6 +22,7 @@ import { AdminGroupHotelStaysController } from './presentation/controllers/admin
 import { AdminRoomsController } from './presentation/controllers/admin-rooms.controller.js';
 import { AdminRoomAssignmentsController } from './presentation/controllers/admin-room-assignments.controller.js';
 import { AdminTransportSegmentsController } from './presentation/controllers/admin-transport-segments.controller.js';
+import { InternalWorkflowController } from './presentation/controllers/internal-workflow.controller.js';
 
 /**
  * Operations bounded context: travel groups, group memberships, guarantees,
@@ -44,6 +45,7 @@ import { AdminTransportSegmentsController } from './presentation/controllers/adm
     AdminRoomAssignmentsController,
     AdminTransportSegmentsController,
     AdminLogisticsLookupsController,
+    InternalWorkflowController,
   ],
   providers: [
     LogisticsLookupsService,

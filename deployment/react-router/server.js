@@ -22,7 +22,21 @@ app.use(
   '/images',
   express.static('public/images', { immutable: true, maxAge: '1y' }),
 );
-app.use('/', express.static('public', { immutable: true, maxAge: '1y' }));
+app.use(
+  '/',
+  express.static('public', {
+    immutable: true,
+    maxAge: '1y',
+    setHeaders(response, filePath) {
+      if (filePath.endsWith('/favicon.svg')) {
+        response.setHeader(
+          'Cache-Control',
+          'public, max-age=31536000, immutable',
+        );
+      }
+    },
+  }),
+);
 app.use(
   '/fonts',
   express.static('public/fonts', { immutable: true, maxAge: '1y' }),

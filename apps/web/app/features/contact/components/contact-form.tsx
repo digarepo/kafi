@@ -3,7 +3,7 @@
  *
  * @remarks
  * - Uses TanStack Form with the Zod enquiry schema for client-side validation.
- * - Falls back to a simulated submission when `VITE_API_URL` is not configured.
+ * - Submits to `${VITE_API_URL}/api/public/inquiries/contact`.
  */
 
 import { useState } from 'react';
@@ -14,22 +14,24 @@ import {
   CalendarBlankIcon,
   CheckCircleIcon,
 } from '@phosphor-icons/react';
+import { Button } from '@ui/components/ui/button';
+import { Calendar } from '@ui/components/ui/calendar';
+import { cn } from '@ui/lib/utils';
+import { Input } from '@ui/components/ui/input';
+import { Label } from '@ui/components/ui/label';
 import {
-  Button,
-  Calendar,
-  cn,
-  Input,
-  Label,
   Popover,
   PopoverContent,
   PopoverTrigger,
+} from '@ui/components/ui/popover';
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Textarea,
-} from '@kafi/ui';
+} from '@ui/components/ui/select';
+import { Textarea } from '@ui/components/ui/textarea';
 import {
   ENQUIRY_TYPES,
   GROUP_SIZE_OPTIONS,
@@ -198,7 +200,7 @@ function SelectField({
         <SelectTrigger
           id={id}
           aria-invalid={field.state.meta.errors.length > 0}
-          className="h-11 w-full"
+          className="data-[size=default]:h-11 w-full"
         >
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>
@@ -221,8 +223,7 @@ function SelectField({
  * @returns The enquiry form or its success confirmation.
  *
  * @remarks
- * - Submits to `${VITE_API_URL}/inquiries` when the API URL is configured.
- * - Simulates a short async success in development for UX testing.
+ * - Submits to `${VITE_API_URL}/api/public/inquiries/contact`.
  */
 export default function EnquiryForm() {
   const [submitError, setSubmitError] = useState<string | null>(null);

@@ -1,6 +1,6 @@
 import { Link } from 'react-router';
-import { cn } from '@kafi/ui';
 import {
+  cn,
   SidebarHeader as ShadcnSidebarHeader,
   SidebarTrigger,
   useSidebar,
@@ -23,37 +23,38 @@ function BrandLogo({ className }: { className?: string }) {
   );
 }
 
-/**
- * Sidebar header.
- *
- * Expanded: branded logo left, shadcn SidebarTrigger right.
- * Collapsed: shadcn SidebarTrigger centered.
- */
 export function SidebarHeader() {
-  const { state } = useSidebar();
+  const { isMobile, state } = useSidebar();
+  const isExpanded = isMobile || state === 'expanded';
 
   return (
-    <ShadcnSidebarHeader className={cn('h-14', state === 'collapsed' && 'p-0')}>
-      {state === 'expanded' ? (
+    <ShadcnSidebarHeader className={cn('h-14', !isExpanded && 'p-0')}>
+      {isExpanded ? (
         <div className="flex h-full items-center justify-between px-3">
           <Link
             to="/"
             className="flex items-center gap-2 outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
           >
             <BrandLogo className="h-10 w-10 shrink-0" />
-            <h1 className="font-semibold text-accent tracking-wide">
+            <h1 className="font-semibold tracking-wide text-accent">
               <span className="text-primary">KAFI</span> TOURS
             </h1>
           </Link>
-
           <SidebarTrigger className="h-8 w-8" />
         </div>
       ) : (
-        <div className="flex h-full items-center justify-center px-1">
-          <div className="group relative flex h-10 w-10 shrink-0 items-center justify-center">
-            <BrandLogo className="absolute inset-0 h-full w-full transition-opacity group-hover:opacity-0" />
-            <SidebarTrigger className="absolute inset-0 m-auto hidden h-10 w-10 group-hover:flex" />
-          </div>
+        <div className="group/sidebar-brand relative flex h-full items-center justify-center px-1">
+          <Link
+            to="/"
+            aria-label="Kafi Tours home"
+            className="flex h-10 w-10 items-center justify-center rounded-md outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <BrandLogo className="h-10 w-10 shrink-0" />
+          </Link>
+          <SidebarTrigger
+            aria-label="Expand sidebar"
+            className="pointer-events-none absolute inset-1 h-auto w-auto bg-sidebar/80 opacity-0 transition-opacity group-hover/sidebar-brand:pointer-events-auto group-hover/sidebar-brand:opacity-100 group-focus-within/sidebar-brand:pointer-events-auto group-focus-within/sidebar-brand:opacity-100"
+          />
         </div>
       )}
     </ShadcnSidebarHeader>

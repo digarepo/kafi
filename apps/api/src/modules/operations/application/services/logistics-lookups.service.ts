@@ -5,7 +5,7 @@ import { DATABASE } from '../../../../shared/infrastructure/database/database.pr
 import * as schema from '@kafi/database';
 
 /**
- * Read-only catalog of Slice 6 logistics lookup values.
+ * Read-only catalog of logistics lookup values.
  */
 @Injectable()
 export class LogisticsLookupsService {
@@ -58,6 +58,18 @@ export class LogisticsLookupsService {
       schema.transportSegmentStatuses,
       schema.transportSegmentStatuses.name,
     );
+  }
+
+  async listCities(countryId?: string) {
+    const conditions = [eq(schema.cities.is_deleted, false)];
+    if (countryId) {
+      conditions.push(eq(schema.cities.country_id, countryId));
+    }
+    return this.db
+      .select({ id: schema.cities.id, name: schema.cities.name })
+      .from(schema.cities)
+      .where(and(...conditions))
+      .orderBy(asc(schema.cities.name));
   }
 
   async listRoomAssignmentStatuses() {

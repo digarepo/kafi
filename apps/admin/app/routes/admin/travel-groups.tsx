@@ -1,24 +1,16 @@
-import { Outlet, redirect, useLoaderData } from 'react-router';
-import { api } from '../../lib/api.js';
+import { Outlet } from 'react-router';
+import { RequirePermission } from '../../core/permissions';
 
 export function meta() {
   return [{ title: 'Travel groups | Kafi Admin' }];
 }
 
-export async function clientLoader() {
-  try {
-    const user = await api.me();
-    if (!user.permissions?.includes('TRAVEL_GROUP_VIEW')) {
-      throw redirect('/forbidden');
-    }
-    return {};
-  } catch {
-    api.logout();
-    throw redirect('/login');
-  }
-}
+export { RouteHydrateFallback as HydrateFallback } from '../../shared/route-hydrate-fallback';
 
 export default function TravelGroupsLayout() {
-  useLoaderData<typeof clientLoader>();
-  return <Outlet />;
+  return (
+    <RequirePermission permission="TRAVEL_GROUP_VIEW">
+      <Outlet />
+    </RequirePermission>
+  );
 }

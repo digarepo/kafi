@@ -18,6 +18,9 @@ const dateRangeValueSchema = z
     from: z.date(),
     to: z.date().optional(),
   })
+  .refine((range) => !range.to || range.from <= range.to, {
+    message: 'End date must be on or after start date',
+  })
   .optional();
 
 export const packageVersionFormSchema = z.object({
@@ -30,9 +33,13 @@ export const packageVersionFormSchema = z.object({
   year: z.number().min(2020),
   travelRange: dateRangeValueSchema,
   salesRange: dateRangeValueSchema,
-  base_price: z.number().min(0, 'Base price must be a positive number'),
+  base_price: z.number().min(0, 'Base price must be a non-negative number'),
   currency_id: z.string().min(1, 'Currency is required'),
-  max_capacity: z.number().optional(),
+  max_capacity: z
+    .number()
+    .int()
+    .min(1, 'Capacity must be at least 1')
+    .optional(),
   inclusions: z.array(
     z.object({
       id: z.string(),

@@ -25,7 +25,7 @@ const ENDPOINT_PERMISSIONS: Record<string, string> = {
   'POST /admin/visa-applications': 'VISA_MANAGE',
   'GET /admin/visa-applications/:id': 'VISA_VIEW',
   'PATCH /admin/visa-applications/:id': 'VISA_MANAGE',
-  'POST /admin/visa-applications/:id/change-status': 'VISA_MANAGE',
+  'POST /admin/visa-applications/:id/record-result': 'VISA_MANAGE',
   'DELETE /admin/visa-applications/:id': 'VISA_MANAGE',
   'GET /admin/visa-application-statuses': 'VISA_VIEW',
   'GET /admin/registrations/:id/visa-applications': 'VISA_VIEW',
@@ -54,7 +54,9 @@ describe('Documents and Visa RBAC', () => {
   it('requires DOCUMENT_MANAGE for document write endpoints', () => {
     const writeEndpoints = Object.entries(ENDPOINT_PERMISSIONS).filter(
       ([p]) =>
-        (p.startsWith('POST') || p.startsWith('PATCH') || p.startsWith('DELETE')) &&
+        (p.startsWith('POST') ||
+          p.startsWith('PATCH') ||
+          p.startsWith('DELETE')) &&
         p.includes('/documents'),
     );
     for (const [, permission] of writeEndpoints) {
@@ -74,7 +76,9 @@ describe('Documents and Visa RBAC', () => {
   it('requires VISA_MANAGE for visa write endpoints', () => {
     const writeEndpoints = Object.entries(ENDPOINT_PERMISSIONS).filter(
       ([p]) =>
-        (p.startsWith('POST') || p.startsWith('PATCH') || p.startsWith('DELETE')) &&
+        (p.startsWith('POST') ||
+          p.startsWith('PATCH') ||
+          p.startsWith('DELETE')) &&
         p.includes('/visa'),
     );
     for (const [, permission] of writeEndpoints) {

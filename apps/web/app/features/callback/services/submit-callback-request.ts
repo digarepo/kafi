@@ -1,37 +1,38 @@
-import type { CallbackPayload } from "../types/callback.types";
+import type { CallbackPayload } from '../types/callback.types';
 
 /**
- * Submits a callback request to the backend.
+ * Submits a callback request to the backend inquiry endpoint.
  *
  * @param payload - Validated callback request data from the form.
  * @returns A success marker when the submission completes.
- * @throws {Error} When the backend responds with a non-2xx status.
+ * @throws {Error} When the backend is unreachable or responds with a non-2xx status.
  *
  * @remarks
- * - When `VITE_API_URL` is set, POSTs to `${VITE_API_URL}/callbacks`.
- * - Falls back to a short simulated delay in development so the form's
- *   loading → success UX can be tested end-to-end.
+ * - POSTs to `${VITE_API_URL}/api/public/inquiries/callback`.
+ * - `VITE_API_URL` is required; submissions fail loudly when it is missing so
+ *   misconfigured environments are not mistaken for successful captures.
  */
-export async function submitCallbackRequest(payload: CallbackPayload): Promise<{ ok: true }> {
+export async function submitCallbackRequest(
+  payload: CallbackPayload,
+): Promise<{ ok: true }> {
   const apiUrl = import.meta.env.VITE_API_URL;
-
-  if (apiUrl) {
-    const res = await fetch(`${apiUrl}/callbacks`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-
-    if (!res.ok) {
-      throw new Error(`Callback submission failed (${res.status}).`);
-    }
-
-    return { ok: true };
+  if (!apiUrl) {
+    throw new Error(
+      'Callback submission is not configured. Please try again later.',
+    );
   }
 
-  console.warn(
-    "[submitCallbackRequest] VITE_API_URL is not configured. Simulating a successful submission for development."
-  );
-  await new Promise((r) => setTimeout(r, 700));
+  const res = await fetch(`${apiUrl}/api/public/inquiries/callback`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    throw new Error(
+      `Callback submission failed (${res.status}). Please try again.`,
+    );
+  }
+
   return { ok: true };
 }

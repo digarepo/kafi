@@ -35,8 +35,6 @@ const updateTravelGroupSchema = z.object({
 const createGroupMembershipSchema = z.object({
   travel_group_id: ulidSchema,
   registration_id: ulidSchema,
-  guarantee_required: z.coerce.boolean().default(true),
-  guarantee_waived: z.coerce.boolean().default(false),
   remarks: z.string().optional(),
 });
 
@@ -52,7 +50,6 @@ const updateGroupMembershipStatusSchema = z.object({
 
 const transferGroupMembershipSchema = z.object({
   target_travel_group_id: ulidSchema,
-  guarantee_waived: z.coerce.boolean().optional(),
   remarks: z.string().optional(),
 });
 
@@ -66,6 +63,7 @@ const guaranteeTypeSchema = z.enum([
   'CASH_DEPOSIT',
   'CPO',
   'BANK_GUARANTEE',
+  'OTHER',
 ]);
 
 const guaranteeStatusSchema = z.enum([
@@ -78,8 +76,8 @@ const guaranteeStatusSchema = z.enum([
 ]);
 
 const createGuaranteeSchema = z.object({
-  group_membership_id: ulidSchema,
-  registration_id: ulidSchema,
+  group_membership_id: optionalUlid,
+  registration_id: optionalUlid,
   guarantee_type: guaranteeTypeSchema,
   contact_person_id: optionalUlid,
   instrument_reference: z.string().max(120).optional(),
@@ -238,21 +236,37 @@ export class VendorFiltersDto extends createZodDto(vendorFiltersSchema) {}
 
 const genderRestrictionSchema = z.enum(['Female', 'Male']).optional();
 
-const createGroupHotelStaySchema = z.object({
+const createGroupHotelStayBaseSchema = z.object({
   travel_group_id: ulidSchema,
-  hotel_id: ulidSchema,
+  hotel_id: optionalUlid,
+  hotel_name: z.string().min(1).max(255).optional(),
+  booking_reference: z.string().max(120).optional(),
   city_id: ulidSchema,
   check_in_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   check_out_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  group_hotel_stay_status_id: optionalUlid,
+  accommodation_cost: z.coerce.number().min(0).optional(),
   notes: z.string().optional(),
 });
 
-const createGroupHotelStayForTravelGroupSchema =
-  createGroupHotelStaySchema.omit({ travel_group_id: true });
+const createGroupHotelStaySchema = createGroupHotelStayBaseSchema.refine(
+  (data) => data.hotel_id || data.hotel_name,
+  {
+    message: 'Either hotel_id or hotel_name must be provided',
+    path: ['hotel_name'],
+  },
+);
+
+const createGroupHotelStayForTravelGroupSchema = createGroupHotelStayBaseSchema
+  .omit({ travel_group_id: true })
+  .refine((data) => data.hotel_id || data.hotel_name, {
+    message: 'Either hotel_id or hotel_name must be provided',
+    path: ['hotel_name'],
+  });
 
 const updateGroupHotelStaySchema = z.object({
-  hotel_id: ulidSchema.optional(),
+  hotel_id: optionalUlid,
+  hotel_name: z.string().min(1).max(255).optional(),
+  booking_reference: z.string().max(120).optional(),
   city_id: ulidSchema.optional(),
   check_in_date: z
     .string()
@@ -263,6 +277,7 @@ const updateGroupHotelStaySchema = z.object({
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .optional(),
   group_hotel_stay_status_id: optionalUlid,
+  accommodation_cost: z.coerce.number().min(0).optional(),
   notes: z.string().optional(),
 });
 
@@ -334,6 +349,8 @@ const transportTypeSchema = z.enum([
   'OTHER',
 ]);
 
+const optionalTransportTypeSchema = transportTypeSchema.optional();
+
 const locationTypeSchema = z
   .enum(['AIRPORT', 'HOTEL', 'RELIGIOUS_SITE', 'OTHER'])
   .optional();
@@ -351,6 +368,14 @@ const createRoomAssignmentForRoomSchema = createRoomAssignmentSchema.omit({
   group_hotel_stay_id: true,
 });
 
+const autoAssignRoomsSchema = z.object({
+  group_hotel_stay_id: ulidSchema,
+});
+
+const reassignRoomSchema = z.object({
+  room_id: ulidSchema,
+});
+
 const roomAssignmentFiltersSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   page_size: z.coerce.number().int().min(1).default(25),
@@ -361,9 +386,9 @@ const roomAssignmentFiltersSchema = z.object({
 
 const createTransportSegmentSchema = z.object({
   travel_group_id: ulidSchema,
-  vendor_id: ulidSchema,
-  transport_type: transportTypeSchema,
-  segment_order: z.coerce.number().int().min(1),
+  vendor_id: optionalUlid,
+  transport_type: optionalTransportTypeSchema,
+  segment_order: z.coerce.number().int().min(1).optional(),
   origin_location: z.string().min(1).max(255),
   destination_location: z.string().min(1).max(255),
   origin_type: locationTypeSchema,
@@ -373,7 +398,7 @@ const createTransportSegmentSchema = z.object({
   vehicle_identifier: z.string().max(100).optional(),
   driver_name: z.string().max(255).optional(),
   driver_phone_number: z.string().max(30).optional(),
-  transport_segment_status_id: optionalUlid,
+  transport_cost: z.coerce.number().min(0).optional(),
   notes: z.string().optional(),
 });
 
@@ -382,7 +407,7 @@ const createTransportSegmentForTravelGroupSchema =
 
 const updateTransportSegmentSchema = z.object({
   vendor_id: ulidSchema.optional(),
-  transport_type: transportTypeSchema.optional(),
+  transport_type: optionalTransportTypeSchema,
   segment_order: z.coerce.number().int().min(1).optional(),
   origin_location: z.string().min(1).max(255).optional(),
   destination_location: z.string().min(1).max(255).optional(),
@@ -394,6 +419,7 @@ const updateTransportSegmentSchema = z.object({
   driver_name: z.string().max(255).optional(),
   driver_phone_number: z.string().max(30).optional(),
   transport_segment_status_id: optionalUlid,
+  transport_cost: z.coerce.number().min(0).optional(),
   notes: z.string().optional(),
 });
 
@@ -410,6 +436,8 @@ export class CreateRoomAssignmentDto extends createZodDto(
 export class CreateRoomAssignmentForRoomDto extends createZodDto(
   createRoomAssignmentForRoomSchema,
 ) {}
+export class AutoAssignRoomsDto extends createZodDto(autoAssignRoomsSchema) {}
+export class ReassignRoomDto extends createZodDto(reassignRoomSchema) {}
 export class RoomAssignmentFiltersDto extends createZodDto(
   roomAssignmentFiltersSchema,
 ) {}

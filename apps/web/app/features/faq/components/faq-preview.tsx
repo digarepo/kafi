@@ -8,14 +8,9 @@
  */
 
 import { ArrowRightIcon } from '@phosphor-icons/react';
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-  Badge,
-  Button,
-} from '@kafi/ui';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@ui/components/ui/accordion'
+import { Badge } from '@ui/components/ui/badge'
+import { Button } from '@ui/components/ui/button';
 import { Link } from 'react-router';
 
 import { FAQ_PREVIEW } from '../data/faq-data';

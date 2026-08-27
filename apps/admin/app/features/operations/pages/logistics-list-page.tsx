@@ -1,9 +1,16 @@
 import { useEffect, useState } from 'react';
 import type { ColumnDef } from '@tanstack/react-table';
-import { BedDouble, Bus, Container, Hotel as HotelIcon } from 'lucide-react';
+import {
+  Archive,
+  BedDouble,
+  Bus,
+  Container,
+  Hotel as HotelIcon,
+} from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@kafi/ui';
 import { usePermissions } from '../../../core/permissions';
 import { DataTable, DataTableToolbar } from '../../../shared/data-table';
+import { useDestructiveConfirmation } from '../../../shared/delete-dialog';
 import { actionsColumn, textColumn } from '../../../shared/data-table/columns';
 import {
   logisticsApi,
@@ -55,18 +62,32 @@ export function LogisticsListPage() {
 }
 
 function HotelList({ canManage }: { canManage: boolean }) {
+  const { confirm } = useDestructiveConfirmation();
   const [hotels, setHotels] = useState<Hotel[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState('');
+  const [pagination, setPagination] = useState({
+    pageIndex: 0,
+    pageSize: 25,
+    total: 0,
+  });
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
       setLoading(true);
+      setError(null);
       try {
-        const res = await logisticsApi.listHotels(1, 100, filter);
-        if (!cancelled) setHotels(res.data);
+        const res = await logisticsApi.listHotels(
+          pagination.pageIndex + 1,
+          pagination.pageSize,
+          filter,
+        );
+        if (!cancelled) {
+          setHotels(res.data);
+          setPagination((current) => ({ ...current, total: res.total }));
+        }
       } catch (err) {
         if (!cancelled)
           setError(
@@ -80,14 +101,25 @@ function HotelList({ canManage }: { canManage: boolean }) {
     return () => {
       cancelled = true;
     };
-  }, [filter]);
+  }, [filter, pagination.pageIndex, pagination.pageSize]);
 
   async function handleDelete(id: string) {
-    if (!confirm('Delete this hotel?')) return;
+    if (
+      !(await confirm({
+        title: 'Delete hotel?',
+        description: 'This hotel will be permanently removed.',
+      }))
+    )
+      return;
     try {
       await logisticsApi.deleteHotel(id);
-      const res = await logisticsApi.listHotels(1, 100, filter);
+      const res = await logisticsApi.listHotels(
+        pagination.pageIndex + 1,
+        pagination.pageSize,
+        filter,
+      );
       setHotels(res.data);
+      setPagination((current) => ({ ...current, total: res.total }));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Delete failed');
     }
@@ -116,7 +148,9 @@ function HotelList({ canManage }: { canManage: boolean }) {
     actionsColumn<Hotel>({
       actions: [
         {
-          label: 'Delete',
+          label: 'Archive',
+          icon: Archive,
+          variant: 'destructive',
           onClick: (h) => void handleDelete(h.id),
           disabled: () => !canManage,
         },
@@ -131,31 +165,52 @@ function HotelList({ canManage }: { canManage: boolean }) {
           {error}
         </div>
       )}
-      <DataTableToolbar filter={filter} onFilterChange={setFilter} />
+      <DataTableToolbar
+        filter={filter}
+        onFilterChange={(value) => {
+          setFilter(value);
+          setPagination((current) => ({ ...current, pageIndex: 0 }));
+        }}
+      />
       <DataTable
         columns={columns}
         data={hotels}
         loading={loading}
         globalFilter={filter}
         onGlobalFilterChange={setFilter}
+        pagination={pagination}
+        onPaginationChange={setPagination}
       />
     </div>
   );
 }
 
 function VendorList({ canManage }: { canManage: boolean }) {
+  const { confirm } = useDestructiveConfirmation();
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState('');
+  const [pagination, setPagination] = useState({
+    pageIndex: 0,
+    pageSize: 25,
+    total: 0,
+  });
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
       setLoading(true);
       try {
-        const res = await logisticsApi.listVendors(1, 100, filter);
-        if (!cancelled) setVendors(res.data);
+        const res = await logisticsApi.listVendors(
+          pagination.pageIndex + 1,
+          pagination.pageSize,
+          filter,
+        );
+        if (!cancelled) {
+          setVendors(res.data);
+          setPagination((current) => ({ ...current, total: res.total }));
+        }
       } catch (err) {
         if (!cancelled)
           setError(
@@ -169,14 +224,25 @@ function VendorList({ canManage }: { canManage: boolean }) {
     return () => {
       cancelled = true;
     };
-  }, [filter]);
+  }, [filter, pagination.pageIndex, pagination.pageSize]);
 
   async function handleDelete(id: string) {
-    if (!confirm('Delete this vendor?')) return;
+    if (
+      !(await confirm({
+        title: 'Delete vendor?',
+        description: 'This vendor will be permanently removed.',
+      }))
+    )
+      return;
     try {
       await logisticsApi.deleteVendor(id);
-      const res = await logisticsApi.listVendors(1, 100, filter);
+      const res = await logisticsApi.listVendors(
+        pagination.pageIndex + 1,
+        pagination.pageSize,
+        filter,
+      );
       setVendors(res.data);
+      setPagination((current) => ({ ...current, total: res.total }));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Delete failed');
     }
@@ -203,7 +269,9 @@ function VendorList({ canManage }: { canManage: boolean }) {
     actionsColumn<Vendor>({
       actions: [
         {
-          label: 'Delete',
+          label: 'Archive',
+          icon: Archive,
+          variant: 'destructive',
           onClick: (v) => void handleDelete(v.id),
           disabled: () => !canManage,
         },
@@ -218,13 +286,21 @@ function VendorList({ canManage }: { canManage: boolean }) {
           {error}
         </div>
       )}
-      <DataTableToolbar filter={filter} onFilterChange={setFilter} />
+      <DataTableToolbar
+        filter={filter}
+        onFilterChange={(value) => {
+          setFilter(value);
+          setPagination((current) => ({ ...current, pageIndex: 0 }));
+        }}
+      />
       <DataTable
         columns={columns}
         data={vendors}
         loading={loading}
         globalFilter={filter}
         onGlobalFilterChange={setFilter}
+        pagination={pagination}
+        onPaginationChange={setPagination}
       />
     </div>
   );

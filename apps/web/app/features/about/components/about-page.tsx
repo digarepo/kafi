@@ -8,15 +8,16 @@
  * and avoids invented statistics, dates, achievements, or people.
  */
 
-import { useState } from "react";
+import { useState } from 'react';
 
-import { Badge, Button } from "@kafi/ui";
-import { CheckIcon } from "@phosphor-icons/react";
-import { Link } from "react-router";
+import { Badge } from '@ui/components/ui/badge';
+import { Button } from '@ui/components/ui/button';
+import { CheckIcon } from '@phosphor-icons/react';
+import { Link } from 'react-router';
 
-import { InlineCallbackForm } from "@/features/callback";
+import { LazyInlineCallbackForm } from '@/features/callback/components/lazy-inline-callback-form';
 
-import { PRINCIPLES } from "../data/about-content";
+import { PRINCIPLES } from '../data/about-content';
 
 /**
  * Renders the introductory hero section.
@@ -40,8 +41,9 @@ function Intro() {
           </h1>
 
           <p className="text-base font-light leading-relaxed text-muted-foreground md:text-lg">
-            Kafi Tours helps pilgrims plan and navigate Umrah with the practical support and
-            thoughtful coordination that lets them focus on the spiritual experience ahead.
+            Kafi Tours helps pilgrims plan and navigate Umrah with the practical
+            support and thoughtful coordination that lets them focus on the
+            spiritual experience ahead.
           </p>
         </div>
       </div>
@@ -74,20 +76,23 @@ function WhoWeAre() {
 
           <div className="space-y-6 lg:col-span-7 lg:col-start-6">
             <p className="text-base font-light leading-relaxed text-muted-foreground">
-              Kafi Tours is a travel and pilgrimage service built around the needs of people
-              preparing for Umrah. We work with individuals, families, and groups to arrange the
-              practical elements that make a pilgrimage possible: flights, accommodation, ground
-              transport, visa support, and on-the-ground guidance.
+              Kafi Tours is a travel and pilgrimage service built around the
+              needs of people preparing for Umrah. We work with individuals,
+              families, and groups to arrange the practical elements that make a
+              pilgrimage possible: flights, accommodation, ground transport,
+              visa support, and on-the-ground guidance.
             </p>
 
             <p className="text-base font-light leading-relaxed text-muted-foreground">
-              Our role is to reduce complexity. By coordinating the many details of travel, we help
-              pilgrims arrive prepared and move through each stage of the journey with greater ease.
+              Our role is to reduce complexity. By coordinating the many details
+              of travel, we help pilgrims arrive prepared and move through each
+              stage of the journey with greater ease.
             </p>
 
             <p className="text-base font-light leading-relaxed text-muted-foreground">
-              We believe that thoughtful preparation is part of a respectful pilgrimage. When
-              logistics are handled well, the heart of the journey can remain where it belongs.
+              We believe that thoughtful preparation is part of a respectful
+              pilgrimage. When logistics are handled well, the heart of the
+              journey can remain where it belongs.
             </p>
           </div>
         </div>
@@ -119,8 +124,8 @@ function Approach() {
             </h2>
 
             <p className="mt-4 max-w-md text-sm font-light leading-relaxed text-muted-foreground">
-              These four commitments shape how we respond to every enquiry, build every itinerary,
-              and support every pilgrim.
+              These four commitments shape how we respond to every enquiry,
+              build every itinerary, and support every pilgrim.
             </p>
           </div>
 
@@ -133,7 +138,7 @@ function Approach() {
                   className="flex gap-5 border-b border-border/20 pb-10 last:border-0 last:pb-0"
                 >
                   <span className="text-xs font-bold text-accent/70">
-                    {String(index + 1).padStart(2, "0")}
+                    {String(index + 1).padStart(2, '0')}
                   </span>
 
                   <div className="space-y-2">
@@ -181,15 +186,17 @@ function Experience() {
             </h2>
 
             <p className="mt-4 text-base font-light leading-relaxed text-muted-foreground">
-              An Umrah journey is not a collection of separate services. It is a single, continuous
-              experience that begins with the first conversation and ends when you return home. Our
-              aim is to hold the whole picture together.
+              An Umrah journey is not a collection of separate services. It is a
+              single, continuous experience that begins with the first
+              conversation and ends when you return home. Our aim is to hold the
+              whole picture together.
             </p>
 
             <p className="mt-4 text-base font-light leading-relaxed text-muted-foreground">
-              We coordinate flights, accommodation, transport, and practical support so that the
-              journey feels connected rather than fragmented. You are not passed from one vendor to
-              another. You have one team to speak with from planning through travel.
+              We coordinate flights, accommodation, transport, and practical
+              support so that the journey feels connected rather than
+              fragmented. You are not passed from one vendor to another. You
+              have one team to speak with from planning through travel.
             </p>
           </div>
 
@@ -201,16 +208,19 @@ function Experience() {
 
               <ul className="mt-6 space-y-4">
                 {[
-                  "One itinerary that ties every stage together",
-                  "Accommodation and transport arranged as part of the whole",
-                  "Guidance available before departure and during travel",
-                  "A single point of contact for questions",
+                  'One itinerary that ties every stage together',
+                  'Accommodation and transport arranged as part of the whole',
+                  'Guidance available before departure and during travel',
+                  'A single point of contact for questions',
                 ].map((item) => (
                   <li
                     key={item}
                     className="flex items-start gap-3 text-sm font-light text-muted-foreground"
                   >
-                    <CheckIcon className="mt-0.5 size-4 shrink-0 text-accent" weight="bold" />
+                    <CheckIcon
+                      className="mt-0.5 size-4 shrink-0 text-accent"
+                      weight="bold"
+                    />
                     <span>{item}</span>
                   </li>
                 ))}
@@ -246,13 +256,13 @@ function Closing() {
         </h2>
 
         <p className="mx-auto mt-4 max-w-2xl text-base font-light leading-relaxed text-muted-foreground">
-          Every pilgrimage is personal. Tell us what you have in mind and we will help you
-          understand the next steps.
+          Every pilgrimage is personal. Tell us what you have in mind and we
+          will help you understand the next steps.
         </p>
 
         <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
           {showForm ? (
-            <InlineCallbackForm
+            <LazyInlineCallbackForm
               source="about"
               onSuccess={() => {
                 setTimeout(() => setShowForm(false), 5000);
@@ -261,13 +271,20 @@ function Closing() {
             />
           ) : (
             <>
-              <Button onClick={() => setShowForm(true)} className="btn-primary h-11 px-6 text-sm">
+              <Button
+                onClick={() => setShowForm(true)}
+                className="h-11 px-6 text-sm"
+              >
                 Request a Callback
               </Button>
 
-              <Link to="/packages" className="btn-outline h-11 px-6 text-sm">
+              <Button
+                variant="outline"
+                render={<Link to="/packages" />}
+                className="h-11 px-6 text-sm"
+              >
                 View Packages
-              </Link>
+              </Button>
             </>
           )}
         </div>
@@ -283,7 +300,10 @@ function Closing() {
  */
 export default function AboutPage() {
   return (
-    <main className="relative min-h-screen bg-background text-foreground">
+    <main
+      id="main-content"
+      className="relative min-h-screen bg-background text-foreground"
+    >
       <div className="relative z-10">
         <Intro />
         <WhoWeAre />

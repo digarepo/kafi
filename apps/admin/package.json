@@ -7,7 +7,11 @@
     "dev": "react-router dev --port 3000",
     "build": "react-router build",
     "start": "react-router-serve ./build/server/index.js",
-    "typecheck": "react-router typegen && tsc --noEmit"
+    "typecheck": "react-router typegen && tsc --noEmit",
+    "perf:browser": "playwright test performance/benchmark.spec.ts --config performance/playwright.config.ts",
+    "perf:lighthouse": "tsx performance/lighthouse-authenticated.ts",
+    "perf:mutation": "playwright test performance/mutation-regression.spec.ts --config performance/playwright.config.ts",
+    "perf:cache": "playwright test performance/cache-regression.spec.ts --config performance/playwright.config.ts"
   },
   "dependencies": {
     "@kafi/ui": "*",
@@ -27,10 +31,12 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.0",
     "@react-router/dev": "^8.1.0",
     "@tailwindcss/vite": "^4.1.10",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "lighthouse": "^13.4.1",
     "tailwindcss": "^4.1.10",
     "typescript": "^5.8.3",
     "vite": "^8.1.3"
