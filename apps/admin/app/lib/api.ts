@@ -123,6 +123,15 @@ function requestBodySize(
 const ACCESS_TOKEN_KEY = 'kafi_access_token';
 const REFRESH_TOKEN_KEY = 'kafi_refresh_token';
 
+/**
+ * In-memory cache of the user object returned by a successful login or token
+ * refresh. The admin route's clientLoader consumes this to avoid a redundant
+ * /api/auth/me round-trip immediately after authentication. It is cleared
+ * after a single consumption and is never persisted, so direct navigations
+ * and page refreshes still hit /api/auth/me as before.
+ */
+let pendingSessionUser: AuthResponse['user'] | null = null;
+
 if (typeof window !== 'undefined') {
   accessToken =
     localStorage.getItem(ACCESS_TOKEN_KEY) ??
@@ -2124,6 +2133,8 @@ export const api = {
       body: JSON.stringify({ email, password }),
     });
     setTokens(data.tokens, remember);
+    // Cache the user so the admin route's clientLoader can skip /api/auth/me.
+    pendingSessionUser = data.user;
     return data;
   },
 
@@ -2141,7 +2152,22 @@ export const api = {
     // Keep the same storage strategy by looking at where the refresh token lived.
     const remember = !sessionStorage.getItem(REFRESH_TOKEN_KEY);
     setTokens(data.tokens, remember);
+    // Cache the refreshed user so subsequent route loads skip /api/auth/me.
+    pendingSessionUser = data.user;
     return data;
+  },
+
+  /**
+   * Returns a user object cached from a recent login/refresh, if available,
+   * and clears the cache. Used by the admin route's clientLoader to avoid a
+   * redundant /api/auth/me call immediately after authentication. Returns
+   * null on direct navigation / page refresh (no cached user), in which case
+   * the caller must fall back to api.me().
+   */
+  consumeSessionUser(): AuthResponse['user'] | null {
+    const user = pendingSessionUser;
+    pendingSessionUser = null;
+    return user;
   },
 
   async me(): Promise<AuthResponse['user']> {
@@ -2168,6 +2194,7 @@ export const api = {
       }
     }
     clearTokens();
+    pendingSessionUser = null;
   },
 
   async forgotPassword(email: string): Promise<void> {

@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { and, count, eq, gte, isNull, lt, ne, not, or, sql } from 'drizzle-orm';
 import { MySql2Database } from 'drizzle-orm/mysql2';
 import { DATABASE } from '../../../../shared/infrastructure/database/database.provider.js';
@@ -13,42 +13,66 @@ import * as schema from '@kafi/database';
  */
 @Injectable()
 export class DashboardService {
+  private readonly logger = new Logger(DashboardService.name);
+
   constructor(
     @Inject(DATABASE)
     private readonly db: MySql2Database<typeof schema>,
   ) {}
 
   async getDashboard() {
-    const [
-      registrationsNeedingProcessing,
-      registrationsReadyForTravel,
-      registrationsReadyForGroup,
-      registrationsWithOutstandingBalance,
-      groupsRequiringPreparation,
-      groupsReadyToDepart,
-      upcomingDepartures,
-    ] = await Promise.all([
-      this.countRegistrationsByStatus('DRAFT'),
-      this.countRegistrationsByStatus('READY_FOR_TRAVEL'),
-      this.countRegistrationsReadyForGroup(),
-      this.countRegistrationsWithOutstandingBalance(),
-      this.countGroupsByStatus('PLANNING'),
-      this.countGroupsByStatus('TRAVEL_PREPARED'),
-      this.countUpcomingDepartures(),
-    ]);
+    const t0 = performance.now();
+    this._lastTimings = {};
+
+    const labels = [
+      'registrations_needing_processing',
+      'registrations_ready_for_travel',
+      'registrations_ready_for_group',
+      'registrations_with_outstanding_balance',
+      'groups_requiring_preparation',
+      'groups_ready_to_depart',
+      'upcoming_departures',
+    ] as const;
+
+    const queries = [
+      this.timed(labels[0], () => this.countRegistrationsByStatus('DRAFT')),
+      this.timed(labels[1], () =>
+        this.countRegistrationsByStatus('READY_FOR_TRAVEL'),
+      ),
+      this.timed(labels[2], () => this.countRegistrationsReadyForGroup()),
+      this.timed(labels[3], () =>
+        this.countRegistrationsWithOutstandingBalance(),
+      ),
+      this.timed(labels[4], () => this.countGroupsByStatus('PLANNING')),
+      this.timed(labels[5], () => this.countGroupsByStatus('TRAVEL_PREPARED')),
+      this.timed(labels[6], () => this.countUpcomingDepartures()),
+    ];
+
+    const results = await Promise.all(queries);
+    this._lastTimings.total = Math.round(performance.now() - t0);
+
+    this.logger.log(`[dashboard] ${JSON.stringify(this._lastTimings)}`);
 
     return {
-      registrations_needing_processing: registrationsNeedingProcessing,
-      registrations_ready_for_travel: registrationsReadyForTravel,
-      registrations_ready_for_group: registrationsReadyForGroup,
-      registrations_with_outstanding_balance:
-        registrationsWithOutstandingBalance,
-      groups_requiring_preparation: groupsRequiringPreparation,
-      groups_ready_to_depart: groupsReadyToDepart,
-      upcoming_departures: upcomingDepartures,
+      registrations_needing_processing: results[0],
+      registrations_ready_for_travel: results[1],
+      registrations_ready_for_group: results[2],
+      registrations_with_outstanding_balance: results[3],
+      groups_requiring_preparation: results[4],
+      groups_ready_to_depart: results[5],
+      upcoming_departures: results[6],
       generated_at: new Date().toISOString(),
     };
   }
+
+  private async timed<T>(label: string, fn: () => Promise<T>): Promise<T> {
+    const start = performance.now();
+    const result = await fn();
+    this._lastTimings[label] = Math.round(performance.now() - start);
+    return result;
+  }
+
+  private _lastTimings: Record<string, number> = {};
 
   private async countRegistrationsByStatus(statusCode: string) {
     const [row] = await this.db

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Inject } from '@nestjs/common';
 import { and, asc, eq, inArray, isNull, not } from 'drizzle-orm';
 import { MySql2Database } from 'drizzle-orm/mysql2';
@@ -34,6 +34,8 @@ export interface RegistrationQueueItem {
  */
 @Injectable()
 export class RegistrationQueuesService {
+  private readonly logger = new Logger(RegistrationQueuesService.name);
+
   constructor(
     @Inject(DATABASE)
     private readonly db: MySql2Database<typeof schema>,
@@ -45,6 +47,7 @@ export class RegistrationQueuesService {
    * Registrations in PROCESSING that fail the ready-for-travel check.
    */
   async getBlockedFromReadyQueue(): Promise<RegistrationQueueItem[]> {
+    const t0 = performance.now();
     const processingStatus = await this.db
       .select({ id: schema.registrationStatuses.id })
       .from(schema.registrationStatuses)
@@ -52,6 +55,7 @@ export class RegistrationQueuesService {
       .limit(1);
     if (processingStatus.length === 0) return [];
 
+    const t1 = performance.now();
     const rows = await this.db
       .select()
       .from(schema.registrations)
@@ -80,57 +84,69 @@ export class RegistrationQueuesService {
         ),
       )
       .orderBy(asc(schema.registrations.created_at));
+    const step2Ms = Math.round(performance.now() - t1);
 
     const ids = rows.map((r) => r.registrations.id);
-    if (ids.length === 0) return [];
+    if (ids.length === 0) {
+      this.logger.log(
+        `[blocked-queue] step1_status step2_registrations=${step2Ms}ms(0) total=${Math.round(performance.now() - t0)}ms`,
+      );
+      return [];
+    }
 
+    const t2 = performance.now();
     const readiness =
       await this.readiness.getReadinessDetailsForRegistrations(ids);
+    const step3Ms = Math.round(performance.now() - t2);
 
-    return rows
-      .filter((r) => {
-        const details = readiness.get(r.registrations.id);
-        return details && !details.can_confirm_ready;
-      })
-      .map((r) => ({
-        id: r.registrations.id,
-        registration_number: r.registrations.registration_number,
-        registration_date: r.registrations.registration_date,
-        expected_departure_date: r.registrations.expected_departure_date,
-        expected_return_date: r.registrations.expected_return_date,
-        status: r.registration_statuses
-          ? {
-              id: r.registration_statuses.id,
-              code: r.registration_statuses.status_code,
-              name: r.registration_statuses.name,
-            }
-          : null,
-        traveller: r.travellers
-          ? {
-              id: r.travellers.id,
-              first_name: r.travellers.first_name,
-              last_name: r.travellers.last_name,
-              full_name:
-                `${r.travellers.first_name} ${r.travellers.last_name}`.trim(),
-              traveller_number: r.travellers.traveller_number,
-              phone_number: r.travellers.phone_number,
-            }
-          : null,
-        package_version: r.package_versions
-          ? {
-              id: r.package_versions.id,
-              version_name: r.package_versions.version_name,
-            }
-          : null,
-        outstanding_balance: 0,
-        blockers: readiness.get(r.registrations.id)?.blockers ?? [],
-      }));
+    const blocked = rows.filter((r) => {
+      const details = readiness.get(r.registrations.id);
+      return details && !details.can_confirm_ready;
+    });
+    this.logger.log(
+      `[blocked-queue] step2_registrations=${step2Ms}ms(${rows.length}) step3_readiness=${step3Ms}ms blocked=${blocked.length} total=${Math.round(performance.now() - t0)}ms`,
+    );
+
+    return blocked.map((r) => ({
+      id: r.registrations.id,
+      registration_number: r.registrations.registration_number,
+      registration_date: r.registrations.registration_date,
+      expected_departure_date: r.registrations.expected_departure_date,
+      expected_return_date: r.registrations.expected_return_date,
+      status: r.registration_statuses
+        ? {
+            id: r.registration_statuses.id,
+            code: r.registration_statuses.status_code,
+            name: r.registration_statuses.name,
+          }
+        : null,
+      traveller: r.travellers
+        ? {
+            id: r.travellers.id,
+            first_name: r.travellers.first_name,
+            last_name: r.travellers.last_name,
+            full_name:
+              `${r.travellers.first_name} ${r.travellers.last_name}`.trim(),
+            traveller_number: r.travellers.traveller_number,
+            phone_number: r.travellers.phone_number,
+          }
+        : null,
+      package_version: r.package_versions
+        ? {
+            id: r.package_versions.id,
+            version_name: r.package_versions.version_name,
+          }
+        : null,
+      outstanding_balance: 0,
+      blockers: readiness.get(r.registrations.id)?.blockers ?? [],
+    }));
   }
 
   /**
    * Active registrations with an outstanding balance.
    */
   async getUnpaidQueue(): Promise<RegistrationQueueItem[]> {
+    const t0 = performance.now();
     const activeRows = await this.db
       .select({ id: schema.registrations.id })
       .from(schema.registrations)
@@ -147,18 +163,34 @@ export class RegistrationQueuesService {
           not(eq(schema.registrationStatuses.status_code, 'CANCELLED')),
         ),
       );
+    const step1Ms = Math.round(performance.now() - t0);
 
     const ids = activeRows.map((r) => r.id);
-    if (ids.length === 0) return [];
+    if (ids.length === 0) {
+      this.logger.log(
+        `[unpaid-queue] step1_activeIds=${step1Ms}ms rows=0 total=${step1Ms}ms`,
+      );
+      return [];
+    }
 
+    const t1 = performance.now();
     const finance = await this.invoices.getRegistrationFinanceSummaries(ids);
+    const step2Ms = Math.round(performance.now() - t1);
+
     const unpaidIds = ids.filter((id) => {
       const summary = finance.get(id);
       return summary && summary.outstanding_balance > 0;
     });
 
-    if (unpaidIds.length === 0) return [];
+    if (unpaidIds.length === 0) {
+      const total = Math.round(performance.now() - t0);
+      this.logger.log(
+        `[unpaid-queue] step1_activeIds=${step1Ms}ms(${ids.length}) step2_finance=${step2Ms}ms unpaid=0 total=${total}ms`,
+      );
+      return [];
+    }
 
+    const t2 = performance.now();
     const rows = await this.db
       .select()
       .from(schema.registrations)
@@ -184,6 +216,12 @@ export class RegistrationQueuesService {
         ),
       )
       .orderBy(asc(schema.registrations.created_at));
+    const step3Ms = Math.round(performance.now() - t2);
+
+    const total = Math.round(performance.now() - t0);
+    this.logger.log(
+      `[unpaid-queue] step1_activeIds=${step1Ms}ms(${ids.length}) step2_finance=${step2Ms}ms step3_detail=${step3Ms}ms unpaid=${unpaidIds.length} total=${total}ms`,
+    );
 
     return rows.map((r) => ({
       id: r.registrations.id,
@@ -227,6 +265,7 @@ export class RegistrationQueuesService {
    * compatible travel group.
    */
   async getReadyForGroupQueue(): Promise<RegistrationQueueItem[]> {
+    const t0 = performance.now();
     const readyStatus = await this.db
       .select({ id: schema.registrationStatuses.id })
       .from(schema.registrationStatuses)
@@ -234,6 +273,7 @@ export class RegistrationQueuesService {
       .limit(1);
     if (readyStatus.length === 0) return [];
 
+    const t1 = performance.now();
     const rows = await this.db
       .select()
       .from(schema.registrations)
@@ -273,47 +313,51 @@ export class RegistrationQueuesService {
         ),
       )
       .orderBy(asc(schema.registrations.created_at));
+    const queryMs = Math.round(performance.now() - t1);
 
     // Filter to registrations with no ACTIVE membership. A registration may
     // have historical CANCELLED/TRANSFERRED memberships but must not have a
     // current ACTIVE one.
-    return rows
-      .filter((r) => {
-        const membershipStatus = r.group_membership_statuses?.status_code;
-        return membershipStatus !== 'ACTIVE';
-      })
-      .map((r) => ({
-        id: r.registrations.id,
-        registration_number: r.registrations.registration_number,
-        registration_date: r.registrations.registration_date,
-        expected_departure_date: r.registrations.expected_departure_date,
-        expected_return_date: r.registrations.expected_return_date,
-        status: r.registration_statuses
-          ? {
-              id: r.registration_statuses.id,
-              code: r.registration_statuses.status_code,
-              name: r.registration_statuses.name,
-            }
-          : null,
-        traveller: r.travellers
-          ? {
-              id: r.travellers.id,
-              first_name: r.travellers.first_name,
-              last_name: r.travellers.last_name,
-              full_name:
-                `${r.travellers.first_name} ${r.travellers.last_name}`.trim(),
-              traveller_number: r.travellers.traveller_number,
-              phone_number: r.travellers.phone_number,
-            }
-          : null,
-        package_version: r.package_versions
-          ? {
-              id: r.package_versions.id,
-              version_name: r.package_versions.version_name,
-            }
-          : null,
-        outstanding_balance: 0,
-        blockers: [],
-      }));
+    const ready = rows.filter((r) => {
+      const membershipStatus = r.group_membership_statuses?.status_code;
+      return membershipStatus !== 'ACTIVE';
+    });
+    this.logger.log(
+      `[ready-for-group-queue] query=${queryMs}ms rows=${rows.length} ready=${ready.length} total=${Math.round(performance.now() - t0)}ms`,
+    );
+
+    return ready.map((r) => ({
+      id: r.registrations.id,
+      registration_number: r.registrations.registration_number,
+      registration_date: r.registrations.registration_date,
+      expected_departure_date: r.registrations.expected_departure_date,
+      expected_return_date: r.registrations.expected_return_date,
+      status: r.registration_statuses
+        ? {
+            id: r.registration_statuses.id,
+            code: r.registration_statuses.status_code,
+            name: r.registration_statuses.name,
+          }
+        : null,
+      traveller: r.travellers
+        ? {
+            id: r.travellers.id,
+            first_name: r.travellers.first_name,
+            last_name: r.travellers.last_name,
+            full_name:
+              `${r.travellers.first_name} ${r.travellers.last_name}`.trim(),
+            traveller_number: r.travellers.traveller_number,
+            phone_number: r.travellers.phone_number,
+          }
+        : null,
+      package_version: r.package_versions
+        ? {
+            id: r.package_versions.id,
+            version_name: r.package_versions.version_name,
+          }
+        : null,
+      outstanding_balance: 0,
+      blockers: [],
+    }));
   }
 }

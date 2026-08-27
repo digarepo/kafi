@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Logger,
   Param,
   Patch,
   Post,
@@ -37,6 +38,8 @@ import {
 @Controller('admin')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class AdminTravelGroupsController {
+  private readonly logger = new Logger(AdminTravelGroupsController.name);
+
   constructor(
     private readonly travelGroups: TravelGroupsService,
     private readonly operationalSummary: TravelGroupOperationalSummaryService,
@@ -46,8 +49,13 @@ export class AdminTravelGroupsController {
 
   @Get('travel-groups')
   @RequirePermissions('TRAVEL_GROUP_VIEW')
-  listTravelGroups(@Query() filters: TravelGroupFiltersDto) {
-    return this.travelGroups.listTravelGroups(filters);
+  async listTravelGroups(@Query() filters: TravelGroupFiltersDto) {
+    const t0 = performance.now();
+    const result = await this.travelGroups.listTravelGroups(filters);
+    this.logger.log(
+      `[travel-groups] list ${Math.round(performance.now() - t0)}ms rows=${result.data?.length ?? 0}`,
+    );
+    return result;
   }
 
   @Get('travel-groups/:id')

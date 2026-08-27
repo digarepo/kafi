@@ -14,6 +14,15 @@ export function meta() {
 }
 
 export async function clientLoader({ request }: { request: Request }) {
+  // If we just completed a login or token refresh, the user object is already
+  // cached in memory — use it and skip the redundant /api/auth/me round-trip.
+  // On direct navigation / page refresh there is no cached user, so we fall
+  // back to api.me() exactly as before.
+  const cachedUser = api.consumeSessionUser();
+  if (cachedUser) {
+    return { user: cachedUser };
+  }
+
   try {
     const user = await api.me();
 

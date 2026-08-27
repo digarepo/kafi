@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { createHash, randomBytes } from 'node:crypto';
 import { ConfigService } from '../../../../shared/infrastructure/config/config.service.js';
@@ -49,6 +49,8 @@ export interface AuthResponse {
  */
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
@@ -69,21 +71,44 @@ export class AuthService {
    * @returns Authentication response.
    */
   async login(email: string, password: string): Promise<AuthResponse> {
+    const timings: Record<string, number> = {};
+    const t0 = performance.now();
+
     const user = await this.users.findActiveByEmail(email);
+    timings.userLookup = Math.round(performance.now() - t0);
 
     if (!user || user.status_code !== 'ACTIVE') {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    const t1 = performance.now();
     const valid = await this.password.verify(user.password_hash, password);
+    timings.bcryptVerify = Math.round(performance.now() - t1);
+
     if (!valid) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    await this.users.updateLastLogin(user.id);
+    // updateLastLogin and audit.log are non-critical post-authentication
+    // side-effects. Fire them in the background so they don't block the
+    // response. Errors are swallowed because they must not prevent login.
+    const t2 = performance.now();
+    this.users.updateLastLogin(user.id).catch(() => void 0);
+    timings.updateLastLoginDispatch = Math.round(performance.now() - t2);
 
+    const t3 = performance.now();
     const response = await this.issueTokenPair(user);
-    await this.audit.log({ userId: user.id as string, event: 'LOGIN' });
+    timings.tokenIssuance = Math.round(performance.now() - t3);
+
+    const t4 = performance.now();
+    this.audit
+      .log({ userId: user.id as string, event: 'LOGIN' })
+      .catch(() => void 0);
+    timings.auditLogDispatch = Math.round(performance.now() - t4);
+
+    timings.total = Math.round(performance.now() - t0);
+    this.logger.log(`[auth.login] ${JSON.stringify(timings)}`);
+
     return response;
   }
 
@@ -125,7 +150,12 @@ export class AuthService {
     );
 
     const response = await this.issueTokenPair(user);
-    await this.audit.log({ userId: user.id as string, event: 'REFRESH' });
+    // Audit log is non-critical — fire-and-forget so it doesn't block the
+    // refresh response. The token block above is security-critical and stays
+    // blocking.
+    this.audit
+      .log({ userId: user.id as string, event: 'REFRESH' })
+      .catch(() => void 0);
     return response;
   }
 
@@ -136,13 +166,22 @@ export class AuthService {
    * @returns Authentication profile.
    */
   async me(userId: string): Promise<AuthProfile> {
+    const t0 = performance.now();
     const user = await this.users.findById(createTypedId<'User'>(userId));
+    const userLookupMs = Math.round(performance.now() - t0);
+
     if (!user) {
       throw new UnauthorizedException();
     }
 
+    const t1 = performance.now();
     const permissions = await this.permissionResolver.resolveForUser(
       user.roles.map((r) => r.id as string),
+    );
+    const permissionsMs = Math.round(performance.now() - t1);
+
+    this.logger.log(
+      `[auth.me] userLookup=${userLookupMs}ms permissions=${permissionsMs}ms total=${Math.round(performance.now() - t0)}ms`,
     );
 
     return this.toProfile(user, permissions);
@@ -341,10 +380,12 @@ export class AuthService {
   private async issueTokenPair(
     user: Awaited<ReturnType<UserRepository['findActiveByEmail']>> & {},
   ): Promise<AuthResponse> {
+    const t0 = performance.now();
     const roleCodes = user.roles.map((r) => r.role_code);
     const permissions = await this.permissionResolver.resolveForUser(
       user.roles.map((r) => r.id as string),
     );
+    const permissionsMs = Math.round(performance.now() - t0);
     const profile = this.toProfile(user, permissions);
 
     const accessPayload: AccessTokenPayload = {
@@ -368,6 +409,7 @@ export class AuthService {
       this.config.get('JWT_REFRESH_EXPIRY'),
     );
 
+    const t1 = performance.now();
     const [access_token, refresh_token] = await Promise.all([
       this.jwt.signAsync(accessPayload, {
         secret: this.config.get('JWT_SECRET'),
@@ -378,6 +420,11 @@ export class AuthService {
         expiresIn: refreshExpiresIn,
       }),
     ]);
+    const jwtSignMs = Math.round(performance.now() - t1);
+
+    this.logger.log(
+      `[auth.issueTokenPair] permissions=${permissionsMs}ms jwtSign=${jwtSignMs}ms total=${Math.round(performance.now() - t0)}ms`,
+    );
 
     return {
       user: profile,
