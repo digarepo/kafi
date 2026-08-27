@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Logger,
   Param,
   Patch,
   Post,
@@ -27,6 +28,8 @@ import {
 @Controller('admin')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class AdminRegistrationsController {
+  private readonly logger = new Logger(AdminRegistrationsController.name);
+
   constructor(
     private readonly registrations: RegistrationsService,
     private readonly operationalSummary: RegistrationOperationalSummaryService,
@@ -98,20 +101,35 @@ export class AdminRegistrationsController {
 
   @Get('registrations/queue/blocked-from-ready')
   @RequirePermissions('REGISTRATION_VIEW')
-  getBlockedFromReadyQueue() {
-    return this.queues.getBlockedFromReadyQueue();
+  async getBlockedFromReadyQueue() {
+    const t0 = performance.now();
+    const result = await this.queues.getBlockedFromReadyQueue();
+    this.logger.log(
+      `[queue] blocked-from-ready ${Math.round(performance.now() - t0)}ms rows=${result.length}`,
+    );
+    return result;
   }
 
   @Get('registrations/queue/unpaid')
   @RequirePermissions('REGISTRATION_VIEW')
-  getUnpaidQueue() {
-    return this.queues.getUnpaidQueue();
+  async getUnpaidQueue() {
+    const t0 = performance.now();
+    const result = await this.queues.getUnpaidQueue();
+    this.logger.log(
+      `[queue] unpaid ${Math.round(performance.now() - t0)}ms rows=${result.length}`,
+    );
+    return result;
   }
 
   @Get('registrations/queue/ready-for-group')
   @RequirePermissions('REGISTRATION_VIEW')
-  getReadyForGroupQueue() {
-    return this.queues.getReadyForGroupQueue();
+  async getReadyForGroupQueue() {
+    const t0 = performance.now();
+    const result = await this.queues.getReadyForGroupQueue();
+    this.logger.log(
+      `[queue] ready-for-group ${Math.round(performance.now() - t0)}ms rows=${result.length}`,
+    );
+    return result;
   }
 
   @Get('registrations/:id/guarantees')
