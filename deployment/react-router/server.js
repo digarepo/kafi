@@ -23,30 +23,29 @@ app.use(
   express.static('public/images', { immutable: true, maxAge: '1y' }),
 );
 
-// Bypass static serving for /sitemap.xml — it is a dynamic React Router
-// resource route (routes/sitemap.tsx), not a static file. Without this,
-// express.static('public') would serve a stale sitemap.xml left over from
-// a previous deployment (the SFTP deploy does not delete removed files).
-app.use((req, _res, next) => {
-  if (req.path === '/sitemap.xml') return next();
-  next();
+// Serve static files from public/ — but NOT /sitemap.xml, which is a
+// dynamic React Router resource route (routes/sitemap.tsx). The SFTP deploy
+// uses delete_remote_files: false, so a stale sitemap.xml from a previous
+// deployment may still exist in public/. We wrap express.static so the
+// handler is never invoked for that path, forcing the request to fall
+// through to the React Router handler below.
+const publicStatic = express.static('public', {
+  immutable: true,
+  maxAge: '1y',
+  setHeaders(response, filePath) {
+    if (filePath.endsWith('/favicon.svg')) {
+      response.setHeader(
+        'Cache-Control',
+        'public, max-age=31536000, immutable',
+      );
+    }
+  },
 });
 
-app.use(
-  '/',
-  express.static('public', {
-    immutable: true,
-    maxAge: '1y',
-    setHeaders(response, filePath) {
-      if (filePath.endsWith('/favicon.svg')) {
-        response.setHeader(
-          'Cache-Control',
-          'public, max-age=31536000, immutable',
-        );
-      }
-    },
-  }),
-);
+app.use((req, res, next) => {
+  if (req.path === '/sitemap.xml') return next();
+  publicStatic(req, res, next);
+});
 app.use(
   '/fonts',
   express.static('public/fonts', { immutable: true, maxAge: '1y' }),
