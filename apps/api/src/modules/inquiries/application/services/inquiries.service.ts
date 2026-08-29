@@ -5,6 +5,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { and, desc, eq, gte, like, lte, or, sql } from 'drizzle-orm';
 import { MySql2Database } from 'drizzle-orm/mysql2';
 import { ulid } from 'ulid';
@@ -13,6 +14,11 @@ import * as schema from '@kafi/database';
 import { DATABASE } from '../../../../shared/infrastructure/database/database.provider.js';
 import { BusinessNumberService } from '../../../../shared/infrastructure/numbering/business-number.service.js';
 import { Mailer } from '../../../iam/application/ports/mailer.port.js';
+import { AnalyticsEventsService } from '../../../analytics/application/services/analytics-events.service.js';
+import {
+  createInquiryCreatedEvent,
+  INQUIRY_CREATED,
+} from '../../domain/events/inquiry-created.event.js';
 import type {
   ChangeInquiryStatusInput,
   InquiryFilters,
@@ -74,6 +80,8 @@ export class InquiriesService {
     private readonly db: MySql2Database<typeof schema>,
     private readonly numbers: BusinessNumberService,
     private readonly mailer: Mailer,
+    private readonly eventEmitter: EventEmitter2,
+    private readonly analytics: AnalyticsEventsService,
   ) {}
 
   // ---- Public capture ----
@@ -92,6 +100,12 @@ export class InquiriesService {
         package_interest: dto.package ?? null,
         travel_period: dto.travelPeriod,
         group_size: dto.numberOfTravellers,
+        utm_source: dto.utm_source,
+        utm_medium: dto.utm_medium,
+        utm_campaign: dto.utm_campaign,
+        utm_content: dto.utm_content,
+        utm_term: dto.utm_term,
+        anonymous_visitor_id: dto.anonymous_visitor_id,
       },
       ctx,
     );
@@ -107,6 +121,12 @@ export class InquiriesService {
         full_name: dto.fullName ?? null,
         phone_number: dto.phone,
         source_channel: dto.source ?? null,
+        utm_source: dto.utm_source,
+        utm_medium: dto.utm_medium,
+        utm_campaign: dto.utm_campaign,
+        utm_content: dto.utm_content,
+        utm_term: dto.utm_term,
+        anonymous_visitor_id: dto.anonymous_visitor_id,
       },
       ctx,
     );
@@ -127,6 +147,12 @@ export class InquiriesService {
         package_interest: dto.packageInterest ?? null,
         travel_period: dto.travelPeriod ?? null,
         group_size: dto.groupSize ?? null,
+        utm_source: dto.utm_source,
+        utm_medium: dto.utm_medium,
+        utm_campaign: dto.utm_campaign,
+        utm_content: dto.utm_content,
+        utm_term: dto.utm_term,
+        anonymous_visitor_id: dto.anonymous_visitor_id,
       },
       ctx,
     );
@@ -145,6 +171,12 @@ export class InquiriesService {
         message: dto.message,
         package_interest: dto.package ?? null,
         service_interest: dto.service ?? null,
+        utm_source: dto.utm_source,
+        utm_medium: dto.utm_medium,
+        utm_campaign: dto.utm_campaign,
+        utm_content: dto.utm_content,
+        utm_term: dto.utm_term,
+        anonymous_visitor_id: dto.anonymous_visitor_id,
       },
       ctx,
     );
@@ -172,11 +204,24 @@ export class InquiriesService {
       travel_period?: string | null;
       group_size?: string | null;
       source_channel?: string | null;
+      utm_source?: string;
+      utm_medium?: string;
+      utm_campaign?: string;
+      utm_content?: string;
+      utm_term?: string;
+      anonymous_visitor_id?: string;
     },
     ctx: PublicRequestContext,
   ) {
     const id = ulid();
     const inquiryNumber = await this.numbers.generateInquiryNumber();
+
+    const utmSource = blankToNull(values.utm_source);
+    const utmMedium = blankToNull(values.utm_medium);
+    const utmCampaign = blankToNull(values.utm_campaign);
+    const utmContent = blankToNull(values.utm_content);
+    const utmTerm = blankToNull(values.utm_term);
+    const visitorId = values.anonymous_visitor_id ?? null;
 
     await this.db.insert(schema.inquiries).values({
       id,
@@ -194,12 +239,33 @@ export class InquiriesService {
       group_size: blankToNull(values.group_size),
       source_channel: blankToNull(values.source_channel),
       user_agent: ctx.userAgent?.slice(0, 255) ?? null,
+      utm_source: utmSource,
+      utm_medium: utmMedium,
+      utm_campaign: utmCampaign,
+      utm_content: utmContent,
+      utm_term: utmTerm,
+      anonymous_visitor_id: visitorId,
       // Public submissions have no authenticated actor.
       created_by: null,
       updated_by: null,
     });
 
     await this.notifyStaff(id, inquiryNumber, values);
+
+    // Emit domain event for the inquiry creation. Subscribers (e.g. the
+    // analytics conversion recorder) listen on this event. The event payload
+    // contains only non-sensitive identifiers and attribution — no PII.
+    const event = createInquiryCreatedEvent({
+      inquiry_id: id,
+      inquiry_number: inquiryNumber,
+      inquiry_type: values.inquiry_type,
+      utm_source: utmSource,
+      utm_medium: utmMedium,
+      utm_campaign: utmCampaign,
+      anonymous_visitor_id: visitorId,
+      created_at: new Date().toISOString(),
+    });
+    this.eventEmitter.emit(event.type, event);
 
     return { ok: true as const, inquiry_number: inquiryNumber };
   }
@@ -219,6 +285,12 @@ export class InquiriesService {
       travel_period?: string | null;
       group_size?: string | null;
       source_channel?: string | null;
+      utm_source?: string;
+      utm_medium?: string;
+      utm_campaign?: string;
+      utm_content?: string;
+      utm_term?: string;
+      anonymous_visitor_id?: string;
     },
   ) {
     const recipients = (process.env['INQUIRY_NOTIFY_EMAILS'] ?? '')

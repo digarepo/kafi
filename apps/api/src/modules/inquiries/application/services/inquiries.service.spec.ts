@@ -1,9 +1,11 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { InquiriesService } from './inquiries.service.js';
 import { BusinessNumberService } from '../../../../shared/infrastructure/numbering/business-number.service.js';
 import { Mailer } from '../../../iam/application/ports/mailer.port.js';
+import { AnalyticsEventsService } from '../../../analytics/application/services/analytics-events.service.js';
 
 /**
  * Minimal chainable Drizzle-style mock.
@@ -131,10 +133,26 @@ function buildService(db: any, mailer?: Partial<Mailer>) {
     ...mailer,
   } as unknown as Mailer;
 
+  const eventEmitter = {
+    emit: vi.fn(),
+  } as unknown as EventEmitter2;
+
+  const analytics = {
+    record: vi.fn().mockResolvedValue('ULID_ANALYTICS'),
+  } as unknown as AnalyticsEventsService;
+
   return {
-    service: new InquiriesService(db, numbers, mailerImpl),
+    service: new InquiriesService(
+      db,
+      numbers,
+      mailerImpl,
+      eventEmitter,
+      analytics,
+    ),
     mailer: mailerImpl,
     numbers,
+    eventEmitter,
+    analytics,
   };
 }
 
@@ -248,6 +266,88 @@ describe('InquiriesService', () => {
       expect(row['inquiry_type']).toBe('ENQUIRY');
       expect(row['service_interest']).toBe('visa-assistance');
       expect(row['email_address']).toBeNull();
+    });
+
+    it('persists UTM attribution and anonymous visitor ID on a booking inquiry', async () => {
+      const db = new MockDb().setQueue([]);
+      const { service } = buildService(db);
+
+      await service.createBookingInquiry(
+        {
+          fullName: 'Nur Hassan',
+          phone: '+251911222333',
+          email: 'nur@example.com',
+          package: 'comfort',
+          travelPeriod: 'ramadan-2026',
+          numberOfTravellers: '2-4',
+          utm_source: 'google',
+          utm_medium: 'cpc',
+          utm_campaign: 'ramadan-2026',
+          utm_content: 'ad-1',
+          utm_term: 'umrah',
+          anonymous_visitor_id: '550e8400-e29b-41d4-a716-446655440000',
+        } as any,
+        {},
+      );
+
+      const row = db.inserted[0]!;
+      expect(row['utm_source']).toBe('google');
+      expect(row['utm_medium']).toBe('cpc');
+      expect(row['utm_campaign']).toBe('ramadan-2026');
+      expect(row['utm_content']).toBe('ad-1');
+      expect(row['utm_term']).toBe('umrah');
+      expect(row['anonymous_visitor_id']).toBe(
+        '550e8400-e29b-41d4-a716-446655440000',
+      );
+    });
+
+    it('emits an inquiry.created domain event after persisting a booking inquiry', async () => {
+      const db = new MockDb().setQueue([]);
+      const { service, eventEmitter } = buildService(db);
+
+      await service.createBookingInquiry(
+        {
+          fullName: 'Nur Hassan',
+          phone: '+251911222333',
+          package: 'comfort',
+          travelPeriod: 'ramadan-2026',
+          numberOfTravellers: '2-4',
+          utm_source: 'google',
+          utm_medium: 'cpc',
+          utm_campaign: 'ramadan-2026',
+          anonymous_visitor_id: '550e8400-e29b-41d4-a716-446655440000',
+        } as any,
+        {},
+      );
+
+      expect(eventEmitter.emit).toHaveBeenCalledTimes(1);
+      const [eventType, payload] = (eventEmitter.emit as any).mock.calls[0];
+      expect(eventType).toBe('inquiries.inquiry.created');
+      expect(payload.inquiry_type).toBe('BOOKING');
+      expect(payload.utm_source).toBe('google');
+      expect(payload.anonymous_visitor_id).toBe(
+        '550e8400-e29b-41d4-a716-446655440000',
+      );
+      // No PII in the event payload.
+      expect(payload).not.toHaveProperty('full_name');
+      expect(payload).not.toHaveProperty('phone_number');
+      expect(payload).not.toHaveProperty('email_address');
+    });
+
+    it('stores null attribution when no UTM params are provided', async () => {
+      const db = new MockDb().setQueue([]);
+      const { service } = buildService(db);
+
+      await service.createCallbackInquiry(
+        { phone: '0911222333', fullName: 'Sara', source: 'homepage' } as any,
+        {},
+      );
+
+      const row = db.inserted[0]!;
+      expect(row['utm_source']).toBeNull();
+      expect(row['utm_medium']).toBeNull();
+      expect(row['utm_campaign']).toBeNull();
+      expect(row['anonymous_visitor_id']).toBeNull();
     });
 
     it('truncates an over-long user agent to the column width', async () => {

@@ -24,6 +24,7 @@ import { Card } from '@ui/components/ui/card';
 import { Separator } from '@ui/components/ui/separator';
 
 import { services } from '../data/services';
+import { ShareBar } from '../../../components/share/ShareBar';
 
 interface ServiceDetailPageProps {
   slug: string;
@@ -86,6 +87,20 @@ export default function ServiceDetailPage({ slug }: ServiceDetailPageProps) {
             </div>
           </div>
         </header>
+
+        {/* Share Bar */}
+        <div className="mb-12 flex items-center gap-3">
+          <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+            Share
+          </span>
+          <ShareBar
+            url={`https://kafitour.com/services/${service.slug}`}
+            title={service.name}
+            description={service.tagline}
+            contentType="service"
+            contentId={service.slug}
+          />
+        </div>
 
         {/* Main Content */}
         <div className="grid grid-cols-1 items-start gap-12 lg:grid-cols-12">

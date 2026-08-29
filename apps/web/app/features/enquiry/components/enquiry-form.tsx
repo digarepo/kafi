@@ -32,6 +32,8 @@ import { services } from '../../services/data/services';
 import { submitInquiry } from '../services/submit-inquiry';
 import { type EnquiryFormValues } from '../types/enquiry.types';
 import { enquirySchema } from '../validation/enquiry-schema';
+import { getAttributionWithVisitor } from '@/lib/attribution';
+import { trackEvent } from '@/lib/analytics';
 
 interface EnquiryFormProps {
   /** Optional package slug to pre-select from a query parameter. */
@@ -192,7 +194,9 @@ export default function EnquiryForm({
     validators: { onSubmit: enquirySchema },
     onSubmit: async ({ value }) => {
       try {
-        await submitInquiry(value);
+        const attribution = getAttributionWithVisitor();
+        await submitInquiry({ ...value, ...attribution });
+        trackEvent('inquiry_form_submitted', { inquiry_type: 'enquiry' });
       } catch (error) {
         const message =
           error instanceof Error

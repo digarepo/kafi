@@ -42,6 +42,8 @@ import {
   enquirySchema,
   type InquiryPayload,
 } from '../validation/enquiry-schema';
+import { getAttributionWithVisitor } from '@/lib/attribution';
+import { trackEvent } from '@/lib/analytics';
 
 function parseMonthString(value: string): Date {
   const [year, month] = value.split('-').map(Number);
@@ -232,7 +234,9 @@ export default function EnquiryForm() {
     validators: { onSubmit: enquirySchema },
     onSubmit: async ({ value }) => {
       try {
-        await submitInquiry(value);
+        const attribution = getAttributionWithVisitor();
+        await submitInquiry({ ...value, ...attribution });
+        trackEvent('inquiry_form_submitted', { inquiry_type: 'contact' });
       } catch (error) {
         const message =
           error instanceof Error
