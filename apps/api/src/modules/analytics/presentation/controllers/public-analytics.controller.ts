@@ -48,8 +48,9 @@ export class PublicAnalyticsController {
 
     // Reject server-only events that clients must not send directly.
     // `inquiry_submitted` is created exclusively by the server-side
-    // conversion subscriber after an inquiry is persisted.
-    if (input.event_name === 'inquiry_submitted') {
+    // conversion subscriber after an inquiry is persisted. The cast is
+    // needed because the DTO type intentionally excludes this value.
+    if ((input.event_name as string) === 'inquiry_submitted') {
       throw new BadRequestException(
         'Event "inquiry_submitted" can only be created server-side',
       );
