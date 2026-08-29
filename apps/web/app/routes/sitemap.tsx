@@ -75,9 +75,7 @@ export async function loader(_args: Route.LoaderArgs): Promise<Response> {
       const lastmod = pkg.published_at
         ? new Date(pkg.published_at).toISOString().split('T')[0]
         : undefined;
-      urls.push(
-        urlElement(`${SITE_BASE}/packages/${pkg.slug}`, lastmod),
-      );
+      urls.push(urlElement(`${SITE_BASE}/packages/${pkg.slug}`, lastmod));
     }
   } catch {
     // If the API is unreachable, the sitemap still contains static URLs.
@@ -96,7 +94,8 @@ ${urls.join('\n')}
   return new Response(xml, {
     headers: {
       'Content-Type': 'application/xml; charset=utf-8',
-      'Cache-Control': 'public, max-age=3600',
+      'Cache-Control': 'public, max-age=3600, s-maxage=3600',
+      'X-Robots-Tag': 'noindex',
     },
   });
 }
