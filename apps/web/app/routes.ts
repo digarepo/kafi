@@ -21,5 +21,8 @@ export default [
   route('privacy', 'routes/privacy.tsx'),
   route('tos', 'routes/tos.tsx'),
 
+  // Resource routes (no component — loader returns non-HTML response)
+  route('sitemap.xml', 'routes/sitemap.tsx'),
+
   route('*', 'not-found.tsx'),
 ] satisfies RouteConfig;
