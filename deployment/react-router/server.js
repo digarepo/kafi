@@ -22,6 +22,16 @@ app.use(
   '/images',
   express.static('public/images', { immutable: true, maxAge: '1y' }),
 );
+
+// Bypass static serving for /sitemap.xml — it is a dynamic React Router
+// resource route (routes/sitemap.tsx), not a static file. Without this,
+// express.static('public') would serve a stale sitemap.xml left over from
+// a previous deployment (the SFTP deploy does not delete removed files).
+app.use((req, _res, next) => {
+  if (req.path === '/sitemap.xml') return next();
+  next();
+});
+
 app.use(
   '/',
   express.static('public', {
