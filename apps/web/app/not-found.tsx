@@ -3,6 +3,23 @@ import { ArrowLeft, Home } from 'lucide-react';
 import { DecorativeBackground } from '@ui/components/DecorativeBackground';
 import { Button } from '@ui/components/ui/button';
 
+/**
+ * Loader — throws a 404 Response so the server emits an actual HTTP 404
+ * status code for unknown URLs. Without this, the catch-all route would
+ * render a 200 response with a 404 page, making nonexistent URLs appear
+ * indexable to search engines.
+ */
+export function loader() {
+  throw new Response('Not Found', { status: 404 });
+}
+
+/**
+ * Meta — adds noindex so search engines do not index the 404 page itself.
+ */
+export function meta() {
+  return [{ name: 'robots', content: 'noindex, follow' }];
+}
+
 function NotFoundIllustration() {
   return (
     <div className="relative w-64 h-40 md:w-80 md:h-48 mx-auto mb-10 animate-fade-in">

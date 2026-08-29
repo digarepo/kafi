@@ -12,6 +12,7 @@ export function meta({}: Route.MetaArgs) {
   return [
     { title },
     { name: 'description', content: description },
+    { name: 'robots', content: 'noindex, follow' },
     { tagName: 'link', rel: 'canonical', href: url },
     ...buildOgMeta({ title, description, url }),
   ];
