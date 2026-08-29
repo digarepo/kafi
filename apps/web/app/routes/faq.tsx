@@ -1,5 +1,6 @@
 import type { Route } from './+types/faq';
 import FaqPage from '@/features/faq/components/faq-page';
+import { buildOgMeta } from '@/lib/og';
 
 export function meta({}: Route.MetaArgs) {
   const title = 'FAQ | Kafi Tours';
@@ -11,13 +12,7 @@ export function meta({}: Route.MetaArgs) {
     { title },
     { name: 'description', content: description },
     { tagName: 'link', rel: 'canonical', href: url },
-    { property: 'og:title', content: title },
-    { property: 'og:description', content: description },
-    { property: 'og:type', content: 'website' },
-    { property: 'og:url', content: url },
-    { name: 'twitter:card', content: 'summary' },
-    { name: 'twitter:title', content: title },
-    { name: 'twitter:description', content: description },
+    ...buildOgMeta({ title, description, url }),
   ];
 }
 

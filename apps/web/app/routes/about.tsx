@@ -1,6 +1,7 @@
 import { AboutPage } from '@/features/about';
 
 import { type Route } from './+types/about';
+import { buildOgMeta } from '@/lib/og';
 
 /**
  * Route metadata for the about page.
@@ -18,13 +19,7 @@ export function meta({}: Route.MetaArgs) {
     { title },
     { name: 'description', content: description },
     { tagName: 'link', rel: 'canonical', href: url },
-    { property: 'og:title', content: title },
-    { property: 'og:description', content: description },
-    { property: 'og:type', content: 'website' },
-    { property: 'og:url', content: url },
-    { name: 'twitter:card', content: 'summary' },
-    { name: 'twitter:title', content: title },
-    { name: 'twitter:description', content: description },
+    ...buildOgMeta({ title, description, url }),
   ];
 }
 

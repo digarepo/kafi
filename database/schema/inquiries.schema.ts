@@ -76,6 +76,19 @@ export const inquiries = mysqlTable(
     source_channel: varchar('source_channel', { length: 50 }),
     user_agent: varchar('user_agent', { length: 255 }),
 
+    // UTM / campaign attribution captured from the visitor's landing URL.
+    // All nullable — only present when the visitor arrived via a tracked link.
+    utm_source: varchar('utm_source', { length: 150 }),
+    utm_medium: varchar('utm_medium', { length: 150 }),
+    utm_campaign: varchar('utm_campaign', { length: 150 }),
+    utm_content: varchar('utm_content', { length: 150 }),
+    utm_term: varchar('utm_term', { length: 150 }),
+
+    // Cryptographically random opaque visitor identifier (no PII, no
+    // fingerprinting). Lets staff correlate an inquiry to an anonymous
+    // analytics session without knowing who the visitor is.
+    anonymous_visitor_id: varchar('anonymous_visitor_id', { length: 36 }),
+
     // Handling — flat fields, no assignment table and no status history
     staff_notes: text('staff_notes'),
     handled_by: fkUuid('handled_by'),

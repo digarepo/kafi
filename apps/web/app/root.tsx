@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { Links, Meta, Outlet, Scripts, ScrollRestoration } from 'react-router';
 import type { Route } from './+types/root';
 
@@ -7,6 +7,7 @@ import { ThemeProvider } from '@ui/providers/theme-provider';
 import { UIConfigProvider } from '@ui/providers/ui-config-provider';
 import { Navbar } from './components/layout/Navbar';
 import { Footer } from './components/layout/Footer';
+import { captureAttribution } from './lib/attribution';
 
 // Lazy-load the Sonner Toaster so the toast library (~31KB) is not part of
 // the initial bundle on every page. It loads after hydration and is ready
@@ -75,6 +76,18 @@ export function Layout({ children }: { children: React.ReactNode }) {
         />
         <meta name="apple-mobile-web-app-title" content="Kafi" />
         <link rel="manifest" href="/site.webmanifest" />
+
+        {/* Plausible analytics — cookieless, GDPR-friendly, no PII.
+            Configured via VITE_PLAUSIBLE_DOMAIN and VITE_PLAUSIBLE_SRC.
+            Only loaded when both env vars are present (production). */}
+        {import.meta.env.VITE_PLAUSIBLE_DOMAIN &&
+          import.meta.env.VITE_PLAUSIBLE_SRC && (
+            <script
+              defer
+              data-domain={import.meta.env.VITE_PLAUSIBLE_DOMAIN}
+              src={import.meta.env.VITE_PLAUSIBLE_SRC}
+            />
+          )}
       </head>
       <body>
         <UIConfigProvider style="nova">
@@ -104,6 +117,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  // Capture UTM/source attribution on the client on initial load only.
+  // Internal navigations do not overwrite the original campaign —
+  // captureAttribution() only writes when UTM params are present in the URL.
+  useEffect(() => {
+    captureAttribution();
+  }, []);
+
   return <Outlet />;
 }
 

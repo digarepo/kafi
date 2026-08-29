@@ -7,53 +7,22 @@ import {
   Partners,
   Pricing,
 } from '@/features/home/components/Features';
+import { buildOgMeta, SITE_URL, DEFAULT_OG_IMAGE } from '@/lib/og';
 
-const SITE_URL = 'https://kafitour.com';
-const OG_IMAGE = `${SITE_URL}/hero-mecca.webp`;
+const OG_IMAGE = DEFAULT_OG_IMAGE;
 
 /**
  * Home page SEO metadata: title, description, canonical, Open Graph, Twitter.
  */
 export function meta({}: Route.MetaArgs) {
+  const title = 'Kafi Tours — Umrah Pilgrimage Packages from Ethiopia';
+  const description =
+    'Kafi Tours arranges Umrah pilgrimage packages from Addis Ababa to Makkah and Madinah. Ethiopian Airlines flights, visa assistance, hotel accommodation, and group guidance for Economy, Comfort, and Premium tiers.';
   return [
-    { title: 'Kafi Tours — Umrah Pilgrimage Packages from Ethiopia' },
-    {
-      name: 'description',
-      content:
-        'Kafi Tours arranges Umrah pilgrimage packages from Addis Ababa to Makkah and Madinah. Ethiopian Airlines flights, visa assistance, hotel accommodation, and group guidance for Economy, Comfort, and Premium tiers.',
-    },
+    { title },
+    { name: 'description', content: description },
     { tagName: 'link', rel: 'canonical', href: SITE_URL },
-    // Open Graph
-    { property: 'og:type', content: 'website' },
-    {
-      property: 'og:title',
-      content: 'Kafi Tours — Umrah Pilgrimage Packages from Ethiopia',
-    },
-    {
-      property: 'og:description',
-      content:
-        'Umrah pilgrimage packages from Addis Ababa. Ethiopian Airlines flights, visa assistance, and hotel accommodation near the Haram.',
-    },
-    { property: 'og:url', content: SITE_URL },
-    { property: 'og:site_name', content: 'Kafi Tours' },
-    { property: 'og:image', content: OG_IMAGE },
-    {
-      property: 'og:image:alt',
-      content: 'Makkah Al-Mukarramah with the Masjid al-Haram',
-    },
-    { property: 'og:locale', content: 'en_US' },
-    // Twitter
-    { name: 'twitter:card', content: 'summary_large_image' },
-    {
-      name: 'twitter:title',
-      content: 'Kafi Tours — Umrah Pilgrimage Packages from Ethiopia',
-    },
-    {
-      name: 'twitter:description',
-      content:
-        'Umrah pilgrimage packages from Addis Ababa. Ethiopian Airlines flights, visa assistance, and hotel accommodation near the Haram.',
-    },
-    { name: 'twitter:image', content: OG_IMAGE },
+    ...buildOgMeta({ title, description, url: SITE_URL, image: OG_IMAGE }),
   ];
 }
 

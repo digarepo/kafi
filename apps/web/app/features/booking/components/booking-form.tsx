@@ -33,6 +33,8 @@ import {
 import { submitBookingRequest } from '../services/submit-booking-request';
 import { type BookingFormValues } from '../types/booking.types';
 import { bookingSchema } from '../validation/booking-schema';
+import { getAttributionWithVisitor } from '@/lib/attribution';
+import { trackEvent } from '@/lib/analytics';
 
 interface BookingFormProps {
   /** Optional package slug to pre-select from a query parameter. */
@@ -169,7 +171,9 @@ export default function BookingForm({
     validators: { onSubmit: bookingSchema },
     onSubmit: async ({ value }) => {
       try {
-        await submitBookingRequest(value);
+        const attribution = getAttributionWithVisitor();
+        await submitBookingRequest({ ...value, ...attribution });
+        trackEvent('inquiry_form_submitted', { inquiry_type: 'booking' });
       } catch (error) {
         const message =
           error instanceof Error

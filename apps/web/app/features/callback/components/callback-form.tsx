@@ -7,16 +7,18 @@
  * - Uses `useSelector` from `@tanstack/react-form` to read submission state.
  */
 
-import { useState } from "react";
-import { AnyFieldApi, useForm, useSelector } from "@tanstack/react-form";
-import { ArrowRightIcon, CheckCircleIcon } from "@phosphor-icons/react";
-import { Button } from '@ui/components/ui/button'
-import { Input } from '@ui/components/ui/input'
+import { useState } from 'react';
+import { AnyFieldApi, useForm, useSelector } from '@tanstack/react-form';
+import { ArrowRightIcon, CheckCircleIcon } from '@phosphor-icons/react';
+import { Button } from '@ui/components/ui/button';
+import { Input } from '@ui/components/ui/input';
 import { Label } from '@ui/components/ui/label';
 
-import { submitCallbackRequest } from "../services/submit-callback-request";
-import { type CallbackFormValues } from "../types/callback.types";
-import { callbackSchema } from "../validation/callback-schema";
+import { submitCallbackRequest } from '../services/submit-callback-request';
+import { type CallbackFormValues } from '../types/callback.types';
+import { callbackSchema } from '../validation/callback-schema';
+import { getAttributionWithVisitor } from '@/lib/attribution';
+import { trackEvent } from '@/lib/analytics';
 
 interface CallbackFormProps {
   /** Source identifier from the query parameter. */
@@ -35,10 +37,12 @@ function FieldError({ errors }: { errors: ReadonlyArray<unknown> }) {
     <p className="mt-1.5 text-xs text-destructive">
       {errors
         .map((error) =>
-          typeof error === "string" ? error : (error as { message?: string }).message
+          typeof error === 'string'
+            ? error
+            : (error as { message?: string }).message,
         )
         .filter(Boolean)
-        .join(". ")}
+        .join('. ')}
     </p>
   );
 }
@@ -53,9 +57,9 @@ export default function CallbackForm({ defaultSource }: CallbackFormProps) {
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const defaultValues: CallbackFormValues = {
-    phone: "",
+    phone: '',
     fullName: undefined,
-    source: defaultSource ?? "direct",
+    source: defaultSource ?? 'direct',
   };
 
   const form = useForm({
@@ -63,10 +67,14 @@ export default function CallbackForm({ defaultSource }: CallbackFormProps) {
     validators: { onSubmit: callbackSchema },
     onSubmit: async ({ value }) => {
       try {
-        await submitCallbackRequest(value);
+        const attribution = getAttributionWithVisitor();
+        await submitCallbackRequest({ ...value, ...attribution });
+        trackEvent('inquiry_form_submitted', { inquiry_type: 'callback' });
       } catch (error) {
         const message =
-          error instanceof Error ? error.message : "Something went wrong. Please try again.";
+          error instanceof Error
+            ? error.message
+            : 'Something went wrong. Please try again.';
         setSubmitError(message);
         throw error;
       }
@@ -74,7 +82,10 @@ export default function CallbackForm({ defaultSource }: CallbackFormProps) {
   });
 
   const isSubmitting = useSelector(form.store, (state) => state.isSubmitting);
-  const isSubmitSuccessful = useSelector(form.store, (state) => state.isSubmitSuccessful);
+  const isSubmitSuccessful = useSelector(
+    form.store,
+    (state) => state.isSubmitSuccessful,
+  );
 
   if (isSubmitSuccessful) {
     return (
@@ -117,7 +128,7 @@ export default function CallbackForm({ defaultSource }: CallbackFormProps) {
               id="phone"
               name={field.name}
               type="tel"
-              value={field.state.value || ""}
+              value={field.state.value || ''}
               onChange={(e) => field.handleChange(e.target.value)}
               onBlur={field.handleBlur}
               aria-invalid={field.state.meta.errors.length > 0}
@@ -136,7 +147,7 @@ export default function CallbackForm({ defaultSource }: CallbackFormProps) {
             <Input
               id="fullName"
               name={field.name}
-              value={field.state.value || ""}
+              value={field.state.value || ''}
               onChange={(e) => field.handleChange(e.target.value)}
               onBlur={field.handleBlur}
               aria-invalid={field.state.meta.errors.length > 0}
@@ -148,9 +159,13 @@ export default function CallbackForm({ defaultSource }: CallbackFormProps) {
         )}
       </form.Field>
 
-      <Button type="submit" disabled={isSubmitting} className="h-12 w-full px-6 text-base">
+      <Button
+        type="submit"
+        disabled={isSubmitting}
+        className="h-12 w-full px-6 text-base"
+      >
         {isSubmitting ? (
-          "Sending request..."
+          'Sending request...'
         ) : (
           <>
             Request a callback <ArrowRightIcon className="size-4" />

@@ -41,6 +41,22 @@ const optionalEmail = z
 const optionalShortText = z.string().max(150).optional();
 const message = z.string().max(5000);
 
+/**
+ * UTM / campaign attribution fields accepted on all public inquiry forms.
+ *
+ * All optional — only present when the visitor arrived via a tracked link.
+ * The website captures these from the landing URL and forwards them with the
+ * form submission. They are persisted on the `inquiries` row for attribution.
+ */
+const utmAttribution = z.object({
+  utm_source: z.string().max(150).optional(),
+  utm_medium: z.string().max(150).optional(),
+  utm_campaign: z.string().max(150).optional(),
+  utm_content: z.string().max(150).optional(),
+  utm_term: z.string().max(150).optional(),
+  anonymous_visitor_id: z.string().uuid().optional(),
+});
+
 // ---- Public: booking ----
 
 const publicBookingSchema = z.object({
@@ -51,6 +67,7 @@ const publicBookingSchema = z.object({
   travelPeriod: z.string().min(1).max(50),
   numberOfTravellers: z.string().min(1).max(20),
   message: message.optional(),
+  ...utmAttribution.shape,
 });
 
 // ---- Public: callback ----
@@ -59,6 +76,7 @@ const publicCallbackSchema = z.object({
   phone: etPhone,
   fullName: z.string().max(150).optional(),
   source: z.string().max(50).optional(),
+  ...utmAttribution.shape,
 });
 
 // ---- Public: contact ----
@@ -76,18 +94,24 @@ const publicContactSchema = z.object({
     'feedback',
     'other',
   ]),
-  packageInterest: z.enum(['economy', 'comfort', 'premium', 'custom']).optional(),
+  packageInterest: z
+    .enum(['economy', 'comfort', 'premium', 'custom'])
+    .optional(),
   groupSize: z.enum(['1', '2-4', '5-10', '10+']).optional(),
   travelPeriod: z
     .string()
     .regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Please use YYYY-MM format.')
     .optional(),
   message: message
-    .refine((val) => val.trim().length >= 20, 'Please provide a few more details.')
+    .refine(
+      (val) => val.trim().length >= 20,
+      'Please provide a few more details.',
+    )
     .refine(
       (val) => val.split(/\s+/).filter(Boolean).length >= 3,
       'Your message should contain at least 3 words.',
     ),
+  ...utmAttribution.shape,
 });
 
 // ---- Public: enquiry ----
@@ -99,6 +123,7 @@ const publicEnquirySchema = z.object({
   package: optionalShortText,
   service: optionalShortText,
   message: message.min(10, 'Please provide a few more details.'),
+  ...utmAttribution.shape,
 });
 
 // ---- Admin ----
@@ -151,6 +176,8 @@ export type PublicContactInquiryInput = z.infer<typeof publicContactSchema>;
 export type PublicEnquiryInquiryInput = z.infer<typeof publicEnquirySchema>;
 export type InquiryFilters = z.infer<typeof inquiryFiltersSchema>;
 export type UpdateInquiryInput = z.infer<typeof updateInquirySchema>;
-export type ChangeInquiryStatusInput = z.infer<typeof changeInquiryStatusSchema>;
+export type ChangeInquiryStatusInput = z.infer<
+  typeof changeInquiryStatusSchema
+>;
 
 export { ulidSchema };
