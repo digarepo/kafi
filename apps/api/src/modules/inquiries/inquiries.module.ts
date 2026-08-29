@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { SharedModule } from '../../shared/shared.module.js';
 import { IAMModule } from '../iam/iam.module.js';
+import { AnalyticsModule } from '../analytics/analytics.module.js';
 import { InquiriesService } from './application/services/inquiries.service.js';
 import { AdminInquiriesController } from './presentation/controllers/admin-inquiries.controller.js';
 import { PublicInquiriesController } from './presentation/controllers/public-inquiries.controller.js';
@@ -13,9 +14,13 @@ import { PublicInquiriesController } from './presentation/controllers/public-inq
  * - Owns only the `inquiries` table and writes to no other context.
  * - Imports IAMModule for the configured `Mailer` so staff notifications use
  *   the single driver-selection factory rather than a second mail setup.
+ * - Imports AnalyticsModule so inquiry creation can emit a domain event that
+ *   the analytics conversion subscriber listens for. The InquiriesService
+ *   itself does not write to `analytics_events` directly — it only emits the
+ *   `inquiries.inquiry.created` event.
  */
 @Module({
-  imports: [SharedModule, IAMModule],
+  imports: [SharedModule, IAMModule, AnalyticsModule],
   controllers: [PublicInquiriesController, AdminInquiriesController],
   providers: [InquiriesService],
   exports: [InquiriesService],

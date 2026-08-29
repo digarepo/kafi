@@ -4,6 +4,7 @@ import { ArrowLeftIcon } from '@phosphor-icons/react';
 import { type Route } from './+types/service-detail';
 import ServiceDetailPage from '@/features/services/components/serviceDetailPage';
 import { services } from '@/features/services/data/services';
+import { buildOgMeta } from '@/lib/og';
 
 /**
  * Server-side loader — validates that the slug resolves to a known service.
@@ -57,13 +58,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
     { title },
     { name: 'description', content: description },
     { tagName: 'link', rel: 'canonical', href: url },
-    { property: 'og:title', content: title },
-    { property: 'og:description', content: description },
-    { property: 'og:type', content: 'website' },
-    { property: 'og:url', content: url },
-    { name: 'twitter:card', content: 'summary' },
-    { name: 'twitter:title', content: title },
-    { name: 'twitter:description', content: description },
+    ...buildOgMeta({ title, description, url }),
   ];
 }
 

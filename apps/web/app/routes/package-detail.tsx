@@ -8,6 +8,7 @@ import {
   listPublicPackages,
   type PublicPackageVersion,
 } from '@/lib/public-api';
+import { buildOgMeta, ogImageUrlForPackage } from '@/lib/og';
 
 /**
  * Server-side loader — fetches the package and all published packages during
@@ -117,18 +118,22 @@ export function meta({ loaderData }: Route.MetaArgs) {
   const title = `${name} Umrah ${season} | Kafi Tours`;
   const description = `${name} Umrah package for ${season}. ${currency} ${price} per traveler. Flights, visa, accommodation, and guided Umrah from Addis Ababa.`;
   const url = `https://kafitour.com/packages/${pkg.slug}`;
+  const ogImage = ogImageUrlForPackage(pkg.slug);
+  const imageAlt = `${name} Umrah ${season} — Kafi Tours`;
 
   return [
     { title },
     { name: 'description', content: description },
     { tagName: 'link', rel: 'canonical', href: url },
-    { property: 'og:title', content: title },
-    { property: 'og:description', content: description },
-    { property: 'og:type', content: 'product' },
-    { property: 'og:url', content: url },
-    { name: 'twitter:card', content: 'summary' },
-    { name: 'twitter:title', content: title },
-    { name: 'twitter:description', content: description },
+    ...buildOgMeta({
+      title,
+      description,
+      url,
+      image: ogImage,
+      imageAlt,
+      type: 'product',
+      twitterCard: 'summary_large_image',
+    }),
   ];
 }
 

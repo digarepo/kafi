@@ -11,6 +11,8 @@ import { FlightsModule } from '../modules/flights/index.js';
 import { DashboardModule } from '../modules/dashboard/index.js';
 import { InquiriesModule } from '../modules/inquiries/index.js';
 import { SearchModule } from '../modules/search/index.js';
+import { AnalyticsModule } from '../modules/analytics/analytics.module.js';
+import { OgImageModule } from '../modules/og-image/og-image.module.js';
 
 @Module({
   imports: [
@@ -25,6 +27,8 @@ import { SearchModule } from '../modules/search/index.js';
     DashboardModule,
     InquiriesModule,
     SearchModule,
+    AnalyticsModule,
+    OgImageModule,
   ],
   controllers: [AppController],
   providers: [],

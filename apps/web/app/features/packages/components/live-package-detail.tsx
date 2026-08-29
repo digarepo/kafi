@@ -5,6 +5,7 @@ import { Separator } from '@ui/components/ui/separator';
 import { Button } from '@ui/components/ui/button';
 
 import type { PublicPackageVersion } from '../../../lib/public-api';
+import { ShareBar } from '../../../components/share/ShareBar';
 import { PackageBookingCard } from './package-booking-card';
 import { PackageFacts } from './package-facts';
 import { RelatedPackages } from './related-packages';
@@ -153,6 +154,19 @@ export function LivePackageDetail({
                 ))}
               </div>
             )}
+          </div>
+
+          <div className="mt-8 flex items-center gap-3">
+            <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+              Share
+            </span>
+            <ShareBar
+              url={`https://kafitour.com/packages/${pkg.slug}`}
+              title={`${name} Umrah ${pkg.season?.name ?? pkg.year}`}
+              description={`${pkg.package_template?.name ?? pkg.version_name} — ${pkg.currency?.code ?? ''} ${formatPrice(pkg)}`}
+              contentType="package"
+              contentId={pkg.slug}
+            />
           </div>
 
           <div className="mt-10">

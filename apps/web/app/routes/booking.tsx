@@ -1,6 +1,7 @@
 import type { Route } from './+types/booking';
 import { BookingPage } from '@/features/booking';
 import { packages } from '@/features/packages/data/packages';
+import { buildOgMeta } from '@/lib/og';
 
 export function meta({}: Route.MetaArgs) {
   const title = 'Booking Request | Kafi Tours';
@@ -12,13 +13,7 @@ export function meta({}: Route.MetaArgs) {
     { title },
     { name: 'description', content: description },
     { tagName: 'link', rel: 'canonical', href: url },
-    { property: 'og:title', content: title },
-    { property: 'og:description', content: description },
-    { property: 'og:type', content: 'website' },
-    { property: 'og:url', content: url },
-    { name: 'twitter:card', content: 'summary' },
-    { name: 'twitter:title', content: title },
-    { name: 'twitter:description', content: description },
+    ...buildOgMeta({ title, description, url }),
   ];
 }
 
