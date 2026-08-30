@@ -10,6 +10,8 @@ import { Button } from '@ui/components/ui/button';
 import { Card } from '@ui/components/ui/card';
 import { Separator } from '@ui/components/ui/separator';
 
+import { trackEvent, trackServerEvent } from '@/lib/analytics';
+import { getAttributionWithVisitor } from '@/lib/attribution';
 import type { PublicPackageVersion } from '../../../lib/public-api';
 
 interface PackageBookingCardProps {
@@ -105,14 +107,49 @@ export function PackageBookingCard({ package: pkg }: PackageBookingCardProps) {
 
         {/* Actions */}
         <div className="space-y-3">
-          <Link to={`/booking?package=${pkg.slug}`} className="block">
+          <Link
+            to={`/booking?package=${pkg.slug}`}
+            className="block"
+            onClick={() => {
+              trackEvent('booking_started', {
+                package_slug: pkg.slug,
+                package_name: pkg.version_name,
+              });
+              void trackServerEvent(
+                'booking_started',
+                { package_slug: pkg.slug, package_name: pkg.version_name },
+                getAttributionWithVisitor(),
+              );
+            }}
+          >
             <Button className="h-12 w-full text-sm">
               Book This Package
               <ArrowRightIcon weight="bold" className="h-4 w-4" />
             </Button>
           </Link>
 
-          <Link to={`/enquiry?package=${pkg.slug}`} className="block">
+          <Link
+            to={`/enquiry?package=${pkg.slug}`}
+            className="block"
+            onClick={() => {
+              trackEvent('cta_click', {
+                cta_label: 'Ask a Question',
+                page_path: `/packages/${pkg.slug}`,
+                content_type: 'package',
+                content_id: pkg.slug,
+              });
+              void trackServerEvent(
+                'cta_click',
+                {
+                  cta_label: 'Ask a Question',
+                  page_path: `/packages/${pkg.slug}`,
+                  content_type: 'package',
+                  content_id: pkg.slug,
+                },
+                getAttributionWithVisitor(),
+              );
+            }}
+          >
             <Button variant="outline" className="h-12 w-full text-sm">
               Ask a Question
             </Button>

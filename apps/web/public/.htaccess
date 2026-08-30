@@ -1,0 +1,18 @@
+# Force /sitemap.xml through the Node.js Passenger app — it is a dynamic
+# React Router resource route, not a static file. LiteSpeed serves static
+# files from public/ before reaching Passenger, and may cache them. This
+# rule prevents LiteSpeed from serving a stale cached sitemap.xml.
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteRule ^sitemap\.xml$ - [E=CACHEBYPASS:1,T=application/xml]
+</IfModule>
+
+<IfModule mod_headers.c>
+  <FilesMatch "^sitemap\.xml$">
+    Header set Cache-Control "public, max-age=3600, s-maxage=3600"
+    Header set X-LiteSpeed-Cache-Control "no-cache"
+    Header unset ETag
+    Header unset Last-Modified
+  </FilesMatch>
+</IfModule>

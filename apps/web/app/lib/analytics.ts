@@ -1,49 +1,70 @@
 /**
- * Plausible analytics integration for the public website.
+ * Google Analytics 4 (GA4) integration for the public website.
  *
  * @remarks
- * - Plausible is cookieless, GDPR-friendly, and does not collect PII. No
- *   consent banner is required because no personal data is processed.
- * - The script is loaded once in `root.tsx`. Pageviews are tracked
- *   automatically by Plausible on initial load and on client-side navigation
- *   via the `data-auto-pageviews` attribute (handled by the Plausible script
- *   itself for `pushState`/`replaceState`).
- * - Custom events are sent via `trackEvent()`, which is a thin wrapper around
- *   `window.plausible()`.
+ * - The GA4 script (gtag.js) is loaded once in `root.tsx` when
+ *   `VITE_GA4_MEASUREMENT_ID` is set. Pageviews are tracked automatically
+ *   by gtag on initial load. Client-side React Router navigations are
+ *   tracked via `useLocation` in the root component.
+ * - Custom events are sent via `trackEvent()`, which wraps `gtag()`.
  * - The first-party `analytics_events` MySQL table is used ONLY for events
  *   Kafi owns (shares, conversions). Those are sent to the API via
- *   `trackServerEvent()`. Plausible handles pageviews/visitors/sessions.
- * - No PII is ever sent to Plausible or to the first-party analytics endpoint.
+ *   `trackServerEvent()`. GA4 handles pageviews/visitors/sessions.
+ * - No PII is ever sent to GA4 or to the first-party analytics endpoint.
  */
 
 declare global {
   interface Window {
-    plausible?: (
-      event: string,
-      options?: { props?: Record<string, string | number | boolean | null> },
+    gtag?: (
+      command: string,
+      action: string,
+      params?: Record<string, unknown>,
     ) => void;
+    dataLayer?: unknown[];
   }
 }
 
-/** Whether Plausible is configured (env vars present). */
-function isPlausibleConfigured(): boolean {
-  return Boolean(typeof window !== 'undefined' && window.plausible);
+/** GA4 measurement ID from env (e.g. "G-CZGQTYBLBZ"). Read lazily so tests can stub it. */
+function getGa4Id(): string | undefined {
+  return import.meta.env.VITE_GA4_MEASUREMENT_ID as string | undefined;
+}
+
+/** Whether GA4 is configured (env var present and gtag loaded). */
+function isGa4Configured(): boolean {
+  return Boolean(typeof window !== 'undefined' && window.gtag && getGa4Id());
 }
 
 /**
- * Tracks a custom event in Plausible.
+ * Tracks a custom event in GA4.
  *
- * @param name - Event name (must be configured as a custom event in Plausible).
- * @param props - Optional event properties. No PII should be included.
+ * @param name - Event name (must be configured in GA4 if marked as Key Event).
+ * @param params - Optional event parameters. No PII should be included.
  */
 export function trackEvent(
   name: string,
-  props?: Record<string, string | number | boolean | null>,
+  params?: Record<string, string | number | boolean | null>,
 ): void {
   if (typeof window === 'undefined') return;
-  if (!isPlausibleConfigured()) return;
+  if (!isGa4Configured()) return;
   try {
-    window.plausible!(name, props ? { props } : undefined);
+    window.gtag!('event', name, params ?? {});
+  } catch {
+    // Swallow — analytics must never break the user experience.
+  }
+}
+
+/**
+ * Tracks a page_view in GA4 for client-side React Router navigations.
+ * The initial page load is tracked automatically by the gtag script.
+ */
+export function trackPageView(path: string): void {
+  if (typeof window === 'undefined') return;
+  if (!isGa4Configured()) return;
+  try {
+    window.gtag!('event', 'page_view', {
+      page_path: path,
+      send_to: getGa4Id(),
+    });
   } catch {
     // Swallow — analytics must never break the user experience.
   }
@@ -62,7 +83,7 @@ const API_BASE =
  *
  * Note: `inquiry_submitted` is NOT in this list — it is created exclusively
  * by the server-side conversion subscriber after an inquiry is persisted.
- * The client sends `inquiry_form_submitted` to Plausible only, representing
+ * The client sends `inquiry_form_submitted` to GA4 only, representing
  * the user's form submission action (which may fail before reaching the DB).
  */
 const SERVER_EVENT_ALLOWLIST = [

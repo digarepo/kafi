@@ -1,5 +1,12 @@
 import { lazy, Suspense, useEffect } from 'react';
-import { Links, Meta, Outlet, Scripts, ScrollRestoration } from 'react-router';
+import {
+  Links,
+  Meta,
+  Outlet,
+  Scripts,
+  ScrollRestoration,
+  useLocation,
+} from 'react-router';
 import type { Route } from './+types/root';
 
 import './app.css';
@@ -8,6 +15,7 @@ import { UIConfigProvider } from '@ui/providers/ui-config-provider';
 import { Navbar } from './components/layout/Navbar';
 import { Footer } from './components/layout/Footer';
 import { captureAttribution } from './lib/attribution';
+import { trackPageView } from './lib/analytics';
 
 // Lazy-load the Sonner Toaster so the toast library (~31KB) is not part of
 // the initial bundle on every page. It loads after hydration and is ready
@@ -77,17 +85,22 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <meta name="apple-mobile-web-app-title" content="Kafi" />
         <link rel="manifest" href="/site.webmanifest" />
 
-        {/* Plausible analytics — cookieless, GDPR-friendly, no PII.
-            Configured via VITE_PLAUSIBLE_DOMAIN and VITE_PLAUSIBLE_SRC.
-            Only loaded when both env vars are present (production). */}
-        {import.meta.env.VITE_PLAUSIBLE_DOMAIN &&
-          import.meta.env.VITE_PLAUSIBLE_SRC && (
+        {/* Google Analytics 4 — loaded once when VITE_GA4_MEASUREMENT_ID is set.
+            The gtag script tracks the initial pageview automatically. Client-side
+            navigations are tracked via trackPageView() in the App component. */}
+        {import.meta.env.VITE_GA4_MEASUREMENT_ID && (
+          <>
             <script
-              defer
-              data-domain={import.meta.env.VITE_PLAUSIBLE_DOMAIN}
-              src={import.meta.env.VITE_PLAUSIBLE_SRC}
+              async
+              src={`https://www.googletagmanager.com/gtag/js?id=${import.meta.env.VITE_GA4_MEASUREMENT_ID}`}
             />
-          )}
+            <script
+              dangerouslySetInnerHTML={{
+                __html: `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${import.meta.env.VITE_GA4_MEASUREMENT_ID}');`,
+              }}
+            />
+          </>
+        )}
       </head>
       <body>
         <UIConfigProvider style="nova">
@@ -117,12 +130,21 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  const location = useLocation();
+
   // Capture UTM/source attribution on the client on initial load only.
   // Internal navigations do not overwrite the original campaign —
   // captureAttribution() only writes when UTM params are present in the URL.
   useEffect(() => {
     captureAttribution();
   }, []);
+
+  // Track client-side navigations in GA4. The initial page load is tracked
+  // automatically by the gtag config script. This effect fires only on
+  // subsequent client-side route changes, so no double-counting occurs.
+  useEffect(() => {
+    trackPageView(location.pathname);
+  }, [location.pathname]);
 
   return <Outlet />;
 }
