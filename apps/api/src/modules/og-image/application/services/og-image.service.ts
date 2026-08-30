@@ -2,9 +2,35 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import satori from 'satori';
-import { Resvg } from '@resvg/resvg-js';
 import { PackagesService } from '../../../packages/application/services/packages.service.js';
+
+/**
+ * Lazy-loaded satori and resvg modules.
+ *
+ * These packages use native binaries (@resvg/resvg-js) that may fail to load
+ * on certain server architectures. By importing them lazily, the API can
+ * start successfully even if the OG image renderer is unavailable — only
+ * actual OG image requests will fail (with a logged error), not the entire
+ * application.
+ */
+let satoriFn: typeof import('satori').default | null = null;
+let ResvgClass: typeof import('@resvg/resvg-js').Resvg | null = null;
+
+async function loadSatori() {
+  if (!satoriFn) {
+    const mod = await import('satori');
+    satoriFn = mod.default;
+  }
+  return satoriFn;
+}
+
+async function loadResvg() {
+  if (!ResvgClass) {
+    const mod = await import('@resvg/resvg-js');
+    ResvgClass = mod.Resvg;
+  }
+  return ResvgClass;
+}
 
 /**
  * Resolves the font path relative to this source file.
@@ -101,7 +127,7 @@ export class OgImageService {
       heroImageUrl: pkg.hero_image_url ?? null,
     });
 
-    const png = this.rasterize(svg);
+    const png = await this.rasterize(svg);
     this.setInCache(cacheKey, png);
     return png;
   }
@@ -116,6 +142,7 @@ export class OgImageService {
     heroImageUrl: string | null;
   }): Promise<string> {
     const fontData = await this.loadFont();
+    const satori = await loadSatori();
 
     return satori(
       {
@@ -205,7 +232,8 @@ export class OgImageService {
   /**
    * Rasterizes an SVG string to a PNG buffer using resvg.
    */
-  private rasterize(svg: string): Buffer {
+  private async rasterize(svg: string): Promise<Buffer> {
+    const Resvg = await loadResvg();
     const resvg = new Resvg(svg, {
       fitTo: { mode: 'width', value: WIDTH },
     });
