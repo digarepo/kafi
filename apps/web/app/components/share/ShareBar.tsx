@@ -34,7 +34,7 @@ export interface ShareBarProps extends ShareData {
 }
 
 /**
- * Records a share event to both Plausible and the first-party analytics table.
+ * Records a share event to both GA4 and the first-party analytics table.
  *
  * @param channel - The share channel used (whatsapp, telegram, sms, native, copy).
  * @param contentType - The type of content being shared.
@@ -45,8 +45,12 @@ function recordShare(
   contentType: string,
   contentId?: string,
 ): void {
-  // Plausible custom event (aggregate analytics).
-  trackEvent('share', { channel, content_type: contentType, content_id: contentId ?? null });
+  // GA4 custom event (aggregate analytics).
+  trackEvent('share', {
+    channel,
+    content_type: contentType,
+    content_id: contentId ?? null,
+  });
 
   // First-party analytics event (owned, queryable).
   const attribution = getAttributionWithVisitor();

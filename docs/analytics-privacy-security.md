@@ -7,13 +7,13 @@ public website analytics and social-sharing system.
 
 The system has two analytics layers:
 
-1. **Plausible** (third-party, cookieless) — pageviews, visitors, sessions,
-   referrers, entry/exit pages, aggregate custom events.
+1. **Google Analytics 4** (third-party) — pageviews, visitors, sessions,
+   referrers, entry/exit pages, aggregate custom events, acquisition.
 2. **First-party MySQL `analytics_events` table** — Kafi-owned, business-joinable
    events only: `share`, `cta_click`, `booking_started`, `inquiry_submitted`
    (conversion).
 
-Pageviews and sessions are NOT duplicated into MySQL. Plausible handles all
+Pageviews and sessions are NOT duplicated into MySQL. GA4 handles all
 aggregate traffic analytics. The first-party table exists solely for events
 that Kafi needs to query alongside business data (e.g. "which packages were
 shared most this month", "which campaigns produced inquiries").
@@ -40,7 +40,7 @@ shared most this month", "which campaigns produced inquiries").
 - **User-agent** — derived server-side for inquiries (existing behavior),
   never accepted from the client body, never stored in `analytics_events`.
 - **Names, emails, phone numbers** — never stored in `analytics_events` or
-  sent to Plausible. These remain only in the `inquiries` table.
+  sent to GA4. These remain only in the `inquiries` table.
 - **Passport/payment information** — never in analytics.
 - **Browser fingerprints** — no canvas, font, or device fingerprinting.
 
@@ -82,9 +82,9 @@ by the server-side `InquiryConversionSubscriber` after an inquiry is
 successfully persisted. Clients cannot send it directly — attempting to do so
 returns `400 Bad Request`. This prevents fake conversion events.
 
-### Client-only Plausible event
+### Client-only GA4 event
 
-`inquiry_form_submitted` is sent to Plausible only (not to the first-party
+`inquiry_form_submitted` is sent to GA4 only (not to the first-party
 MySQL endpoint). It represents the user's form submission action from the
 browser's perspective, which may fail before reaching the database. This is
 intentionally distinct from the authoritative `inquiry_submitted` conversion
@@ -118,17 +118,18 @@ generates parameterized queries.
   tags. The URLs are constructed from known-safe components (site URL + slug)
   and encoded text, preventing injection.
 
-## 9. Plausible Configuration
+## 9. Google Analytics 4 Configuration
 
-- Plausible is cookieless and GDPR-friendly. No consent banner is required
-  because no personal data is processed.
-- The script is loaded only when `VITE_PLAUSIBLE_DOMAIN` and
-  `VITE_PLAUSIBLE_SRC` env vars are both set.
-- Custom events sent to Plausible contain only non-sensitive properties
-  (channel, content_type, content_id, inquiry_type). No PII.
-- Pageviews are tracked automatically by the Plausible script on initial
-  load and client-side navigation. No duplicate pageview events are sent
-  from the application code.
+- GA4 is loaded via the official gtag.js script when `VITE_GA4_MEASUREMENT_ID`
+  is set.
+- The initial pageview is tracked automatically by the gtag config script.
+- Client-side React Router navigations are tracked via `trackPageView()`
+  in the root component, which fires only on pathname changes — no
+  double-counting on initial load.
+- Custom events sent to GA4 contain only non-sensitive properties
+  (channel, content_type, content_id, inquiry_type, package_slug). No PII.
+- GA4 uses cookies for session/visitor identification. Kafi's first-party
+  analytics endpoint does NOT use cookies and does NOT store IP addresses.
 
 ## 10. OG Image Endpoint Security
 
@@ -168,12 +169,11 @@ generates parameterized queries.
 
 ## 13. Environment Variables
 
-| Variable                | Required        | Purpose                                                       | Client-visible?  |
-| ----------------------- | --------------- | ------------------------------------------------------------- | ---------------- |
-| `VITE_PLAUSIBLE_DOMAIN` | Production only | Plausible site domain                                         | Yes (no secret)  |
-| `VITE_PLAUSIBLE_SRC`    | Production only | Plausible script URL                                          | Yes (no secret)  |
-| `VITE_OG_IMAGE_BASE`    | Optional        | Base URL for OG image links (defaults to `VITE_API_URL`)      | Yes (no secret)  |
-| `OG_IMAGE_FONT_PATH`    | Optional        | Path to TTF font (defaults to bundled `assets/inter-700.ttf`) | No (server-side) |
+| Variable                  | Required        | Purpose                                                       | Client-visible?  |
+| ------------------------- | --------------- | ------------------------------------------------------------- | ---------------- |
+| `VITE_GA4_MEASUREMENT_ID` | Production only | GA4 measurement ID (e.g. G-CZGQTYBLBZ)                        | Yes (no secret)  |
+| `VITE_OG_IMAGE_BASE`      | Optional        | Base URL for OG image links (defaults to `VITE_API_URL`)      | Yes (no secret)  |
+| `OG_IMAGE_FONT_PATH`      | Optional        | Path to TTF font (defaults to bundled `assets/inter-700.ttf`) | No (server-side) |
 
 All `VITE_*` variables are embedded in the client bundle. None contain
 secrets — they are public URLs and domain names only.
