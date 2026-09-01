@@ -70,18 +70,7 @@ export function FlightBookingNewPage() {
   if (loading) return <p className="text-muted-foreground">Loading...</p>;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">
-          Record flight booking
-        </h1>
-        <p className="text-muted-foreground">
-          {registration
-            ? `Record a purchased flight ticket for registration ${registration.registration_number}. The booking will be created as CONFIRMED.`
-            : 'Record a purchased and confirmed flight ticket. Only registrations with an approved visa and no active booking are eligible.'}
-        </p>
-      </div>
-
+    <div className="mx-auto max-w-2xl space-y-6">
       {error && (
         <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
           {error}
@@ -92,7 +81,7 @@ export function FlightBookingNewPage() {
         mode="create"
         registration={registration ?? undefined}
         onSubmit={handleSubmit}
-        submitLabel="Record booking"
+        submitLabel="Save"
       />
     </div>
   );

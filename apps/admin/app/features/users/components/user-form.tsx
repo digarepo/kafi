@@ -52,17 +52,17 @@ export function UserForm({
   const description =
     mode === 'create'
       ? 'Add a new staff member and assign their role.'
-      : `Update ${user?.full_name ?? 'user'}'s details and role assignments.`;
+      : `Update ${user ? [user.first_name, user.middle_name].filter(Boolean).join(' ') : 'user'}'s details and role assignments.`;
 
   const schema = useMemo(() => userFormSchema(mode), [mode]);
 
   const defaultValues = useMemo<UserFormValues>(() => {
     if (mode === 'edit' && user) {
-      const [first = '', ...rest] = user.full_name.split(' ');
       return {
         employee_number: undefined,
-        firstName: first,
-        lastName: rest.join(' '),
+        firstName: user.first_name,
+        middleName: user.middle_name ?? '',
+        lastName: user.last_name ?? '',
         email: user.email_address,
         phone: formatAsPhone(user.phone_number),
         job_title: user.job_title ?? '',
@@ -72,8 +72,9 @@ export function UserForm({
       };
     }
     return {
-      employee_number: '',
+      employee_number: undefined,
       firstName: '',
+      middleName: '',
       lastName: '',
       email: '',
       phone: '',
@@ -90,18 +91,16 @@ export function UserForm({
       onSubmit: schema,
     },
     onSubmit: async ({ value }) => {
-      const full_name = `${value.firstName} ${value.lastName}`.trim();
       const output: UserFormOutput = {
-        full_name,
+        first_name: value.firstName,
+        middle_name: value.middleName || undefined,
+        last_name: value.lastName || undefined,
         email: value.email,
         phone: toE164(value.phone),
         job_title: value.job_title,
         gender: value.gender,
         role_ids: [value.role_id],
       };
-      if (mode === 'create' && value.employee_number) {
-        output.employee_number = value.employee_number;
-      }
       if (mode === 'edit' && value.user_status_id) {
         output.user_status_id = value.user_status_id;
       }
@@ -136,18 +135,15 @@ export function UserForm({
               Personal Information
             </h3>
 
-            {mode === 'create' && (
-              <form.Field name="employee_number">
+            <div className="grid gap-4 md:grid-cols-2">
+              <form.Field name="firstName">
                 {(field: AnyFieldApi) => (
                   <div className="space-y-2">
-                    <Label
-                      htmlFor="employee_number"
-                      className="text-sm font-medium"
-                    >
-                      Employee number
+                    <Label htmlFor="firstName" className="text-sm font-medium">
+                      First name
                     </Label>
                     <Input
-                      id="employee_number"
+                      id="firstName"
                       value={field.state.value ?? ''}
                       onChange={(e) => field.handleChange(e.target.value)}
                       onBlur={field.handleBlur}
@@ -158,17 +154,15 @@ export function UserForm({
                   </div>
                 )}
               </form.Field>
-            )}
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <form.Field name="firstName">
+              <form.Field name="middleName">
                 {(field: AnyFieldApi) => (
                   <div className="space-y-2">
-                    <Label htmlFor="firstName" className="text-sm font-medium">
-                      First name
+                    <Label htmlFor="middleName" className="text-sm font-medium">
+                      Father's name
                     </Label>
                     <Input
-                      id="firstName"
+                      id="middleName"
                       value={field.state.value ?? ''}
                       onChange={(e) => field.handleChange(e.target.value)}
                       onBlur={field.handleBlur}
@@ -194,6 +188,36 @@ export function UserForm({
                       className="h-9"
                       aria-invalid={field.state.meta.errors.length > 0}
                     />
+                    <FieldError field={field} />
+                  </div>
+                )}
+              </form.Field>
+
+              <form.Field name="gender">
+                {(field: AnyFieldApi) => (
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Gender</Label>
+                    <div className="flex h-9 items-center gap-6 rounded-md border border-input bg-transparent px-3">
+                      {(['Male', 'Female'] as const).map((option) => (
+                        <div key={option} className="flex items-center gap-2">
+                          <input
+                            type="radio"
+                            id={`gender_${option.toLowerCase()}`}
+                            name={field.name}
+                            value={option}
+                            checked={field.state.value === option}
+                            onChange={() => field.handleChange(option)}
+                            className="h-4 w-4 accent-primary"
+                          />
+                          <Label
+                            htmlFor={`gender_${option.toLowerCase()}`}
+                            className="cursor-pointer font-normal"
+                          >
+                            {option}
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
                     <FieldError field={field} />
                   </div>
                 )}
@@ -244,57 +268,6 @@ export function UserForm({
                 )}
               </form.Field>
             </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <form.Field name="job_title">
-                {(field: AnyFieldApi) => (
-                  <div className="space-y-2">
-                    <Label htmlFor="job_title" className="text-sm font-medium">
-                      Job title
-                    </Label>
-                    <Input
-                      id="job_title"
-                      value={field.state.value ?? ''}
-                      onChange={(e) => field.handleChange(e.target.value)}
-                      onBlur={field.handleBlur}
-                      className="h-9"
-                      aria-invalid={field.state.meta.errors.length > 0}
-                    />
-                    <FieldError field={field} />
-                  </div>
-                )}
-              </form.Field>
-
-              <form.Field name="gender">
-                {(field: AnyFieldApi) => (
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Gender</Label>
-                    <div className="flex h-9 items-center gap-6">
-                      {(['Male', 'Female'] as const).map((option) => (
-                        <div key={option} className="flex items-center gap-2">
-                          <input
-                            type="radio"
-                            id={`gender_${option.toLowerCase()}`}
-                            name={field.name}
-                            value={option}
-                            checked={field.state.value === option}
-                            onChange={() => field.handleChange(option)}
-                            className="h-4 w-4 accent-primary"
-                          />
-                          <Label
-                            htmlFor={`gender_${option.toLowerCase()}`}
-                            className="cursor-pointer font-normal"
-                          >
-                            {option}
-                          </Label>
-                        </div>
-                      ))}
-                    </div>
-                    <FieldError field={field} />
-                  </div>
-                )}
-              </form.Field>
-            </div>
           </div>
 
           <div className="border-t border-border pt-4">
@@ -305,11 +278,9 @@ export function UserForm({
 
               <form.Field name="role_id">
                 {(field: AnyFieldApi) => (
-                  <div className="space-y-3">
-                    <Label className="text-sm font-semibold text-foreground">
-                      Role
-                    </Label>
-                    <div className="flex flex-wrap items-center gap-6">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Role</Label>
+                    <div className="flex h-9 flex-wrap items-center gap-6 rounded-md border border-input bg-transparent px-3">
                       {roles.map((role) => (
                         <div key={role.id} className="flex items-center gap-2">
                           <input
@@ -338,11 +309,9 @@ export function UserForm({
               {mode === 'edit' && (
                 <form.Field name="user_status_id">
                   {(field: AnyFieldApi) => (
-                    <div className="space-y-3">
-                      <Label className="text-sm font-semibold text-foreground">
-                        Status
-                      </Label>
-                      <div className="flex flex-wrap items-center gap-6">
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Status</Label>
+                      <div className="flex h-9 flex-wrap items-center gap-6 rounded-md border border-input bg-transparent px-3">
                         {statuses.map((status) => (
                           <div
                             key={status.id}

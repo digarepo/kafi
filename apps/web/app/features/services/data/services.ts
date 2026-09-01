@@ -44,7 +44,7 @@ export const services: ServiceItem[] = [
       {
         title: 'Visa Delivery & Travel Preparation',
         description:
-          'After approval, your visa documentation is delivered and our team helps you prepare for the next stage of your pilgrimage journey.',
+          'After approval, your visa documentation is delivered and our team helps you prepare for the next stage of your travel journey.',
       },
     ],
     tag: 'Essential',
@@ -64,7 +64,7 @@ export const services: ServiceItem[] = [
       {
         title: 'Flight Search & Route Planning',
         description:
-          'We search available flight options from your departure city and identify routes that best match your travel dates, group size, and pilgrimage itinerary.',
+          'We search available flight options from your departure city and identify routes that best match your travel dates, group size, and travel itinerary.',
       },
       {
         title: 'Best-Rate Booking & Confirmation',
@@ -74,7 +74,7 @@ export const services: ServiceItem[] = [
       {
         title: 'Group Flight Coordination',
         description:
-          'For group pilgrimages, we coordinate flight arrangements wherever possible so that members of the group can travel together.',
+          'For group travels, we coordinate flight arrangements wherever possible so that members of the group can travel together.',
       },
       {
         title: 'E-Ticket Delivery & Travel Guidance',
@@ -124,7 +124,7 @@ export const services: ServiceItem[] = [
       {
         title: 'Checkout & Onward Travel',
         description:
-          'We coordinate checkout timing and help connect your accommodation arrangements with the next stage of your pilgrimage itinerary.',
+          'We coordinate checkout timing and help connect your accommodation arrangements with the next stage of your travel itinerary.',
       },
     ],
     tag: 'Included',
@@ -149,7 +149,7 @@ export const services: ServiceItem[] = [
       {
         title: 'Hotel & Haram Transportation',
         description:
-          'Where included in your package, transportation is coordinated between your hotel and key pilgrimage locations for convenient movement during your stay.',
+          'Where included in your package, transportation is coordinated between your hotel and key travel locations for convenient movement during your stay.',
       },
       {
         title: 'Makkah–Madinah Transfers',
@@ -159,7 +159,7 @@ export const services: ServiceItem[] = [
       {
         title: 'Ziyarah Site Transportation',
         description:
-          'Comfortable transportation is arranged for guided visits to significant historical and religious sites throughout your pilgrimage.',
+          'Comfortable transportation is arranged for guided visits to significant historical and religious sites throughout your travel.',
       },
       {
         title: 'Airport Drop-Off & Departure',
@@ -214,7 +214,7 @@ export const services: ServiceItem[] = [
     id: 'scholarly-guidance',
     slug: 'scholarly-guidance',
     icon: GraduationCapIcon,
-    name: 'Scholar-Led Pilgrimage',
+    name: 'Scholar-Led Travel',
     tagline: 'Spiritually Guided Experience',
     description:
       'Our groups are accompanied by qualified Islamic scholars who guide rituals, deliver lectures, and help you maximise value.',

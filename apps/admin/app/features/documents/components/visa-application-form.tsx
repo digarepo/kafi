@@ -9,14 +9,31 @@
  *   the RecordVisaResultDialog, not this form.
  */
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AnyFieldApi, useForm, useSelector } from '@tanstack/react-form';
 
-import { Button, Input, Label, Textarea } from '@kafi/ui';
+import {
+  Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+  Input,
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Textarea,
+} from '@kafi/ui';
 
 import { DatePicker } from './date-picker';
 import { FieldError } from '../../../shared/field-error';
 import { visaApplicationFormSchema } from '../validation/documents.schema';
+import { api, type Registration } from '../../../lib/api.js';
 import type {
   VisaApplicationFormOutput,
   VisaApplicationFormProps,
@@ -63,10 +80,36 @@ export function VisaApplicationForm({
   onSubmit,
   submitLabel = 'Create',
 }: VisaApplicationFormProps) {
+  const title = 'Create visa application';
+  const description = registration
+    ? `For registration ${registration.registration_number}.`
+    : 'Track a new visa application for a registration.';
+
   const defaultValues = useMemo<VisaApplicationFormValues>(
     () => buildDefaultValues(mode, registration),
     [mode, registration],
   );
+
+  const [eligibleRegs, setEligibleRegs] = useState<Registration[]>([]);
+
+  useEffect(() => {
+    if (registration) return; // skip lookup when pre-selected
+    let cancelled = false;
+    async function load() {
+      try {
+        const result = await api.listRegistrations(1, 100, {
+          search: '',
+        });
+        if (!cancelled) setEligibleRegs(result.data);
+      } catch {
+        if (!cancelled) setEligibleRegs([]);
+      }
+    }
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [registration]);
 
   const form = useForm({
     defaultValues,
@@ -94,127 +137,155 @@ export function VisaApplicationForm({
 
   const isSubmitting = useSelector(form.store, (state) => state.isSubmitting);
 
+  const regOptions = eligibleRegs.map((r) => ({
+    value: r.id,
+    label: `${r.registration_number} — ${r.traveller?.full_name ?? 'Unknown'}`,
+  }));
+
   return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        form.handleSubmit().catch(() => null);
-      }}
-      className="space-y-6"
-    >
-      <div className="grid gap-4 md:grid-cols-2">
-        <form.Field name="registration_id">
-          {(field: AnyFieldApi) =>
-            registration ? (
+    <Card className="border shadow-sm">
+      <CardHeader className="items-center py-4">
+        <CardTitle>{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+
+      <CardContent className="space-y-4">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            form.handleSubmit().catch(() => null);
+          }}
+          className="space-y-6"
+        >
+          <div className="grid gap-4 md:grid-cols-2">
+            <form.Field name="registration_id">
+              {(field: AnyFieldApi) =>
+                registration ? (
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Registration</Label>
+                    <p className="text-sm font-medium">
+                      {registration.registration_number}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {registration.traveller?.full_name ??
+                        'Traveller unavailable'}
+                    </p>
+                    <Input
+                      id="registration_id"
+                      type="hidden"
+                      value={field.state.value}
+                      onChange={(e) => field.handleChange(e.target.value)}
+                      onBlur={field.handleBlur}
+                    />
+                    <FieldError field={field} />
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Registration</Label>
+                    <Select
+                      value={field.state.value ?? ''}
+                      onValueChange={(v) => field.handleChange(v ?? '')}
+                    >
+                      <SelectTrigger className="h-9 w-full">
+                        <SelectValue>
+                          {regOptions.find((o) => o.value === field.state.value)
+                            ?.label ?? 'Select registration'}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {regOptions.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FieldError field={field} />
+                  </div>
+                )
+              }
+            </form.Field>
+
+            <form.Field name="submission_date">
+              {(field: AnyFieldApi) => (
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="submission_date"
+                    className="text-sm font-medium"
+                  >
+                    Submission date
+                  </Label>
+                  <DatePicker
+                    id="submission_date"
+                    value={field.state.value}
+                    onChange={(value) => field.handleChange(value)}
+                    aria-invalid={field.state.meta.errors.length > 0}
+                    placeholder="Select submission date"
+                  />
+                  <FieldError field={field} />
+                </div>
+              )}
+            </form.Field>
+
+            <form.Field name="visa_cost">
+              {(field: AnyFieldApi) => (
+                <div className="space-y-2">
+                  <Label htmlFor="visa_cost" className="text-sm font-medium">
+                    Visa cost{' '}
+                    <span className="text-muted-foreground">
+                      (ETB — optional, required before approval)
+                    </span>
+                  </Label>
+                  <Input
+                    id="visa_cost"
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={field.state.value}
+                    onChange={(e) => field.handleChange(e.target.value)}
+                    onBlur={field.handleBlur}
+                    placeholder="e.g. 1500"
+                    aria-invalid={field.state.meta.errors.length > 0}
+                    className="h-9 w-full"
+                  />
+                  <FieldError field={field} />
+                </div>
+              )}
+            </form.Field>
+          </div>
+
+          <form.Field name="notes">
+            {(field: AnyFieldApi) => (
               <div className="space-y-2">
-                <Label className="text-sm font-medium">Registration</Label>
-                <p className="text-sm font-medium">
-                  {registration.registration_number}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {registration.traveller?.full_name ?? 'Traveller unavailable'}
-                </p>
-                <Input
-                  id="registration_id"
-                  type="hidden"
-                  value={field.state.value}
-                  onChange={(e) => field.handleChange(e.target.value)}
-                  onBlur={field.handleBlur}
-                />
-                <FieldError field={field} />
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <Label
-                  htmlFor="registration_id"
-                  className="text-sm font-medium"
-                >
-                  Registration ID
+                <Label htmlFor="notes" className="text-sm font-medium">
+                  Notes{' '}
+                  <span className="text-muted-foreground">(optional)</span>
                 </Label>
-                <Input
-                  id="registration_id"
+                <Textarea
+                  id="notes"
                   value={field.state.value}
                   onChange={(e) => field.handleChange(e.target.value)}
                   onBlur={field.handleBlur}
-                  placeholder="ULID"
                   aria-invalid={field.state.meta.errors.length > 0}
-                  className="h-9 w-full"
+                  className="w-full"
                 />
                 <FieldError field={field} />
               </div>
-            )
-          }
-        </form.Field>
+            )}
+          </form.Field>
+        </form>
+      </CardContent>
 
-        <form.Field name="submission_date">
-          {(field: AnyFieldApi) => (
-            <div className="space-y-2">
-              <Label htmlFor="submission_date" className="text-sm font-medium">
-                Submission date
-              </Label>
-              <DatePicker
-                id="submission_date"
-                value={field.state.value}
-                onChange={(value) => field.handleChange(value)}
-                aria-invalid={field.state.meta.errors.length > 0}
-                placeholder="Select submission date"
-              />
-              <FieldError field={field} />
-            </div>
-          )}
-        </form.Field>
-      </div>
-
-      <form.Field name="visa_cost">
-        {(field: AnyFieldApi) => (
-          <div className="space-y-2">
-            <Label htmlFor="visa_cost" className="text-sm font-medium">
-              Visa cost{' '}
-              <span className="text-muted-foreground">
-                (ETB — optional now, required before approval)
-              </span>
-            </Label>
-            <Input
-              id="visa_cost"
-              type="number"
-              min={0}
-              step="0.01"
-              value={field.state.value}
-              onChange={(e) => field.handleChange(e.target.value)}
-              onBlur={field.handleBlur}
-              placeholder="e.g. 1500"
-              aria-invalid={field.state.meta.errors.length > 0}
-              className="h-9 w-full sm:max-w-xs"
-            />
-            <FieldError field={field} />
-          </div>
-        )}
-      </form.Field>
-
-      <form.Field name="notes">
-        {(field: AnyFieldApi) => (
-          <div className="space-y-2">
-            <Label htmlFor="notes" className="text-sm font-medium">
-              Notes
-            </Label>
-            <Textarea
-              id="notes"
-              value={field.state.value}
-              onChange={(e) => field.handleChange(e.target.value)}
-              onBlur={field.handleBlur}
-              aria-invalid={field.state.meta.errors.length > 0}
-              className="w-full"
-            />
-            <FieldError field={field} />
-          </div>
-        )}
-      </form.Field>
-
-      <div className="flex gap-2">
-        <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? 'Creating...' : submitLabel}
+      <CardFooter className="gap-3">
+        <Button
+          type="button"
+          disabled={isSubmitting}
+          onClick={() => form.handleSubmit().catch(() => null)}
+          className="h-9 flex-1"
+        >
+          {isSubmitting ? 'Creating…' : submitLabel}
         </Button>
-      </div>
-    </form>
+      </CardFooter>
+    </Card>
   );
 }

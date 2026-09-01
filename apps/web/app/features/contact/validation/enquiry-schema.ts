@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /**
- * Zod v4 schema for a pilgrimage enquiry.
+ * Zod v4 schema for a travel enquiry.
  *
  * This is the single source-of-truth contract between the contact form UI
  * and the future `/api/inquiries` endpoint. The NestJS DTO should mirror

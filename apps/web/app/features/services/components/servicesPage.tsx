@@ -35,7 +35,7 @@ export default function ServicesPage() {
                 className="flex w-fit items-center gap-1.5 border-accent/20 bg-accent/5 px-3.5 py-1 text-xs font-semibold text-accent"
               >
                 <SparkleIcon weight="fill" className="h-3.5 w-3.5" />
-                Comprehensive Pilgrimage Support
+                Comprehensive Travel Support
               </Badge>
 
               <div className="space-y-4">

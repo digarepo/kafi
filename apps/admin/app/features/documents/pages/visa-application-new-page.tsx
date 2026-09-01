@@ -72,18 +72,7 @@ export function VisaApplicationNewPage() {
   if (loading) return <p className="text-muted-foreground">Loading...</p>;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">
-          Create visa application
-        </h1>
-        <p className="text-muted-foreground">
-          {registration
-            ? `Track a new visa application for registration ${registration.registration_number}. The application will be created as SUBMITTED.`
-            : 'Track a new visa application for a registration in PROCESSING. The application will be created as SUBMITTED.'}
-        </p>
-      </div>
-
+    <div className="mx-auto max-w-2xl space-y-6">
       {error && (
         <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
           {error}

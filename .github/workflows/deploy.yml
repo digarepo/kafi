@@ -162,6 +162,7 @@ jobs:
           export CI=true
           echo "Installing web dependencies..."
           cd /home/${{ secrets.CPANEL_USER }}/kafitour.com
+          rm -f build/client/index.html
           npm install --omit=dev --no-audit --no-fund
           test -d node_modules/@kafi/ui
           touch tmp/restart.txt

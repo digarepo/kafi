@@ -3,6 +3,12 @@ import { AnyFieldApi, useForm, useSelector } from '@tanstack/react-form';
 
 import {
   Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
   Input,
   Label,
   Select,
@@ -23,6 +29,15 @@ import type {
 } from '../types/packages.types';
 import type { PackageVersionInclusion } from '../../../lib/api.js';
 
+/**
+ * Returns a Date offset by the given number of days (negative for past).
+ */
+function addDays(date: Date, days: number): Date {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return d;
+}
+
 export function PackageVersionForm({
   mode,
   version,
@@ -33,6 +48,12 @@ export function PackageVersionForm({
   submitLabel,
 }: PackageVersionFormProps) {
   const isLocked = mode === 'edit' && version?.status !== 'DRAFT';
+
+  const title = mode === 'create' ? 'Create version' : 'Edit version';
+  const description =
+    mode === 'create'
+      ? 'Add a new sellable package version.'
+      : `Update ${version?.version_name ?? 'version'} details.`;
 
   const defaultValues = useMemo<PackageVersionFormValues>(() => {
     if (mode === 'edit' && version) {
@@ -72,6 +93,8 @@ export function PackageVersionForm({
         inclusions: version.inclusions,
       };
     }
+    // Default currency to Ethiopian Birr (ETB) for new versions.
+    const etb = currencies.find((c) => c.currency_code === 'ETB');
     return {
       package_template_id: '',
       version_name: '',
@@ -83,11 +106,11 @@ export function PackageVersionForm({
       travelRange: undefined,
       salesRange: undefined,
       base_price: 0,
-      currency_id: '',
+      currency_id: etb?.id ?? '',
       max_capacity: undefined,
       inclusions: [],
     };
-  }, [mode, version]);
+  }, [mode, version, currencies]);
 
   const form = useForm({
     defaultValues,
@@ -145,324 +168,348 @@ export function PackageVersionForm({
   }
 
   return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        form.handleSubmit().catch(() => null);
-      }}
-      className="space-y-6"
-    >
-      <div className="grid gap-4 md:grid-cols-2">
-        <form.Field name="package_template_id">
-          {(field: AnyFieldApi) => (
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Template</Label>
-              <Select
-                value={field.state.value ?? ''}
-                onValueChange={(value: string) => field.handleChange(value)}
-                disabled={isLocked}
-              >
-                <SelectTrigger
-                  className="h-9 w-full"
-                  aria-invalid={field.state.meta.errors.length > 0}
-                >
-                  <SelectValue>
-                    {templates.find((t) => t.id === field.state.value)?.name ??
-                      'Select…'}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {templates.map((t) => (
-                    <SelectItem key={t.id} value={t.id}>
-                      {t.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FieldError field={field} />
-            </div>
-          )}
-        </form.Field>
+    <Card className="border-0 bg-transparent">
+      <CardHeader className="items-center py-4">
+        <CardTitle>{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
 
-        <form.Field name="version_name">
-          {(field: AnyFieldApi) => (
-            <div className="space-y-2">
-              <Label htmlFor="version_name" className="text-sm font-medium">
-                Version name
-              </Label>
-              <Input
-                id="version_name"
-                value={field.state.value ?? ''}
-                onChange={(e) => field.handleChange(e.target.value)}
-                onBlur={field.handleBlur}
-                className="h-9"
-                aria-invalid={field.state.meta.errors.length > 0}
-              />
-              <FieldError field={field} />
-            </div>
-          )}
-        </form.Field>
-
-        <form.Field name="slug">
-          {(field: AnyFieldApi) => (
-            <div className="space-y-2">
-              <Label htmlFor="slug" className="text-sm font-medium">
-                Slug (optional)
-              </Label>
-              <Input
-                id="slug"
-                value={field.state.value ?? ''}
-                onChange={(e) => field.handleChange(e.target.value)}
-                onBlur={field.handleBlur}
-                className="h-9"
-              />
-            </div>
-          )}
-        </form.Field>
-
-        <form.Field name="hero_image_url">
-          {(field: AnyFieldApi) => (
-            <div className="space-y-2">
-              <Label htmlFor="hero_image_url" className="text-sm font-medium">
-                Hero image URL
-              </Label>
-              <Input
-                id="hero_image_url"
-                value={field.state.value ?? ''}
-                onChange={(e) => field.handleChange(e.target.value)}
-                onBlur={field.handleBlur}
-                className="h-9"
-              />
-            </div>
-          )}
-        </form.Field>
-
-        <form.Field name="sort_order">
-          {(field: AnyFieldApi) => (
-            <div className="space-y-2">
-              <Label htmlFor="sort_order" className="text-sm font-medium">
-                Sort order
-              </Label>
-              <Input
-                id="sort_order"
-                type="number"
-                value={String(field.state.value ?? 0)}
-                onChange={(e) => field.handleChange(Number(e.target.value))}
-                onBlur={field.handleBlur}
-                className="h-9"
-              />
-            </div>
-          )}
-        </form.Field>
-
-        <form.Field name="year">
-          {(field: AnyFieldApi) => (
-            <div className="space-y-2">
-              <Label htmlFor="year" className="text-sm font-medium">
-                Year
-              </Label>
-              <Input
-                id="year"
-                type="number"
-                value={String(field.state.value ?? new Date().getFullYear())}
-                onChange={(e) => field.handleChange(Number(e.target.value))}
-                onBlur={field.handleBlur}
-                className="h-9"
-              />
-            </div>
-          )}
-        </form.Field>
-
-        <form.Field name="travelRange">
-          {(field: AnyFieldApi) => (
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Travel dates</Label>
-              <DateRangePicker
-                value={field.state.value}
-                onChange={(range) => field.handleChange(range)}
-                disabled={isLocked}
-              />
-              <FieldError field={field} />
-            </div>
-          )}
-        </form.Field>
-
-        <form.Field name="salesRange">
-          {(field: AnyFieldApi) => (
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Sales window</Label>
-              <DateRangePicker
-                value={field.state.value}
-                onChange={(range) => field.handleChange(range)}
-                disabled={isLocked}
-              />
-              <FieldError field={field} />
-            </div>
-          )}
-        </form.Field>
-
-        <form.Field name="base_price">
-          {(field: AnyFieldApi) => (
-            <div className="space-y-2">
-              <Label htmlFor="base_price" className="text-sm font-medium">
-                Base price
-              </Label>
-              <Input
-                id="base_price"
-                type="number"
-                step="0.01"
-                value={String(field.state.value ?? 0)}
-                onChange={(e) => field.handleChange(Number(e.target.value))}
-                onBlur={field.handleBlur}
-                className="h-9"
-                disabled={isLocked}
-                aria-invalid={field.state.meta.errors.length > 0}
-              />
-              <FieldError field={field} />
-            </div>
-          )}
-        </form.Field>
-
-        <form.Field name="currency_id">
-          {(field: AnyFieldApi) => (
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Currency</Label>
-              <Select
-                value={field.state.value ?? ''}
-                onValueChange={(value: string) => field.handleChange(value)}
-                disabled={isLocked}
-              >
-                <SelectTrigger
-                  className="h-9 w-full"
-                  aria-invalid={field.state.meta.errors.length > 0}
-                >
-                  <SelectValue>
-                    {currencies.find((c) => c.id === field.state.value)?.name ??
-                      'Select…'}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {currencies.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FieldError field={field} />
-            </div>
-          )}
-        </form.Field>
-
-        <form.Field name="season_id">
-          {(field: AnyFieldApi) => (
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Season</Label>
-              <Select
-                value={field.state.value ?? ''}
-                onValueChange={(value: string) => field.handleChange(value)}
-              >
-                <SelectTrigger
-                  className="h-9 w-full"
-                  aria-invalid={field.state.meta.errors.length > 0}
-                >
-                  <SelectValue>
-                    {seasons.find((s) => s.id === field.state.value)?.name ??
-                      'Select…'}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {seasons.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>
-                      {s.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FieldError field={field} />
-            </div>
-          )}
-        </form.Field>
-
-        <form.Field name="max_capacity">
-          {(field: AnyFieldApi) => (
-            <div className="space-y-2">
-              <Label htmlFor="max_capacity" className="text-sm font-medium">
-                Max capacity
-              </Label>
-              <Input
-                id="max_capacity"
-                type="number"
-                value={
-                  field.state.value === undefined
-                    ? ''
-                    : String(field.state.value)
-                }
-                onChange={(e) =>
-                  field.handleChange(
-                    e.target.value ? Number(e.target.value) : undefined,
-                  )
-                }
-                onBlur={field.handleBlur}
-                className="h-9"
-                disabled={isLocked}
-              />
-            </div>
-          )}
-        </form.Field>
-      </div>
-
-      <form.Field name="inclusions">
-        {(field: AnyFieldApi) => {
-          const inclusions: PackageVersionInclusion[] =
-            (field.state.value as PackageVersionInclusion[]) ?? [];
-          return (
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Inclusions</Label>
-              <div className="flex gap-2">
-                <Input
-                  value={inclusionText}
-                  onChange={(e) => setInclusionText(e.target.value)}
-                  placeholder="e.g. 4-star hotel"
-                />
-                <Button
-                  type="button"
-                  onClick={() => addInclusion(inclusions, field.handleChange)}
-                >
-                  Add
-                </Button>
-              </div>
-              <ul className="space-y-1">
-                {inclusions.map((inc, idx) => (
-                  <li
-                    key={inc.id}
-                    className="flex items-center justify-between rounded border p-2 text-sm"
+      <CardContent className="space-y-4">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            form.handleSubmit().catch(() => null);
+          }}
+          className="space-y-6"
+        >
+          <div className="grid gap-4 md:grid-cols-2">
+            <form.Field name="package_template_id">
+              {(field: AnyFieldApi) => (
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Template</Label>
+                  <Select
+                    value={field.state.value ?? ''}
+                    onValueChange={(value: string) => field.handleChange(value)}
+                    disabled={isLocked}
                   >
-                    <span>{inc.inclusion_text}</span>
+                    <SelectTrigger
+                      className="h-9 w-full"
+                      aria-invalid={field.state.meta.errors.length > 0}
+                    >
+                      <SelectValue>
+                        {templates.find((t) => t.id === field.state.value)
+                          ?.name ?? 'Select…'}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {templates.map((t) => (
+                        <SelectItem key={t.id} value={t.id}>
+                          {t.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FieldError field={field} />
+                </div>
+              )}
+            </form.Field>
+
+            <form.Field name="version_name">
+              {(field: AnyFieldApi) => (
+                <div className="space-y-2">
+                  <Label htmlFor="version_name" className="text-sm font-medium">
+                    Version name
+                  </Label>
+                  <Input
+                    id="version_name"
+                    value={field.state.value ?? ''}
+                    onChange={(e) => field.handleChange(e.target.value)}
+                    onBlur={field.handleBlur}
+                    className="h-9"
+                    aria-invalid={field.state.meta.errors.length > 0}
+                  />
+                  <FieldError field={field} />
+                </div>
+              )}
+            </form.Field>
+
+            <form.Field name="hero_image_url">
+              {(field: AnyFieldApi) => (
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="hero_image_url"
+                    className="text-sm font-medium"
+                  >
+                    Hero image URL
+                  </Label>
+                  <Input
+                    id="hero_image_url"
+                    value={field.state.value ?? ''}
+                    onChange={(e) => field.handleChange(e.target.value)}
+                    onBlur={field.handleBlur}
+                    className="h-9"
+                  />
+                </div>
+              )}
+            </form.Field>
+
+            <form.Field name="sort_order">
+              {(field: AnyFieldApi) => (
+                <div className="space-y-2">
+                  <Label htmlFor="sort_order" className="text-sm font-medium">
+                    Sort order
+                  </Label>
+                  <Input
+                    id="sort_order"
+                    type="number"
+                    value={String(field.state.value ?? 0)}
+                    onChange={(e) => field.handleChange(Number(e.target.value))}
+                    onBlur={field.handleBlur}
+                    className="h-9"
+                  />
+                </div>
+              )}
+            </form.Field>
+
+            <form.Field name="year">
+              {(field: AnyFieldApi) => (
+                <div className="space-y-2">
+                  <Label htmlFor="year" className="text-sm font-medium">
+                    Year
+                  </Label>
+                  <Input
+                    id="year"
+                    type="number"
+                    value={String(
+                      field.state.value ?? new Date().getFullYear(),
+                    )}
+                    onChange={(e) => field.handleChange(Number(e.target.value))}
+                    onBlur={field.handleBlur}
+                    className="h-9"
+                  />
+                </div>
+              )}
+            </form.Field>
+
+            <form.Field name="travelRange">
+              {(field: AnyFieldApi) => (
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Travel dates</Label>
+                  <DateRangePicker
+                    value={field.state.value}
+                    onChange={(range) => {
+                      field.handleChange(range);
+                      // Auto-fill sales window: from today to 2 days before
+                      // departure, but only if the user hasn't set one yet.
+                      if (
+                        range?.from &&
+                        !isLocked &&
+                        !form.getFieldValue('salesRange')
+                      ) {
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        const salesEnd = addDays(range.from, -2);
+                        // Only set if the computed end is still in the future.
+                        if (salesEnd >= today) {
+                          form.setFieldValue('salesRange', {
+                            from: today,
+                            to: salesEnd,
+                          });
+                        }
+                      }
+                    }}
+                    disabled={isLocked}
+                  />
+                  <FieldError field={field} />
+                </div>
+              )}
+            </form.Field>
+
+            <form.Field name="salesRange">
+              {(field: AnyFieldApi) => (
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Sales window</Label>
+                  <DateRangePicker
+                    value={field.state.value}
+                    onChange={(range) => field.handleChange(range)}
+                    disabled={isLocked}
+                  />
+                  <FieldError field={field} />
+                </div>
+              )}
+            </form.Field>
+
+            <form.Field name="base_price">
+              {(field: AnyFieldApi) => (
+                <div className="space-y-2">
+                  <Label htmlFor="base_price" className="text-sm font-medium">
+                    Base price
+                  </Label>
+                  <Input
+                    id="base_price"
+                    type="number"
+                    step="0.01"
+                    value={String(field.state.value ?? 0)}
+                    onChange={(e) => field.handleChange(Number(e.target.value))}
+                    onBlur={field.handleBlur}
+                    className="h-9"
+                    disabled={isLocked}
+                    aria-invalid={field.state.meta.errors.length > 0}
+                  />
+                  <FieldError field={field} />
+                </div>
+              )}
+            </form.Field>
+
+            <form.Field name="currency_id">
+              {(field: AnyFieldApi) => (
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Currency</Label>
+                  <Select
+                    value={field.state.value ?? ''}
+                    onValueChange={(value: string) => field.handleChange(value)}
+                    disabled={isLocked}
+                  >
+                    <SelectTrigger
+                      className="h-9 w-full"
+                      aria-invalid={field.state.meta.errors.length > 0}
+                    >
+                      <SelectValue>
+                        {currencies.find((c) => c.id === field.state.value)
+                          ?.name ?? 'Select…'}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {currencies.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FieldError field={field} />
+                </div>
+              )}
+            </form.Field>
+
+            {/* Season selector — hidden until season management is implemented.
+                The field stays in the form schema so existing data is preserved
+                on edit, but the UI is not shown for new versions. */}
+            {mode === 'edit' && version?.season_id && (
+              <form.Field name="season_id">
+                {(field: AnyFieldApi) => (
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Season</Label>
+                    <Select
+                      value={field.state.value ?? ''}
+                      onValueChange={(value: string) =>
+                        field.handleChange(value)
+                      }
+                      disabled
+                    >
+                      <SelectTrigger className="h-9 w-full">
+                        <SelectValue>
+                          {seasons.find((s) => s.id === field.state.value)
+                            ?.name ?? '—'}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {seasons.map((s) => (
+                          <SelectItem key={s.id} value={s.id}>
+                            {s.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </form.Field>
+            )}
+
+            <form.Field name="max_capacity">
+              {(field: AnyFieldApi) => (
+                <div className="space-y-2">
+                  <Label htmlFor="max_capacity" className="text-sm font-medium">
+                    Max capacity
+                  </Label>
+                  <Input
+                    id="max_capacity"
+                    type="number"
+                    value={
+                      field.state.value === undefined
+                        ? ''
+                        : String(field.state.value)
+                    }
+                    onChange={(e) =>
+                      field.handleChange(
+                        e.target.value ? Number(e.target.value) : undefined,
+                      )
+                    }
+                    onBlur={field.handleBlur}
+                    className="h-9"
+                    disabled={isLocked}
+                  />
+                </div>
+              )}
+            </form.Field>
+          </div>
+
+          <form.Field name="inclusions">
+            {(field: AnyFieldApi) => {
+              const inclusions: PackageVersionInclusion[] =
+                (field.state.value as PackageVersionInclusion[]) ?? [];
+              return (
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Inclusions</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={inclusionText}
+                      onChange={(e) => setInclusionText(e.target.value)}
+                      placeholder="e.g. 4-star hotel"
+                    />
                     <Button
-                      size="sm"
-                      variant="ghost"
+                      type="button"
                       onClick={() =>
-                        field.handleChange(
-                          inclusions.filter((_, i) => i !== idx),
-                        )
+                        addInclusion(inclusions, field.handleChange)
                       }
                     >
-                      Remove
+                      Add
                     </Button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          );
-        }}
-      </form.Field>
+                  </div>
+                  <ul className="space-y-1">
+                    {inclusions.map((inc, idx) => (
+                      <li
+                        key={inc.id}
+                        className="flex items-center justify-between rounded border p-2 text-sm"
+                      >
+                        <span>{inc.inclusion_text}</span>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() =>
+                            field.handleChange(
+                              inclusions.filter((_, i) => i !== idx),
+                            )
+                          }
+                        >
+                          Remove
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            }}
+          </form.Field>
+        </form>
+      </CardContent>
 
-      <div className="flex gap-3 border-t border-border pt-6">
+      <CardFooter className="gap-3">
         <Button
           type="button"
           disabled={isSubmitting}
           onClick={() => form.handleSubmit().catch(() => null)}
+          className="h-9 flex-1"
         >
           {isSubmitting
             ? mode === 'edit'
@@ -471,7 +518,7 @@ export function PackageVersionForm({
             : (submitLabel ??
               (mode === 'edit' ? 'Save changes' : 'Create version'))}
         </Button>
-      </div>
-    </form>
+      </CardFooter>
+    </Card>
   );
 }

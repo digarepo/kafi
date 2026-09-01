@@ -86,6 +86,30 @@ export class BusinessNumberService {
     return this.nextNumber('INQ', schema.inquiries.inquiry_number);
   }
 
+  /**
+   * Returns the next `PKG-YYYY-NNNNNN` number for a package template.
+   */
+  async generatePackageTemplateCode(): Promise<string> {
+    return this.nextNumber(
+      'PKG',
+      schema.packageTemplates.package_template_code,
+    );
+  }
+
+  /**
+   * Returns the next `PV-YYYY-NNNNNN` number for a package version.
+   */
+  async generatePackageVersionCode(): Promise<string> {
+    return this.nextNumber('PV', schema.packageVersions.package_version_code);
+  }
+
+  /**
+   * Returns the next `EMP-YYYY-NNNNNN` employee number for a staff user.
+   */
+  async generateEmployeeNumber(): Promise<string> {
+    return this.nextNumber('EMP', schema.users.employee_number);
+  }
+
   private async nextNumber(prefix: string, column: any): Promise<string> {
     const year = new Date().getFullYear();
     const [row] = await this.db

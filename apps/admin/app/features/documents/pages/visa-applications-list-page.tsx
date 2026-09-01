@@ -253,7 +253,7 @@ export function VisaApplicationsListPage() {
             }
           >
             <Plus className="mr-1.5 h-4 w-4" />
-            Add visa application
+            Add visa
           </Button>
         )}
         {can('VISA_MANAGE') && (
@@ -267,7 +267,7 @@ export function VisaApplicationsListPage() {
                   : '/visa-applications/new',
               )
             }
-            aria-label="Add visa application"
+            aria-label="Add visa"
           >
             <Plus className="h-5 w-5" />
           </Button>

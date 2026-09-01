@@ -31,7 +31,7 @@ export interface PackageTemplateFormProps {
   mode: PackageFormMode;
   template?: PackageTemplate | null;
   categories: PackageCategory[];
-  pilgrimageTypes: { id: string; name: string }[];
+  pilgrimageTypes: { id: string; pilgrimage_type_code: string; name: string }[];
   onSubmit: (values: PackageTemplateFormOutput) => Promise<void>;
   submitLabel?: string;
 }
@@ -74,7 +74,7 @@ export interface PackageVersionFormProps {
   mode: PackageFormMode;
   version?: PackageVersion | null;
   templates: PackageTemplate[];
-  currencies: { id: string; name: string }[];
+  currencies: { id: string; currency_code: string; name: string }[];
   seasons: { id: string; name: string }[];
   onSubmit: (values: PackageVersionFormOutput) => Promise<void>;
   submitLabel?: string;

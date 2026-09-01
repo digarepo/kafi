@@ -15,9 +15,9 @@ const OG_IMAGE = DEFAULT_OG_IMAGE;
  * Home page SEO metadata: title, description, canonical, Open Graph, Twitter.
  */
 export function meta({}: Route.MetaArgs) {
-  const title = 'Kafi Tours — Umrah Pilgrimage Packages from Ethiopia';
+  const title = 'Kafi Tours — Umrah Travel Packages from Ethiopia';
   const description =
-    'Kafi Tours arranges Umrah pilgrimage packages from Addis Ababa to Makkah and Madinah. Ethiopian Airlines flights, visa assistance, hotel accommodation, and group guidance for Economy, Comfort, and Premium tiers.';
+    'Kafi Tours arranges Umrah travel packages from Addis Ababa to Makkah and Madinah. Ethiopian Airlines flights, visa assistance, hotel accommodation, and group guidance for Economy, Comfort, and Premium tiers.';
   return [
     { title },
     { name: 'description', content: description },
@@ -27,7 +27,7 @@ export function meta({}: Route.MetaArgs) {
 }
 
 /**
- * JSON-LD structured data for a travel agency offering pilgrimage services.
+ * JSON-LD structured data for a travel agency offering travel services.
  * Uses real business facts from the project (address, phone, social links).
  */
 const structuredData = {
@@ -35,7 +35,7 @@ const structuredData = {
   '@type': 'TravelAgency',
   name: 'Kafi Tours',
   description:
-    'Umrah pilgrimage package provider coordinating flights, visa, accommodation, and ground transportation from Addis Ababa, Ethiopia to Makkah and Madinah.',
+    'Umrah travel package provider coordinating flights, visa, accommodation, and ground transportation from Addis Ababa, Ethiopia to Makkah and Madinah.',
   url: SITE_URL,
   email: 'info@kafitour.com',
   telephone: ['+251111262965', '+251930737337'],
@@ -46,7 +46,7 @@ const structuredData = {
     addressCountry: 'ET',
   },
   areaServed: ['Makkah', 'Madinah', 'Saudi Arabia'],
-  knowsAbout: ['Umrah', 'Hajj', 'Pilgrimage Travel', 'Visa Assistance'],
+  knowsAbout: ['Umrah', 'Hajj', 'Travel', 'Visa Assistance'],
   sameAs: [
     'https://t.me/kafitours',
     'https://facebook.com/kafitours',

@@ -1,8 +1,14 @@
 import { z } from 'zod';
 
-const dateSchema = z
-  .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Enter a valid date');
+const dateRangeSchema = z
+  .object({
+    from: z.date().optional(),
+    to: z.date().optional(),
+  })
+  .refine((data) => data.from instanceof Date, {
+    message: 'Departure date is required',
+    path: ['from'],
+  });
 
 export const flightBookingFormSchema = z
   .object({
@@ -12,16 +18,15 @@ export const flightBookingFormSchema = z
       .string()
       .min(1, 'Departure flight number is required')
       .max(50),
-    departure_date: dateSchema,
     return_flight_number: z.string().max(50),
-    return_date: z.string(),
-    supplier_cost: z.string(),
+    travelRange: dateRangeSchema,
+    ticket_cost: z.string(),
     notes: z.string(),
   })
   .superRefine((data, ctx) => {
     // Return flight consistency: both or neither
     const hasReturnNumber = !!data.return_flight_number.trim();
-    const hasReturnDate = !!data.return_date.trim();
+    const hasReturnDate = !!data.travelRange?.to;
     if (hasReturnNumber !== hasReturnDate) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -31,20 +36,25 @@ export const flightBookingFormSchema = z
       });
     }
     // Date order
-    if (hasReturnDate && data.return_date < data.departure_date) {
+    if (
+      hasReturnDate &&
+      data.travelRange?.to &&
+      data.travelRange?.from &&
+      data.travelRange.to < data.travelRange.from
+    ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: 'Return date must be on or after departure date',
-        path: ['return_date'],
+        path: ['travelRange'],
       });
     }
-    // Supplier cost is required and must be positive
-    const cost = Number(data.supplier_cost);
-    if (!data.supplier_cost.trim() || isNaN(cost) || cost <= 0) {
+    // Ticket cost is required and must be positive
+    const cost = Number(data.ticket_cost);
+    if (!data.ticket_cost.trim() || isNaN(cost) || cost <= 0) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: 'Supplier cost must be a positive amount in ETB',
-        path: ['supplier_cost'],
+        message: 'Ticket cost must be a positive amount in ETB',
+        path: ['ticket_cost'],
       });
     }
   });

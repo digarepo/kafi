@@ -13,10 +13,10 @@ import {
   HeartIcon,
   ShieldCheckIcon,
   UsersIcon,
-} from "@phosphor-icons/react";
+} from '@phosphor-icons/react';
 
 /**
- * A single principle that guides Kafi Tours' approach to pilgrimage support.
+ * A single principle that guides Kafi Tours' approach to travel support.
  */
 export interface Principle {
   /** One-word title of the principle. */
@@ -30,27 +30,27 @@ export interface Principle {
 /** The four principles that shape how Kafi Tours works with pilgrims. */
 export const PRINCIPLES: readonly Principle[] = [
   {
-    title: "Clarity",
+    title: 'Clarity',
     description:
-      "We explain each part of the journey in plain language, so you know what to expect before you leave.",
+      'We explain each part of the journey in plain language, so you know what to expect before you leave.',
     icon: CompassIcon,
   },
   {
-    title: "Care",
+    title: 'Care',
     description:
-      "We treat every enquiry as personal. Your circumstances, questions, and preferences shape the plan we build.",
+      'We treat every enquiry as personal. Your circumstances, questions, and preferences shape the plan we build.',
     icon: HeartIcon,
   },
   {
-    title: "Guidance",
+    title: 'Guidance',
     description:
-      "From visa paperwork to arrival procedures, we point you in the right direction and stay available along the way.",
+      'From visa paperwork to arrival procedures, we point you in the right direction and stay available along the way.',
     icon: UsersIcon,
   },
   {
-    title: "Dependability",
+    title: 'Dependability',
     description:
-      "We coordinate with airlines, hotels, and local partners so the arrangements you depend on are in place.",
+      'We coordinate with airlines, hotels, and local partners so the arrangements you depend on are in place.',
     icon: ShieldCheckIcon,
   },
 ];

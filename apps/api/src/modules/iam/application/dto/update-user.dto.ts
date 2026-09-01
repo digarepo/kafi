@@ -8,6 +8,9 @@ import { phoneSchema } from '../../domain/value-objects/phone.js';
  */
 export const updateUserSchema = z.object({
   full_name: z.string().min(1).max(255).optional(),
+  first_name: z.string().min(1).max(100).optional(),
+  middle_name: z.string().max(100).optional().nullable(),
+  last_name: z.string().max(100).optional().nullable(),
   gender: z.enum(['Male', 'Female']).optional(),
   email: emailSchema.optional(),
   phone: phoneSchema.optional(),

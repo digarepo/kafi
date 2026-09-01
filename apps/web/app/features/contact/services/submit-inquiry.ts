@@ -1,7 +1,7 @@
 import type { InquiryPayload } from '../validation/enquiry-schema';
 
 /**
- * Submits a pilgrimage enquiry to the backend inquiry endpoint.
+ * Submits a travel enquiry to the backend inquiry endpoint.
  *
  * @param payload - Validated enquiry data from the contact form.
  * @returns A success marker when the submission completes.

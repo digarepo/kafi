@@ -18,7 +18,7 @@
 //         </Badge>
 
 //         <h3 className="font-heading text-2xl font-extrabold tracking-tight text-foreground sm:text-3xl">
-//           Pilgrimages Tailored for You
+//           Travels Tailored for You
 //         </h3>
 
 //         <p className="text-base font-light leading-relaxed text-muted-foreground">
@@ -67,7 +67,7 @@ export function ServicesCTA() {
           </span>
 
           <h3 className="font-heading text-xl font-bold tracking-tight text-foreground sm:text-2xl">
-            Pilgrimages Tailored for You
+            Travels Tailored for You
           </h3>
 
           <p className="max-w-xl text-sm font-light leading-relaxed text-muted-foreground">

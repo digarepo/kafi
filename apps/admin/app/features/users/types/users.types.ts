@@ -3,6 +3,7 @@ import type { User } from '../../../lib/api.js';
 export interface UserFormValues {
   employee_number?: string;
   firstName: string;
+  middleName: string;
   lastName: string;
   email: string;
   phone: string;
@@ -14,7 +15,10 @@ export interface UserFormValues {
 
 export interface UserFormOutput {
   employee_number?: string;
-  full_name: string;
+  full_name?: string;
+  first_name: string;
+  middle_name?: string;
+  last_name?: string;
   email: string;
   phone: string;
   job_title: string;

@@ -139,6 +139,9 @@ export class DrizzleUserRepository extends UserRepository {
         id,
         employee_number: input.employee_number,
         full_name: input.full_name,
+        first_name: input.first_name,
+        middle_name: input.middle_name ?? null,
+        last_name: input.last_name ?? null,
         gender: input.gender,
         email_address: input.email_address,
         phone_number: input.phone_number,
@@ -169,6 +172,15 @@ export class DrizzleUserRepository extends UserRepository {
         .update(schema.users)
         .set({
           ...(input.full_name !== undefined && { full_name: input.full_name }),
+          ...(input.first_name !== undefined && {
+            first_name: input.first_name,
+          }),
+          ...(input.middle_name !== undefined && {
+            middle_name: input.middle_name,
+          }),
+          ...(input.last_name !== undefined && {
+            last_name: input.last_name,
+          }),
           ...(input.gender !== undefined && { gender: input.gender }),
           ...(input.email_address !== undefined && {
             email_address: input.email_address,
@@ -254,6 +266,9 @@ export class DrizzleUserRepository extends UserRepository {
       id: createTypedId<'User'>(user.id),
       employee_number: user.employee_number,
       full_name: user.full_name,
+      first_name: user.first_name,
+      middle_name: user.middle_name ?? null,
+      last_name: user.last_name ?? null,
       gender: user.gender,
       email_address: user.email_address,
       phone_number: user.phone_number,

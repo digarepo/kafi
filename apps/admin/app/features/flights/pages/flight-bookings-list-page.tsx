@@ -262,7 +262,7 @@ export function FlightBookingsListPage() {
             }
           >
             <Plus className="mr-1.5 h-4 w-4" />
-            Record flight booking
+            Add booking
           </Button>
         )}
         {can('FLIGHT_MANAGE') && (
@@ -276,7 +276,7 @@ export function FlightBookingsListPage() {
                   : '/flight-bookings/new',
               )
             }
-            aria-label="Record flight booking"
+            aria-label="Add booking"
           >
             <Plus className="h-5 w-5" />
           </Button>

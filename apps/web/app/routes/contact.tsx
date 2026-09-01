@@ -5,7 +5,7 @@ import { buildOgMeta } from '@/lib/og';
 export function meta({}: Route.MetaArgs) {
   const title = 'Contact | Kafi Tours';
   const description =
-    'Contact Kafi Tours to plan your Umrah or pilgrimage journey. Call, WhatsApp, or send an enquiry and a travel coordinator will respond personally.';
+    'Contact Kafi Tours to plan your Umrah or travel journey. Call, WhatsApp, or send an enquiry and a travel coordinator will respond personally.';
   const url = 'https://kafitour.com/contact';
 
   return [

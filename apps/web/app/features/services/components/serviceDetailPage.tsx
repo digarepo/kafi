@@ -32,7 +32,7 @@ interface ServiceDetailPageProps {
 
 const trustPoints = [
   'Licensed & government approved operations',
-  '10+ years of pilgrimage logistics support',
+  '10+ years of travel logistics support',
   '24/7 dedicated support team in KSA',
   'High satisfaction rates from returning pilgrims',
   'Transparent pricing — no hidden fees',
@@ -82,7 +82,7 @@ export default function ServiceDetailPage({ slug }: ServiceDetailPageProps) {
               </span>
 
               <p className="mt-1 text-sm font-semibold text-foreground">
-                Travel & Pilgrimage Support
+                Travel & Travel Support
               </p>
             </div>
           </div>
@@ -185,8 +185,8 @@ export default function ServiceDetailPage({ slug }: ServiceDetailPageProps) {
                   </h2>
 
                   <p className="text-sm font-light leading-relaxed text-muted-foreground">
-                    This service is available as part of our customizable
-                    pilgrimage packages.
+                    This service is available as part of our customizable travel
+                    packages.
                   </p>
                 </div>
 
