@@ -337,6 +337,9 @@ export interface AuthResponse {
     id: string;
     email: string;
     full_name: string;
+    first_name: string;
+    middle_name: string | null;
+    last_name: string | null;
     phone_number: string;
     status_code: string;
     roles: string[];
@@ -358,8 +361,11 @@ export interface UpdateProfileInput {
 }
 
 export interface CreateUserInput {
-  employee_number: string;
-  full_name: string;
+  employee_number?: string;
+  full_name?: string;
+  first_name: string;
+  middle_name?: string;
+  last_name?: string;
   gender: 'Male' | 'Female';
   email: string;
   phone: string;
@@ -369,6 +375,9 @@ export interface CreateUserInput {
 
 export interface UpdateUserInput {
   full_name?: string;
+  first_name?: string;
+  middle_name?: string | null;
+  last_name?: string | null;
   gender?: 'Male' | 'Female';
   email?: string;
   phone?: string;
@@ -381,6 +390,9 @@ export interface User {
   id: string;
   employee_number: string;
   full_name: string;
+  first_name: string;
+  middle_name: string | null;
+  last_name: string | null;
   gender: string;
   email_address: string;
   phone_number: string;
@@ -2240,12 +2252,10 @@ export const api = {
 
   async createUser(input: CreateUserInput): Promise<{
     id: string;
-    temporary_password: string;
     emailErrors: string[];
   }> {
     return request<{
       id: string;
-      temporary_password: string;
       emailErrors: string[];
     }>('/api/admin/users', {
       method: 'POST',

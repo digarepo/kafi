@@ -555,9 +555,13 @@ export function PackagesPage() {
         onValueChange={(v) => setTab(v as Tab)}
         className="space-y-4"
       >
-        <TabsList>
-          <TabsTrigger value="templates">Templates</TabsTrigger>
-          <TabsTrigger value="versions">Versions</TabsTrigger>
+        <TabsList className="h-10 w-fit gap-2 p-1.5">
+          <TabsTrigger value="templates" className="h-7 flex-none px-5 text-sm">
+            Templates
+          </TabsTrigger>
+          <TabsTrigger value="versions" className="h-7 flex-none px-5 text-sm">
+            Versions
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="templates" className="space-y-4">

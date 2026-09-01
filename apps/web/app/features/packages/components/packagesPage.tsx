@@ -5,7 +5,7 @@ import {
   ShieldCheckIcon,
 } from '@phosphor-icons/react';
 
-import { Badge } from '@ui/components/ui/badge'
+import { Badge } from '@ui/components/ui/badge';
 import { Card } from '@ui/components/ui/card';
 
 import { type PublicPackageVersion } from '../../../lib/public-api';
@@ -47,7 +47,7 @@ const STEPS = [
   {
     step: '03',
     title: 'You focus on worship',
-    desc: 'Arrive prepared. With the logistics handled, your attention stays on your pilgrimage.',
+    desc: 'Arrive prepared. With the logistics handled, your attention stays on your travel.',
   },
 ];
 

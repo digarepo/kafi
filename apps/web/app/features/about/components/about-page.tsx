@@ -4,7 +4,7 @@
  * @remarks
  * A minimalist, spacious editorial page that introduces Kafi Tours,
  * explains who it serves, and communicates the principles behind its
- * pilgrimage support. The page uses only general positioning language
+ * travel support. The page uses only general positioning language
  * and avoids invented statistics, dates, achievements, or people.
  */
 
@@ -76,11 +76,11 @@ function WhoWeAre() {
 
           <div className="space-y-6 lg:col-span-7 lg:col-start-6">
             <p className="text-base font-light leading-relaxed text-muted-foreground">
-              Kafi Tours is a travel and pilgrimage service built around the
-              needs of people preparing for Umrah. We work with individuals,
-              families, and groups to arrange the practical elements that make a
-              pilgrimage possible: flights, accommodation, ground transport,
-              visa support, and on-the-ground guidance.
+              Kafi Tours is a travel and travel service built around the needs
+              of people preparing for Umrah. We work with individuals, families,
+              and groups to arrange the practical elements that make a travel
+              possible: flights, accommodation, ground transport, visa support,
+              and on-the-ground guidance.
             </p>
 
             <p className="text-base font-light leading-relaxed text-muted-foreground">
@@ -91,8 +91,8 @@ function WhoWeAre() {
 
             <p className="text-base font-light leading-relaxed text-muted-foreground">
               We believe that thoughtful preparation is part of a respectful
-              pilgrimage. When logistics are handled well, the heart of the
-              journey can remain where it belongs.
+              travel. When logistics are handled well, the heart of the journey
+              can remain where it belongs.
             </p>
           </div>
         </div>
@@ -256,8 +256,8 @@ function Closing() {
         </h2>
 
         <p className="mx-auto mt-4 max-w-2xl text-base font-light leading-relaxed text-muted-foreground">
-          Every pilgrimage is personal. Tell us what you have in mind and we
-          will help you understand the next steps.
+          Every travel is personal. Tell us what you have in mind and we will
+          help you understand the next steps.
         </p>
 
         <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">

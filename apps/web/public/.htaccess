@@ -1,3 +1,11 @@
+# Canonical hostname: redirect www.kafitour.com → kafitour.com (301 permanent).
+# This prevents Google from indexing both hostnames separately.
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteCond %{HTTP_HOST} ^www\.kafitour\.com$ [NC]
+  RewriteRule ^(.*)$ https://kafitour.com/$1 [R=301,L]
+</IfModule>
+
 # Force /sitemap.xml through the Node.js Passenger app — it is a dynamic
 # React Router resource route, not a static file. LiteSpeed serves static
 # files from public/ before reaching Passenger, and may cache them. This

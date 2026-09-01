@@ -8,29 +8,35 @@
  * - Renders an editorial hero, the enquiry form, and the form's success state.
  */
 
-import { useSearchParams } from "react-router";
+import { useSearchParams } from 'react-router';
 import { Badge } from '@ui/components/ui/badge';
 
-import { packages } from "@/features/packages/data/packages";
-import { services } from "@/features/services/data/services";
+import { packages } from '@/features/packages/data/packages';
+import { services } from '@/features/services/data/services';
 
-import EnquiryForm from "./enquiry-form";
+import EnquiryForm from './enquiry-form';
 
 export default function EnquiryPage() {
   const [searchParams] = useSearchParams();
-  const packageParam = searchParams.get("package");
-  const serviceParam = searchParams.get("service");
-  const topicParam = searchParams.get("topic");
+  const packageParam = searchParams.get('package');
+  const serviceParam = searchParams.get('service');
+  const topicParam = searchParams.get('topic');
 
   const prefilledPackage = packageParam
-    ? packages.find((pkg) => pkg.slug === packageParam || pkg.id === packageParam)
+    ? packages.find(
+        (pkg) => pkg.slug === packageParam || pkg.id === packageParam,
+      )
     : undefined;
 
   const prefilledService = serviceParam
-    ? services.find((service) => service.slug === serviceParam || service.id === serviceParam)
+    ? services.find(
+        (service) =>
+          service.slug === serviceParam || service.id === serviceParam,
+      )
     : undefined;
 
-  const prefilledTopicName = topicParam === "custom-package" ? "Custom / Group Package" : undefined;
+  const prefilledTopicName =
+    topicParam === 'custom-package' ? 'Custom / Group Package' : undefined;
 
   return (
     <main className="min-h-screen bg-background text-foreground">
@@ -49,8 +55,8 @@ export default function EnquiryPage() {
             </h1>
 
             <p className="mt-6 text-base font-light leading-relaxed text-muted-foreground md:text-lg">
-              Whether you have a question about a package, a service, or a custom pilgrimage plan,
-              our team is ready to help.
+              Whether you have a question about a package, a service, or a
+              custom travel plan, our team is ready to help.
             </p>
           </div>
         </div>

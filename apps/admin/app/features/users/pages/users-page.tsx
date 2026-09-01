@@ -62,10 +62,9 @@ export function UsersPage({ initial }: UsersPageProps) {
         result.emailErrors.length > 0
           ? ` Email not sent: ${result.emailErrors.join('; ')}`
           : ' A welcome email with the temporary password and a verification email have been sent.';
-      toast.success(
-        `User created. Temporary password: ${result.temporary_password} (share securely).${emailWarning}`,
-        { duration: 10000 },
-      );
+      toast.success(`User created successfully.${emailWarning}`, {
+        duration: 10000,
+      });
       setCreateOpen(false);
       await refreshUsers();
     } catch (err) {
@@ -143,8 +142,20 @@ export function UsersPage({ initial }: UsersPageProps) {
   }
 
   const columns: ColumnDef<User>[] = [
-    textColumn<User>({ accessorKey: 'employee_number', header: 'ID' }),
-    textColumn<User>({ accessorKey: 'full_name', header: 'Name' }),
+    textColumn<User>({
+      accessorKey: 'employee_number',
+      header: 'Employee Number',
+    }),
+    {
+      id: 'name',
+      header: 'Name',
+      accessorFn: (row) =>
+        [row.first_name, row.middle_name].filter(Boolean).join(' ') || '—',
+      cell: ({ row }) =>
+        [row.original.first_name, row.original.middle_name]
+          .filter(Boolean)
+          .join(' ') || '—',
+    },
     textColumn<User>({ accessorKey: 'email_address', header: 'Email' }),
     {
       id: 'roles',
@@ -218,7 +229,13 @@ export function UsersPage({ initial }: UsersPageProps) {
       <DeleteDialog
         open={deletingUser !== null}
         onOpenChange={(open) => !open && setDeletingUser(null)}
-        name={deletingUser?.full_name}
+        name={
+          deletingUser
+            ? [deletingUser.first_name, deletingUser.middle_name]
+                .filter(Boolean)
+                .join(' ')
+            : undefined
+        }
         itemName="user"
         onConfirm={handleDeleteConfirm}
         loading={deleteLoading}

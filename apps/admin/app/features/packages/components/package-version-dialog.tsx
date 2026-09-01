@@ -1,10 +1,4 @@
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@kafi/ui';
+import { Dialog, DialogContent } from '@kafi/ui';
 
 import { PackageVersionForm } from './package-version-form';
 import type { PackageVersionFormOutput } from '../types/packages.types';
@@ -36,31 +30,18 @@ export function PackageVersionDialog({
   onOpenChange,
   onSubmit,
 }: PackageVersionDialogProps) {
-  const title = mode === 'create' ? 'Create version' : 'Edit version';
-  const description =
-    mode === 'create'
-      ? 'Add a new sellable package version.'
-      : `Update ${version?.version_name ?? 'version'} details.`;
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
-        <DialogHeader className="flex flex-col items-center gap-2 text-left">
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-4 py-4">
-          <PackageVersionForm
-            mode={mode}
-            version={version}
-            templates={templates}
-            currencies={currencies}
-            seasons={seasons}
-            onSubmit={onSubmit}
-            submitLabel={mode === 'create' ? 'Create version' : 'Save changes'}
-          />
-        </div>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl p-0">
+        <PackageVersionForm
+          mode={mode}
+          version={version}
+          templates={templates}
+          currencies={currencies}
+          seasons={seasons}
+          onSubmit={onSubmit}
+          submitLabel={mode === 'create' ? 'Create version' : 'Save changes'}
+        />
       </DialogContent>
     </Dialog>
   );

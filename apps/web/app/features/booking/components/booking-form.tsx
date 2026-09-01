@@ -363,7 +363,7 @@ export default function BookingForm({
                 aria-invalid={field.state.meta.errors.length > 0}
                 rows={5}
                 className="min-h-32"
-                placeholder="Tell us about your planned pilgrimage, preferred dates, group size, or any special requirements..."
+                placeholder="Tell us about your planned travel, preferred dates, group size, or any special requirements..."
               />
               <FieldError errors={field.state.meta.errors} />
             </div>

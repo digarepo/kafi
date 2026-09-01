@@ -32,6 +32,19 @@ const MobileBottomNav = lazy(() =>
   })),
 );
 
+// Default meta as a safety net. Route-level meta() functions override these.
+// This prevents any route from accidentally rendering without a title.
+export function meta() {
+  return [
+    { title: 'Kafi Tours — Umrah Travel Packages from Ethiopia' },
+    {
+      name: 'description',
+      content:
+        'Kafi Tours arranges Umrah travel packages from Addis Ababa to Makkah and Madinah. Ethiopian Airlines flights, visa assistance, hotel accommodation, and group guidance.',
+    },
+  ];
+}
+
 export function Layout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">

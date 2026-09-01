@@ -4,7 +4,7 @@ export const packageTemplateFormSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   short_name: z.string(),
   description: z.string(),
-  pilgrimage_type_id: z.string().min(1, 'Pilgrimage type is required'),
+  pilgrimage_type_id: z.string().min(1, 'Travel type is required'),
   package_category_id: z.string().min(1, 'Category is required'),
   default_duration_days: z.number().min(1, 'Duration must be at least 1 day'),
 });

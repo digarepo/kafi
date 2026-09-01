@@ -29,7 +29,7 @@ export const packages: PackageItem[] = [
         phase: '01',
         title: 'Departure & Arrival',
         description:
-          'Begin your journey from Addis Ababa and arrive in Saudi Arabia. Our team coordinates your airport transfer and hotel check-in so you can settle comfortably into your pilgrimage.',
+          'Begin your journey from Addis Ababa and arrive in Saudi Arabia. Our team coordinates your airport transfer and hotel check-in so you can settle comfortably into your travel.',
       },
       {
         phase: '02',
@@ -67,7 +67,7 @@ export const packages: PackageItem[] = [
     idealFor:
       'Ideal for pilgrims who want a longer stay, better accommodation, smaller groups, and a more guided spiritual experience.',
     experience:
-      'From premium accommodation and comprehensive transport to scholar-led guidance and daily learning, this package gives you space to focus deeply on your pilgrimage.',
+      'From premium accommodation and comprehensive transport to scholar-led guidance and daily learning, this package gives you space to focus deeply on your travel.',
     highlights: [
       'Return economy flight tickets',
       '4-star accommodation near the Haram',
@@ -123,7 +123,7 @@ export const packages: PackageItem[] = [
     groupSize: '10–12 pilgrims',
     badge: 'Premium',
     description:
-      'A more private and elevated pilgrimage experience designed for those who value comfort, personal attention, and a carefully managed journey.',
+      'A more private and elevated travel experience designed for those who value comfort, personal attention, and a carefully managed journey.',
     idealFor:
       'Ideal for pilgrims, families, and private groups seeking the highest level of comfort and personalised service.',
     experience:
@@ -145,7 +145,7 @@ export const packages: PackageItem[] = [
         phase: 'Day 1–2',
         title: 'Premium Arrival Experience',
         description:
-          'Travel from Addis Ababa to Madinah and enjoy a smooth, privately coordinated arrival experience. Settle into your premium accommodation and begin your pilgrimage at Masjid an-Nabawi.',
+          'Travel from Addis Ababa to Madinah and enjoy a smooth, privately coordinated arrival experience. Settle into your premium accommodation and begin your travel at Masjid an-Nabawi.',
       },
       {
         phase: 'Day 3–5',

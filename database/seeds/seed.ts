@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { ulid } from 'ulid';
 import argon2 from 'argon2';
-import { eq } from 'drizzle-orm';
+import { and, eq, inArray, not } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/mysql2';
 import mysql from 'mysql2/promise';
 import {
@@ -18,6 +18,7 @@ import {
   invoiceStatuses,
   languages,
   packageCategories,
+  packageTemplates,
   packageTemplateStatuses,
   packageVersionStatuses,
   payerStatuses,
@@ -55,7 +56,6 @@ import { seedDocuments } from './documents.seed.js';
 
 const USER_STATUS_CODES = [
   { status_code: 'ACTIVE', name: 'Active' },
-  { status_code: 'INACTIVE', name: 'Inactive' },
   { status_code: 'SUSPENDED', name: 'Suspended' },
   { status_code: 'DELETED', name: 'Deleted' },
 ];
@@ -287,9 +287,8 @@ const PACKAGE_VERSION_STATUS_CODES = [
 
 const PACKAGE_CATEGORIES = [
   { category_code: 'ECONOMY', name: 'Economy' },
-  { category_code: 'STANDARD', name: 'Standard' },
+  { category_code: 'COMFORT', name: 'Comfort' },
   { category_code: 'PREMIUM', name: 'Premium' },
-  { category_code: 'VIP', name: 'VIP' },
 ];
 
 const PILGRIMAGE_TYPES = [
@@ -461,6 +460,18 @@ async function seed() {
         .onDuplicateKeyUpdate({ set: { name: status.name, is_active: true } });
     }
 
+    // Deactivate user statuses that are no longer in the seed list.
+    const validStatusCodes = USER_STATUS_CODES.map((s) => s.status_code);
+    await db
+      .update(userStatuses)
+      .set({ is_active: false })
+      .where(
+        and(
+          not(inArray(userStatuses.status_code, validStatusCodes)),
+          eq(userStatuses.is_active, true),
+        ),
+      );
+
     // Roles
     for (const role of ROLE_CODES) {
       await db
@@ -556,6 +567,38 @@ async function seed() {
         .onDuplicateKeyUpdate({
           set: { name: category.name, is_active: true },
         });
+    }
+
+    // Reassign templates from removed categories (STANDARD, VIP) to COMFORT,
+    // then delete those category rows entirely.
+    const activeCategoryCodes = PACKAGE_CATEGORIES.map((c) => c.category_code);
+    const [comfortCategory] = await db
+      .select({ id: packageCategories.id })
+      .from(packageCategories)
+      .where(eq(packageCategories.category_code, 'COMFORT'))
+      .limit(1);
+
+    if (comfortCategory) {
+      const removedCategories = await db
+        .select({ id: packageCategories.id })
+        .from(packageCategories)
+        .where(
+          and(
+            not(inArray(packageCategories.category_code, activeCategoryCodes)),
+          ),
+        );
+
+      if (removedCategories.length > 0) {
+        const removedIds = removedCategories.map((c) => c.id);
+        await db
+          .update(packageTemplates)
+          .set({ package_category_id: comfortCategory.id })
+          .where(inArray(packageTemplates.package_category_id, removedIds));
+
+        await db
+          .delete(packageCategories)
+          .where(inArray(packageCategories.id, removedIds));
+      }
     }
 
     for (const type of PILGRIMAGE_TYPES) {

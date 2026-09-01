@@ -35,7 +35,7 @@ export function PackageDetailPanel({
           <dd>{template.short_name ?? '-'}</dd>
           <dt className="text-muted-foreground">Category</dt>
           <dd>{template.package_category?.name ?? '-'}</dd>
-          <dt className="text-muted-foreground">Pilgrimage type</dt>
+          <dt className="text-muted-foreground">Travel type</dt>
           <dd>{template.pilgrimage_type?.name ?? '-'}</dd>
           <dt className="text-muted-foreground">Duration</dt>
           <dd>{template.default_duration_days}d</dd>

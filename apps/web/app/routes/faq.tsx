@@ -5,7 +5,7 @@ import { buildOgMeta } from '@/lib/og';
 export function meta({}: Route.MetaArgs) {
   const title = 'FAQ | Kafi Tours';
   const description =
-    'Find answers to common questions about Kafi Tours Umrah packages, visas, flights, accommodation, and the pilgrimage journey.';
+    'Find answers to common questions about Kafi Tours Umrah packages, visas, flights, accommodation, and the travel journey.';
   const url = 'https://kafitour.com/faq';
 
   return [

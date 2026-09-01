@@ -9,6 +9,7 @@ import { MySql2Database } from 'drizzle-orm/mysql2';
 import { eq, and, or, like, desc, asc, max, sql, not } from 'drizzle-orm';
 import { ulid } from 'ulid';
 import { DATABASE } from '../../../../shared/infrastructure/database/database.provider.js';
+import { BusinessNumberService } from '../../../../shared/infrastructure/numbering/business-number.service.js';
 import * as schema from '@kafi/database';
 import {
   CreatePackageTemplateDto,
@@ -172,6 +173,7 @@ export class PackagesService {
   constructor(
     @Inject(DATABASE)
     private readonly db: MySql2Database<typeof schema>,
+    private readonly numbers: BusinessNumberService,
   ) {}
 
   // ---- Reference data ----
@@ -914,29 +916,11 @@ export class PackagesService {
   }
 
   private async generateTemplateCode() {
-    // eslint-disable-next-line no-constant-condition
-    while (true) {
-      const code = `PKG-${ulid()}`;
-      const [existing] = await this.db
-        .select({ id: schema.packageTemplates.id })
-        .from(schema.packageTemplates)
-        .where(eq(schema.packageTemplates.package_template_code, code))
-        .limit(1);
-      if (!existing) return code;
-    }
+    return this.numbers.generatePackageTemplateCode();
   }
 
   private async generateVersionCode() {
-    // eslint-disable-next-line no-constant-condition
-    while (true) {
-      const code = `PV-${ulid()}`;
-      const [existing] = await this.db
-        .select({ id: schema.packageVersions.id })
-        .from(schema.packageVersions)
-        .where(eq(schema.packageVersions.package_version_code, code))
-        .limit(1);
-      if (!existing) return code;
-    }
+    return this.numbers.generatePackageVersionCode();
   }
 
   private mapVersionRow(row: any) {

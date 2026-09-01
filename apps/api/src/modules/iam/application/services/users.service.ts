@@ -21,13 +21,13 @@ import { AuthService } from './auth.service.js';
 import { Mailer } from '../ports/mailer.port.js';
 import { CreateUserDto } from '../dto/create-user.dto.js';
 import { UpdateUserDto } from '../dto/update-user.dto.js';
+import { BusinessNumberService } from '../../../../shared/infrastructure/numbering/business-number.service.js';
 
 /**
  * Response shape for a newly created user.
  */
 export interface CreatedUserResult {
   id: string;
-  temporary_password: string;
   emailErrors: string[];
 }
 
@@ -39,6 +39,9 @@ export interface UserView {
   id: TypedId<'User'>;
   employee_number: string;
   full_name: string;
+  first_name: string;
+  middle_name: string | null;
+  last_name: string | null;
   gender: string;
   email_address: string;
   phone_number: string;
@@ -64,6 +67,7 @@ export class UsersService {
     private readonly audit: AuditLogger,
     private readonly auth: AuthService,
     private readonly mailer: Mailer,
+    private readonly numbers: BusinessNumberService,
   ) {}
 
   /**
@@ -119,10 +123,22 @@ export class UsersService {
     const activeStatus = await this.findActiveStatus();
     const temporaryPassword = this.password.generateTemporaryPassword();
     const passwordHash = await this.password.hash(temporaryPassword);
+    const employeeNumber =
+      dto.employee_number?.trim() ||
+      (await this.numbers.generateEmployeeNumber());
+
+    const fullName =
+      dto.full_name?.trim() ||
+      [dto.first_name, dto.middle_name, dto.last_name]
+        .filter(Boolean)
+        .join(' ');
 
     const id = await this.users.create({
-      employee_number: dto.employee_number,
-      full_name: dto.full_name,
+      employee_number: employeeNumber,
+      full_name: fullName,
+      first_name: dto.first_name,
+      middle_name: dto.middle_name ?? null,
+      last_name: dto.last_name ?? null,
       gender: dto.gender,
       email_address: dto.email,
       phone_number: dto.phone,
@@ -136,7 +152,7 @@ export class UsersService {
     await this.audit.log({
       userId: id as string,
       event: 'USER_CREATED',
-      details: `employee_number: ${dto.employee_number}`,
+      details: `employee_number: ${employeeNumber}`,
     });
 
     const emailErrors: string[] = [];
@@ -169,7 +185,6 @@ export class UsersService {
 
     return {
       id: id as string,
-      temporary_password: temporaryPassword,
       emailErrors,
     };
   }
@@ -200,8 +215,21 @@ export class UsersService {
       await this.ensurePhoneUnique(dto.phone);
     }
 
+    // Compute full_name from first_name + middle_name + last_name if any changed.
+    const firstName = dto.first_name ?? existing.first_name;
+    const middleName =
+      dto.middle_name !== undefined ? dto.middle_name : existing.middle_name;
+    const lastName =
+      dto.last_name !== undefined ? dto.last_name : existing.last_name;
+    const fullName =
+      dto.full_name ??
+      [firstName, middleName, lastName].filter(Boolean).join(' ');
+
     await this.users.update(userId, {
-      full_name: dto.full_name,
+      full_name: fullName,
+      first_name: dto.first_name,
+      middle_name: dto.middle_name,
+      last_name: dto.last_name,
       gender: dto.gender,
       email_address: dto.email,
       phone_number: dto.phone,

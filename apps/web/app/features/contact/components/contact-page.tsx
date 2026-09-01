@@ -47,7 +47,7 @@ export default function ContactPage() {
               Begin your journey with a conversation.
             </h1>
             <p className="mt-6 text-base font-light leading-relaxed text-muted-foreground md:text-lg">
-              Whether you are planning your first Umrah or a bespoke pilgrimage
+              Whether you are planning your first Umrah or a bespoke travel
               experience, our team is here to guide you with care, clarity and
               deep local expertise.
             </p>

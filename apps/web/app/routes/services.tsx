@@ -8,7 +8,7 @@ import { buildOgMeta, SITE_URL } from '@/lib/og';
 export function meta({}: Route.MetaArgs) {
   const title = 'Services | Kafi Tours';
   const description =
-    'Comprehensive Umrah pilgrimage services from Kafi Tours — visa processing, flight ticketing, luxury accommodations near the Haram, ground transport, guided Ziyarah tours, and scholar-led guidance.';
+    'Comprehensive Umrah travel services from Kafi Tours — visa processing, flight ticketing, luxury accommodations near the Haram, ground transport, guided Ziyarah tours, and scholar-led guidance.';
   const url = `${SITE_URL}/services`;
   return [
     { title },

@@ -52,7 +52,11 @@ app.use(
 );
 
 app.use(morgan('tiny'));
-app.use(express.static('build/client', { maxAge: '1h' }));
+// Serve build/client static assets (JS/CSS chunks, etc.) but NEVER serve
+// index.html — that would shadow the React Router SSR handler and serve a
+// stale <title> from the build template (e.g. "Web App | Monorepo").
+// Setting index: false ensures "/" falls through to createRequestHandler.
+app.use(express.static('build/client', { maxAge: '1h', index: false }));
 
 // Pass the compiled React Router build into the Express request handler
 app.use(

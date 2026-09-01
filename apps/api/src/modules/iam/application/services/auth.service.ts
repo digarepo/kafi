@@ -10,6 +10,7 @@ import { OneTimeTokenRepository } from '../ports/one-time-token.repository.js';
 import { Mailer } from '../ports/mailer.port.js';
 import { AuditLogger } from './audit-logger.service.js';
 import { createTypedId } from '../../../../shared/kernel/typed-id.js';
+import { DomainException } from '../../../../shared/application/exceptions/domain.exception.js';
 
 /**
  * Token pair returned on successful authentication.
@@ -27,6 +28,9 @@ export interface AuthProfile {
   id: string;
   email: string;
   full_name: string;
+  first_name: string;
+  middle_name: string | null;
+  last_name: string | null;
   phone_number: string;
   status_code: string;
   roles: string[];
@@ -235,6 +239,17 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    // Prevent reusing the same password.
+    const sameAsOld = await this.password.verify(
+      user.password_hash,
+      newPassword,
+    );
+    if (sameAsOld) {
+      throw new DomainException(
+        'The new password must be different from the current password.',
+      );
+    }
+
     const newHash = await this.password.hash(newPassword);
     await this.users.updatePassword(user.id, newHash, false);
     await this.users.updateLastLogin(user.id);
@@ -365,6 +380,17 @@ export class AuthService {
       throw new UnauthorizedException('User no longer active');
     }
 
+    // Prevent reusing the same password.
+    const sameAsOld = await this.password.verify(
+      user.password_hash,
+      newPassword,
+    );
+    if (sameAsOld) {
+      throw new DomainException(
+        'The new password must be different from the current password.',
+      );
+    }
+
     const newHash = await this.password.hash(newPassword);
     await this.users.updatePassword(user.id, newHash, false);
     await this.users.updateLastLogin(user.id);
@@ -441,6 +467,9 @@ export class AuthService {
       id: user.id as string,
       email: user.email_address,
       full_name: user.full_name,
+      first_name: user.first_name,
+      middle_name: user.middle_name ?? null,
+      last_name: user.last_name ?? null,
       phone_number: user.phone_number,
       status_code: user.status_code,
       roles: user.roles.map((r) => r.role_code),
@@ -474,6 +503,9 @@ interface UserShape {
   id: unknown;
   email_address: string;
   full_name: string;
+  first_name: string;
+  middle_name: string | null;
+  last_name: string | null;
   phone_number: string;
   status_code: string;
   created_at: Date;

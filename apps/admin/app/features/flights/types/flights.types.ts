@@ -6,10 +6,12 @@ export interface FlightBookingFormValues {
   registration_id: string;
   pnr: string;
   departure_flight_number: string;
-  departure_date: string;
   return_flight_number: string;
-  return_date: string;
-  supplier_cost: string;
+  travelRange?: {
+    from?: Date;
+    to?: Date;
+  };
+  ticket_cost: string;
   notes: string;
 }
 

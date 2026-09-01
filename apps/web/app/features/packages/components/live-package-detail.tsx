@@ -20,7 +20,7 @@ function tierName(pkg: PublicPackageVersion): string {
 }
 
 /**
- * Derives a subtitle from the version's pilgrimage type and season.
+ * Derives a subtitle from the version's travel type and season.
  */
 function subtitle(pkg: PublicPackageVersion): string {
   const parts: string[] = [];
@@ -197,7 +197,7 @@ export function LivePackageDetail({
                 Umrah journey with{' '}
                 {pkg.package_category?.name?.toLowerCase() ?? 'standard'} tier
                 comfort and attention. Every essential is arranged so you can
-                focus on your pilgrimage.
+                focus on your travel.
               </p>
 
               <div className="border-l-2 border-accent/40 pl-5">

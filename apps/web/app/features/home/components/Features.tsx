@@ -25,7 +25,7 @@ const InlineCallbackForm = lazy(() =>
 );
 
 /**
- * Renders the partnerships section showcasing trusted travel and pilgrimage partners.
+ * Renders the partnerships section showcasing trusted travel and travel partners.
  *
  * @returns The partners section component for the home page.
  *
@@ -68,12 +68,12 @@ export function Partners() {
 }
 
 /**
- * Renders the destinations section highlighting the primary pilgrimage locations and travel routes.
+ * Renders the destinations section highlighting the primary travel locations and travel routes.
  *
  * @returns The destinations section component for the home page.
  *
  * @remarks
- * - Showcases Makkah and Madinah as the primary pilgrimage destinations.
+ * - Showcases Makkah and Madinah as the primary travel destinations.
  * - Highlights Ethiopian Airlines as the primary departure partner from Addis Ababa.
  */
 
@@ -204,7 +204,7 @@ export function Destinations() {
                 <p className="text-sm text-foreground/70 font-normal max-w-2xl leading-relaxed">
                   We coordinate direct Ethiopian Airlines flights from Addis
                   Ababa (ADD) to Jeddah (JED), helping ensure a comfortable and
-                  well-organized start to your pilgrimage.
+                  well-organized start to your travel.
                 </p>
               </div>
             </div>
@@ -222,7 +222,7 @@ export function Destinations() {
  *
  * @remarks
  * - Showcases the primary travel services provided by Kafi Tours.
- * - Emphasizes convenience, guidance, and coordinated pilgrimage logistics.
+ * - Emphasizes convenience, guidance, and coordinated travel logistics.
  */
 export function Features() {
   const items = [
@@ -244,12 +244,12 @@ export function Features() {
     {
       icon: <UsersIcon weight="light" className="w-5 h-5 text-accent" />,
       title: 'Guidance Throughout Your Journey',
-      desc: 'Support before and during your pilgrimage with organized briefings and experienced group coordinators.',
+      desc: 'Support before and during your travel with organized briefings and experienced group coordinators.',
     },
     {
       icon: <ShieldCheckIcon weight="light" className="w-5 h-5 text-accent" />,
       title: 'Visa & Travel Assistance',
-      desc: 'Assistance with visa processing and the required travel documentation for your pilgrimage.',
+      desc: 'Assistance with visa processing and the required travel documentation for your travel.',
     },
   ];
 
@@ -317,7 +317,7 @@ export function Features() {
 }
 
 /**
- * Renders the pricing section showcasing the available pilgrimage packages.
+ * Renders the pricing section showcasing the available travel packages.
  *
  * @returns The pricing section component for the home page.
  *
@@ -331,7 +331,7 @@ function tierKey(pkg: PublicPackageVersion): string {
 }
 
 /**
- * Renders the pricing section showcasing the available pilgrimage packages.
+ * Renders the pricing section showcasing the available travel packages.
  *
  * @returns The pricing section component for the home page.
  *
@@ -405,7 +405,7 @@ export function Pricing() {
             Clear Pricing
           </Badge>
           <h2 className="font-heading text-3xl font-extrabold tracking-tight text-foreground">
-            Pilgrimage Packages
+            Travel Packages
           </h2>
           <p className="text-muted-foreground font-light text-sm">
             Choose the package comfort level that best matches your family
@@ -565,13 +565,13 @@ export function Pricing() {
 }
 
 /**
- * Renders the call-to-action section for users interested in booking a pilgrimage.
+ * Renders the call-to-action section for users interested in booking travel.
  *
  * @returns The CTA section component for the home page.
  *
  * @remarks
  * - Encourages visitors to submit their contact details for follow-up assistance.
- * - Provides a direct conversion point for pilgrimage package inquiries.
+ * - Provides a direct conversion point for travel package inquiries.
  */
 export function CTA() {
   return (
@@ -587,7 +587,7 @@ export function CTA() {
               Begin Your Journey
             </Badge>
             <h2 className="font-heading text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
-              Ready to Book Your Pilgrimage?
+              Ready to Book Your Travel?
             </h2>
             <p className="text-xs sm:text-sm text-muted-foreground font-light leading-relaxed">
               Register your interest and one of our dedicated spiritual travel

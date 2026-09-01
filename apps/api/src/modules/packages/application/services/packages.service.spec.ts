@@ -5,6 +5,7 @@ import {
   isWithinRegistrationWindow,
 } from './packages.service.js';
 import { ConflictException } from '@nestjs/common';
+import { BusinessNumberService } from '../../../../shared/infrastructure/numbering/business-number.service.js';
 
 class MockDb {
   private queue: unknown[] = [];
@@ -113,6 +114,11 @@ const draftVersionRow = {
 };
 
 describe('PackagesService', () => {
+  const mockNumbers = {
+    generatePackageTemplateCode: vi.fn().mockResolvedValue('PKG-2026-000001'),
+    generatePackageVersionCode: vi.fn().mockResolvedValue('PV-2026-000001'),
+  } as unknown as BusinessNumberService;
+
   it('lists package categories', async () => {
     const rows = [
       {
@@ -123,7 +129,7 @@ describe('PackagesService', () => {
       },
     ];
     const db = new MockDb().setQueue([rows]);
-    const service = new PackagesService(db as any);
+    const service = new PackagesService(db as any, mockNumbers);
 
     const result = await service.listCategories();
 
@@ -140,7 +146,7 @@ describe('PackagesService', () => {
       },
     ];
     const db = new MockDb().setQueue([rows]);
-    const service = new PackagesService(db as any);
+    const service = new PackagesService(db as any, mockNumbers);
 
     const result = await service.listPilgrimageTypes();
 
@@ -159,7 +165,7 @@ describe('PackagesService', () => {
 
     it('returns an available published version with remaining capacity', async () => {
       const db = new MockDb().setQueue([[versionRow], [], [{ count: 5 }]]);
-      const service = new PackagesService(db as any);
+      const service = new PackagesService(db as any, mockNumbers);
 
       const result = await service.assertAvailableForRegistration('PV-1');
 
@@ -171,7 +177,7 @@ describe('PackagesService', () => {
 
     it('rejects a version that has reached capacity', async () => {
       const db = new MockDb().setQueue([[versionRow], [], [{ count: 10 }]]);
-      const service = new PackagesService(db as any);
+      const service = new PackagesService(db as any, mockNumbers);
 
       const error = (await service
         .assertAvailableForRegistration('PV-1')
@@ -186,7 +192,7 @@ describe('PackagesService', () => {
 
     it('rejects a version that is not published', async () => {
       const db = new MockDb().setQueue([[draftVersionRow], [], [{ count: 0 }]]);
-      const service = new PackagesService(db as any);
+      const service = new PackagesService(db as any, mockNumbers);
 
       const error = (await service
         .assertAvailableForRegistration('PV-1')

@@ -7,6 +7,9 @@ export interface UserWithRoles {
   id: TypedId<'User'>;
   employee_number: string;
   full_name: string;
+  first_name: string;
+  middle_name: string | null;
+  last_name: string | null;
   gender: string;
   email_address: string;
   phone_number: string;
@@ -107,6 +110,9 @@ export abstract class UserRepository {
 export interface CreateUserInput {
   employee_number: string;
   full_name: string;
+  first_name: string;
+  middle_name: string | null;
+  last_name: string | null;
   gender: string;
   email_address: string;
   phone_number: string;
@@ -122,6 +128,9 @@ export interface CreateUserInput {
  */
 export interface UpdateUserInput {
   full_name?: string;
+  first_name?: string;
+  middle_name?: string | null;
+  last_name?: string | null;
   gender?: string;
   email_address?: string;
   phone_number?: string;

@@ -67,6 +67,9 @@ export const users = mysqlTable('users', {
     .notNull()
     .unique(),
   full_name: varchar('full_name', { length: 255 }).notNull(),
+  first_name: varchar('first_name', { length: 100 }).notNull(),
+  middle_name: varchar('middle_name', { length: 100 }),
+  last_name: varchar('last_name', { length: 100 }),
   gender: varchar('gender', { length: 10 }).notNull(),
   email_address: varchar('email_address', { length: 255 }).notNull().unique(),
   phone_number: varchar('phone_number', { length: 30 }).notNull().unique(),
