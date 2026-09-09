@@ -35,7 +35,7 @@ export function VisaApplicationsListPage() {
   const registrationId = searchParams.get('registration_id') ?? undefined;
   const [visas, setVisas] = useState<VisaApplicationListItem[]>([]);
   const [statuses, setStatuses] = useState<VisaApplicationStatus[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [globalFilter, setGlobalFilter] = useState('');
   const debouncedFilter = useDebouncedValue(globalFilter);
@@ -336,6 +336,7 @@ export function VisaApplicationsListPage() {
         loading={loading}
         pagination={pagination}
         onPaginationChange={setPagination}
+        onRowClick={(v) => navigate(`/visa-applications/${v.id}`)}
       />
     </div>
   );

@@ -62,7 +62,7 @@ export function PackageVersionForm({
         version_name: version.version_name,
         slug: version.slug ?? '',
         hero_image_url: version.hero_image_url ?? '',
-        sort_order: version.sort_order,
+        round_number: version.travel_round?.round_number ?? 1,
         season_id: version.season_id ?? '',
         year: version.year,
         travelRange:
@@ -100,7 +100,7 @@ export function PackageVersionForm({
       version_name: '',
       slug: '',
       hero_image_url: '',
-      sort_order: 0,
+      round_number: 1,
       season_id: '',
       year: new Date().getFullYear(),
       travelRange: undefined,
@@ -119,10 +119,14 @@ export function PackageVersionForm({
     },
     onSubmit: async ({ value }) => {
       const output: PackageVersionFormOutput = {
-        version_name: value.version_name,
+        version_name: templates.find(
+          (template) => template.id === value.package_template_id,
+        )?.name
+          ? `${templates.find((template) => template.id === value.package_template_id)?.name} ${value.year} · Round ${value.round_number}`
+          : value.version_name,
         slug: value.slug,
         hero_image_url: value.hero_image_url,
-        sort_order: value.sort_order,
+        round_number: value.round_number,
         season_id: value.season_id || undefined,
         year: value.year,
         inclusions: value.inclusions,
@@ -147,6 +151,20 @@ export function PackageVersionForm({
   }, [defaultValues, form]);
 
   const isSubmitting = useSelector(form.store, (state) => state.isSubmitting);
+  const formValues = useSelector(form.store, (state) => state.values);
+  const selectedTemplateName =
+    templates.find((template) => template.id === formValues.package_template_id)
+      ?.name ?? '';
+  const generatedVersionName = selectedTemplateName
+    ? `${selectedTemplateName} ${formValues.year} · Round ${formValues.round_number}`
+    : '';
+
+  useEffect(() => {
+    if (generatedVersionName) {
+      form.setFieldValue('version_name', generatedVersionName);
+    }
+  }, [form, generatedVersionName]);
+
   const [inclusionText, setInclusionText] = useState('');
 
   function addInclusion(
@@ -218,14 +236,13 @@ export function PackageVersionForm({
               {(field: AnyFieldApi) => (
                 <div className="space-y-2">
                   <Label htmlFor="version_name" className="text-sm font-medium">
-                    Version name
+                    Version name (generated)
                   </Label>
                   <Input
                     id="version_name"
-                    value={field.state.value ?? ''}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                    onBlur={field.handleBlur}
-                    className="h-9"
+                    value={generatedVersionName}
+                    readOnly
+                    className="h-9 bg-muted/40"
                     aria-invalid={field.state.meta.errors.length > 0}
                   />
                   <FieldError field={field} />
@@ -253,20 +270,24 @@ export function PackageVersionForm({
               )}
             </form.Field>
 
-            <form.Field name="sort_order">
+            <form.Field name="round_number">
               {(field: AnyFieldApi) => (
                 <div className="space-y-2">
-                  <Label htmlFor="sort_order" className="text-sm font-medium">
-                    Sort order
+                  <Label htmlFor="round_number" className="text-sm font-medium">
+                    Travel round
                   </Label>
                   <Input
-                    id="sort_order"
+                    id="round_number"
                     type="number"
-                    value={String(field.state.value ?? 0)}
+                    min={1}
+                    value={String(field.state.value ?? 1)}
                     onChange={(e) => field.handleChange(Number(e.target.value))}
                     onBlur={field.handleBlur}
                     className="h-9"
+                    disabled={isLocked}
+                    aria-invalid={field.state.meta.errors.length > 0}
                   />
+                  <FieldError field={field} />
                 </div>
               )}
             </form.Field>

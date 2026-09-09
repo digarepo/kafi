@@ -1,20 +1,29 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { RegistrationIntakeWorkflow } from '../components/registration-intake-workflow';
-import { api, type PackageVersion } from '../../../lib/api.js';
+import {
+  api,
+  type PackageVersion,
+  type TravelRound,
+} from '../../../lib/api.js';
 
 export function RegistrationCreatePage() {
   const [searchParams] = useSearchParams();
   const resumeId = searchParams.get('resume') ?? undefined;
   const [packageVersions, setPackageVersions] = useState<PackageVersion[]>([]);
+  const [travelRounds, setTravelRounds] = useState<TravelRound[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
       try {
-        const p = await api.listPackageVersions(1, 100);
+        const [p, rounds] = await Promise.all([
+          api.listPackageVersions(1, 100),
+          api.listTravelRounds({ page: 1, page_size: 100, status: 'OPEN' }),
+        ]);
         setPackageVersions(p.data);
+        setTravelRounds(rounds.data);
       } catch (err) {
         setError(
           err instanceof Error ? err.message : 'Failed to load reference data',
@@ -44,6 +53,7 @@ export function RegistrationCreatePage() {
 
       <RegistrationIntakeWorkflow
         packageVersions={packageVersions}
+        travelRounds={travelRounds}
         registrationId={resumeId}
       />
     </div>

@@ -20,6 +20,36 @@ const ROOM_TYPES = [
 
 const VENDOR_TYPES = [{ type_code: 'AGENCY', name: 'Agency' }];
 
+const VEHICLE_TYPES = [
+  {
+    type_code: 'COASTER',
+    name: 'Coaster',
+    description: 'Mid-size passenger coach',
+  },
+  {
+    type_code: 'BUS',
+    name: 'Bus',
+    description: 'Large passenger bus or coach',
+  },
+  { type_code: 'MINIBUS', name: 'Minibus', description: 'Small passenger bus' },
+  { type_code: 'VAN', name: 'Van', description: 'Passenger van' },
+  {
+    type_code: 'SUV',
+    name: 'SUV',
+    description: 'Passenger sport utility vehicle',
+  },
+  {
+    type_code: 'SEDAN',
+    name: 'Taxi / Sedan',
+    description: 'Licensed taxi or sedan',
+  },
+  {
+    type_code: 'OTHER',
+    name: 'Other',
+    description: 'Other authorized passenger vehicle',
+  },
+];
+
 const HOTEL_STATUSES = [
   { status_code: 'ACTIVE', name: 'Active' },
   { status_code: 'INACTIVE', name: 'Inactive' },
@@ -58,7 +88,7 @@ const TRANSPORT_SEGMENT_STATUSES = [
 async function upsertLookupTypeCodes(
   db: LogisticsDb,
   table: (typeof schema)['hotelTypes'],
-  rows: { type_code: string; name: string }[],
+  rows: { type_code: string; name: string; description?: string }[],
 ) {
   for (const row of rows) {
     await db
@@ -67,6 +97,7 @@ async function upsertLookupTypeCodes(
         id: ulid(),
         type_code: row.type_code,
         name: row.name,
+        description: row.description ?? null,
         is_active: true,
       })
       .onDuplicateKeyUpdate({
@@ -114,6 +145,7 @@ export async function seedLogistics(db: LogisticsDb) {
   await upsertLookupTypeCodes(db, schema.hotelTypes, HOTEL_TYPES);
   await upsertLookupTypeCodes(db, schema.roomTypes, ROOM_TYPES);
   await upsertLookupTypeCodes(db, schema.vendorTypes, VENDOR_TYPES);
+  await upsertLookupTypeCodes(db, schema.vehicleTypes, VEHICLE_TYPES);
 
   await upsertLookupStatusCodes(db, schema.hotelStatuses, HOTEL_STATUSES);
   await upsertLookupStatusCodes(

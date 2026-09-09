@@ -41,7 +41,7 @@ export interface PackageVersionFormValues {
   version_name: string;
   slug: string;
   hero_image_url: string;
-  sort_order: number;
+  round_number: number;
   season_id: string;
   year: number;
   travelRange?: DateRange;
@@ -57,7 +57,7 @@ export interface PackageVersionFormOutput {
   version_name: string;
   slug: string;
   hero_image_url: string;
-  sort_order: number;
+  round_number: number;
   season_id?: string;
   year: number;
   departure_date?: string;

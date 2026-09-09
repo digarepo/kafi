@@ -7,6 +7,7 @@ export type WorkflowStatusCode =
   | 'PROCESSING'
   | 'READY_FOR_TRAVEL'
   | 'PLANNING'
+  | 'PREPARING'
   | 'TRAVEL_PREPARED'
   | 'DEPARTED'
   | 'COMPLETED'
@@ -56,7 +57,8 @@ export const workflowStatusPresentation: Record<
 
   // Travel group lifecycle
   PLANNING: { label: 'Planning', variant: 'info' },
-  TRAVEL_PREPARED: { label: 'Travel prepared', variant: 'warning' },
+  PREPARING: { label: 'Preparing', variant: 'warning' },
+  TRAVEL_PREPARED: { label: 'Travel prepared', variant: 'success' },
   DEPARTED: { label: 'Departed', variant: 'info' },
 
   // Membership lifecycle

@@ -259,6 +259,7 @@ export function ContactListPage() {
         loading={loading}
         pagination={pagination}
         onPaginationChange={setPagination}
+        onRowClick={(c) => navigate(`/contact-persons/${c.id}`)}
       />
     </div>
   );

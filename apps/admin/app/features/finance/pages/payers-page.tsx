@@ -50,7 +50,7 @@ export function PayersPage() {
   const [payerStatuses, setPayerStatuses] = useState<LookupOption[]>([]);
   const [travellers, setTravellers] = useState<Traveller[]>([]);
   const [contactPersons, setContactPersons] = useState<ContactPerson[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [referenceLoading, setReferenceLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
   const [editingPayer, setEditingPayer] = useState<Payer | null>(null);
@@ -430,6 +430,7 @@ export function PayersPage() {
         loading={loading}
         pagination={{ pageIndex: page - 1, pageSize, total }}
         onPaginationChange={setPagination}
+        onRowClick={(p) => can('FINANCE_EDIT') && setEditingPayer(p)}
       />
     </div>
   );

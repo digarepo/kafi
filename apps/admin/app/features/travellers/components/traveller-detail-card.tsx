@@ -118,7 +118,8 @@ export function TravellerDetailCard({
                 )}
                 {can('TRAVELLER_DELETE') && onArchive && (
                   <DropdownMenuItem
-                    className="whitespace-nowrap text-destructive focus:text-destructive"
+                    variant="destructive"
+                    className="whitespace-nowrap"
                     onClick={() => void onArchive(traveller.id)}
                   >
                     <Archive className="mr-2 h-4 w-4" aria-hidden="true" />

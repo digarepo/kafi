@@ -44,7 +44,7 @@ export function ExpensesListPage() {
   const [statuses, setStatuses] = useState<LookupOption[]>([]);
   const [categories, setCategories] = useState<LookupOption[]>([]);
   const [sources, setSources] = useState<LookupOption[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [referenceLoading, setReferenceLoading] = useState(true);
   const [retryNonce] = useState(0);
@@ -389,6 +389,7 @@ export function ExpensesListPage() {
         loading={loading}
         pagination={{ pageIndex: page - 1, pageSize, total }}
         onPaginationChange={setPagination}
+        onRowClick={(e) => navigate(`/expenses/${e.id}`)}
       />
     </div>
   );

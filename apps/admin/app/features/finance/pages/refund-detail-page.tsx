@@ -1,24 +1,14 @@
-import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router';
-import {
-  Button,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@kafi/ui';
-import { toast } from 'sonner';
+import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router";
+import { Button, Card, CardContent, CardHeader, CardTitle } from "@kafi/ui";
+import { toast } from "sonner";
 
-import { usePermissions } from '../../../core/permissions';
-import { useDestructiveConfirmation } from '../../../shared/delete-dialog';
-import { FinanceStatusBadge } from '../../../shared/finance-status';
-import { formatMoney } from '../../../shared/format';
-import { displayDate } from '../../operations/lib/date';
-import {
-  api,
-  type Refund,
-  type RefundListItem,
-} from '../../../lib/api.js';
+import { usePermissions } from "../../../core/permissions";
+import { useDestructiveConfirmation } from "../../../shared/delete-dialog";
+import { FinanceStatusBadge } from "../../../shared/finance-status";
+import { formatMoney } from "../../../shared/format";
+import { displayDate } from "../../operations/lib/date";
+import { api, type Refund, type RefundListItem } from "../../../lib/api.js";
 
 interface RefundDetailPageProps {
   id: string;
@@ -49,7 +39,7 @@ export function RefundDetailPage({ id }: RefundDetailPageProps) {
       try {
         await reload();
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load refund');
+        setError(err instanceof Error ? err.message : "Failed to load refund");
       } finally {
         setLoading(false);
       }
@@ -61,10 +51,10 @@ export function RefundDetailPage({ id }: RefundDetailPageProps) {
     if (!refund) return;
     if (
       !(await confirm({
-        title: 'Complete refund?',
+        title: "Complete refund?",
         description:
-          'Mark this refund as completed. This confirms the money has been returned to the customer.',
-        confirmLabel: 'Complete',
+          "Mark this refund as completed. This confirms the money has been returned to the customer.",
+        confirmLabel: "Complete",
       }))
     )
       return;
@@ -72,11 +62,10 @@ export function RefundDetailPage({ id }: RefundDetailPageProps) {
     setError(null);
     try {
       await api.completeRefund(refund.id);
-      toast.success('Refund marked as completed.');
+      toast.success("Refund marked as completed.");
       await reload();
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : 'Failed to complete refund';
+      const message = err instanceof Error ? err.message : "Failed to complete refund";
       setError(message);
       toast.error(message);
     } finally {
@@ -88,10 +77,9 @@ export function RefundDetailPage({ id }: RefundDetailPageProps) {
     if (!refund) return;
     if (
       !(await confirm({
-        title: 'Cancel refund?',
-        description:
-          'Cancel this refund. The refundable balance will be restored.',
-        confirmLabel: 'Cancel refund',
+        title: "Cancel refund?",
+        description: "Cancel this refund. The refundable balance will be restored.",
+        confirmLabel: "Cancel refund",
       }))
     )
       return;
@@ -99,11 +87,10 @@ export function RefundDetailPage({ id }: RefundDetailPageProps) {
     setError(null);
     try {
       await api.cancelRefund(refund.id);
-      toast.success('Refund cancelled.');
+      toast.success("Refund cancelled.");
       await reload();
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : 'Failed to cancel refund';
+      const message = err instanceof Error ? err.message : "Failed to cancel refund";
       setError(message);
       toast.error(message);
     } finally {
@@ -115,10 +102,9 @@ export function RefundDetailPage({ id }: RefundDetailPageProps) {
     if (!refund) return;
     if (
       !(await confirm({
-        title: 'Archive refund?',
-        description:
-          'The refund will be removed from active records and can be restored later.',
-        confirmLabel: 'Archive',
+        title: "Archive refund?",
+        description: "The refund will be removed from active records and can be restored later.",
+        confirmLabel: "Archive",
       }))
     )
       return;
@@ -126,11 +112,10 @@ export function RefundDetailPage({ id }: RefundDetailPageProps) {
     setError(null);
     try {
       await api.archiveRefund(refund.id);
-      toast.success('Refund archived.');
-      navigate('/refunds');
+      toast.success("Refund archived.");
+      navigate("/refunds");
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : 'Failed to archive refund';
+      const message = err instanceof Error ? err.message : "Failed to archive refund";
       setError(message);
       toast.error(message);
     } finally {
@@ -139,40 +124,31 @@ export function RefundDetailPage({ id }: RefundDetailPageProps) {
   }
 
   if (loading) return <p className="text-muted-foreground">Loading...</p>;
-  if (!refund) return <p className="text-destructive">{error ?? 'Refund not found'}</p>;
+  if (!refund) return <p className="text-destructive">{error ?? "Refund not found"}</p>;
 
   const status = listItem?.status ?? null;
-  const canComplete = status?.code === 'APPROVED';
-  const canCancel = status?.code === 'APPROVED' || status?.code === 'PENDING';
+  const canComplete = status?.code === "APPROVED";
+  const canCancel = status?.code === "APPROVED" || status?.code === "PENDING";
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold tracking-tight">
-            {refund.refund_number}
-          </h1>
+          <h1 className="text-2xl font-bold tracking-tight">{refund.refund_number}</h1>
           <FinanceStatusBadge status={status} />
         </div>
         <div className="flex gap-2">
-          {can('FINANCE_REFUND_APPROVE') && canComplete && (
-            <Button
-              disabled={actionLoading}
-              onClick={() => void handleComplete()}
-            >
+          {can("FINANCE_REFUND_APPROVE") && canComplete && (
+            <Button disabled={actionLoading} onClick={() => void handleComplete()}>
               Complete
             </Button>
           )}
-          {can('FINANCE_REFUND_APPROVE') && canCancel && (
-            <Button
-              variant="outline"
-              disabled={actionLoading}
-              onClick={() => void handleCancel()}
-            >
+          {can("FINANCE_REFUND_APPROVE") && canCancel && (
+            <Button variant="outline" disabled={actionLoading} onClick={() => void handleCancel()}>
               Cancel refund
             </Button>
           )}
-          {can('FINANCE_DELETE') && (
+          {can("FINANCE_DELETE") && (
             <Button
               variant="destructive"
               disabled={actionLoading}
@@ -185,9 +161,7 @@ export function RefundDetailPage({ id }: RefundDetailPageProps) {
       </div>
 
       {error && (
-        <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-          {error}
-        </div>
+        <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>
       )}
 
       <Card>

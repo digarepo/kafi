@@ -1,37 +1,58 @@
-import { useState } from 'react';
-import type { ColumnDef } from '@tanstack/react-table';
-import { useLoaderData } from 'react-router';
-import { Badge, Card, CardContent, CardHeader, CardTitle } from '@kafi/ui';
-import { RequirePermission } from '../../core/permissions';
-import { DataTable } from '../../shared/data-table';
-import { textColumn } from '../../shared/data-table/columns';
-import { api, type PermissionGroup, type Role } from '../../lib/api.js';
+import { useEffect, useState } from "react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { useLoaderData } from "react-router";
+import { Loader } from "lucide-react";
+import { Badge, Card, CardContent, CardHeader, CardTitle } from "@kafi/ui";
+import { RequirePermission } from "../../core/permissions";
+import { DataTable } from "../../shared/data-table";
+import { textColumn } from "../../shared/data-table/columns";
+import { api, type PermissionGroup, type Role } from "../../lib/api.js";
 
 export function meta() {
-  return [{ title: 'Roles | Kafi Admin' }];
+  return [{ title: "Roles | Kafi Admin" }];
 }
 
 export async function clientLoader() {
-  const [roles, permissionsData] = await Promise.all([
-    api.listRoles(),
-    api.listPermissions(),
-  ]);
-  return { roles, permissions: permissionsData };
+  return { roles: [], permissions: {} as PermissionGroup };
 }
 
-export { RouteHydrateFallback as HydrateFallback } from '../../shared/route-hydrate-fallback';
+export { RouteHydrateFallback as HydrateFallback } from "../../shared/route-hydrate-fallback";
 
 export default function RolesPage() {
   const initial = useLoaderData<typeof clientLoader>();
-  const [roles] = useState<Role[]>(initial.roles);
-  const [permissions] = useState<PermissionGroup>(initial.permissions);
+  const [roles, setRoles] = useState<Role[]>(initial.roles);
+  const [permissions, setPermissions] = useState<PermissionGroup>(initial.permissions);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      try {
+        const [roleResult, permissionResult] = await Promise.all([
+          api.listRoles(),
+          api.listPermissions(),
+        ]);
+        if (!cancelled) {
+          setRoles(roleResult);
+          setPermissions(permissionResult);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const columns: ColumnDef<Role>[] = [
-    textColumn<Role>({ accessorKey: 'role_code', header: 'Code' }),
-    textColumn<Role>({ accessorKey: 'name', header: 'Name' }),
+    textColumn<Role>({ accessorKey: "role_code", header: "Code" }),
+    textColumn<Role>({ accessorKey: "name", header: "Name" }),
     {
-      id: 'system',
-      header: 'System',
+      id: "system",
+      header: "System",
       enableSorting: false,
       cell: ({ row }) =>
         row.original.is_system_role ? (
@@ -46,12 +67,8 @@ export default function RolesPage() {
     <RequirePermission permission="AUTH_MANAGE">
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            Roles & Permissions
-          </h1>
-          <p className="text-muted-foreground">
-            System roles and available permissions.
-          </p>
+          <h1 className="text-2xl font-bold tracking-tight">Roles & Permissions</h1>
+          <p className="text-muted-foreground">System roles and available permissions.</p>
         </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
@@ -60,7 +77,7 @@ export default function RolesPage() {
               <CardTitle>Roles</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              <DataTable columns={columns} data={roles} />
+              <DataTable columns={columns} data={roles} loading={loading} />
             </CardContent>
           </Card>
 
@@ -69,18 +86,24 @@ export default function RolesPage() {
               <CardTitle>Permissions</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {Object.entries(permissions).map(([module, items]) => (
-                <div key={module}>
-                  <h3 className="mb-2 text-sm font-semibold">{module}</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {items.map((permission) => (
-                      <Badge key={permission.id} variant="secondary">
-                        {permission.permission_code}
-                      </Badge>
-                    ))}
-                  </div>
+              {loading ? (
+                <div className="flex min-h-24 items-center justify-center">
+                  <Loader className="h-5 w-5 animate-spin" aria-label="Loading permissions" />
                 </div>
-              ))}
+              ) : (
+                Object.entries(permissions).map(([module, items]) => (
+                  <div key={module}>
+                    <h3 className="mb-2 text-sm font-semibold">{module}</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {items.map((permission) => (
+                        <Badge key={permission.id} variant="secondary">
+                          {permission.permission_code}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                ))
+              )}
             </CardContent>
           </Card>
         </div>

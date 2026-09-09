@@ -185,6 +185,164 @@ export class TravelGroupsService {
     return this.mapDetailRow(row, members);
   }
 
+  async syncPreparationStatus(id: string, actorId = 'SYSTEM') {
+    const group = await this.getTravelGroup(id);
+    if (!['PLANNING', 'PREPARING'].includes(group.status_code)) return group;
+
+    const [stays, segments] = await Promise.all([
+      this.db
+        .select({
+          id: schema.groupHotelStays.id,
+          city: schema.cities.name,
+          status: schema.groupHotelStayStatuses.status_code,
+        })
+        .from(schema.groupHotelStays)
+        .leftJoin(
+          schema.cities,
+          eq(schema.groupHotelStays.city_id, schema.cities.id),
+        )
+        .leftJoin(
+          schema.groupHotelStayStatuses,
+          eq(
+            schema.groupHotelStays.group_hotel_stay_status_id,
+            schema.groupHotelStayStatuses.id,
+          ),
+        )
+        .where(
+          and(
+            eq(schema.groupHotelStays.travel_group_id, id),
+            eq(schema.groupHotelStays.is_deleted, false),
+          ),
+        ),
+      this.db
+        .select({
+          origin: schema.transportSegments.origin_location,
+          destination: schema.transportSegments.destination_location,
+          status: schema.transportSegmentStatuses.status_code,
+        })
+        .from(schema.transportSegments)
+        .leftJoin(
+          schema.transportSegmentStatuses,
+          eq(
+            schema.transportSegments.transport_segment_status_id,
+            schema.transportSegmentStatuses.id,
+          ),
+        )
+        .where(
+          and(
+            eq(schema.transportSegments.travel_group_id, id),
+            eq(schema.transportSegments.is_deleted, false),
+          ),
+        ),
+    ]);
+
+    const confirmedStays = stays.filter((stay) => stay.status === 'CONFIRMED');
+    const cityNames = confirmedStays.map((stay) =>
+      (stay.city ?? '').toLowerCase(),
+    );
+    const hotelsReady =
+      cityNames.some(
+        (city) => city.includes('makkah') || city.includes('mecca'),
+      ) &&
+      cityNames.some(
+        (city) => city.includes('madinah') || city.includes('medina'),
+      );
+    const confirmedRoutes = segments
+      .filter((segment) => segment.status === 'CONFIRMED')
+      .map((segment) =>
+        `${segment.origin} ${segment.destination}`.toLowerCase(),
+      );
+    const routesReady = [
+      ['jeddah', 'madinah'],
+      ['madinah', 'ziyarah'],
+      ['madinah', 'makkah'],
+      ['makkah', 'ziyarah'],
+      ['makkah', 'jeddah'],
+    ].every(([origin, destination]) =>
+      confirmedRoutes.some(
+        (route) => route.includes(origin) && route.includes(destination),
+      ),
+    );
+    const logisticsReady = hotelsReady && routesReady;
+    const activeMembers = group.members.filter(
+      (member: any) => member.status_code === 'ACTIVE',
+    );
+    const confirmedStayIds = confirmedStays.map((stay) => stay.id);
+    const assignedRooms = confirmedStayIds.length
+      ? await this.db
+          .select({
+            membership_id: schema.roomAssignments.group_membership_id,
+            stay_id: schema.roomAssignments.group_hotel_stay_id,
+          })
+          .from(schema.roomAssignments)
+          .leftJoin(
+            schema.roomAssignmentStatuses,
+            eq(
+              schema.roomAssignments.room_assignment_status_id,
+              schema.roomAssignmentStatuses.id,
+            ),
+          )
+          .where(
+            and(
+              inArray(
+                schema.roomAssignments.group_hotel_stay_id,
+                confirmedStayIds,
+              ),
+              eq(schema.roomAssignmentStatuses.status_code, 'ASSIGNED'),
+              eq(schema.roomAssignments.is_active_assignment, true),
+              eq(schema.roomAssignments.is_deleted, false),
+            ),
+          )
+      : [];
+    const roomsComplete =
+      confirmedStayIds.length > 0 &&
+      activeMembers.length > 0 &&
+      activeMembers.every((member: any) =>
+        confirmedStayIds.every((stayId) =>
+          assignedRooms.some(
+            (room) =>
+              room.membership_id === member.id && room.stay_id === stayId,
+          ),
+        ),
+      );
+    const allMembersReady =
+      activeMembers.length > 0 &&
+      activeMembers.every(
+        (member: any) => member.registration_status_code === 'READY_FOR_TRAVEL',
+      );
+    const capacityFull = activeMembers.length >= group.maximum_capacity;
+
+    if (group.status_code === 'PLANNING' && logisticsReady) {
+      await this.updateStatus(id, 'PREPARING', actorId);
+      return this.getTravelGroup(id);
+    }
+
+    if (
+      group.status_code === 'PREPARING' &&
+      logisticsReady &&
+      allMembersReady &&
+      roomsComplete &&
+      capacityFull
+    ) {
+      await this.updateStatus(id, 'TRAVEL_PREPARED', actorId);
+      return this.getTravelGroup(id);
+    }
+
+    return group;
+  }
+
+  private async updateStatus(id: string, statusCode: string, actorId: string) {
+    const statusId = await this.statusIdFor(statusCode);
+    await this.db
+      .update(schema.travelGroups)
+      .set({
+        travel_group_status_id: statusId,
+        updated_at: new Date(),
+        updated_by: actorId,
+      })
+      .where(eq(schema.travelGroups.id, id));
+  }
+
   async listStatuses() {
     const rows = await this.db
       .select({
@@ -400,7 +558,7 @@ export class TravelGroupsService {
 
   async confirmTravelPrepared(id: string, actorId: string) {
     const group = await this.getTravelGroup(id);
-    if (group.status_code !== 'PLANNING') {
+    if (group.status_code !== 'PREPARING') {
       throw new ConflictException(
         `Cannot confirm travel prepared from ${group.status_code}`,
       );
@@ -415,40 +573,8 @@ export class TravelGroupsService {
       );
     }
 
-    for (const m of activeMembers) {
-      if (m.registration_status_code !== 'READY_FOR_TRAVEL') {
-        throw new ConflictException(
-          'All active members must be READY_FOR_TRAVEL',
-        );
-      }
-    }
-
-    const confirmedHotel = await this.hasConfirmedHotelStay(id);
-    if (!confirmedHotel) {
-      throw new ConflictException('A confirmed group hotel stay is required');
-    }
-
-    // Transport is NOT a hard blocker for TRAVEL_PREPARED. It remains visible
-    // as an informational/warning item in the preparation summary so staff
-    // know it still needs to be arranged, but it does not prevent the group
-    // from being marked travel-prepared.
-
-    // Every active member must have a room assignment in EVERY confirmed stay.
-    const confirmedStayIds = await this.confirmedStayIdsForGroup(id);
-    for (const stayId of confirmedStayIds) {
-      for (const m of activeMembers) {
-        const assigned = await this.hasActiveRoomAssignmentForStay(
-          m.id,
-          stayId,
-        );
-        if (!assigned) {
-          throw new ConflictException(
-            `Active member ${m.id} does not have an assigned room in stay ${stayId}`,
-          );
-        }
-      }
-    }
-
+    // This is an explicit staff override. Preparation warnings are shown in
+    // the Admin confirmation dialog, but they do not block operational progress.
     const statusId = await this.statusIdFor('TRAVEL_PREPARED');
     await this.db
       .update(schema.travelGroups)
@@ -852,6 +978,15 @@ export class TravelGroupsService {
             id: row.travellers.id,
             first_name: row.travellers.first_name,
             last_name: row.travellers.last_name,
+            full_name: [
+              row.travellers.first_name,
+              row.travellers.middle_name,
+              row.travellers.last_name,
+            ]
+              .filter(Boolean)
+              .join(' '),
+            traveller_number: row.travellers.traveller_number,
+            phone_number: row.travellers.phone_number,
           }
         : null,
       status: row.group_membership_statuses

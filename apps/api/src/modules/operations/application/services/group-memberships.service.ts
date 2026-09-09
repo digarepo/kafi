@@ -4,20 +4,20 @@ import {
   Inject,
   Injectable,
   NotFoundException,
-} from "@nestjs/common";
-import { MySql2Database } from "drizzle-orm/mysql2";
-import { and, asc, eq, sql } from "drizzle-orm";
-import { ulid } from "ulid";
-import { DATABASE } from "../../../../shared/infrastructure/database/database.provider.js";
-import * as schema from "@kafi/database";
+} from '@nestjs/common';
+import { MySql2Database } from 'drizzle-orm/mysql2';
+import { and, asc, eq, sql } from 'drizzle-orm';
+import { ulid } from 'ulid';
+import { DATABASE } from '../../../../shared/infrastructure/database/database.provider.js';
+import * as schema from '@kafi/database';
 import {
   CreateGroupMembershipDto,
   GroupMembershipFiltersDto,
   TransferGroupMembershipDto,
   UpdateGroupMembershipStatusDto,
   WaiveGuaranteeDto,
-} from "../dto/operations.dto.js";
-import { RoomAssignmentsService } from "./room-assignments.service.js";
+} from '../dto/operations.dto.js';
+import { RoomAssignmentsService } from './room-assignments.service.js';
 
 /**
  * Group membership lifecycle, capacity enforcement, transfers, and guarantee
@@ -31,18 +31,26 @@ export class GroupMembershipsService {
   constructor(
     @Inject(DATABASE)
     private readonly db: MySql2Database<typeof schema>,
-    private readonly roomAssignments: RoomAssignmentsService
+    private readonly roomAssignments: RoomAssignmentsService,
   ) {}
 
   // ---- List / view ----
 
-  async listMembershipsForGroup(groupId: string, filters: GroupMembershipFiltersDto) {
+  async listMembershipsForGroup(
+    groupId: string,
+    filters: GroupMembershipFiltersDto,
+  ) {
     const conditions = [
       eq(schema.groupMemberships.travel_group_id, groupId),
       eq(schema.groupMemberships.is_deleted, false),
     ];
     if (filters.status_id) {
-      conditions.push(eq(schema.groupMemberships.group_membership_status_id, filters.status_id));
+      conditions.push(
+        eq(
+          schema.groupMemberships.group_membership_status_id,
+          filters.status_id,
+        ),
+      );
     }
 
     const [rows, count] = await Promise.all([
@@ -51,13 +59,19 @@ export class GroupMembershipsService {
         .from(schema.groupMemberships)
         .leftJoin(
           schema.groupMembershipStatuses,
-          eq(schema.groupMemberships.group_membership_status_id, schema.groupMembershipStatuses.id)
+          eq(
+            schema.groupMemberships.group_membership_status_id,
+            schema.groupMembershipStatuses.id,
+          ),
         )
         .leftJoin(
           schema.registrations,
-          eq(schema.groupMemberships.registration_id, schema.registrations.id)
+          eq(schema.groupMemberships.registration_id, schema.registrations.id),
         )
-        .leftJoin(schema.travellers, eq(schema.registrations.traveller_id, schema.travellers.id))
+        .leftJoin(
+          schema.travellers,
+          eq(schema.registrations.traveller_id, schema.travellers.id),
+        )
         .where(and(...conditions))
         .orderBy(asc(schema.groupMemberships.joined_at))
         .limit(filters.page_size)
@@ -68,8 +82,8 @@ export class GroupMembershipsService {
         .where(
           and(
             eq(schema.groupMemberships.travel_group_id, groupId),
-            eq(schema.groupMemberships.is_deleted, false)
-          )
+            eq(schema.groupMemberships.is_deleted, false),
+          ),
         )
         .then((r) => r[0]?.count ?? 0),
     ]);
@@ -88,25 +102,39 @@ export class GroupMembershipsService {
       .from(schema.groupMemberships)
       .leftJoin(
         schema.groupMembershipStatuses,
-        eq(schema.groupMemberships.group_membership_status_id, schema.groupMembershipStatuses.id)
+        eq(
+          schema.groupMemberships.group_membership_status_id,
+          schema.groupMembershipStatuses.id,
+        ),
       )
       .leftJoin(
         schema.travelGroups,
-        eq(schema.groupMemberships.travel_group_id, schema.travelGroups.id)
+        eq(schema.groupMemberships.travel_group_id, schema.travelGroups.id),
       )
       .leftJoin(
         schema.registrations,
-        eq(schema.groupMemberships.registration_id, schema.registrations.id)
+        eq(schema.groupMemberships.registration_id, schema.registrations.id),
       )
       .leftJoin(
         schema.registrationStatuses,
-        eq(schema.registrations.registration_status_id, schema.registrationStatuses.id)
+        eq(
+          schema.registrations.registration_status_id,
+          schema.registrationStatuses.id,
+        ),
       )
-      .leftJoin(schema.travellers, eq(schema.registrations.traveller_id, schema.travellers.id))
-      .where(and(eq(schema.groupMemberships.id, id), eq(schema.groupMemberships.is_deleted, false)))
+      .leftJoin(
+        schema.travellers,
+        eq(schema.registrations.traveller_id, schema.travellers.id),
+      )
+      .where(
+        and(
+          eq(schema.groupMemberships.id, id),
+          eq(schema.groupMemberships.is_deleted, false),
+        ),
+      )
       .limit(1);
 
-    if (!row) throw new NotFoundException("Group membership not found");
+    if (!row) throw new NotFoundException('Group membership not found');
     return this.mapRow(row);
   }
 
@@ -129,21 +157,21 @@ export class GroupMembershipsService {
     const group = await this.requireAssignableGroup(dto.travel_group_id);
 
     const registration = await this.findRegistration(dto.registration_id);
-    if (!registration) throw new NotFoundException("Registration not found");
-    if (registration.status_code !== "READY_FOR_TRAVEL") {
+    if (!registration) throw new NotFoundException('Registration not found');
+    if (registration.status_code !== 'READY_FOR_TRAVEL') {
       throw new ConflictException(
-        "Registration must be READY_FOR_TRAVEL to be assigned to a travel group"
+        'Registration must be READY_FOR_TRAVEL to be assigned to a travel group',
       );
     }
     if (registration.package_version_id !== group.package_version_id) {
       throw new ConflictException(
-        "Registration package version must match the travel group package version"
+        'Registration package version must match the travel group package version',
       );
     }
     await this.assertNoActiveMembershipForRegistration(dto.registration_id);
     await this.assertCapacityAvailable(group.id, group.maximum_capacity);
 
-    const activeStatus = await this.statusFor("ACTIVE");
+    const activeStatus = await this.statusFor('ACTIVE');
 
     // Guarantee is established at registration intake. Group assignment must
     // not be where staff complete registration requirements; the registration
@@ -170,14 +198,18 @@ export class GroupMembershipsService {
     return this.getMembership(id);
   }
 
-  async updateMembershipStatus(id: string, dto: UpdateGroupMembershipStatusDto, actorId: string) {
+  async updateMembershipStatus(
+    id: string,
+    dto: UpdateGroupMembershipStatusDto,
+    actorId: string,
+  ) {
     const membership = await this.getMembership(id);
     const newStatus = await this.getStatus(dto.group_membership_status_id);
 
     const allowed = this.allowedTransitions(membership.status_code);
     if (!allowed.includes(newStatus.status_code)) {
       throw new BadRequestException(
-        `Cannot transition from ${membership.status_code} to ${newStatus.status_code}`
+        `Cannot transition from ${membership.status_code} to ${newStatus.status_code}`,
       );
     }
 
@@ -186,13 +218,15 @@ export class GroupMembershipsService {
     // prepared/departed/completed group would corrupt readiness calculations
     // and historical records.
     if (
-      ["CANCELLED", "TRANSFERRED"].includes(newStatus.status_code) &&
+      ['CANCELLED', 'TRANSFERRED'].includes(newStatus.status_code) &&
       membership.travel_group_id
     ) {
       await this.assertGroupAllowsMembershipChange(membership.travel_group_id);
     }
 
-    const isTerminal = ["CANCELLED", "COMPLETED", "TRANSFERRED"].includes(newStatus.status_code);
+    const isTerminal = ['CANCELLED', 'COMPLETED', 'TRANSFERRED'].includes(
+      newStatus.status_code,
+    );
 
     // Release all active room assignments when a membership becomes inactive.
     // This prevents orphaned assignments that would inflate room occupancy.
@@ -213,29 +247,35 @@ export class GroupMembershipsService {
     return this.getMembership(id);
   }
 
-  async transferMembership(id: string, dto: TransferGroupMembershipDto, actorId: string) {
+  async transferMembership(
+    id: string,
+    dto: TransferGroupMembershipDto,
+    actorId: string,
+  ) {
     const old = await this.getMembership(id);
-    if (old.status_code !== "ACTIVE") {
-      throw new ConflictException("Only active memberships can be transferred");
+    if (old.status_code !== 'ACTIVE') {
+      throw new ConflictException('Only active memberships can be transferred');
     }
-    if (old.registration_status_code !== "READY_FOR_TRAVEL") {
+    if (old.registration_status_code !== 'READY_FOR_TRAVEL') {
       throw new ConflictException(
-        "Registration must be READY_FOR_TRAVEL to be assigned to a travel group"
+        'Registration must be READY_FOR_TRAVEL to be assigned to a travel group',
       );
     }
 
-    const target = await this.requireAssignableGroup(dto.target_travel_group_id);
+    const target = await this.requireAssignableGroup(
+      dto.target_travel_group_id,
+    );
     if (target.id === old.travel_group_id) {
-      throw new BadRequestException("Cannot transfer to the same group");
+      throw new BadRequestException('Cannot transfer to the same group');
     }
 
     const registration = await this.findRegistration(old.registration_id);
     if (!registration) {
-      throw new NotFoundException("Registration not found");
+      throw new NotFoundException('Registration not found');
     }
     if (registration.package_version_id !== target.package_version_id) {
       throw new ConflictException(
-        "Registration package version must match the target travel group package version"
+        'Registration package version must match the target travel group package version',
       );
     }
 
@@ -252,8 +292,8 @@ export class GroupMembershipsService {
     // retain their original group attribution for accurate profitability
     // reporting per group.
 
-    const transferredStatus = await this.statusFor("TRANSFERRED");
-    const activeStatus = await this.statusFor("ACTIVE");
+    const transferredStatus = await this.statusFor('TRANSFERRED');
+    const activeStatus = await this.statusFor('ACTIVE');
     const newId = ulid();
     const now = new Date();
 
@@ -315,7 +355,7 @@ export class GroupMembershipsService {
     if (membership.travel_group_id) {
       await this.assertGroupAllowsMembershipChange(membership.travel_group_id);
     }
-    const cancelled = await this.statusFor("CANCELLED");
+    const cancelled = await this.statusFor('CANCELLED');
     await this.db
       .update(schema.groupMemberships)
       .set({
@@ -337,16 +377,27 @@ export class GroupMembershipsService {
       .from(schema.travelGroups)
       .leftJoin(
         schema.travelGroupStatuses,
-        eq(schema.travelGroups.travel_group_status_id, schema.travelGroupStatuses.id)
+        eq(
+          schema.travelGroups.travel_group_status_id,
+          schema.travelGroupStatuses.id,
+        ),
       )
-      .where(and(eq(schema.travelGroups.id, groupId), eq(schema.travelGroups.is_deleted, false)))
+      .where(
+        and(
+          eq(schema.travelGroups.id, groupId),
+          eq(schema.travelGroups.is_deleted, false),
+        ),
+      )
       .limit(1);
 
-    if (!row) throw new NotFoundException("Travel group not found");
+    if (!row) throw new NotFoundException('Travel group not found');
     const status = row.travel_group_statuses?.status_code;
-    if (!status || ["DEPARTED", "COMPLETED", "CANCELLED"].includes(status)) {
+    if (
+      !status ||
+      ['TRAVEL_PREPARED', 'DEPARTED', 'COMPLETED', 'CANCELLED'].includes(status)
+    ) {
       throw new ConflictException(
-        "Registrations cannot be assigned to a departed, completed, or cancelled group"
+        'Registrations cannot be assigned to a departed, completed, or cancelled group',
       );
     }
     return row.travel_groups;
@@ -362,15 +413,25 @@ export class GroupMembershipsService {
       .from(schema.registrations)
       .innerJoin(
         schema.registrationStatuses,
-        eq(schema.registrations.registration_status_id, schema.registrationStatuses.id)
+        eq(
+          schema.registrations.registration_status_id,
+          schema.registrationStatuses.id,
+        ),
       )
-      .where(and(eq(schema.registrations.id, id), eq(schema.registrations.is_deleted, false)))
+      .where(
+        and(
+          eq(schema.registrations.id, id),
+          eq(schema.registrations.is_deleted, false),
+        ),
+      )
       .limit(1);
     return row;
   }
 
-  private async assertNoActiveMembershipForRegistration(registrationId: string) {
-    const active = await this.statusFor("ACTIVE");
+  private async assertNoActiveMembershipForRegistration(
+    registrationId: string,
+  ) {
+    const active = await this.statusFor('ACTIVE');
     const [existing] = await this.db
       .select()
       .from(schema.groupMemberships)
@@ -378,17 +439,19 @@ export class GroupMembershipsService {
         and(
           eq(schema.groupMemberships.registration_id, registrationId),
           eq(schema.groupMemberships.group_membership_status_id, active.id),
-          eq(schema.groupMemberships.is_deleted, false)
-        )
+          eq(schema.groupMemberships.is_deleted, false),
+        ),
       )
       .limit(1);
     if (existing) {
-      throw new ConflictException("Registration already has an active group membership");
+      throw new ConflictException(
+        'Registration already has an active group membership',
+      );
     }
   }
 
   private async assertCapacityAvailable(groupId: string, maximum: number) {
-    const active = await this.statusFor("ACTIVE");
+    const active = await this.statusFor('ACTIVE');
     const [row] = await this.db
       .select({ count: sql<number>`count(*)` })
       .from(schema.groupMemberships)
@@ -396,11 +459,13 @@ export class GroupMembershipsService {
         and(
           eq(schema.groupMemberships.travel_group_id, groupId),
           eq(schema.groupMemberships.group_membership_status_id, active.id),
-          eq(schema.groupMemberships.is_deleted, false)
-        )
+          eq(schema.groupMemberships.is_deleted, false),
+        ),
       );
     if (row.count >= maximum) {
-      throw new ConflictException("Travel group has reached its maximum capacity");
+      throw new ConflictException(
+        'Travel group has reached its maximum capacity',
+      );
     }
   }
 
@@ -417,15 +482,23 @@ export class GroupMembershipsService {
       .from(schema.travelGroups)
       .innerJoin(
         schema.travelGroupStatuses,
-        eq(schema.travelGroups.travel_group_status_id, schema.travelGroupStatuses.id)
+        eq(
+          schema.travelGroups.travel_group_status_id,
+          schema.travelGroupStatuses.id,
+        ),
       )
-      .where(and(eq(schema.travelGroups.id, groupId), eq(schema.travelGroups.is_deleted, false)))
+      .where(
+        and(
+          eq(schema.travelGroups.id, groupId),
+          eq(schema.travelGroups.is_deleted, false),
+        ),
+      )
       .limit(1);
 
-    const protectedStates = ["TRAVEL_PREPARED", "DEPARTED", "COMPLETED"];
+    const protectedStates = ['TRAVEL_PREPARED', 'DEPARTED', 'COMPLETED'];
     if (row && protectedStates.includes(row.status_code)) {
       throw new ConflictException(
-        `Cannot remove a membership from a ${row.status_code} travel group`
+        `Cannot remove a membership from a ${row.status_code} travel group`,
       );
     }
   }
@@ -436,7 +509,8 @@ export class GroupMembershipsService {
       .from(schema.groupMembershipStatuses)
       .where(eq(schema.groupMembershipStatuses.status_code, code))
       .limit(1);
-    if (!row) throw new BadRequestException(`Membership status ${code} not found`);
+    if (!row)
+      throw new BadRequestException(`Membership status ${code} not found`);
     return row;
   }
 
@@ -446,13 +520,13 @@ export class GroupMembershipsService {
       .from(schema.groupMembershipStatuses)
       .where(eq(schema.groupMembershipStatuses.id, id))
       .limit(1);
-    if (!row) throw new NotFoundException("Group membership status not found");
+    if (!row) throw new NotFoundException('Group membership status not found');
     return row;
   }
 
   private allowedTransitions(from: string): string[] {
     const map: Record<string, string[]> = {
-      ACTIVE: ["CANCELLED", "COMPLETED", "TRANSFERRED"],
+      ACTIVE: ['CANCELLED', 'COMPLETED', 'TRANSFERRED'],
       CANCELLED: [],
       COMPLETED: [],
       TRANSFERRED: [],
@@ -475,7 +549,9 @@ export class GroupMembershipsService {
       travel_group: group
         ? { id: group.id, name: group.name, group_number: group.group_number }
         : null,
-      registration: reg ? { id: reg.id, registration_number: reg.registration_number } : null,
+      registration: reg
+        ? { id: reg.id, registration_number: reg.registration_number }
+        : null,
       registration_status: regStatus
         ? {
             id: regStatus.id,
@@ -491,11 +567,14 @@ export class GroupMembershipsService {
             last_name: traveller.last_name,
           }
         : null,
-      status: status ? { id: status.id, status_code: status.status_code, name: status.name } : null,
+      status: status
+        ? { id: status.id, status_code: status.status_code, name: status.name }
+        : null,
       status_code: status?.status_code ?? null,
       joined_at: m.joined_at,
       left_at: m.left_at,
-      transferred_from_group_membership_id: m.transferred_from_group_membership_id,
+      transferred_from_group_membership_id:
+        m.transferred_from_group_membership_id,
       guarantee_required: m.guarantee_required,
       guarantee_waived: m.guarantee_waived,
       guarantee_waived_by: m.guarantee_waived_by,

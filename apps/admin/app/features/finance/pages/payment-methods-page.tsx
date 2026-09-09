@@ -21,7 +21,7 @@ import type { PaymentMethodFormOutput } from '../types/finance.types';
 export function PaymentMethodsPage() {
   const { can } = usePermissions();
   const [methods, setMethods] = useState<PaymentMethod[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [globalFilter, setGlobalFilter] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
   const [editingMethod, setEditingMethod] = useState<PaymentMethod | null>(
@@ -245,6 +245,7 @@ export function PaymentMethodsPage() {
         globalFilter={globalFilter}
         onGlobalFilterChange={setGlobalFilter}
         hidePagination
+        onRowClick={(m) => can('FINANCE_EDIT') && setEditingMethod(m)}
       />
     </div>
   );

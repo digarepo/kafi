@@ -1,8 +1,21 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { and, count, eq, gte, isNull, lt, ne, not, or, sql } from 'drizzle-orm';
+import {
+  and,
+  count,
+  eq,
+  gte,
+  inArray,
+  isNull,
+  lt,
+  ne,
+  not,
+  or,
+  sql,
+} from 'drizzle-orm';
 import { MySql2Database } from 'drizzle-orm/mysql2';
 import { DATABASE } from '../../../../shared/infrastructure/database/database.provider.js';
 import * as schema from '@kafi/database';
+import { calculateDepartureCompliance } from '../../../../shared/domain/departure-compliance.js';
 
 /**
  * Thin read-only aggregation service for the staff dashboard.
@@ -49,6 +62,7 @@ export class DashboardService {
     ];
 
     const results = await Promise.all(queries);
+    const departureMonitoring = await this.getDepartureMonitoring();
     this._lastTimings.total = Math.round(performance.now() - t0);
 
     this.logger.log(`[dashboard] ${JSON.stringify(this._lastTimings)}`);
@@ -61,7 +75,116 @@ export class DashboardService {
       groups_requiring_preparation: results[4],
       groups_ready_to_depart: results[5],
       upcoming_departures: results[6],
+      departure_monitoring: departureMonitoring,
       generated_at: new Date().toISOString(),
+    };
+  }
+
+  /** Returns the compact departure-risk projection used by the dashboard. */
+  private async getDepartureMonitoring() {
+    const rows = await this.db
+      .select({
+        id: schema.registrations.id,
+        registration_number: schema.registrations.registration_number,
+        actual_return_date: schema.registrations.actual_return_date,
+        amended_return_date: schema.registrations.amended_return_date,
+        traveller_name: sql<string>`concat(${schema.travellers.first_name}, ' ', ${schema.travellers.last_name})`,
+        visa_expiry_date: schema.visaApplications.expiry_date,
+        return_date: schema.flightBookings.return_date,
+      })
+      .from(schema.registrations)
+      .innerJoin(
+        schema.registrationStatuses,
+        eq(
+          schema.registrations.registration_status_id,
+          schema.registrationStatuses.id,
+        ),
+      )
+      .innerJoin(
+        schema.visaApplications,
+        and(
+          eq(schema.visaApplications.registration_id, schema.registrations.id),
+          eq(schema.visaApplications.is_deleted, false),
+        ),
+      )
+      .innerJoin(
+        schema.visaApplicationStatuses,
+        and(
+          eq(
+            schema.visaApplications.visa_application_status_id,
+            schema.visaApplicationStatuses.id,
+          ),
+          eq(schema.visaApplicationStatuses.status_code, 'APPROVED'),
+        ),
+      )
+      .innerJoin(
+        schema.travellers,
+        eq(schema.registrations.traveller_id, schema.travellers.id),
+      )
+      .leftJoin(
+        schema.flightBookings,
+        and(
+          eq(schema.flightBookings.registration_id, schema.registrations.id),
+          eq(schema.flightBookings.is_deleted, false),
+        ),
+      )
+      .leftJoin(
+        schema.flightBookingStatuses,
+        eq(
+          schema.flightBookings.flight_booking_status_id,
+          schema.flightBookingStatuses.id,
+        ),
+      )
+      .where(
+        and(
+          eq(schema.registrations.is_deleted, false),
+          inArray(schema.registrationStatuses.status_code, [
+            'PROCESSING',
+            'READY_FOR_TRAVEL',
+          ]),
+          or(
+            eq(schema.flightBookingStatuses.status_code, 'CONFIRMED'),
+            isNull(schema.flightBookings.id),
+          ),
+        ),
+      );
+
+    const uniqueRows = new Map<string, (typeof rows)[number]>();
+    for (const row of rows) uniqueRows.set(row.id, row);
+
+    const items = [...uniqueRows.values()].map((row) => ({
+      registration_id: row.id,
+      registration_number: row.registration_number,
+      traveller_name: row.traveller_name.trim(),
+      compliance: calculateDepartureCompliance({
+        visaExpiryDate: row.visa_expiry_date,
+        plannedDepartureDate: row.amended_return_date ?? row.return_date,
+        actualDepartureDate: row.actual_return_date,
+      }),
+    }));
+
+    return {
+      overdue: items.filter((item) => item.compliance.status === 'OVERDUE')
+        .length,
+      due_today: items.filter((item) => item.compliance.status === 'DUE_TODAY')
+        .length,
+      due_within_seven_days: items.filter((item) =>
+        ['DUE_SOON', 'DUE_TODAY'].includes(item.compliance.status),
+      ).length,
+      visa_expires_before_return: items.filter(
+        (item) => item.compliance.status === 'VISA_EXPIRES_BEFORE_RETURN',
+      ).length,
+      missing_return_flight: items.filter(
+        (item) => item.compliance.status === 'NO_RETURN_FLIGHT',
+      ).length,
+      items: items
+        .filter((item) => item.compliance.status !== 'ON_SCHEDULE')
+        .sort(
+          (a, b) =>
+            (a.compliance.days_remaining ?? Number.POSITIVE_INFINITY) -
+            (b.compliance.days_remaining ?? Number.POSITIVE_INFINITY),
+        )
+        .slice(0, 10),
     };
   }
 

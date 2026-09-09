@@ -57,11 +57,14 @@ export class TravelGroupOperationalSummaryService {
     private readonly invoices: InvoicesService,
   ) {}
 
-  async getOperationalSummary(travelGroupId: string) {
+  async getOperationalSummary(travelGroupId: string, autoTransition = true) {
     // Auto-transition the group status based on departure/return dates
     // before building the summary. This replaces manual Depart/Complete
     // button clicks — the status updates automatically when the dates arrive.
-    await this.travelGroups.autoTransitionByDates(travelGroupId);
+    if (autoTransition) {
+      await this.travelGroups.autoTransitionByDates(travelGroupId);
+    }
+    await this.travelGroups.syncPreparationStatus(travelGroupId);
 
     const group = await this.travelGroups.getTravelGroup(travelGroupId);
     if (!group) {
@@ -171,6 +174,9 @@ export class TravelGroupOperationalSummaryService {
     if (!accommodationReady) {
       preparationBlockers.push('ROOM_ASSIGNMENTS_INCOMPLETE');
     }
+    if (activeMembers.length < group.maximum_capacity) {
+      preparationBlockers.push('CAPACITY_NOT_FULL');
+    }
 
     // Transport is NOT a hard blocker for TRAVEL_PREPARED. It is tracked as
     // an informational warning so staff know it still needs to be arranged.
@@ -180,7 +186,7 @@ export class TravelGroupOperationalSummaryService {
     }
 
     const canConfirmTravelPrepared =
-      group.status_code === 'PLANNING' && preparationBlockers.length === 0;
+      group.status_code === 'PREPARING' && activeMembers.length > 0;
     const readyToDepart =
       (group.status_code === 'PLANNING' ||
         group.status_code === 'TRAVEL_PREPARED') &&
@@ -342,6 +348,10 @@ export class TravelGroupOperationalSummaryService {
         eq(schema.transportSegments.vendor_id, schema.vendors.id),
       )
       .leftJoin(
+        schema.vehicleTypes,
+        eq(schema.transportSegments.vehicle_type_id, schema.vehicleTypes.id),
+      )
+      .leftJoin(
         schema.transportSegmentStatuses,
         eq(
           schema.transportSegments.transport_segment_status_id,
@@ -363,6 +373,16 @@ export class TravelGroupOperationalSummaryService {
       id: row.transport_segments.id,
       transport_segment_number: row.transport_segments.transport_segment_number,
       transport_type: row.transport_segments.transport_type,
+      vehicle_type_id: row.transport_segments.vehicle_type_id,
+      vehicle_type: row.vehicle_types
+        ? {
+            id: row.vehicle_types.id,
+            type_code: row.vehicle_types.type_code,
+            name: row.vehicle_types.name,
+          }
+        : null,
+      vehicle_plate_number: row.transport_segments.vehicle_plate_number,
+      transport_cost: row.transport_segments.transport_cost,
       segment_order: row.transport_segments.segment_order,
       origin_location: row.transport_segments.origin_location,
       destination_location: row.transport_segments.destination_location,

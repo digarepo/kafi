@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router";
 import {
   Button,
   Card,
@@ -14,45 +14,40 @@ import {
   DialogTitle,
   Label,
   Textarea,
-} from '@kafi/ui';
-import { toast } from 'sonner';
+} from "@kafi/ui";
+import { toast } from "sonner";
 
-import { usePermissions } from '../../../core/permissions';
-import { useDestructiveConfirmation } from '../../../shared/delete-dialog';
-import { FinanceStatusBadge } from '../../../shared/finance-status';
-import { formatMoney } from '../../../shared/format';
-import { displayDate } from '../../operations/lib/date';
+import { usePermissions } from "../../../core/permissions";
+import { useDestructiveConfirmation } from "../../../shared/delete-dialog";
+import { FinanceStatusBadge } from "../../../shared/finance-status";
+import { formatMoney } from "../../../shared/format";
+import { displayDate } from "../../operations/lib/date";
 import {
   api,
   type CreditExceptionRequest,
   type CreditExceptionRequestListItem,
-} from '../../../lib/api.js';
+} from "../../../lib/api.js";
 
 interface CreditExceptionRequestDetailPageProps {
   id: string;
 }
 
-export function CreditExceptionRequestDetailPage({
-  id,
-}: CreditExceptionRequestDetailPageProps) {
+export function CreditExceptionRequestDetailPage({ id }: CreditExceptionRequestDetailPageProps) {
   const { can } = usePermissions();
   const { confirm } = useDestructiveConfirmation();
   const navigate = useNavigate();
   const [request, setRequest] = useState<CreditExceptionRequest | null>(null);
-  const [listItem, setListItem] =
-    useState<CreditExceptionRequestListItem | null>(null);
+  const [listItem, setListItem] = useState<CreditExceptionRequestListItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [rejectOpen, setRejectOpen] = useState(false);
-  const [rejectionReason, setRejectionReason] = useState('');
+  const [rejectionReason, setRejectionReason] = useState("");
 
   async function reload() {
     const [detail, list] = await Promise.all([
       api.getCreditExceptionRequest(id),
-      api
-        .listCreditExceptionRequests(1, 100)
-        .then((res) => res.data.find((r) => r.id === id)),
+      api.listCreditExceptionRequests(1, 100).then((res) => res.data.find((r) => r.id === id)),
     ]);
     setRequest(detail);
     setListItem(list ?? null);
@@ -64,9 +59,7 @@ export function CreditExceptionRequestDetailPage({
       try {
         await reload();
       } catch (err) {
-        setError(
-          err instanceof Error ? err.message : 'Failed to load request',
-        );
+        setError(err instanceof Error ? err.message : "Failed to load request");
       } finally {
         setLoading(false);
       }
@@ -78,10 +71,10 @@ export function CreditExceptionRequestDetailPage({
     if (!request) return;
     if (
       !(await confirm({
-        title: 'Approve credit exception request?',
+        title: "Approve credit exception request?",
         description:
-          'An ACTIVE finance exception will be created for this registration, satisfying the payment readiness gate.',
-        confirmLabel: 'Approve',
+          "An ACTIVE finance exception will be created for this registration, satisfying the payment readiness gate.",
+        confirmLabel: "Approve",
       }))
     )
       return;
@@ -89,11 +82,10 @@ export function CreditExceptionRequestDetailPage({
     setError(null);
     try {
       await api.approveCreditExceptionRequest(request.id);
-      toast.success('Credit exception request approved.');
+      toast.success("Credit exception request approved.");
       await reload();
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : 'Failed to approve request';
+      const message = err instanceof Error ? err.message : "Failed to approve request";
       setError(message);
       toast.error(message);
     } finally {
@@ -109,13 +101,12 @@ export function CreditExceptionRequestDetailPage({
       await api.rejectCreditExceptionRequest(request.id, {
         rejection_reason: rejectionReason,
       });
-      toast.success('Credit exception request rejected.');
+      toast.success("Credit exception request rejected.");
       setRejectOpen(false);
-      setRejectionReason('');
+      setRejectionReason("");
       await reload();
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : 'Failed to reject request';
+      const message = err instanceof Error ? err.message : "Failed to reject request";
       setError(message);
       toast.error(message);
     } finally {
@@ -127,10 +118,9 @@ export function CreditExceptionRequestDetailPage({
     if (!request) return;
     if (
       !(await confirm({
-        title: 'Archive credit exception request?',
-        description:
-          'The request will be removed from active records and can be restored later.',
-        confirmLabel: 'Archive',
+        title: "Archive credit exception request?",
+        description: "The request will be removed from active records and can be restored later.",
+        confirmLabel: "Archive",
       }))
     )
       return;
@@ -138,11 +128,10 @@ export function CreditExceptionRequestDetailPage({
     setError(null);
     try {
       await api.archiveCreditExceptionRequest(request.id);
-      toast.success('Request archived.');
-      navigate('/credit-exception-requests');
+      toast.success("Request archived.");
+      navigate("/credit-exception-requests");
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : 'Failed to archive request';
+      const message = err instanceof Error ? err.message : "Failed to archive request";
       setError(message);
       toast.error(message);
     } finally {
@@ -151,28 +140,22 @@ export function CreditExceptionRequestDetailPage({
   }
 
   if (loading) return <p className="text-muted-foreground">Loading...</p>;
-  if (!request)
-    return <p className="text-destructive">{error ?? 'Request not found'}</p>;
+  if (!request) return <p className="text-destructive">{error ?? "Request not found"}</p>;
 
   const status = listItem?.status ?? null;
-  const isPending = status?.code === 'PENDING';
+  const isPending = status?.code === "PENDING";
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold tracking-tight">
-            {request.request_number}
-          </h1>
+          <h1 className="text-2xl font-bold tracking-tight">{request.request_number}</h1>
           <FinanceStatusBadge status={status} />
         </div>
         <div className="flex gap-2">
-          {can('FINANCE_CREDIT_AUTHORIZE') && isPending && (
+          {can("FINANCE_CREDIT_AUTHORIZE") && isPending && (
             <>
-              <Button
-                disabled={actionLoading}
-                onClick={() => void handleApprove()}
-              >
+              <Button disabled={actionLoading} onClick={() => void handleApprove()}>
                 Approve
               </Button>
               <Button
@@ -184,7 +167,7 @@ export function CreditExceptionRequestDetailPage({
               </Button>
             </>
           )}
-          {can('FINANCE_DELETE') && (
+          {can("FINANCE_DELETE") && (
             <Button
               variant="destructive"
               disabled={actionLoading}
@@ -197,9 +180,7 @@ export function CreditExceptionRequestDetailPage({
       </div>
 
       {error && (
-        <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-          {error}
-        </div>
+        <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>
       )}
 
       <Card>
@@ -217,21 +198,13 @@ export function CreditExceptionRequestDetailPage({
             </Link>
           </div>
           <div>
-            <p className="text-sm text-muted-foreground">
-              Requested amount
-            </p>
-            <p className="font-medium">
-              {formatMoney(request.requested_amount)}
-            </p>
+            <p className="text-sm text-muted-foreground">Requested amount</p>
+            <p className="font-medium">{formatMoney(request.requested_amount)}</p>
           </div>
           <div>
-            <p className="text-sm text-muted-foreground">
-              Requested due date
-            </p>
+            <p className="text-sm text-muted-foreground">Requested due date</p>
             <p className="font-medium">
-              {request.requested_due_date
-                ? displayDate(request.requested_due_date)
-                : '-'}
+              {request.requested_due_date ? displayDate(request.requested_due_date) : "-"}
             </p>
           </div>
           <div>
@@ -241,16 +214,12 @@ export function CreditExceptionRequestDetailPage({
           {request.reviewed_at && (
             <div>
               <p className="text-sm text-muted-foreground">Reviewed at</p>
-              <p className="font-medium">
-                {displayDate(request.reviewed_at)}
-              </p>
+              <p className="font-medium">{displayDate(request.reviewed_at)}</p>
             </div>
           )}
           {request.finance_exception_id && (
             <div>
-              <p className="text-sm text-muted-foreground">
-                Approved exception
-              </p>
+              <p className="text-sm text-muted-foreground">Approved exception</p>
               <Link
                 to={`/finance-exceptions/${request.finance_exception_id}`}
                 className="font-medium text-primary hover:underline"
@@ -265,12 +234,8 @@ export function CreditExceptionRequestDetailPage({
           </div>
           {request.rejection_reason && (
             <div className="md:col-span-2">
-              <p className="text-sm text-muted-foreground">
-                Rejection reason
-              </p>
-              <p className="font-medium text-destructive">
-                {request.rejection_reason}
-              </p>
+              <p className="text-sm text-muted-foreground">Rejection reason</p>
+              <p className="font-medium text-destructive">{request.rejection_reason}</p>
             </div>
           )}
           {request.notes && (
@@ -287,8 +252,7 @@ export function CreditExceptionRequestDetailPage({
           <DialogHeader>
             <DialogTitle>Reject credit exception request</DialogTitle>
             <DialogDescription>
-              The registration will remain payment-blocked. Provide a reason
-              for the requester.
+              The registration will remain payment-blocked. Provide a reason for the requester.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
@@ -304,11 +268,7 @@ export function CreditExceptionRequestDetailPage({
             />
           </div>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setRejectOpen(false)}
-              disabled={actionLoading}
-            >
+            <Button variant="outline" onClick={() => setRejectOpen(false)} disabled={actionLoading}>
               Cancel
             </Button>
             <Button
@@ -316,7 +276,7 @@ export function CreditExceptionRequestDetailPage({
               disabled={actionLoading || !rejectionReason.trim()}
               onClick={() => void handleReject()}
             >
-              {actionLoading ? 'Rejecting…' : 'Reject request'}
+              {actionLoading ? "Rejecting…" : "Reject request"}
             </Button>
           </DialogFooter>
         </DialogContent>

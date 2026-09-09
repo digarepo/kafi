@@ -340,3 +340,138 @@ h6 {
     animation: shimmer 2s linear infinite;
   }
 }
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+    color: #111 !important;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  .travel-document-page,
+  .travel-document-page * {
+    visibility: visible;
+  }
+
+  .travel-document-page {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    padding: 0;
+  }
+
+  .document-toolbar,
+  .document-warning {
+    display: none !important;
+  }
+
+  .document-surface {
+    max-width: none !important;
+    width: 100% !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    filter: none !important;
+    padding: 0 !important;
+  }
+
+  /* Font-size safety net for print */
+  .document-surface h1 {
+    font-size: 13.5pt !important;
+    line-height: 1.2 !important;
+  }
+
+  .document-surface h2,
+  .document-surface [data-slot='card-title'] {
+    font-size: 11.5pt !important;
+    line-height: 1.2 !important;
+  }
+
+  .document-surface .text-sm {
+    font-size: 9pt !important;
+  }
+
+  /* Tighten section spacing for print density */
+  .document-surface .document-section {
+    margin-top: 4px !important;
+  }
+
+  .document-surface .document-section h2 {
+    padding-bottom: 2px !important;
+  }
+
+  .traveler-itinerary-document {
+    margin-top: 4px !important;
+  }
+
+  .traveler-itinerary-document > * + * {
+    margin-top: 4px !important;
+  }
+
+  /* Table wrappers must not clip in print */
+  .document-table-wrap {
+    overflow: visible !important;
+  }
+
+  .document-surface .drop-shadow-lg,
+  .document-surface .drop-shadow-xl,
+  .document-surface .drop-shadow-2xl {
+    filter: none !important;
+  }
+
+  .document-section {
+    break-inside: avoid;
+  }
+
+  /* Allow the ground transport section to break across pages so it
+     doesn't get pushed entirely to page 2. Only individual rows avoid breaking. */
+  .traveler-itinerary-document > .document-section:last-child {
+    break-inside: auto;
+  }
+
+  .print-schedule-card {
+    overflow: visible !important;
+    margin-inline: 1px;
+    border: 1px solid #dfe5e1 !important;
+    box-shadow: none !important;
+    filter: none !important;
+  }
+
+  .document-manifest-table {
+    font-size: 8pt !important;
+  }
+
+  .document-manifest-table thead {
+    display: table-header-group;
+  }
+
+  .document-manifest-table th,
+  .document-manifest-table td {
+    padding: 3px !important;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .document-manifest-table tr {
+    break-inside: avoid;
+  }
+
+  /* Force the traveler manifest onto its own page */
+  .document-manifest-section {
+    break-before: page;
+  }
+
+  /* Page break between each traveller in the bulk group itinerary */
+  .document-page-break {
+    break-before: page;
+  }
+}

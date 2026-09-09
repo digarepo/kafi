@@ -35,7 +35,7 @@ export function FlightBookingsListPage() {
   const registrationId = searchParams.get('registration_id') ?? undefined;
   const [items, setItems] = useState<FlightBookingListItem[]>([]);
   const [statuses, setStatuses] = useState<FlightBookingStatus[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [globalFilter, setGlobalFilter] = useState('');
   const debouncedFilter = useDebouncedValue(globalFilter);
@@ -171,7 +171,11 @@ export function FlightBookingsListPage() {
       header: 'Departure',
       cell: ({ row }) => (
         <div>
-          <div>{row.original.departure_flight_number}</div>
+          <div>
+            {row.original.departure_airline?.iata_code
+              ? `${row.original.departure_airline.iata_code} ${row.original.departure_flight_number}`
+              : row.original.departure_flight_number}
+          </div>
           <div className="text-muted-foreground">
             {displayDate(row.original.departure_date)}
           </div>
@@ -184,7 +188,11 @@ export function FlightBookingsListPage() {
       cell: ({ row }) =>
         row.original.return_flight_number ? (
           <div>
-            <div>{row.original.return_flight_number}</div>
+            <div>
+              {row.original.return_airline?.iata_code
+                ? `${row.original.return_airline.iata_code} ${row.original.return_flight_number}`
+                : row.original.return_flight_number}
+            </div>
             <div className="text-muted-foreground">
               {displayDate(row.original.return_date)}
             </div>
@@ -345,6 +353,7 @@ export function FlightBookingsListPage() {
         loading={loading}
         pagination={pagination}
         onPaginationChange={setPagination}
+        onRowClick={(item) => navigate(`/flight-bookings/${item.id}`)}
       />
     </div>
   );

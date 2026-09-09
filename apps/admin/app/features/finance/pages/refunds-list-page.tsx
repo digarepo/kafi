@@ -40,7 +40,7 @@ export function RefundsListPage() {
 
   const [refunds, setRefunds] = useState<RefundListItem[]>([]);
   const [statuses, setStatuses] = useState<LookupOption[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [referenceLoading, setReferenceLoading] = useState(true);
   const [retryNonce] = useState(0);
@@ -282,6 +282,7 @@ export function RefundsListPage() {
         loading={loading}
         pagination={{ pageIndex: page - 1, pageSize, total }}
         onPaginationChange={setPagination}
+        onRowClick={(r) => navigate(`/refunds/${r.id}`)}
       />
     </div>
   );

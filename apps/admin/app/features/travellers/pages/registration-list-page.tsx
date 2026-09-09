@@ -15,6 +15,14 @@ import { useRenderProfile } from '../../../dev/render-profile';
 import {
   Button,
   Calendar,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Input,
+  Label,
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -28,10 +36,7 @@ import {
 import { usePermissions } from '../../../core/permissions';
 import { toYmd } from '../lib/date';
 import { displayDate } from '../../operations/lib/date';
-import {
-  AsyncState,
-  WorkflowStatusBadge,
-} from '../../../shared/operational-ui';
+import { WorkflowStatusBadge } from '../../../shared/operational-ui';
 import { DataTable } from '../../../shared/data-table';
 import { useDestructiveConfirmation } from '../../../shared/delete-dialog';
 import { DataTableViewOptions } from '../../../shared/data-table/data-table-view-options';
@@ -60,6 +65,9 @@ type RegistrationWorkItem = {
   status: string;
   status_name: string;
   expected_departure_date: string | null;
+  expected_return_date: string | null;
+  return_completion_status: Registration['return_completion_status'];
+  amended_return_date: string | null;
 };
 
 function mapRegistration(registration: Registration): RegistrationWorkItem {
@@ -73,6 +81,9 @@ function mapRegistration(registration: Registration): RegistrationWorkItem {
     status: registration.status,
     status_name: registration.status_name,
     expected_departure_date: registration.expected_departure_date,
+    expected_return_date: registration.expected_return_date,
+    return_completion_status: registration.return_completion_status,
+    amended_return_date: registration.amended_return_date,
   };
 }
 
@@ -109,6 +120,13 @@ export function RegistrationListPage() {
   const [total, setTotal] = useState(0);
   const [tableInstance, setTableInstance] =
     useState<Table<RegistrationWorkItem> | null>(null);
+  const [bulkReturnRows, setBulkReturnRows] = useState<RegistrationWorkItem[]>(
+    [],
+  );
+  const [bulkReturnDates, setBulkReturnDates] = useState<
+    Record<string, string>
+  >({});
+  const [bulkReturnOpen, setBulkReturnOpen] = useState(false);
 
   const hasActiveFilters = Boolean(
     statusFilter || packageFilter || departureFrom || departureTo || search,
@@ -296,6 +314,36 @@ export function RegistrationListPage() {
       );
     }
   }, []);
+
+  const openBulkReturnDialog = useCallback((rows: RegistrationWorkItem[]) => {
+    const eligibleRows = rows.filter(
+      (row) =>
+        ['READY_FOR_TRAVEL'].includes(row.status) &&
+        row.return_completion_status !== 'COMPLETED',
+    );
+    if (eligibleRows.length === 0) return;
+    setBulkReturnRows(eligibleRows);
+    setBulkReturnDates(
+      Object.fromEntries(
+        rows.map((row) => [
+          row.id,
+          row.amended_return_date ?? row.expected_return_date ?? '',
+        ]),
+      ),
+    );
+    setBulkReturnOpen(true);
+  }, []);
+
+  const submitBulkReturns = useCallback(async () => {
+    await api.bulkConfirmReturns({
+      items: bulkReturnRows.map((row) => ({
+        registration_id: row.id,
+        actual_return_date: bulkReturnDates[row.id],
+      })),
+    });
+    setBulkReturnOpen(false);
+    setRetryNonce((value) => value + 1);
+  }, [bulkReturnDates, bulkReturnRows]);
 
   const columns = useMemo<ColumnDef<RegistrationWorkItem>[]>(
     () => [
@@ -544,30 +592,98 @@ export function RegistrationListPage() {
         )}
       </div>
 
-      <AsyncState
-        loading={loading}
-        error={error}
-        onRetry={() => setRetryNonce((value) => value + 1)}
-        isEmpty={!loading && !error && registrations.length === 0}
-        emptyTitle="No registrations found"
-        emptyDescription={
-          hasActiveFilters
-            ? 'Try adjusting or clearing the filters.'
-            : 'Registrations will appear here once created.'
-        }
-      >
-        <div className="[&_td]:text-xs [&_td]:font-normal [&_th]:text-xs">
-          <DataTable
-            columns={columns}
-            data={registrations}
-            loading={false}
-            pagination={pagination}
-            onPaginationChange={setPagination}
-            hideViewOptions
-            onTableReady={setTableInstance}
-          />
+      {error && (
+        <div className="flex flex-col gap-3 rounded-md bg-destructive/10 p-3 text-sm text-destructive sm:flex-row sm:items-center sm:justify-between">
+          <span>{error}</span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setRetryNonce((value) => value + 1)}
+          >
+            Try again
+          </Button>
         </div>
-      </AsyncState>
+      )}
+      <div className="[&_td]:text-xs [&_td]:font-normal [&_th]:text-xs">
+        <DataTable
+          columns={columns}
+          data={registrations}
+          loading={loading}
+          pagination={pagination}
+          onPaginationChange={setPagination}
+          hideViewOptions
+          onTableReady={setTableInstance}
+          enableRowSelection={can('REGISTRATION_EDIT')}
+          onRowClick={(row) => navigate(`/registrations/${row.id}`)}
+          selectionActions={
+            can('REGISTRATION_EDIT')
+              ? [
+                  {
+                    label: 'Confirm returns',
+                    variant: 'default' as const,
+                    onClick: openBulkReturnDialog,
+                  },
+                ]
+              : undefined
+          }
+        />
+      </div>
+
+      <Dialog open={bulkReturnOpen} onOpenChange={setBulkReturnOpen}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Confirm returns</DialogTitle>
+            <DialogDescription>
+              Review each completion date. Dates default to the scheduled or
+              amended return date and can be changed before confirmation.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="divide-y rounded-md border">
+            {bulkReturnRows.map((row) => (
+              <div
+                key={row.id}
+                className="grid gap-2 p-3 sm:grid-cols-[1fr_12rem] sm:items-center"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium">
+                    {row.traveller_name}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {row.registration_number}
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor={`bulk-return-${row.id}`} className="text-xs">
+                    Completion date
+                  </Label>
+                  <Input
+                    id={`bulk-return-${row.id}`}
+                    type="date"
+                    value={bulkReturnDates[row.id] ?? ''}
+                    onChange={(event) =>
+                      setBulkReturnDates((current) => ({
+                        ...current,
+                        [row.id]: event.target.value,
+                      }))
+                    }
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkReturnOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={bulkReturnRows.some((row) => !bulkReturnDates[row.id])}
+              onClick={() => void submitBulkReturns()}
+            >
+              Confirm returns
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

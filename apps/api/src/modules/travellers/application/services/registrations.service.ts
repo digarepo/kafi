@@ -7,15 +7,18 @@ import {
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { MySql2Database } from 'drizzle-orm/mysql2';
-import { and, desc, eq, gte, like, lte, max, not, or, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, like, lte, not, or, sql } from 'drizzle-orm';
 import { ulid } from 'ulid';
 import { DATABASE } from '../../../../shared/infrastructure/database/database.provider.js';
 import * as schema from '@kafi/database';
 import {
   CancelRegistrationDto,
+  ConfirmReturnDto,
+  ExtendStayDto,
   CreateRegistrationDto,
   RegistrationFiltersDto,
   UpdateRegistrationDto,
+  BulkConfirmReturnsDto,
 } from '../dto/registrations.dto.js';
 import { createRegistrationCreatedEvent } from '../../domain/events/registration-created.event.js';
 import { createRegistrationCancelledEvent } from '../../domain/events/registration-cancelled.event.js';
@@ -56,6 +59,7 @@ export class RegistrationsService {
       search,
       traveller_id,
       package_version_id,
+      travel_round_id,
       status_id,
       departure_from,
       departure_to,
@@ -67,6 +71,8 @@ export class RegistrationsService {
       filters.push(
         eq(schema.registrations.package_version_id, package_version_id),
       );
+    if (travel_round_id)
+      filters.push(eq(schema.registrations.travel_round_id, travel_round_id));
     if (status_id)
       filters.push(eq(schema.registrations.registration_status_id, status_id));
     if (departure_from) {
@@ -104,6 +110,10 @@ export class RegistrationsService {
             schema.registrations.registration_status_id,
             schema.registrationStatuses.id,
           ),
+        )
+        .innerJoin(
+          schema.travelRounds,
+          eq(schema.registrations.travel_round_id, schema.travelRounds.id),
         )
         .innerJoin(
           schema.packageVersions,
@@ -175,6 +185,10 @@ export class RegistrationsService {
         ),
       )
       .innerJoin(
+        schema.travelRounds,
+        eq(schema.registrations.travel_round_id, schema.travelRounds.id),
+      )
+      .innerJoin(
         schema.packageVersions,
         eq(schema.registrations.package_version_id, schema.packageVersions.id),
       )
@@ -244,11 +258,35 @@ export class RegistrationsService {
       dto.package_version_id,
     );
 
-    const departure = toDateOrNull(dto.expected_departure_date);
-    const returnDate = toDateOrNull(dto.expected_return_date);
+    const [round] = await this.db
+      .select()
+      .from(schema.travelRounds)
+      .where(
+        and(
+          eq(schema.travelRounds.id, dto.travel_round_id),
+          eq(schema.travelRounds.is_deleted, false),
+        ),
+      )
+      .limit(1);
+    if (!round) throw new NotFoundException('Travel round not found');
+    if (round.status !== 'OPEN') {
+      throw new ConflictException(
+        'Registrations can only be created in an open travel round',
+      );
+    }
+
+    const departure =
+      toDateOrNull(dto.expected_departure_date) ?? round.departure_date;
+    const returnDate =
+      toDateOrNull(dto.expected_return_date) ?? round.return_date;
     if (departure && returnDate && departure > returnDate) {
       throw new BadRequestException(
         'Return date must be on or after the departure date',
+      );
+    }
+    if (departure < round.departure_date || returnDate > round.return_date) {
+      throw new BadRequestException(
+        'Registration dates must fall within the travel round dates',
       );
     }
 
@@ -262,21 +300,38 @@ export class RegistrationsService {
     );
 
     const draftStatus = await this.getRegistrationStatus('DRAFT');
-    const number = await this.generateRegistrationNumber();
     const id = ulid();
-
-    await this.db.insert(schema.registrations).values({
-      id,
-      registration_number: number,
-      traveller_id: dto.traveller_id,
-      package_version_id: packageVersion.id,
-      registration_date: new Date(),
-      expected_departure_date: departure,
-      expected_return_date: returnDate,
-      registration_status_id: draftStatus.id,
-      remarks: dto.remarks ?? null,
-      created_by: actorId,
-      updated_by: actorId,
+    const { number } = await this.db.transaction(async (tx) => {
+      const [lockedRound] = await tx
+        .select({
+          round_number: schema.travelRounds.round_number,
+          year: sql<number>`YEAR(${schema.travelRounds.departure_date})`,
+          next: schema.travelRounds.next_registration_sequence,
+        })
+        .from(schema.travelRounds)
+        .where(eq(schema.travelRounds.id, dto.travel_round_id))
+        .for('update');
+      if (!lockedRound) throw new NotFoundException('Travel round not found');
+      await tx
+        .update(schema.travelRounds)
+        .set({ next_registration_sequence: lockedRound.next + 1 })
+        .where(eq(schema.travelRounds.id, dto.travel_round_id));
+      const number = `REG-${lockedRound.year}-R${String(lockedRound.round_number).padStart(2, '0')}-${String(lockedRound.next).padStart(6, '0')}`;
+      await tx.insert(schema.registrations).values({
+        id,
+        registration_number: number,
+        traveller_id: dto.traveller_id,
+        package_version_id: packageVersion.id,
+        travel_round_id: dto.travel_round_id,
+        registration_date: new Date(),
+        expected_departure_date: departure,
+        expected_return_date: returnDate,
+        registration_status_id: draftStatus.id,
+        remarks: dto.remarks ?? null,
+        created_by: actorId,
+        updated_by: actorId,
+      });
+      return { number };
     });
 
     const event = createRegistrationCreatedEvent({
@@ -425,6 +480,99 @@ export class RegistrationsService {
       })
       .where(eq(schema.registrations.id, id));
     return this.getRegistration(id);
+  }
+
+  async autoConfirmReadyForTravel(id: string) {
+    const existing = await this.getRegistration(id);
+    if (existing.status !== 'PROCESSING') return existing;
+
+    const isReady = await this.readiness.isReadyForTravel(id);
+    if (!isReady) return existing;
+
+    const [processingStatus, readyStatus] = await Promise.all([
+      this.getRegistrationStatus('PROCESSING'),
+      this.getRegistrationStatus('READY_FOR_TRAVEL'),
+    ]);
+    await this.db
+      .update(schema.registrations)
+      .set({
+        registration_status_id: readyStatus.id,
+        updated_at: new Date(),
+        updated_by: null,
+      })
+      .where(
+        and(
+          eq(schema.registrations.id, id),
+          eq(schema.registrations.registration_status_id, processingStatus.id),
+        ),
+      );
+    return this.getRegistration(id);
+  }
+
+  async confirmReturn(id: string, dto: ConfirmReturnDto, actorId: string) {
+    const existing = await this.getRegistration(id);
+    if (!['READY_FOR_TRAVEL', 'COMPLETED'].includes(existing.status)) {
+      throw new ConflictException('Only ready registrations can be completed');
+    }
+    if (existing.status === 'COMPLETED') return existing;
+
+    const actualReturnDate = dto.actual_return_date
+      ? toDateOrNull(dto.actual_return_date)
+      : existing.expected_return_date;
+    await this.db
+      .update(schema.registrations)
+      .set({
+        return_completion_status: 'COMPLETED',
+        actual_return_date: actualReturnDate,
+        return_completion_notes: dto.notes ?? null,
+        updated_at: new Date(),
+        updated_by: actorId,
+      })
+      .where(eq(schema.registrations.id, id));
+    const completedStatus = await this.getRegistrationStatus('COMPLETED');
+    await this.db
+      .update(schema.registrations)
+      .set({ registration_status_id: completedStatus.id })
+      .where(eq(schema.registrations.id, id));
+    return this.getRegistration(id);
+  }
+
+  async extendStay(id: string, dto: ExtendStayDto, actorId: string) {
+    const existing = await this.getRegistration(id);
+    if (!['READY_FOR_TRAVEL', 'EXTENDED'].includes(existing.status)) {
+      throw new ConflictException('Only ready registrations can be extended');
+    }
+    const amendedDate = toDateOrNull(dto.amended_return_date);
+    if (!amendedDate)
+      throw new BadRequestException('A valid amended date is required');
+
+    await this.db
+      .update(schema.registrations)
+      .set({
+        return_completion_status: 'EXTENDED',
+        amended_return_date: amendedDate,
+        extension_reason: dto.extension_reason,
+        amendment_reference: dto.amendment_reference ?? null,
+        return_completion_notes: dto.notes ?? null,
+        updated_at: new Date(),
+        updated_by: actorId,
+      })
+      .where(eq(schema.registrations.id, id));
+    return this.getRegistration(id);
+  }
+
+  async bulkConfirmReturns(dto: BulkConfirmReturnsDto, actorId: string) {
+    const results = [];
+    for (const item of dto.items) {
+      results.push(
+        await this.confirmReturn(
+          item.registration_id,
+          { actual_return_date: item.actual_return_date },
+          actorId,
+        ),
+      );
+    }
+    return results;
   }
 
   async cancelRegistration(
@@ -736,20 +884,6 @@ export class RegistrationsService {
     }
   }
 
-  private async generateRegistrationNumber() {
-    const year = new Date().getFullYear();
-    const [row] = await this.db
-      .select({ max: max(schema.registrations.registration_number) })
-      .from(schema.registrations)
-      .where(like(schema.registrations.registration_number, `REG-${year}-%`));
-    let next = 1;
-    if (row?.max) {
-      const parts = row.max.split('-');
-      next = Number(parts[parts.length - 1]) + 1;
-    }
-    return `REG-${year}-${String(next).padStart(6, '0')}`;
-  }
-
   private mapListRow(row: any) {
     return {
       id: row.registrations.id,
@@ -757,8 +891,21 @@ export class RegistrationsService {
       registration_date: row.registrations.registration_date,
       expected_departure_date: row.registrations.expected_departure_date,
       expected_return_date: row.registrations.expected_return_date,
+      return_completion_status: row.registrations.return_completion_status,
+      actual_return_date: row.registrations.actual_return_date,
+      amended_return_date: row.registrations.amended_return_date,
       status: row.registration_statuses?.status_code ?? '',
       status_name: row.registration_statuses?.name ?? '',
+      travel_round: row.travel_rounds
+        ? {
+            id: row.travel_rounds.id,
+            round_number: row.travel_rounds.round_number,
+            name: row.travel_rounds.name,
+            status: row.travel_rounds.status,
+            departure_date: row.travel_rounds.departure_date,
+            return_date: row.travel_rounds.return_date,
+          }
+        : null,
       traveller: row.travellers
         ? {
             id: row.travellers.id,
@@ -804,9 +951,25 @@ export class RegistrationsService {
       registration_date: row.registrations.registration_date,
       expected_departure_date: row.registrations.expected_departure_date,
       expected_return_date: row.registrations.expected_return_date,
+      return_completion_status: row.registrations.return_completion_status,
+      actual_return_date: row.registrations.actual_return_date,
+      amended_return_date: row.registrations.amended_return_date,
+      extension_reason: row.registrations.extension_reason,
+      amendment_reference: row.registrations.amendment_reference,
+      return_completion_notes: row.registrations.return_completion_notes,
       remarks: row.registrations.remarks,
       status: row.registration_statuses?.status_code,
       status_name: row.registration_statuses?.name,
+      travel_round: row.travel_rounds
+        ? {
+            id: row.travel_rounds.id,
+            round_number: row.travel_rounds.round_number,
+            name: row.travel_rounds.name,
+            status: row.travel_rounds.status,
+            departure_date: row.travel_rounds.departure_date,
+            return_date: row.travel_rounds.return_date,
+          }
+        : null,
       created_at: row.registrations.created_at,
       updated_at: row.registrations.updated_at,
       traveller: row.travellers

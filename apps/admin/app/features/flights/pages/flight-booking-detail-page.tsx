@@ -138,13 +138,17 @@ export function FlightBookingDetailPage({ id }: FlightBookingDetailPageProps) {
               <SummaryCard title="PNR" value={booking.pnr} tone="neutral" />
               <SummaryCard
                 title="Departure flight"
-                value={booking.departure_flight_number}
+                value={`${booking.departure_airline?.iata_code ? `${booking.departure_airline.iata_code} ` : ''}${booking.departure_flight_number}`}
                 secondary={displayDate(booking.departure_date)}
                 tone="neutral"
               />
               <SummaryCard
                 title="Return flight"
-                value={booking.return_flight_number ?? 'One-way'}
+                value={
+                  booking.return_flight_number
+                    ? `${booking.return_airline?.iata_code ? `${booking.return_airline.iata_code} ` : ''}${booking.return_flight_number}`
+                    : 'One-way'
+                }
                 secondary={
                   booking.return_flight_number
                     ? displayDate(booking.return_date)
@@ -175,7 +179,7 @@ export function FlightBookingDetailPage({ id }: FlightBookingDetailPageProps) {
                   <DetailRow label="PNR" value={booking.pnr} />
                   <DetailRow
                     label="Departure flight"
-                    value={booking.departure_flight_number}
+                    value={`${booking.departure_airline?.iata_code ?? ''}${booking.departure_flight_number}`}
                   />
                   <DetailRow
                     label="Departure date"
@@ -183,7 +187,11 @@ export function FlightBookingDetailPage({ id }: FlightBookingDetailPageProps) {
                   />
                   <DetailRow
                     label="Return flight"
-                    value={booking.return_flight_number ?? '—'}
+                    value={
+                      booking.return_flight_number
+                        ? `${booking.return_airline?.iata_code ?? ''}${booking.return_flight_number}`
+                        : '—'
+                    }
                   />
                   <DetailRow
                     label="Return date"

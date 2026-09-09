@@ -5,7 +5,9 @@ export type FlightBookingFormMode = 'create' | 'edit';
 export interface FlightBookingFormValues {
   registration_id: string;
   pnr: string;
+  departure_airline_id: string;
   departure_flight_number: string;
+  return_airline_id: string;
   return_flight_number: string;
   travelRange?: {
     from?: Date;
@@ -18,8 +20,10 @@ export interface FlightBookingFormValues {
 export interface FlightBookingFormOutput {
   registration_id: string;
   pnr: string;
+  departure_airline_id: string;
   departure_flight_number: string;
   departure_date: string;
+  return_airline_id?: string;
   return_flight_number?: string;
   return_date?: string;
   supplier_cost?: number;
@@ -28,7 +32,14 @@ export interface FlightBookingFormOutput {
 
 export interface FlightBookingFormProps {
   mode: FlightBookingFormMode;
-  registration?: Pick<Registration, 'id' | 'registration_number' | 'traveller'>;
+  registration?: Pick<
+    Registration,
+    | 'id'
+    | 'registration_number'
+    | 'traveller'
+    | 'expected_departure_date'
+    | 'expected_return_date'
+  >;
   onSubmit: (values: FlightBookingFormOutput) => Promise<void>;
   submitLabel?: string;
 }

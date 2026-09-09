@@ -34,6 +34,10 @@ export class LogisticsLookupsService {
     return this.listActive(schema.vendorTypes, schema.vendorTypes.name);
   }
 
+  async listVehicleTypes() {
+    return this.listActive(schema.vehicleTypes, schema.vehicleTypes.name);
+  }
+
   async listVendorStatuses() {
     return this.listActive(schema.vendorStatuses, schema.vendorStatuses.name);
   }

@@ -1,15 +1,15 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router';
-import { toast } from 'sonner';
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router";
+import { toast } from "sonner";
 
-import { InvoiceForm } from '../components/invoice-form';
-import type { InvoiceFormOutput } from '../types/finance.types';
+import { InvoiceForm } from "../components/invoice-form";
+import type { InvoiceFormOutput } from "../types/finance.types";
 import {
   api,
   type CreateInvoiceInput,
   type LookupOption,
   type Registration,
-} from '../../../lib/api.js';
+} from "../../../lib/api.js";
 
 export function InvoiceCreatePage() {
   const navigate = useNavigate();
@@ -27,9 +27,7 @@ export function InvoiceCreatePage() {
         setRegistrations(regs.data);
         setLineItemTypes(types);
       } catch (err) {
-        toast.error(
-          err instanceof Error ? err.message : 'Failed to load reference data',
-        );
+        toast.error(err instanceof Error ? err.message : "Failed to load reference data");
       } finally {
         setLoading(false);
       }
@@ -40,11 +38,10 @@ export function InvoiceCreatePage() {
   async function handleSubmit(values: InvoiceFormOutput) {
     try {
       const invoice = await api.createInvoice(values as CreateInvoiceInput);
-      toast.success('Invoice created successfully.');
+      toast.success("Invoice created successfully.");
       navigate(`/invoices/${invoice.id}`);
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : 'Failed to create invoice';
+      const message = err instanceof Error ? err.message : "Failed to create invoice";
       toast.error(message);
       throw err;
     }

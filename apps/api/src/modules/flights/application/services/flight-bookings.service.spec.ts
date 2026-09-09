@@ -1,43 +1,36 @@
-import { BadRequestException, ConflictException } from '@nestjs/common';
-import { describe, expect, it, vi } from 'vitest';
-import { EventEmitter2 } from '@nestjs/event-emitter';
-import { createMockDb } from './mock-db.js';
-import { FlightBookingsService } from './flight-bookings.service.js';
-import { BusinessNumberService } from '../../../../shared/infrastructure/numbering/business-number.service.js';
+import { BadRequestException, ConflictException } from "@nestjs/common";
+import { describe, expect, it, vi } from "vitest";
+import { EventEmitter2 } from "@nestjs/event-emitter";
+import { createMockDb } from "./mock-db.js";
+import { FlightBookingsService } from "./flight-bookings.service.js";
+import { BusinessNumberService } from "../../../../shared/infrastructure/numbering/business-number.service.js";
 import {
   CreateFlightBookingDto,
   UpdateFlightBookingDto,
   CancelFlightBookingDto,
-} from '../dto/flight-bookings.dto.js';
+} from "../dto/flight-bookings.dto.js";
 
-const actor = 'ULID123USER';
+const actor = "ULID123USER";
 
 function buildService(db: any, overrides?: { adjustments?: any }) {
   const numbers = {
-    generateFlightBookingNumber: vi.fn().mockResolvedValue('FLT-2026-000001'),
+    generateFlightBookingNumber: vi.fn().mockResolvedValue("FLT-2026-000001"),
   } as unknown as BusinessNumberService;
   const eventEmitter = { emit: vi.fn() } as unknown as EventEmitter2;
   const expenses = {
     createExpenseFromOperational: vi.fn().mockResolvedValue({}),
   } as any;
   const adjustments =
-    overrides?.adjustments ??
-    ({ createAdjustment: vi.fn().mockResolvedValue({}) } as any);
-  return new FlightBookingsService(
-    db,
-    numbers,
-    eventEmitter,
-    expenses,
-    adjustments,
-  );
+    overrides?.adjustments ?? ({ createAdjustment: vi.fn().mockResolvedValue({}) } as any);
+  return new FlightBookingsService(db, numbers, eventEmitter, expenses, adjustments);
 }
 
-function registrationRow(regId: string, statusCode = 'PROCESSING') {
+function registrationRow(regId: string, statusCode = "PROCESSING") {
   return {
     registrations: {
       id: regId,
-      registration_number: 'R-1',
-      traveller_id: 'T',
+      registration_number: "R-1",
+      traveller_id: "T",
     },
     registration_statuses: {
       id: `RS_${statusCode}`,
@@ -47,8 +40,8 @@ function registrationRow(regId: string, statusCode = 'PROCESSING') {
   };
 }
 
-function approvedVisaRow(regId: string) {
-  return [{ id: 'VISA1', registration_id: regId }];
+function activeAirlineRow() {
+  return [{ id: "AIRLINE" }];
 }
 
 function noActiveBookingCount() {
@@ -60,29 +53,25 @@ function activeBookingCount() {
 }
 
 function confirmedStatusRow() {
-  return { id: 'FBS_CONFIRMED', status_code: 'CONFIRMED', name: 'Confirmed' };
+  return { id: "FBS_CONFIRMED", status_code: "CONFIRMED", name: "Confirmed" };
 }
 
 function cancelledStatusRow() {
-  return { id: 'FBS_CANCELLED', status_code: 'CANCELLED', name: 'Cancelled' };
+  return { id: "FBS_CANCELLED", status_code: "CANCELLED", name: "Cancelled" };
 }
 
-function flightRow(
-  id: string,
-  statusCode: string,
-  overrides: Record<string, unknown> = {},
-) {
+function flightRow(id: string, statusCode: string, overrides: Record<string, unknown> = {}) {
   return {
     flight_bookings: {
       id,
-      booking_number: 'FLT-2026-000001',
-      registration_id: 'REG',
+      booking_number: "FLT-2026-000001",
+      registration_id: "REG",
       flight_booking_status_id: `FBS_${statusCode}`,
-      pnr: 'ABC123',
-      departure_flight_number: 'ET700',
-      departure_date: '2026-09-01',
-      return_flight_number: 'ET701',
-      return_date: '2026-09-15',
+      pnr: "ABC123",
+      departure_flight_number: "ET700",
+      departure_date: "2026-09-01",
+      return_flight_number: "ET701",
+      return_date: "2026-09-15",
       cancellation_date: null,
       cancellation_reason: null,
       notes: null,
@@ -95,188 +84,192 @@ function flightRow(
       name: statusCode,
     },
     registrations: {
-      id: 'REG',
-      registration_number: 'R-1',
+      id: "REG",
+      registration_number: "R-1",
     },
     travellers: null,
   };
 }
 
-function makeCreateDto(
-  overrides: Record<string, unknown> = {},
-): CreateFlightBookingDto {
+function makeCreateDto(overrides: Record<string, unknown> = {}): CreateFlightBookingDto {
   const dto = new CreateFlightBookingDto();
   Object.assign(dto, {
-    registration_id: 'REG',
-    pnr: 'ABC123',
-    departure_flight_number: 'ET700',
-    departure_date: '2026-09-01',
-    return_flight_number: 'ET701',
-    return_date: '2026-09-15',
+    registration_id: "REG",
+    pnr: "ABC123",
+    departure_airline_id: "AIRLINE",
+    departure_flight_number: "700",
+    departure_date: "2026-09-01",
+    return_airline_id: "AIRLINE",
+    return_flight_number: "701",
+    return_date: "2026-09-15",
     supplier_cost: 5000,
     ...overrides,
   });
   return dto;
 }
 
-describe('FlightBookingsService', () => {
-  it('rejects creation when supplier_cost is missing', async () => {
+describe("FlightBookingsService", () => {
+  it("rejects creation when supplier_cost is missing", async () => {
     const db = createMockDb([
-      registrationRow('REG'),
-      approvedVisaRow('REG'),
+      registrationRow("REG"),
+      activeAirlineRow(),
+      activeAirlineRow(),
       noActiveBookingCount(),
     ]);
     const service = buildService(db);
     const dto = makeCreateDto({ supplier_cost: undefined });
 
-    await expect(service.createFlightBooking(dto, actor)).rejects.toThrow(
-      BadRequestException,
-    );
+    await expect(service.createFlightBooking(dto, actor)).rejects.toThrow(BadRequestException);
   });
 
-  it('rejects creation when registration has no approved visa', async () => {
+  it("allows creation before visa approval", async () => {
     const db = createMockDb([
-      registrationRow('REG'), // findRegistration
-      [], // hasApprovedVisa -> empty
-    ]);
-    const service = buildService(db);
-    const dto = makeCreateDto();
-
-    await expect(service.createFlightBooking(dto, actor)).rejects.toThrow(
-      BadRequestException,
-    );
-  });
-
-  it('creates flight booking directly as CONFIRMED', async () => {
-    const db = createMockDb([
-      registrationRow('REG'), // findRegistration
-      approvedVisaRow('REG'), // hasApprovedVisa
+      registrationRow("REG"), // findRegistration
+      activeAirlineRow(), // departure airline
+      activeAirlineRow(), // return airline
       noActiveBookingCount(), // assertNoActiveBooking
       confirmedStatusRow(), // findStatus CONFIRMED
       null, // insert
-      flightRow('NEW', 'CONFIRMED'), // getFlightBooking after insert
+      flightRow("NEW", "CONFIRMED"), // getFlightBooking after insert
+    ]);
+    const service = buildService(db);
+    const result = await service.createFlightBooking(makeCreateDto(), actor);
+
+    expect(result.status?.status_code).toBe("CONFIRMED");
+  });
+
+  it("rejects creation when registration is not in PROCESSING", async () => {
+    const db = createMockDb([registrationRow("REG", "DRAFT")]);
+    const service = buildService(db);
+
+    await expect(service.createFlightBooking(makeCreateDto(), actor)).rejects.toThrow(
+      BadRequestException
+    );
+  });
+
+  it("creates flight booking directly as CONFIRMED", async () => {
+    const db = createMockDb([
+      registrationRow("REG"), // findRegistration
+      activeAirlineRow(), // departure airline
+      activeAirlineRow(), // return airline
+      noActiveBookingCount(), // assertNoActiveBooking
+      confirmedStatusRow(), // findStatus CONFIRMED
+      null, // insert
+      flightRow("NEW", "CONFIRMED"), // getFlightBooking after insert
     ]);
     const service = buildService(db);
     const dto = makeCreateDto();
 
     const result = await service.createFlightBooking(dto, actor);
-    expect(result.status?.status_code).toBe('CONFIRMED');
-    expect((db.insertValues[0] as any).flight_booking_status_id).toBe(
-      'FBS_CONFIRMED',
-    );
+    expect(result.status?.status_code).toBe("CONFIRMED");
+    expect((db.insertValues[0] as any).flight_booking_status_id).toBe("FBS_CONFIRMED");
   });
 
-  it('emits flight.confirmed event on creation', async () => {
+  it("emits flight.confirmed event on creation", async () => {
     const db = createMockDb([
-      registrationRow('REG'),
-      approvedVisaRow('REG'),
+      registrationRow("REG"),
+      activeAirlineRow(),
+      activeAirlineRow(),
       noActiveBookingCount(),
       confirmedStatusRow(),
       null,
-      flightRow('NEW', 'CONFIRMED'),
+      flightRow("NEW", "CONFIRMED"),
     ]);
     const service = buildService(db);
     const dto = makeCreateDto();
 
     await service.createFlightBooking(dto, actor);
-    expect(service['eventEmitter'].emit).toHaveBeenCalledWith(
-      'flight.confirmed',
-      expect.objectContaining({ type: 'flight.confirmed' }),
+    expect(service["eventEmitter"].emit).toHaveBeenCalledWith(
+      "flight.confirmed",
+      expect.objectContaining({ type: "flight.confirmed" })
     );
   });
 
-  it('rejects creation when an active booking already exists', async () => {
+  it("rejects creation when an active booking already exists", async () => {
     const db = createMockDb([
-      registrationRow('REG'),
-      approvedVisaRow('REG'),
+      registrationRow("REG"),
+      activeAirlineRow(),
+      activeAirlineRow(),
       activeBookingCount(), // assertNoActiveBooking -> conflict
     ]);
     const service = buildService(db);
     const dto = makeCreateDto();
 
-    await expect(service.createFlightBooking(dto, actor)).rejects.toThrow(
-      ConflictException,
-    );
+    await expect(service.createFlightBooking(dto, actor)).rejects.toThrow(ConflictException);
   });
 
-  it('rejects return flight number without return date', async () => {
+  it("rejects return flight number without return date", async () => {
     const db = createMockDb([
-      registrationRow('REG'),
-      approvedVisaRow('REG'),
+      registrationRow("REG"),
+      activeAirlineRow(),
+      activeAirlineRow(),
       noActiveBookingCount(),
     ]);
     const service = buildService(db);
     const dto = makeCreateDto({
-      return_flight_number: 'ET701',
+      return_flight_number: "ET701",
       return_date: undefined,
     });
 
-    await expect(service.createFlightBooking(dto, actor)).rejects.toThrow(
-      BadRequestException,
-    );
+    await expect(service.createFlightBooking(dto, actor)).rejects.toThrow(BadRequestException);
   });
 
-  it('rejects return date before departure date', async () => {
+  it("rejects return date before departure date", async () => {
     const db = createMockDb([
-      registrationRow('REG'),
-      approvedVisaRow('REG'),
+      registrationRow("REG"),
+      activeAirlineRow(),
+      activeAirlineRow(),
       noActiveBookingCount(),
     ]);
     const service = buildService(db);
     const dto = makeCreateDto({
-      departure_date: '2026-09-15',
-      return_date: '2026-09-01',
+      departure_date: "2026-09-15",
+      return_date: "2026-09-01",
     });
 
-    await expect(service.createFlightBooking(dto, actor)).rejects.toThrow(
-      BadRequestException,
-    );
+    await expect(service.createFlightBooking(dto, actor)).rejects.toThrow(BadRequestException);
   });
 
-  it('cancels a CONFIRMED booking', async () => {
+  it("cancels a CONFIRMED booking", async () => {
     const db = createMockDb([
-      flightRow('FB1', 'CONFIRMED'), // getFlightBooking
+      flightRow("FB1", "CONFIRMED"), // getFlightBooking
       cancelledStatusRow(), // findStatus CANCELLED
       null, // update
       [], // recordCancellationAdjustment — no linked expense found
-      flightRow('FB1', 'CANCELLED', {
-        cancellation_date: '2026-08-01',
-        cancellation_reason: 'Customer request',
+      flightRow("FB1", "CANCELLED", {
+        cancellation_date: "2026-08-01",
+        cancellation_reason: "Customer request",
       }), // getFlightBooking after update
     ]);
     const service = buildService(db);
     const dto = new CancelFlightBookingDto();
-    Object.assign(dto, { cancellation_reason: 'Customer request' });
+    Object.assign(dto, { cancellation_reason: "Customer request" });
 
-    const result = await service.cancelFlightBooking('FB1', dto, actor);
-    expect(result.status?.status_code).toBe('CANCELLED');
-    expect((db.updateSets[0] as any).flight_booking_status_id).toBe(
-      'FBS_CANCELLED',
-    );
+    const result = await service.cancelFlightBooking("FB1", dto, actor);
+    expect(result.status?.status_code).toBe("CANCELLED");
+    expect((db.updateSets[0] as any).flight_booking_status_id).toBe("FBS_CANCELLED");
   });
 
-  it('rejects cancelling an already CANCELLED booking', async () => {
-    const db = createMockDb([flightRow('FB1', 'CANCELLED')]);
+  it("rejects cancelling an already CANCELLED booking", async () => {
+    const db = createMockDb([flightRow("FB1", "CANCELLED")]);
     const service = buildService(db);
     const dto = new CancelFlightBookingDto();
-    Object.assign(dto, { cancellation_reason: 'Test' });
+    Object.assign(dto, { cancellation_reason: "Test" });
 
-    await expect(
-      service.cancelFlightBooking('FB1', dto, actor),
-    ).rejects.toThrow(ConflictException);
+    await expect(service.cancelFlightBooking("FB1", dto, actor)).rejects.toThrow(ConflictException);
   });
 
-  it('updates editable fields on a confirmed booking', async () => {
+  it("updates editable fields on a confirmed booking", async () => {
     const db = createMockDb([
-      flightRow('FB1', 'CONFIRMED'), // getFlightBooking existing
+      flightRow("FB1", "CONFIRMED"), // getFlightBooking existing
       null, // update
-      flightRow('FB1', 'CONFIRMED', { pnr: 'XYZ789' }), // getFlightBooking after update
+      flightRow("FB1", "CONFIRMED", { pnr: "XYZ789" }), // getFlightBooking after update
     ]);
     const service = buildService(db);
     const dto = new UpdateFlightBookingDto();
-    Object.assign(dto, { pnr: 'XYZ789' });
+    Object.assign(dto, { pnr: "XYZ789" });
 
-    const result = await service.updateFlightBooking('FB1', dto, actor);
-    expect(result.pnr).toBe('XYZ789');
+    const result = await service.updateFlightBooking("FB1", dto, actor);
+    expect(result.pnr).toBe("XYZ789");
   });
 });

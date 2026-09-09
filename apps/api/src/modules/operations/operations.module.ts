@@ -13,6 +13,8 @@ import { RoomsService } from './application/services/rooms.service.js';
 import { RoomAssignmentsService } from './application/services/room-assignments.service.js';
 import { TransportSegmentsService } from './application/services/transport-segments.service.js';
 import { AdminTravelGroupsController } from './presentation/controllers/admin-travel-groups.controller.js';
+import { AdminTravelRoundsController } from './presentation/controllers/admin-travel-rounds.controller.js';
+import { TravelRoundsService } from './application/services/travel-rounds.service.js';
 import { AdminLogisticsLookupsController } from './presentation/controllers/admin-logistics-lookups.controller.js';
 import { AdminGroupMembershipsController } from './presentation/controllers/admin-group-memberships.controller.js';
 import { AdminGuaranteesController } from './presentation/controllers/admin-guarantees.controller.js';
@@ -36,6 +38,7 @@ import { InternalWorkflowController } from './presentation/controllers/internal-
   imports: [SharedModule, FinanceModule],
   controllers: [
     AdminTravelGroupsController,
+    AdminTravelRoundsController,
     AdminGroupMembershipsController,
     AdminGuaranteesController,
     AdminHotelsController,
@@ -50,6 +53,7 @@ import { InternalWorkflowController } from './presentation/controllers/internal-
   providers: [
     LogisticsLookupsService,
     TravelGroupsService,
+    TravelRoundsService,
     TravelGroupOperationalSummaryService,
     GroupMembershipsService,
     GuaranteesService,
@@ -63,6 +67,7 @@ import { InternalWorkflowController } from './presentation/controllers/internal-
   exports: [
     LogisticsLookupsService,
     TravelGroupsService,
+    TravelRoundsService,
     TravelGroupOperationalSummaryService,
     GroupMembershipsService,
     GuaranteesService,

@@ -1,8 +1,8 @@
-import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
-import { JwtAuthGuard } from '../../../../shared/application/guards/jwt-auth.guard.js';
-import { PermissionsGuard } from '../../../../shared/application/guards/permissions.guard.js';
-import { RequirePermissions } from '../../../../shared/application/decorators/require-permissions.decorator.js';
-import { FinanceReportingService } from '../../application/services/finance-reporting.service.js';
+import { Controller, Get, Param, Query, UseGuards } from "@nestjs/common";
+import { JwtAuthGuard } from "../../../../shared/application/guards/jwt-auth.guard.js";
+import { PermissionsGuard } from "../../../../shared/application/guards/permissions.guard.js";
+import { RequirePermissions } from "../../../../shared/application/decorators/require-permissions.decorator.js";
+import { FinanceReportingService } from "../../application/services/finance-reporting.service.js";
 
 /**
  * Admin endpoints for financial reporting.
@@ -16,46 +16,60 @@ import { FinanceReportingService } from '../../application/services/finance-repo
  *   filtering for custom reporting contexts (monthly, quarterly, seasonal,
  *   annual, etc.).
  */
-@Controller('admin')
+@Controller("admin")
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class AdminFinanceReportingController {
   constructor(private readonly reporting: FinanceReportingService) {}
 
-  @Get('finance/dashboard')
-  @RequirePermissions('FINANCE_VIEW')
-  getDashboardSummary() {
-    return this.reporting.getDashboardSummary();
+  @Get("finance/dashboard")
+  @RequirePermissions("FINANCE_VIEW")
+  getDashboardSummary(
+    @Query("date_from") date_from?: string,
+    @Query("date_to") date_to?: string,
+    @Query("travel_group_id") travel_group_id?: string,
+    @Query("travel_round_id") travel_round_id?: string,
+    @Query("travel_round_from") travel_round_from?: string,
+    @Query("travel_round_to") travel_round_to?: string
+  ) {
+    return this.reporting.getDashboardSummary({
+      date_from,
+      date_to,
+      travel_group_id,
+      travel_round_id,
+      travel_round_from: travel_round_from ? Number(travel_round_from) : undefined,
+      travel_round_to: travel_round_to ? Number(travel_round_to) : undefined,
+    });
   }
 
-  @Get('finance/registrations/:id/summary')
-  @RequirePermissions('FINANCE_VIEW')
-  getRegistrationSummary(@Param('id') id: string) {
+  @Get("finance/registrations/:id/summary")
+  @RequirePermissions("FINANCE_VIEW")
+  getRegistrationSummary(@Param("id") id: string) {
     return this.reporting.getRegistrationFinanceSummary(id);
   }
 
-  @Get('finance/travel-groups/:id/summary')
-  @RequirePermissions('FINANCE_VIEW')
-  getTravelGroupSummary(@Param('id') id: string) {
+  @Get("finance/travel-groups/:id/summary")
+  @RequirePermissions("FINANCE_VIEW")
+  getTravelGroupSummary(@Param("id") id: string) {
     return this.reporting.getTravelGroupFinanceSummary(id);
   }
 
-  @Get('finance/package-versions/:id/summary')
-  @RequirePermissions('FINANCE_VIEW')
-  getPackageVersionSummary(@Param('id') id: string) {
+  @Get("finance/package-versions/:id/summary")
+  @RequirePermissions("FINANCE_VIEW")
+  getPackageVersionSummary(@Param("id") id: string) {
     return this.reporting.getPackageVersionFinanceSummary(id);
   }
 
-  @Get('finance/report')
-  @RequirePermissions('FINANCE_VIEW')
+  @Get("finance/report")
+  @RequirePermissions("FINANCE_VIEW")
   getFlexibleReport(
-    @Query('date_from') date_from?: string,
-    @Query('date_to') date_to?: string,
-    @Query('traveller_id') traveller_id?: string,
-    @Query('registration_id') registration_id?: string,
-    @Query('travel_group_id') travel_group_id?: string,
-    @Query('package_version_id') package_version_id?: string,
-    @Query('expense_category_id') expense_category_id?: string,
-    @Query('expense_source_id') expense_source_id?: string,
+    @Query("date_from") date_from?: string,
+    @Query("date_to") date_to?: string,
+    @Query("traveller_id") traveller_id?: string,
+    @Query("registration_id") registration_id?: string,
+    @Query("travel_group_id") travel_group_id?: string,
+    @Query("package_version_id") package_version_id?: string,
+    @Query("expense_category_id") expense_category_id?: string,
+    @Query("expense_source_id") expense_source_id?: string
   ) {
     return this.reporting.getFlexibleReport({
       date_from,

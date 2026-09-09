@@ -1,9 +1,17 @@
-import { request } from '../../../lib/api.js';
+import { request } from "../../../lib/api.js";
 
 export interface FlightBookingStatus {
   id: string;
   status_code: string;
   name: string;
+}
+
+export interface Airline {
+  id: string;
+  iata_code: string;
+  icao_code: string;
+  name: string;
+  display_order: number;
 }
 
 export interface TravellerOwner {
@@ -35,8 +43,10 @@ export interface FlightBookingListItem {
   booking_number: string;
   registration_id: string;
   pnr: string;
+  departure_airline: Airline | null;
   departure_flight_number: string;
   departure_date: string | null;
+  return_airline: Airline | null;
   return_flight_number: string | null;
   return_date: string | null;
   cancellation_date: string | null;
@@ -63,8 +73,10 @@ export interface Paginated<T> {
 export type CreateFlightBookingInput = {
   registration_id: string;
   pnr: string;
+  departure_airline_id: string;
   departure_flight_number: string;
   departure_date: string;
+  return_airline_id?: string;
   return_flight_number?: string;
   return_date?: string;
   supplier_cost?: number;
@@ -73,8 +85,10 @@ export type CreateFlightBookingInput = {
 
 export type UpdateFlightBookingInput = {
   pnr?: string;
+  departure_airline_id?: string;
   departure_flight_number?: string;
   departure_date?: string;
+  return_airline_id?: string;
   return_flight_number?: string;
   return_date?: string;
   supplier_cost?: number;
@@ -89,18 +103,18 @@ export const flightsApi = {
   async listFlightBookings(
     page = 1,
     pageSize = 25,
-    search = '',
-    filters: Record<string, string | undefined> = {},
+    search = "",
+    filters: Record<string, string | undefined> = {}
   ): Promise<Paginated<FlightBookingListItem>> {
     const params = new URLSearchParams();
-    params.set('page', String(page));
-    params.set('page_size', String(pageSize));
-    if (search) params.set('search', search);
+    params.set("page", String(page));
+    params.set("page_size", String(pageSize));
+    if (search) params.set("search", search);
     for (const [key, value] of Object.entries(filters)) {
       if (value) params.set(key, value);
     }
     return request<Paginated<FlightBookingListItem>>(
-      `/api/admin/flight-bookings?${params.toString()}`,
+      `/api/admin/flight-bookings?${params.toString()}`
     );
   },
 
@@ -108,66 +122,63 @@ export const flightsApi = {
     return request<FlightBookingDetail>(`/api/admin/flight-bookings/${id}`);
   },
 
-  async createFlightBooking(
-    input: CreateFlightBookingInput,
-  ): Promise<FlightBookingDetail> {
-    return request<FlightBookingDetail>('/api/admin/flight-bookings', {
-      method: 'POST',
+  async createFlightBooking(input: CreateFlightBookingInput): Promise<FlightBookingDetail> {
+    return request<FlightBookingDetail>("/api/admin/flight-bookings", {
+      method: "POST",
       body: JSON.stringify(input),
     });
   },
 
   async updateFlightBooking(
     id: string,
-    input: UpdateFlightBookingInput,
+    input: UpdateFlightBookingInput
   ): Promise<FlightBookingDetail> {
     return request<FlightBookingDetail>(`/api/admin/flight-bookings/${id}`, {
-      method: 'PATCH',
+      method: "PATCH",
       body: JSON.stringify(input),
     });
   },
 
   async cancelFlightBooking(
     id: string,
-    input: CancelFlightBookingInput,
+    input: CancelFlightBookingInput
   ): Promise<FlightBookingDetail> {
-    return request<FlightBookingDetail>(
-      `/api/admin/flight-bookings/${id}/cancel`,
-      {
-        method: 'POST',
-        body: JSON.stringify(input),
-      },
-    );
+    return request<FlightBookingDetail>(`/api/admin/flight-bookings/${id}/cancel`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
   },
 
   async deleteFlightBooking(id: string): Promise<void> {
-    await request(`/api/admin/flight-bookings/${id}`, { method: 'DELETE' });
+    await request(`/api/admin/flight-bookings/${id}`, { method: "DELETE" });
   },
 
   async listFlightBookingStatuses(): Promise<FlightBookingStatus[]> {
-    return request<FlightBookingStatus[]>('/api/admin/flight-booking-statuses');
+    return request<FlightBookingStatus[]>("/api/admin/flight-booking-statuses");
   },
 
-  async listEligibleRegistrations(
-    search?: string,
-  ): Promise<EligibleRegistration[]> {
+  async listAirlines(): Promise<Airline[]> {
+    return request<Airline[]>("/api/admin/airlines");
+  },
+
+  async listEligibleRegistrations(search?: string): Promise<EligibleRegistration[]> {
     const params = new URLSearchParams();
-    if (search) params.set('search', search);
+    if (search) params.set("search", search);
     return request<EligibleRegistration[]>(
-      `/api/admin/flight-eligible-registrations?${params.toString()}`,
+      `/api/admin/flight-eligible-registrations?${params.toString()}`
     );
   },
 
   async listRegistrationFlightBookings(
     registrationId: string,
     page = 1,
-    pageSize = 25,
+    pageSize = 25
   ): Promise<Paginated<FlightBookingListItem>> {
     const params = new URLSearchParams();
-    params.set('page', String(page));
-    params.set('page_size', String(pageSize));
+    params.set("page", String(page));
+    params.set("page_size", String(pageSize));
     return request<Paginated<FlightBookingListItem>>(
-      `/api/admin/registrations/${registrationId}/flight-bookings?${params.toString()}`,
+      `/api/admin/registrations/${registrationId}/flight-bookings?${params.toString()}`
     );
   },
 };

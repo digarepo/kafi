@@ -43,7 +43,8 @@ export const workflowCommandPresentation: Record<
   },
   'confirm-travel-prepared': {
     title: 'Confirm travel prepared',
-    description: 'Confirm that this travel group is prepared for travel?',
+    description:
+      'Some preparation checks may still be incomplete. Confirming will lock the group for further traveller assignments. Continue?',
     confirmLabel: 'Confirm prepared',
   },
   depart: {

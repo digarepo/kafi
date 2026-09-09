@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import type { ColumnDef } from '@tanstack/react-table';
 import { Badge, Button } from '@kafi/ui';
@@ -39,7 +39,7 @@ interface UsersPageProps {
 
 export function UsersPage({ initial }: UsersPageProps) {
   const [users, setUsers] = useState(initial.users.items);
-  const [roles] = useState<Role[]>(initial.roles);
+  const [roles, setRoles] = useState<Role[]>(initial.roles);
   const { can } = usePermissions();
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
@@ -48,7 +48,41 @@ export function UsersPage({ initial }: UsersPageProps) {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [globalFilter, setGlobalFilter] = useState('');
 
-  const [statuses] = useState<UserStatusOption[]>(initial.statuses);
+  const [statuses, setStatuses] = useState<UserStatusOption[]>(
+    initial.statuses,
+  );
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      try {
+        const [userResult, roleResult, statusResult] = await Promise.all([
+          api.listUsers(),
+          api.listRoles(),
+          api.listUserStatuses(),
+        ]);
+        if (!cancelled) {
+          setUsers(userResult.items);
+          setRoles(roleResult);
+          setStatuses(statusResult);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          toast.error(
+            err instanceof Error ? err.message : 'Failed to load users',
+          );
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function refreshUsers() {
     const refreshed = await api.listUsers();
@@ -304,12 +338,14 @@ export function UsersPage({ initial }: UsersPageProps) {
         <DataTable
           columns={columns}
           data={users}
+          loading={loading}
           globalFilter={globalFilter}
           onGlobalFilterChange={setGlobalFilter}
           enableRowSelection
           onDeleteSelected={
             can('USER_DELETE') ? (rows) => setDeletingUsers(rows) : undefined
           }
+          onRowClick={(user) => can('USER_EDIT') && setEditingUser(user)}
         />
       </div>
     </div>

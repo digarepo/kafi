@@ -41,7 +41,7 @@ export function CreditExceptionRequestsListPage() {
     [],
   );
   const [statuses, setStatuses] = useState<LookupOption[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [referenceLoading, setReferenceLoading] = useState(true);
   const [total, setTotal] = useState(0);
@@ -279,6 +279,7 @@ export function CreditExceptionRequestsListPage() {
         loading={loading}
         pagination={{ pageIndex: page - 1, pageSize, total }}
         onPaginationChange={setPagination}
+        onRowClick={(r) => navigate(`/credit-exception-requests/${r.id}`)}
       />
     </div>
   );

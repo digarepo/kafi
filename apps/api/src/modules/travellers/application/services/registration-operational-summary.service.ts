@@ -6,6 +6,7 @@ import * as schema from '@kafi/database';
 import { InvoicesService } from '../../../finance/application/services/invoices.service.js';
 import { RegistrationsService } from './registrations.service.js';
 import { RegistrationReadinessService } from './registration-readiness.service.js';
+import { calculateDepartureCompliance } from '../../../../shared/domain/departure-compliance.js';
 
 function toTwoDecimals(value: number): number {
   return Math.round(value * 100) / 100;
@@ -63,6 +64,12 @@ export class RegistrationOperationalSummaryService {
     const roomAssignments = membership
       ? await this.getRoomsForMembership(membership.id)
       : [];
+    const approvedVisa = [...visas]
+      .reverse()
+      .find((visa) => visa.status?.code === 'APPROVED');
+    const confirmedFlight = [...flights]
+      .reverse()
+      .find((flight) => flight.status?.code === 'CONFIRMED');
 
     return {
       id: registration.id,
@@ -88,6 +95,12 @@ export class RegistrationOperationalSummaryService {
       group_membership: membership,
       room_assignments: roomAssignments,
       readiness,
+      departure_compliance: calculateDepartureCompliance({
+        visaExpiryDate: approvedVisa?.expiry_date,
+        plannedDepartureDate:
+          registration.amended_return_date ?? confirmedFlight?.return_date,
+        actualDepartureDate: registration.actual_return_date,
+      }),
       cancellation:
         registration.status === 'CANCELLED'
           ? await this.getCancellationInfo(registrationId)

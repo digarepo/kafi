@@ -27,11 +27,11 @@ interface ContextualActionBarProps {
 
 const registrationCommands: Record<string, WorkflowCommand | null> = {
   DRAFT: 'start-processing',
-  PROCESSING: 'confirm-ready',
+  PROCESSING: null,
 };
 
 const travelGroupCommands: Record<string, WorkflowCommand | null> = {
-  PLANNING: 'confirm-travel-prepared',
+  PREPARING: 'confirm-travel-prepared',
   // DEPARTED and COMPLETED transitions are now automatic based on
   // the travel group's departure_date and return_date. No manual
   // button is shown for TRAVEL_PREPARED or DEPARTED states.

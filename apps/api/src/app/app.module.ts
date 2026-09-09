@@ -13,6 +13,7 @@ import { InquiriesModule } from '../modules/inquiries/index.js';
 import { SearchModule } from '../modules/search/index.js';
 import { AnalyticsModule } from '../modules/analytics/analytics.module.js';
 import { OgImageModule } from '../modules/og-image/og-image.module.js';
+import { TravelDocumentsModule } from '../modules/travel-documents/index.js';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { OgImageModule } from '../modules/og-image/og-image.module.js';
     SearchModule,
     AnalyticsModule,
     OgImageModule,
+    TravelDocumentsModule,
   ],
   controllers: [AppController],
   providers: [],

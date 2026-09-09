@@ -14,6 +14,9 @@ import {
   CardHeader,
   CardTitle,
   DropdownMenu,
+  Input,
+  Label,
+  Textarea,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
@@ -57,6 +60,40 @@ interface RegistrationDetailPageProps {
 
 function statusForCondition(value: boolean): ReadinessItem['status'] {
   return value ? 'satisfied' : 'blocked';
+}
+
+function paymentStatus(
+  satisfied: boolean,
+  summary: RegistrationOperationalSummary,
+): ReadinessItem['status'] {
+  const readiness = summary.readiness;
+  const coveredByCredit =
+    readiness?.has_authorized_credit &&
+    readiness.authorized_credit_amount >= summary.finance.outstanding_balance;
+
+  if (satisfied && summary.finance.outstanding_balance > 0 && coveredByCredit) {
+    return 'warning';
+  }
+  return statusForCondition(satisfied);
+}
+
+function paymentDetail(
+  satisfied: boolean,
+  summary: RegistrationOperationalSummary,
+): string | undefined {
+  if (!satisfied && summary.finance.outstanding_balance > 0) {
+    return `Outstanding balance: ${formatMoney(summary.finance.outstanding_balance)}`;
+  }
+
+  const readiness = summary.readiness;
+  const coveredByCredit =
+    readiness?.has_authorized_credit &&
+    readiness.authorized_credit_amount >= summary.finance.outstanding_balance;
+  if (summary.finance.outstanding_balance > 0 && coveredByCredit) {
+    return `Outstanding balance: ${formatMoney(summary.finance.outstanding_balance)} — covered by approved credit exception.`;
+  }
+
+  return undefined;
 }
 
 function buildReadinessItems(
@@ -108,10 +145,12 @@ function buildReadinessItems(
     items.push({
       key: 'intake-payment',
       label: 'Intake payment complete',
-      status: statusForCondition(readiness.intake_payment_satisfied),
-      detail: readiness.intake_payment_satisfied
-        ? undefined
-        : 'A non-cancelled invoice with no outstanding balance is required.',
+      status: paymentStatus(readiness.intake_payment_satisfied, summary),
+      detail:
+        paymentDetail(readiness.intake_payment_satisfied, summary) ??
+        (readiness.intake_payment_satisfied
+          ? undefined
+          : 'A non-cancelled invoice with no outstanding balance is required.'),
       action:
         !readiness.intake_payment_satisfied && can('FINANCE_VIEW')
           ? {
@@ -125,10 +164,8 @@ function buildReadinessItems(
       {
         key: 'payment',
         label: 'Payment complete',
-        status: statusForCondition(readiness.payment_satisfied),
-        detail: readiness.payment_satisfied
-          ? undefined
-          : `Outstanding balance: ${formatMoney(summary.finance.outstanding_balance)}`,
+        status: paymentStatus(readiness.payment_satisfied, summary),
+        detail: paymentDetail(readiness.payment_satisfied, summary),
         action:
           !readiness.payment_satisfied && can('FINANCE_VIEW')
             ? {
@@ -142,17 +179,17 @@ function buildReadinessItems(
         label: 'Visa approved',
         status: statusForCondition(readiness.visa_approved),
         action:
-          !readiness.visa_approved &&
-          can('VISA_MANAGE') &&
-          summary.visas.length === 0
+          summary.status === 'PROCESSING' &&
+          summary.visas.length === 0 &&
+          can('VISA_MANAGE')
             ? {
                 label: 'Start visa application',
                 href: `/visa-applications/new?registration_id=${summary.id}`,
               }
-            : !readiness.visa_approved && can('VISA_VIEW')
+            : summary.visas.length > 0 && can('VISA_VIEW')
               ? {
-                  label: 'Review visa',
-                  href: `/visa-applications?registration_id=${summary.id}`,
+                  label: 'Open visa details',
+                  href: `/visa-applications/${summary.visas[summary.visas.length - 1].id}`,
                 }
               : undefined,
       },
@@ -164,17 +201,17 @@ function buildReadinessItems(
           ? undefined
           : 'A confirmed flight booking is required.',
         action:
-          !readiness.flight_confirmed &&
-          readiness.visa_approved &&
+          summary.status === 'PROCESSING' &&
+          summary.flights.length === 0 &&
           can('FLIGHT_MANAGE')
             ? {
                 label: 'Record flight booking',
                 href: `/flight-bookings/new?registration_id=${summary.id}`,
               }
-            : !readiness.flight_confirmed && can('FLIGHT_VIEW')
+            : summary.flights.length > 0 && can('FLIGHT_VIEW')
               ? {
-                  label: 'Review flights',
-                  href: `/flight-bookings?registration_id=${summary.id}`,
+                  label: 'Open flight details',
+                  href: `/flight-bookings/${summary.flights[summary.flights.length - 1].id}`,
                 }
               : undefined,
       },
@@ -184,10 +221,8 @@ function buildReadinessItems(
       {
         key: 'payment',
         label: 'Payment complete',
-        status: statusForCondition(readiness.payment_satisfied),
-        detail: readiness.payment_satisfied
-          ? undefined
-          : `Outstanding balance: ${formatMoney(summary.finance.outstanding_balance)}`,
+        status: paymentStatus(readiness.payment_satisfied, summary),
+        detail: paymentDetail(readiness.payment_satisfied, summary),
       },
       {
         key: 'visa',
@@ -221,6 +256,10 @@ export function RegistrationDetailPage({ id }: RegistrationDetailPageProps) {
   const [assignGroupOpen, setAssignGroupOpen] = useState(false);
   const [hotelsExpanded, setHotelsExpanded] = useState(false);
   const [requestDialogOpen, setRequestDialogOpen] = useState(false);
+  const [extensionOpen, setExtensionOpen] = useState(false);
+  const [extensionDate, setExtensionDate] = useState('');
+  const [extensionReason, setExtensionReason] = useState('');
+  const [amendmentReference, setAmendmentReference] = useState('');
 
   const loadSummary = useCallback(async () => {
     setLoading(true);
@@ -285,6 +324,28 @@ export function RegistrationDetailPage({ id }: RegistrationDetailPageProps) {
     }
   }
 
+  async function handleConfirmReturn() {
+    if (!summary) return;
+    await api.confirmReturn(summary.id, {
+      actual_return_date:
+        summary.departure_compliance.planned_departure_date ?? undefined,
+    });
+    await loadSummary();
+  }
+
+  async function handleExtendStay() {
+    if (!summary || !extensionDate || !extensionReason.trim()) return;
+    await api.extendStay(summary.id, {
+      amended_return_date: extensionDate,
+      extension_reason: extensionReason.trim(),
+      amendment_reference: amendmentReference.trim() || undefined,
+    });
+    setExtensionOpen(false);
+    setExtensionReason('');
+    setAmendmentReference('');
+    await loadSummary();
+  }
+
   if (!summary && !loading && !error) {
     return (
       <AsyncState
@@ -341,75 +402,58 @@ export function RegistrationDetailPage({ id }: RegistrationDetailPageProps) {
               </p>
             </div>
 
-            {/* Action buttons — top right on all screens */}
+            {/* Action menu */}
             <div className="flex shrink-0 items-start gap-2">
-              {/* Desktop: inline buttons */}
-              <div className="hidden gap-2 sm:flex">
-                {can('REGISTRATION_EDIT') && summary.status === 'DRAFT' && (
-                  <Button
-                    onClick={() => navigate(`/registrations/new?resume=${id}`)}
-                  >
-                    Resume intake
-                  </Button>
-                )}
-                {can('REGISTRATION_EDIT') && summary.status !== 'DRAFT' && (
-                  <Button onClick={() => navigate(`/registrations/${id}/edit`)}>
-                    <PencilIcon className="h-4 w-4" />
-                    Edit
-                  </Button>
-                )}
-                {can('REGISTRATION_DELETE') && (
-                  <Button
-                    variant="destructive"
-                    onClick={() => void handleArchive()}
-                  >
-                    <ArchiveIcon className="h-4 w-4" />
-                    Archive
-                  </Button>
-                )}
-              </div>
-
-              {/* Mobile: MoreVertical dropdown */}
-              <div className="sm:hidden">
-                <DropdownMenu>
-                  <DropdownMenuTrigger
-                    render={
-                      <Button variant="outline" size="icon">
-                        <MoreVerticalIcon className="h-4 w-4" />
-                      </Button>
-                    }
-                  />
-                  <DropdownMenuContent align="end">
-                    {can('REGISTRATION_EDIT') && summary.status === 'DRAFT' && (
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button variant="outline" size="icon">
+                      <MoreVerticalIcon className="h-4 w-4" />
+                    </Button>
+                  }
+                />
+                <DropdownMenuContent align="end">
+                  {can('REGISTRATION_VIEW') &&
+                    summary.status === 'READY_FOR_TRAVEL' &&
+                    summary.group_membership && (
                       <DropdownMenuItem
                         onClick={() =>
-                          navigate(`/registrations/new?resume=${id}`)
+                          navigate(`/registrations/${id}/itinerary`)
                         }
                       >
-                        <PencilIcon className="h-4 w-4" />
-                        Resume intake
+                        <FileTextIcon className="h-4 w-4" />
+                        View itinerary
                       </DropdownMenuItem>
                     )}
-                    {can('REGISTRATION_EDIT') && summary.status !== 'DRAFT' && (
-                      <DropdownMenuItem
-                        onClick={() => navigate(`/registrations/${id}/edit`)}
-                      >
-                        <PencilIcon className="h-4 w-4" />
-                        Edit
-                      </DropdownMenuItem>
-                    )}
-                    {can('REGISTRATION_DELETE') && (
-                      <DropdownMenuItem
-                        variant="destructive"
-                        onClick={() => void handleArchive()}
-                      >
-                        <ArchiveIcon className="h-4 w-4" />
-                        Archive
-                      </DropdownMenuItem>
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
+                  {can('REGISTRATION_EDIT') && summary.status === 'DRAFT' && (
+                    <DropdownMenuItem
+                      onClick={() =>
+                        navigate(`/registrations/new?resume=${id}`)
+                      }
+                    >
+                      <PencilIcon className="h-4 w-4" />
+                      Resume intake
+                    </DropdownMenuItem>
+                  )}
+                  {can('REGISTRATION_EDIT') && summary.status !== 'DRAFT' && (
+                    <DropdownMenuItem
+                      onClick={() => navigate(`/registrations/${id}/edit`)}
+                    >
+                      <PencilIcon className="h-4 w-4" />
+                      Edit
+                    </DropdownMenuItem>
+                  )}
+                  {can('REGISTRATION_DELETE') && (
+                    <DropdownMenuItem
+                      variant="destructive"
+                      onClick={() => void handleArchive()}
+                    >
+                      <ArchiveIcon className="h-4 w-4" />
+                      Archive
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </header>
 
@@ -490,15 +534,17 @@ export function RegistrationDetailPage({ id }: RegistrationDetailPageProps) {
               }
               tone={summary.readiness?.visa_approved ? 'success' : 'warning'}
               action={
-                summary.visas.length === 0 && can('VISA_MANAGE')
+                summary.status === 'PROCESSING' &&
+                summary.visas.length === 0 &&
+                can('VISA_MANAGE')
                   ? {
                       label: 'Start visa application',
                       href: `/visa-applications/new?registration_id=${summary.id}`,
                     }
-                  : can('VISA_VIEW')
+                  : summary.visas.length > 0 && can('VISA_VIEW')
                     ? {
-                        label: 'Open visas',
-                        href: `/visa-applications?registration_id=${summary.id}`,
+                        label: 'Open visa details',
+                        href: `/visa-applications/${summary.visas[summary.visas.length - 1].id}`,
                       }
                     : undefined
               }
@@ -515,19 +561,50 @@ export function RegistrationDetailPage({ id }: RegistrationDetailPageProps) {
               }
               tone={summary.readiness?.flight_confirmed ? 'success' : 'warning'}
               action={
-                summary.readiness?.visa_approved &&
-                !summary.readiness?.flight_confirmed &&
+                summary.status === 'PROCESSING' &&
+                summary.flights.length === 0 &&
                 can('FLIGHT_MANAGE')
                   ? {
                       label: 'Record flight booking',
                       href: `/flight-bookings/new?registration_id=${summary.id}`,
                     }
-                  : can('FLIGHT_VIEW')
+                  : summary.flights.length > 0 && can('FLIGHT_VIEW')
                     ? {
-                        label: 'Open flights',
-                        href: `/flight-bookings?registration_id=${summary.id}`,
+                        label: 'Open flight details',
+                        href: `/flight-bookings/${summary.flights[summary.flights.length - 1].id}`,
                       }
                     : undefined
+              }
+            />
+            <OperationalSummaryCard
+              title="Departure compliance"
+              value={
+                summary.departure_compliance.status === 'OVERDUE'
+                  ? `${summary.departure_compliance.days_overdue}d overdue`
+                  : summary.departure_compliance.days_remaining != null
+                    ? `${summary.departure_compliance.days_remaining}d`
+                    : '—'
+              }
+              secondary={
+                summary.departure_compliance.status === 'NO_RETURN_FLIGHT'
+                  ? 'No confirmed return flight'
+                  : summary.departure_compliance.status ===
+                      'VISA_EXPIRES_BEFORE_RETURN'
+                    ? 'Visa expires before planned return'
+                    : `Planned return: ${displayDate(summary.departure_compliance.planned_departure_date)}`
+              }
+              tone={
+                ['OVERDUE', 'VISA_EXPIRES_BEFORE_RETURN'].includes(
+                  summary.departure_compliance.status,
+                )
+                  ? 'danger'
+                  : ['DUE_TODAY', 'DUE_SOON'].includes(
+                        summary.departure_compliance.status,
+                      )
+                    ? 'warning'
+                    : summary.departure_compliance.status === 'NO_RETURN_FLIGHT'
+                      ? 'warning'
+                      : 'success'
               }
             />
             <OperationalSummaryCard
@@ -569,6 +646,99 @@ export function RegistrationDetailPage({ id }: RegistrationDetailPageProps) {
             />
           </div>
 
+          {summary.status === 'READY_FOR_TRAVEL' &&
+            summary.return_completion_status !== 'COMPLETED' &&
+            can('REGISTRATION_EDIT') && (
+              <Card className="border-primary/20 bg-primary/5">
+                <CardHeader>
+                  <CardTitle className="text-base">
+                    Return confirmation
+                  </CardTitle>
+                  <CardDescription>
+                    Confirm the traveller returned on schedule or record an
+                    approved stay extension.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {!extensionOpen ? (
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <Button onClick={() => void handleConfirmReturn()}>
+                        Confirm return
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setExtensionDate(
+                            summary.departure_compliance
+                              .planned_departure_date ?? '',
+                          );
+                          setExtensionOpen(true);
+                        }}
+                      >
+                        Extend stay
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="amended-return-date">
+                          Amended return date
+                        </Label>
+                        <Input
+                          id="amended-return-date"
+                          type="date"
+                          value={extensionDate}
+                          onChange={(event) =>
+                            setExtensionDate(event.target.value)
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="amendment-reference">
+                          Amendment reference
+                        </Label>
+                        <Input
+                          id="amendment-reference"
+                          value={amendmentReference}
+                          onChange={(event) =>
+                            setAmendmentReference(event.target.value)
+                          }
+                          placeholder="Optional reference"
+                        />
+                      </div>
+                      <div className="space-y-2 sm:col-span-2">
+                        <Label htmlFor="extension-reason">
+                          Extension reason
+                        </Label>
+                        <Textarea
+                          id="extension-reason"
+                          value={extensionReason}
+                          onChange={(event) =>
+                            setExtensionReason(event.target.value)
+                          }
+                          placeholder="Why is the stay being extended?"
+                        />
+                      </div>
+                      <div className="flex gap-2 sm:col-span-2">
+                        <Button
+                          disabled={!extensionDate || !extensionReason.trim()}
+                          onClick={() => void handleExtendStay()}
+                        >
+                          Save extension
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={() => setExtensionOpen(false)}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
           {/* Next action card (includes cancel registration) */}
           <ContextualActionBar
             entity="registration"
@@ -582,10 +752,6 @@ export function RegistrationDetailPage({ id }: RegistrationDetailPageProps) {
                       allowed: summary.readiness.can_start_processing,
                       blockers: readinessItems,
                     },
-                    'confirm-ready': {
-                      allowed: summary.readiness.can_confirm_ready,
-                      blockers: readinessItems,
-                    },
                   }
                 : undefined
             }
@@ -594,10 +760,6 @@ export function RegistrationDetailPage({ id }: RegistrationDetailPageProps) {
                 ? {
                     'start-processing': async () => {
                       await api.startRegistrationProcessing(id);
-                      await loadSummary();
-                    },
-                    'confirm-ready': async () => {
-                      await api.confirmRegistrationReady(id);
                       await loadSummary();
                     },
                     'cancel-registration': async (reason) => {
@@ -949,7 +1111,9 @@ export function RegistrationDetailPage({ id }: RegistrationDetailPageProps) {
                   </CardDescription>
                 </div>
                 <div className="flex flex-wrap gap-3">
-                  {summary.visas.length === 0 && can('VISA_MANAGE') ? (
+                  {summary.status === 'PROCESSING' &&
+                  summary.visas.length === 0 &&
+                  can('VISA_MANAGE') ? (
                     <Button
                       variant="link"
                       size="sm"
@@ -961,35 +1125,22 @@ export function RegistrationDetailPage({ id }: RegistrationDetailPageProps) {
                     >
                       Start visa
                     </Button>
-                  ) : can('VISA_VIEW') ? (
+                  ) : summary.visas.length > 0 && can('VISA_VIEW') ? (
                     <Button
                       variant="link"
                       size="sm"
                       render={
                         <Link
-                          to={`/visa-applications?registration_id=${summary.id}`}
+                          to={`/visa-applications/${summary.visas[summary.visas.length - 1].id}`}
                         />
                       }
                     >
-                      Open visas
+                      Open visa details
                     </Button>
                   ) : null}
-                  {can('FLIGHT_VIEW') && summary.flights.length > 0 && (
-                    <Button
-                      variant="link"
-                      size="sm"
-                      render={
-                        <Link
-                          to={`/flight-bookings?registration_id=${summary.id}`}
-                        />
-                      }
-                    >
-                      Open flights
-                    </Button>
-                  )}
-                  {can('FLIGHT_MANAGE') &&
-                    summary.readiness?.visa_approved &&
-                    !summary.readiness?.flight_confirmed && (
+                  {summary.status === 'PROCESSING' &&
+                    summary.flights.length === 0 &&
+                    can('FLIGHT_MANAGE') && (
                       <Button
                         variant="link"
                         size="sm"
@@ -1002,6 +1153,19 @@ export function RegistrationDetailPage({ id }: RegistrationDetailPageProps) {
                         Record flight
                       </Button>
                     )}
+                  {summary.flights.length > 0 && can('FLIGHT_VIEW') && (
+                    <Button
+                      variant="link"
+                      size="sm"
+                      render={
+                        <Link
+                          to={`/flight-bookings/${summary.flights[summary.flights.length - 1].id}`}
+                        />
+                      }
+                    >
+                      Open flight details
+                    </Button>
+                  )}
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -1058,9 +1222,9 @@ export function RegistrationDetailPage({ id }: RegistrationDetailPageProps) {
                   </p>
                   {summary.flights.length === 0 ? (
                     <p className="text-xs text-muted-foreground sm:text-sm">
-                      {summary.readiness?.visa_approved
-                        ? 'No flight booking recorded yet.'
-                        : 'Flight booking requires an approved visa first.'}
+                      {summary.status === 'PROCESSING'
+                        ? 'No flight booking recorded yet. Flight booking can proceed alongside visa processing.'
+                        : 'Flight booking becomes available after registration intake is complete.'}
                     </p>
                   ) : (
                     summary.flights.map((flight) => (

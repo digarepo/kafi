@@ -72,6 +72,7 @@ import type {
   Registration,
   RegistrationOperationalSummary,
   Traveller,
+  TravelRound,
 } from '../../../lib/api.js';
 
 const WORKFLOW_STEPS = [
@@ -108,9 +109,11 @@ function today(): string {
 
 export function RegistrationIntakeWorkflow({
   packageVersions,
+  travelRounds,
   registrationId,
 }: {
   packageVersions: PackageVersion[];
+  travelRounds: TravelRound[];
   registrationId?: string;
 }) {
   const navigate = useNavigate();
@@ -140,6 +143,7 @@ export function RegistrationIntakeWorkflow({
   const [travellers, setTravellers] = useState<Traveller[]>([]);
   const [selectedTravellerId, setSelectedTravellerId] = useState('');
   const [selectedPackageVersionId, setSelectedPackageVersionId] = useState('');
+  const [selectedTravelRoundId, setSelectedTravelRoundId] = useState('');
   const [expectedDepartureDate, setExpectedDepartureDate] = useState('');
   const [expectedReturnDate, setExpectedReturnDate] = useState('');
   const [remarks, setRemarks] = useState('');
@@ -558,8 +562,12 @@ export function RegistrationIntakeWorkflow({
 
   // ---- Step 1: Create registration ----
   async function handleCreateRegistration() {
-    if (!selectedTravellerId || !selectedPackageVersionId) {
-      toast.error('Select a traveler and package version');
+    if (
+      !selectedTravellerId ||
+      !selectedPackageVersionId ||
+      !selectedTravelRoundId
+    ) {
+      toast.error('Select a traveler, package version, and travel round');
       return;
     }
     setSubmitting(true);
@@ -567,6 +575,7 @@ export function RegistrationIntakeWorkflow({
       const reg = await api.createRegistration({
         traveller_id: selectedTravellerId,
         package_version_id: selectedPackageVersionId,
+        travel_round_id: selectedTravelRoundId,
         expected_departure_date: expectedDepartureDate || undefined,
         expected_return_date: expectedReturnDate || undefined,
         remarks: remarks || undefined,
@@ -1041,6 +1050,7 @@ export function RegistrationIntakeWorkflow({
         registration={registration ?? undefined}
         travellers={travellers}
         packageVersions={packageVersions}
+        travelRounds={travelRounds}
         onSubmit={async (values) => {
           // In workflow mode, onSubmit is triggered by the Next button
           // via form validation. The actual API call is handled by
@@ -1060,6 +1070,7 @@ export function RegistrationIntakeWorkflow({
         onValuesChange={(values) => {
           setSelectedTravellerId(values.traveller_id);
           setSelectedPackageVersionId(values.package_version_id);
+          setSelectedTravelRoundId(values.travel_round_id);
           setExpectedDepartureDate(values.expected_departure_date);
           setExpectedReturnDate(values.expected_return_date);
           setRemarks(values.remarks);

@@ -38,6 +38,7 @@ const createPackageVersionSchema = z.object({
   slug: z.string().max(200).optional(),
   hero_image_url: z.string().max(500).optional(),
   sort_order: z.coerce.number().int().min(0).default(0),
+  round_number: z.coerce.number().int().min(1),
   season_id: z
     .union([ulidSchema, z.literal('')])
     .optional()
@@ -58,6 +59,7 @@ const updatePackageVersionSchema = z.object({
   slug: z.string().max(200).optional(),
   hero_image_url: z.string().max(500).optional(),
   sort_order: z.coerce.number().int().min(0).optional(),
+  round_number: z.coerce.number().int().min(1).optional(),
   season_id: z
     .union([ulidSchema, z.literal('')])
     .optional()

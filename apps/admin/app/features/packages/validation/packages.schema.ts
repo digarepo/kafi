@@ -28,7 +28,7 @@ export const packageVersionFormSchema = z.object({
   version_name: z.string().min(1, 'Version name is required'),
   slug: z.string(),
   hero_image_url: z.string(),
-  sort_order: z.number(),
+  round_number: z.number().int().min(1, 'Travel round is required'),
   season_id: z.string(),
   year: z.number().min(2020),
   travelRange: dateRangeValueSchema,

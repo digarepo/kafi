@@ -8,8 +8,8 @@ import { AdminFlightBookingsController } from './presentation/controllers/admin-
  * Flights bounded context: flight booking records for registrations.
  *
  * @remarks
- * - This module reads from documents (visa) to enforce the APPROVED visa
- *   precondition and never writes to visa tables.
+ * - Flight booking and visa processing are independent workflows; this module
+ *   does not read from or write to visa tables.
  * - Flight booking creation directly produces CONFIRMED status.
  * - Imports FinanceModule so flight confirmation can auto-create a Finance
  *   expense for the supplier cost.

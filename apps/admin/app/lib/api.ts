@@ -477,6 +477,7 @@ export interface PackageVersion {
   slug: string;
   hero_image_url: string | null;
   sort_order: number;
+  round_number: number;
   year: number;
   departure_date: string | null;
   return_date: string | null;
@@ -493,6 +494,7 @@ export interface PackageVersion {
   is_registration_available: boolean;
   availability_blockers: string[];
   package_template: { id: string; name: string } | null;
+  travel_round: TravelRound | null;
   package_category: { id: string; name: string } | null;
   pilgrimage_type: { id: string; name: string } | null;
   season: { id: string; name: string } | null;
@@ -534,6 +536,7 @@ export interface CreatePackageVersionInput {
   slug?: string;
   hero_image_url?: string;
   sort_order?: number;
+  round_number: number;
   season_id?: string;
   year: number;
   departure_date?: string;
@@ -552,6 +555,7 @@ export interface UpdatePackageVersionInput {
   slug?: string;
   hero_image_url?: string;
   sort_order?: number;
+  round_number?: number;
   season_id?: string;
   year?: number;
   departure_date?: string;
@@ -663,12 +667,29 @@ export interface TravellerContact {
   updated_at: string;
 }
 
+export interface TravelRound {
+  id: string;
+  round_number: number;
+  name: string;
+  departure_date: string;
+  return_date: string;
+  status: 'PLANNING' | 'OPEN' | 'CLOSED' | 'COMPLETED';
+  next_registration_sequence: number;
+  remarks: string | null;
+}
+
 export interface Registration {
   id: string;
   registration_number: string;
   registration_date: string;
   expected_departure_date: string | null;
   expected_return_date: string | null;
+  return_completion_status: 'OPEN' | 'EXTENDED' | 'COMPLETED';
+  actual_return_date: string | null;
+  amended_return_date: string | null;
+  extension_reason?: string | null;
+  amendment_reference?: string | null;
+  return_completion_notes?: string | null;
   remarks: string | null;
   status: string;
   status_name: string;
@@ -691,6 +712,7 @@ export interface Registration {
     status: string;
   } | null;
   package_template: { id: string; name: string } | null;
+  travel_round: TravelRound | null;
   currency: { id: string; code: string; name: string } | null;
   season: { id: string; name: string } | null;
   created_at: string;
@@ -718,6 +740,38 @@ export interface PaginatedRegistrations {
   page_size: number;
 }
 
+export interface DepartureCompliance {
+  status:
+    | 'NO_RETURN_FLIGHT'
+    | 'VISA_EXPIRES_BEFORE_RETURN'
+    | 'OVERDUE'
+    | 'DUE_TODAY'
+    | 'DUE_SOON'
+    | 'UPCOMING'
+    | 'ON_SCHEDULE';
+  visa_expiry_date: string | null;
+  planned_departure_date: string | null;
+  actual_departure_date: string | null;
+  days_remaining: number | null;
+  days_overdue: number | null;
+}
+
+export interface DepartureMonitoringItem {
+  registration_id: string;
+  registration_number: string;
+  traveller_name: string;
+  compliance: DepartureCompliance;
+}
+
+export interface DepartureMonitoringSummary {
+  overdue: number;
+  due_today: number;
+  due_within_seven_days: number;
+  visa_expires_before_return: number;
+  missing_return_flight: number;
+  items: DepartureMonitoringItem[];
+}
+
 export interface DashboardSummary {
   registrations_needing_processing: number;
   registrations_ready_for_travel: number;
@@ -726,6 +780,7 @@ export interface DashboardSummary {
   groups_requiring_preparation: number;
   groups_ready_to_depart: number;
   upcoming_departures: number;
+  departure_monitoring: DepartureMonitoringSummary;
   generated_at: string;
 }
 
@@ -874,6 +929,7 @@ export interface RegistrationOperationalSummary extends Registration {
     status: { id: string; code: string; name: string } | null;
   }>;
   readiness: RegistrationReadiness | null;
+  departure_compliance: DepartureCompliance;
   cancellation: {
     cancellation_reason: string | null;
     cancelled_at: string | null;
@@ -913,9 +969,15 @@ export interface TravelGroupTransportSegment {
   id: string;
   transport_segment_number: string;
   transport_type: string | null;
+  vehicle_type_id: string | null;
+  vehicle_type: { id: string; type_code: string; name: string } | null;
+  vehicle_plate_number: string | null;
+  transport_cost: number | string | null;
   segment_order: number;
   origin_location: string;
   destination_location: string;
+  origin_type: 'AIRPORT' | 'HOTEL' | 'RELIGIOUS_SITE' | 'OTHER' | null;
+  destination_type: 'AIRPORT' | 'HOTEL' | 'RELIGIOUS_SITE' | 'OTHER' | null;
   departure_datetime: string | null;
   arrival_datetime: string | null;
   vehicle_identifier: string | null;
@@ -1001,6 +1063,8 @@ export interface CreateGroupHotelStayInput {
 
 export interface CreateTransportSegmentInput {
   vendor_id?: string;
+  vehicle_type_id: string;
+  vehicle_plate_number: string;
   transport_type?: 'BUS' | 'COASTER' | 'VAN' | 'SEDAN' | 'SUV' | 'OTHER';
   segment_order?: number;
   origin_location: string;
@@ -1162,6 +1226,7 @@ export interface RegistrationListFilters {
   search?: string;
   traveller_id?: string;
   package_version_id?: string;
+  travel_round_id?: string;
   status_id?: string;
   departure_from?: string;
   departure_to?: string;
@@ -1170,6 +1235,7 @@ export interface RegistrationListFilters {
 export interface CreateRegistrationInput {
   traveller_id: string;
   package_version_id: string;
+  travel_round_id: string;
   expected_departure_date?: string;
   expected_return_date?: string;
   remarks?: string;
@@ -1184,6 +1250,22 @@ export interface UpdateRegistrationInput {
 
 export interface CancelRegistrationInput {
   cancellation_reason?: string;
+}
+
+export interface ConfirmReturnInput {
+  actual_return_date?: string;
+  notes?: string;
+}
+
+export interface ExtendStayInput {
+  amended_return_date: string;
+  extension_reason: string;
+  amendment_reference?: string;
+  notes?: string;
+}
+
+export interface BulkConfirmReturnsInput {
+  items: Array<{ registration_id: string; actual_return_date: string }>;
 }
 
 // ---- Finance ----
@@ -1702,6 +1784,8 @@ export interface FinanceDashboardSummary {
   total_collected: number;
   outstanding: number;
   total_expenses: number;
+  total_adjustments: number;
+  net_expenses: number;
   profit_loss: number;
   total_refunds: number;
   authorized_credit: number;
@@ -1748,6 +1832,103 @@ export interface GroupMembershipStatus {
   id: string;
   status_code: string;
   name: string;
+}
+
+export interface TravelDocumentWarning {
+  code: string;
+  message: string;
+}
+
+export interface TravelerItineraryDocument {
+  generated_at: string;
+  registration: { id: string; number: string; status: string };
+  traveler: {
+    id: string;
+    name: string;
+    traveler_number: string;
+    phone_number: string;
+  };
+  group: {
+    id: string;
+    number: string;
+    name: string;
+    package_name: string | null;
+    round_name: string | null;
+    round_number: number | null;
+    departure_date: string | null;
+    return_date: string | null;
+  } | null;
+  flight: {
+    booking_number: string;
+    pnr: string;
+    departure_flight_number: string;
+    departure_date: string | null;
+    return_flight_number: string | null;
+    return_date: string | null;
+  } | null;
+  visa: {
+    application_number: string;
+    visa_number: string | null;
+    status: string | null;
+    expiry_date: string | null;
+  } | null;
+  stays: Array<{
+    city: string | null;
+    hotel: string | null;
+    check_in_date: string | null;
+    check_out_date: string | null;
+    room_number: string | null;
+    room_type: string | null;
+  }>;
+  transport: Array<{
+    departure_datetime: string | null;
+    arrival_datetime: string | null;
+    origin: string;
+    destination: string;
+    vehicle_type: string | null;
+    vehicle_plate_number: string | null;
+  }>;
+  warnings: TravelDocumentWarning[];
+}
+
+export interface GuideManifestDocument {
+  generated_at: string;
+  group: {
+    id: string;
+    number: string;
+    name: string;
+    package_name: string | null;
+    round_name: string | null;
+    round_number: number | null;
+    departure_date: string | null;
+    return_date: string | null;
+    status: string | null;
+  };
+  schedule: {
+    stays: Array<{
+      city: string | null;
+      hotel: string | null;
+      check_in_date: string | null;
+      check_out_date: string | null;
+    }>;
+    transport: Array<{
+      departure_datetime: string | null;
+      arrival_datetime: string | null;
+      origin: string;
+      destination: string;
+      vehicle_type: string | null;
+      vehicle_plate_number: string | null;
+    }>;
+  };
+  travelers: Array<{
+    registration_number: string | null;
+    name: string;
+    phone_number: string;
+    visa_number: string | null;
+    rooms: Array<{ city: string | null; room_number: string | null }>;
+    emergency_contact: { name: string; phone_number: string } | null;
+  }>;
+  warnings: TravelDocumentWarning[];
 }
 
 export interface TravelGroupListItem {
@@ -2391,7 +2572,9 @@ export const api = {
   async archivePackageTemplate(id: string): Promise<PackageTemplate> {
     const result = await request<PackageTemplate>(
       `/api/admin/package-templates/${id}/archive`,
-      { method: 'POST' },
+      {
+        method: 'POST',
+      },
     );
     invalidateApiCache(['catalog:package-versions:*']);
     return result;
@@ -2458,7 +2641,9 @@ export const api = {
   async publishPackageVersion(id: string): Promise<PackageVersion> {
     const result = await request<PackageVersion>(
       `/api/admin/package-versions/${id}/publish`,
-      { method: 'POST' },
+      {
+        method: 'POST',
+      },
     );
     invalidateApiCache(['catalog:package-versions:*']);
     return result;
@@ -2467,7 +2652,9 @@ export const api = {
   async closePackageVersion(id: string): Promise<PackageVersion> {
     const result = await request<PackageVersion>(
       `/api/admin/package-versions/${id}/close`,
-      { method: 'POST' },
+      {
+        method: 'POST',
+      },
     );
     invalidateApiCache(['catalog:package-versions:*']);
     return result;
@@ -2476,7 +2663,9 @@ export const api = {
   async cancelPackageVersion(id: string): Promise<PackageVersion> {
     const result = await request<PackageVersion>(
       `/api/admin/package-versions/${id}/cancel`,
-      { method: 'POST' },
+      {
+        method: 'POST',
+      },
     );
     invalidateApiCache(['catalog:package-versions:*']);
     return result;
@@ -2737,6 +2926,32 @@ export const api = {
     return request<SearchResults>(`/api/admin/search?${qs.toString()}`);
   },
 
+  // ---- Travel rounds ----
+
+  async listTravelRounds(
+    filters: {
+      page?: number;
+      page_size?: number;
+      status?: TravelRound['status'];
+      search?: string;
+    } = {},
+  ): Promise<{
+    data: TravelRound[];
+    total: number;
+    page: number;
+    page_size: number;
+  }> {
+    const qs = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined) qs.set(key, String(value));
+    });
+    return request(`/api/admin/travel-rounds?${qs.toString()}`);
+  },
+
+  async getTravelRound(id: string): Promise<TravelRound> {
+    return request(`/api/admin/travel-rounds/${id}`);
+  },
+
   // ---- Registrations ----
 
   async listRegistrations(
@@ -2753,6 +2968,8 @@ export const api = {
     if (filters.package_version_id) {
       qs.set('package_version_id', filters.package_version_id);
     }
+    if (filters.travel_round_id)
+      qs.set('travel_round_id', filters.travel_round_id);
     if (filters.status_id) qs.set('status_id', filters.status_id);
     if (filters.departure_from)
       qs.set('departure_from', filters.departure_from);
@@ -2769,6 +2986,12 @@ export const api = {
   ): Promise<RegistrationOperationalSummary> {
     return request<RegistrationOperationalSummary>(
       `/api/admin/registrations/${id}/operational-summary`,
+    );
+  },
+
+  async getTravelerItinerary(id: string): Promise<TravelerItineraryDocument> {
+    return request<TravelerItineraryDocument>(
+      `/api/admin/registrations/${id}/travel-itinerary`,
     );
   },
 
@@ -2823,6 +3046,38 @@ export const api = {
       `/api/admin/registrations/${id}/confirm-ready`,
       {
         method: 'POST',
+      },
+    );
+  },
+
+  async confirmReturn(
+    id: string,
+    input: ConfirmReturnInput = {},
+  ): Promise<Registration> {
+    return request<Registration>(
+      `/api/admin/registrations/${id}/confirm-return`,
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+    );
+  },
+
+  async extendStay(id: string, input: ExtendStayInput): Promise<Registration> {
+    return request<Registration>(`/api/admin/registrations/${id}/extend-stay`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
+
+  async bulkConfirmReturns(
+    input: BulkConfirmReturnsInput,
+  ): Promise<Registration[]> {
+    return request<Registration[]>(
+      '/api/admin/registrations/bulk-confirm-returns',
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
       },
     );
   },
@@ -3252,7 +3507,9 @@ export const api = {
   async revokeFinanceException(id: string): Promise<FinanceException> {
     return request<FinanceException>(
       `/api/admin/finance-exceptions/${id}/revoke`,
-      { method: 'POST' },
+      {
+        method: 'POST',
+      },
     );
   },
 
@@ -3302,7 +3559,9 @@ export const api = {
   ): Promise<CreditExceptionRequest> {
     return request<CreditExceptionRequest>(
       `/api/admin/credit-exception-requests/${id}/approve`,
-      { method: 'POST' },
+      {
+        method: 'POST',
+      },
     );
   },
 
@@ -3312,7 +3571,10 @@ export const api = {
   ): Promise<CreditExceptionRequest> {
     return request<CreditExceptionRequest>(
       `/api/admin/credit-exception-requests/${id}/reject`,
-      { method: 'POST', body: JSON.stringify(input) },
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
     );
   },
 
@@ -3366,8 +3628,31 @@ export const api = {
 
   // ---- Finance Reporting ----
 
-  async getFinanceDashboard(): Promise<FinanceDashboardSummary> {
-    return request<FinanceDashboardSummary>('/api/admin/finance/dashboard');
+  async getFinanceDashboard(
+    filters: {
+      date_from?: string;
+      date_to?: string;
+      travel_group_id?: string;
+      travel_round_id?: string;
+      travel_round_from?: number;
+      travel_round_to?: number;
+    } = {},
+  ): Promise<FinanceDashboardSummary> {
+    const qs = new URLSearchParams();
+    if (filters.date_from) qs.set('date_from', filters.date_from);
+    if (filters.date_to) qs.set('date_to', filters.date_to);
+    if (filters.travel_group_id)
+      qs.set('travel_group_id', filters.travel_group_id);
+    if (filters.travel_round_id)
+      qs.set('travel_round_id', filters.travel_round_id);
+    if (filters.travel_round_from !== undefined)
+      qs.set('travel_round_from', String(filters.travel_round_from));
+    if (filters.travel_round_to !== undefined)
+      qs.set('travel_round_to', String(filters.travel_round_to));
+    const query = qs.toString();
+    return request<FinanceDashboardSummary>(
+      `/api/admin/finance/dashboard${query ? `?${query}` : ''}`,
+    );
   },
 
   async getRegistrationFinanceDetail(
@@ -3490,6 +3775,18 @@ export const api = {
     );
   },
 
+  async getGuideManifest(id: string): Promise<GuideManifestDocument> {
+    return request<GuideManifestDocument>(
+      `/api/admin/travel-groups/${id}/guide-manifest`,
+    );
+  },
+
+  async getGroupItinerary(id: string): Promise<TravelerItineraryDocument[]> {
+    return request<TravelerItineraryDocument[]>(
+      `/api/admin/travel-groups/${id}/group-itinerary`,
+    );
+  },
+
   async getTravelGroupTravellers(id: string): Promise<TravelGroupTraveller[]> {
     return request<TravelGroupTraveller[]>(
       `/api/admin/travel-groups/${id}/travellers`,
@@ -3518,6 +3815,14 @@ export const api = {
       'reference:transport-segment-statuses',
       STABLE_REFERENCE_TTL_MS,
       () => request<LookupOption[]>('/api/admin/transport-segment-statuses'),
+    );
+  },
+
+  async listVehicleTypes(): Promise<LookupOption[]> {
+    return cachedRequest(
+      'reference:vehicle-types',
+      STABLE_REFERENCE_TTL_MS,
+      () => request<LookupOption[]>('/api/admin/vehicle-types'),
     );
   },
 
@@ -3608,6 +3913,10 @@ export const api = {
       `/api/admin/travel-groups/${groupId}/transport-segments`,
       { method: 'POST', body: JSON.stringify(input) },
     );
+  },
+
+  async deleteTransportSegment(id: string): Promise<void> {
+    await request(`/api/admin/transport-segments/${id}`, { method: 'DELETE' });
   },
 
   async updateTransportSegment(

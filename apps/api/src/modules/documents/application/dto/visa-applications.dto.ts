@@ -9,9 +9,14 @@ const optionalUlid = z
   .transform((v) => (v === '' ? undefined : v));
 
 const optionalDate = z
-  .union([z.string().regex(/^\d{4}-\d{2}-\d{2}$/), z.literal('')])
+  .union([z.string().regex(/^\d{4}-\d{2}-\d{2}$/), z.literal(''), z.null()])
   .optional()
-  .transform((v) => (v === '' ? undefined : v));
+  .transform((v) => (v === '' || v === null ? undefined : v));
+
+const optionalString = z
+  .union([z.string(), z.null()])
+  .optional()
+  .transform((v) => (v === null ? undefined : v));
 
 /**
  * Create visa application DTO.
@@ -32,7 +37,7 @@ const updateVisaApplicationSchema = z
   .object({
     submission_date: optionalDate,
     visa_cost: z.coerce.number().min(0).optional(),
-    notes: z.string().optional(),
+    notes: optionalString,
   })
   .refine((data) => Object.keys(data).length > 0, {
     message: 'At least one field must be provided',

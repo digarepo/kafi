@@ -33,6 +33,8 @@ export const configSchema = z.object({
   WORKFLOW_TICK_SECRET: z
     .string()
     .min(16, 'WORKFLOW_TICK_SECRET must be at least 16 characters'),
+
+  DOCUMENT_STORAGE_PATH: z.string().optional().default('storage/documents'),
 });
 
 /**

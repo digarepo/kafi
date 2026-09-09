@@ -4,6 +4,7 @@ import {
   date,
   datetime,
   int,
+  index,
   mysqlEnum,
   mysqlTable,
   text,
@@ -216,11 +217,22 @@ export const registrations = mysqlTable(
       .unique(),
     traveller_id: fkUuid('traveller_id').notNull(),
     package_version_id: fkUuid('package_version_id').notNull(),
+    travel_round_id: fkUuid('travel_round_id'),
     registration_date: datetime('registration_date', { mode: 'date' })
       .notNull()
       .default(sql`CURRENT_TIMESTAMP`),
     expected_departure_date: date('expected_departure_date'),
     expected_return_date: date('expected_return_date'),
+    return_completion_status: varchar('return_completion_status', {
+      length: 20,
+    })
+      .notNull()
+      .default('OPEN'),
+    actual_return_date: date('actual_return_date'),
+    amended_return_date: date('amended_return_date'),
+    extension_reason: text('extension_reason'),
+    amendment_reference: varchar('amendment_reference', { length: 100 }),
+    return_completion_notes: text('return_completion_notes'),
     registration_status_id: fkUuid('registration_status_id').notNull(),
     cancellation_reason: text('cancellation_reason'),
     cancelled_at: datetime('cancelled_at', { mode: 'date' }),
@@ -230,7 +242,9 @@ export const registrations = mysqlTable(
     ...actorMetadata,
     ...softDeleteMetadata,
   },
-  (table) => [],
+  (table) => [
+    index('registrations_travel_round_id_idx').on(table.travel_round_id),
+  ],
 );
 
 // Relations

@@ -675,6 +675,7 @@ export function TravellersPage() {
             loading={loading}
             globalFilter={globalFilter}
             onGlobalFilterChange={setGlobalFilter}
+            onRowClick={(t) => can('TRAVELLER_EDIT') && handleEditTraveller(t)}
           />
         </TabsContent>
 
@@ -735,6 +736,7 @@ export function TravellersPage() {
             loading={loading}
             globalFilter={globalFilter}
             onGlobalFilterChange={setGlobalFilter}
+            onRowClick={(c) => can('TRAVELLER_EDIT') && handleEditContact(c)}
           />
         </TabsContent>
 
@@ -795,6 +797,9 @@ export function TravellersPage() {
             loading={loading}
             globalFilter={globalFilter}
             onGlobalFilterChange={setGlobalFilter}
+            onRowClick={(r) =>
+              can('REGISTRATION_EDIT') && handleEditRegistration(r)
+            }
           />
         </TabsContent>
       </Tabs>

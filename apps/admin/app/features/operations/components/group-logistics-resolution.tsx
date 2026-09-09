@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -14,6 +19,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Textarea,
   Tabs,
   TabsContent,
   TabsList,
@@ -26,9 +32,18 @@ import {
 } from '../../../lib/logistics-api';
 import {
   api,
+  type LookupOption,
   type Room,
   type TravelGroupOperationalSummary,
+  type TravelGroupTransportSegment,
 } from '../../../lib/api.js';
+import { DatePicker } from '../../travellers/components/date-picker';
+
+const TIME_OPTIONS = Array.from({ length: 48 }, (_, index) => {
+  const hour = String(Math.floor(index / 2)).padStart(2, '0');
+  const minute = index % 2 === 0 ? '00' : '30';
+  return `${hour}:${minute}`;
+});
 
 export type LogisticsResolutionMode = 'hotel' | 'transport' | 'rooms' | null;
 
@@ -43,6 +58,7 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onChanged: () => void;
+  segment?: TravelGroupTransportSegment | null;
 }
 
 export function GroupLogisticsResolution({
@@ -51,12 +67,13 @@ export function GroupLogisticsResolution({
   open,
   onOpenChange,
   onChanged,
+  segment,
 }: Props) {
   if (!mode) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl border-0 bg-transparent p-0 shadow-none">
         {mode === 'hotel' && (
           <HotelResolution
             group={group}
@@ -67,6 +84,7 @@ export function GroupLogisticsResolution({
         {mode === 'transport' && (
           <TransportResolution
             group={group}
+            segment={segment}
             onChanged={onChanged}
             onClose={() => onOpenChange(false)}
           />
@@ -176,7 +194,7 @@ function HotelResolution({
 
   return (
     <>
-      <DialogHeader>
+      <DialogHeader className="flex flex-col items-start gap-2 text-left sm:flex-col sm:items-start sm:gap-2 sm:text-left">
         <DialogTitle>Add hotel stay</DialogTitle>
         <DialogDescription>
           Configure accommodation for {group.name}.
@@ -250,24 +268,54 @@ function HotelResolution({
 
 function TransportResolution({
   group,
+  segment,
   onChanged,
   onClose,
 }: Omit<Props, 'mode' | 'open' | 'onOpenChange'> & { onClose: () => void }) {
   const [vendors, setVendors] = useState<Vendor[]>([]);
-  const [vendorId, setVendorId] = useState('');
-  const [origin, setOrigin] = useState('');
-  const [destination, setDestination] = useState('');
-  const [transportCost, setTransportCost] = useState('');
+  const [vehicleTypes, setVehicleTypes] = useState<LookupOption[]>([]);
+  const [vehicleTypeId, setVehicleTypeId] = useState(
+    segment?.vehicle_type_id ?? '',
+  );
+  const [vehiclePlateNumber, setVehiclePlateNumber] = useState(
+    segment?.vehicle_plate_number ?? '',
+  );
+  const [vendorId, setVendorId] = useState(segment?.vendor?.id ?? '');
+  const [origin, setOrigin] = useState(segment?.origin_location ?? '');
+  const [destination, setDestination] = useState(
+    segment?.destination_location ?? '',
+  );
+  const [departureDatetime, setDepartureDatetime] = useState(
+    segment?.departure_datetime?.slice(0, 16) ?? '',
+  );
+  const [arrivalDatetime, setArrivalDatetime] = useState(
+    segment?.arrival_datetime?.slice(0, 16) ?? '',
+  );
+  const [departureTime, setDepartureTime] = useState(
+    segment?.departure_datetime?.slice(11, 16) ?? '',
+  );
+  const [arrivalTime, setArrivalTime] = useState(
+    segment?.arrival_datetime?.slice(11, 16) ?? '',
+  );
+  const [transportCost, setTransportCost] = useState(
+    segment?.transport_cost ? String(segment.transport_cost) : '',
+  );
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    logisticsApi
-      .listVendors(1, 100)
-      .then((result) => setVendors(result.data))
-      .catch(() => {
-        // Vendor lookup is optional — transport can be recorded without a vendor
+    Promise.all([logisticsApi.listVendors(1, 100), api.listVehicleTypes()])
+      .then(([vendorResult, vehicleTypeResult]) => {
+        setVendors(vendorResult.data);
+        setVehicleTypes(vehicleTypeResult);
+      })
+      .catch((err) => {
+        setError(
+          err instanceof Error
+            ? err.message
+            : 'Transport lookups could not be loaded',
+        );
       });
   }, []);
 
@@ -276,18 +324,47 @@ function TransportResolution({
     setError(null);
     try {
       const costNum = Number(transportCost);
+      if (!vehicleTypeId || !vehiclePlateNumber.trim()) {
+        setError('Vehicle type and plate number are required');
+        setSaving(false);
+        return;
+      }
       if (!transportCost.trim() || isNaN(costNum) || costNum <= 0) {
         setError('Transport cost must be a positive amount in ETB');
         setSaving(false);
         return;
       }
-      await api.createTransportSegment(group.id, {
+      if (
+        (departureDatetime && !arrivalDatetime) ||
+        (!departureDatetime && arrivalDatetime) ||
+        (departureDatetime &&
+          arrivalDatetime &&
+          arrivalDatetime <= departureDatetime)
+      ) {
+        setError('Arrival must be after departure when times are provided');
+        setSaving(false);
+        return;
+      }
+      const input = {
         origin_location: origin,
         destination_location: destination,
+        vehicle_type_id: vehicleTypeId,
+        vehicle_plate_number: vehiclePlateNumber.trim().toUpperCase(),
         vendor_id: vendorId || undefined,
+        departure_datetime: departureDatetime
+          ? new Date(departureDatetime).toISOString()
+          : undefined,
+        arrival_datetime: arrivalDatetime
+          ? new Date(arrivalDatetime).toISOString()
+          : undefined,
         transport_cost: costNum,
         notes: notes || undefined,
-      });
+      };
+      if (segment) {
+        await api.updateTransportSegment(segment.id, input);
+      } else {
+        await api.createTransportSegment(group.id, input);
+      }
       onChanged();
       onClose();
     } catch (err) {
@@ -301,93 +378,222 @@ function TransportResolution({
     }
   }
 
+  const durationMinutes =
+    departureDatetime && arrivalDatetime
+      ? Math.round(
+          (new Date(arrivalDatetime).getTime() -
+            new Date(departureDatetime).getTime()) /
+            60000,
+        )
+      : null;
+
   return (
-    <>
-      <DialogHeader>
-        <DialogTitle>Confirm transport</DialogTitle>
-        <DialogDescription>
+    <Card className="border-0 shadow-none">
+      <CardHeader className="px-0 pt-0">
+        <CardTitle>
+          {segment ? 'Edit transport segment' : 'Add transport segment'}
+        </CardTitle>
+        <CardDescription>
           Record a confirmed transport arrangement for {group.name}.
-        </DialogDescription>
-      </DialogHeader>
-      {error && <p className="text-sm text-destructive">{error}</p>}
-      <div className="grid gap-4">
-        <div className="space-y-2">
-          <Label>Origin</Label>
-          <Input
-            value={origin}
-            onChange={(e) => setOrigin(e.target.value)}
-            placeholder="e.g. Jeddah Airport"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label>Destination</Label>
-          <Input
-            value={destination}
-            onChange={(e) => setDestination(e.target.value)}
-            placeholder="e.g. Hilton Makkah"
-          />
-        </div>
-        {vendors.length > 0 && (
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4 px-0 pb-0">
+        {error && <p className="text-sm text-destructive">{error}</p>}
+        <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
-            <Label>Vendor (optional)</Label>
+            <Label>Origin</Label>
+            <Input
+              value={origin}
+              onChange={(e) => setOrigin(e.target.value)}
+              placeholder="e.g. Jeddah Airport"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Destination</Label>
+            <Input
+              value={destination}
+              onChange={(e) => setDestination(e.target.value)}
+              placeholder="e.g. Hilton Makkah"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Vehicle type</Label>
             <Select
-              value={vendorId}
-              onValueChange={(v) => setVendorId(v ?? '')}
+              value={vehicleTypeId}
+              onValueChange={(v) => setVehicleTypeId(v ?? '')}
             >
               <SelectTrigger className="h-9 w-full">
                 <SelectValue>
-                  {vendors.find((v) => v.id === vendorId)?.name ??
-                    'Select vendor'}
+                  {vehicleTypes.find((type) => type.id === vehicleTypeId)
+                    ?.name ?? 'Select vehicle type'}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                {vendors.map((vendor) => (
-                  <SelectItem key={vendor.id} value={vendor.id}>
-                    {vendor.name}
+                {vehicleTypes.map((type) => (
+                  <SelectItem key={type.id} value={type.id}>
+                    {type.name}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
-        )}
-        <div className="space-y-2">
-          <Label>
-            Transport cost <span className="text-muted-foreground">(ETB)</span>
-          </Label>
-          <Input
-            type="number"
-            min={0}
-            step="0.01"
-            value={transportCost}
-            onChange={(e) => setTransportCost(e.target.value)}
-            placeholder="e.g. 12000"
-            className="h-9 w-full sm:max-w-xs"
-          />
-          <p className="text-xs text-muted-foreground">
-            A Finance expense will be created automatically for this amount.
-          </p>
+          <div className="space-y-2">
+            <Label>Vehicle plate number</Label>
+            <Input
+              value={vehiclePlateNumber}
+              onChange={(event) => setVehiclePlateNumber(event.target.value)}
+              placeholder="e.g. 1234 ABC"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Estimated departure</Label>
+            <div className="grid grid-cols-[1fr_7rem] gap-2">
+              <DatePicker
+                value={departureDatetime.slice(0, 10)}
+                onChange={(date) =>
+                  setDepartureDatetime(`${date}T${departureTime || '00:00'}`)
+                }
+                placeholder="Select date"
+              />
+              <Select
+                value={departureTime}
+                onValueChange={(time) => {
+                  setDepartureTime(time ?? '');
+                  if (departureDatetime && time) {
+                    setDepartureDatetime(
+                      `${departureDatetime.slice(0, 10)}T${time}`,
+                    );
+                  }
+                }}
+              >
+                <SelectTrigger className="h-9 w-full">
+                  <SelectValue placeholder="Time" />
+                </SelectTrigger>
+                <SelectContent>
+                  {TIME_OPTIONS.map((time) => (
+                    <SelectItem key={time} value={time}>
+                      {time}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Estimated arrival</Label>
+            <div className="grid grid-cols-[1fr_7rem] gap-2">
+              <DatePicker
+                value={arrivalDatetime.slice(0, 10)}
+                onChange={(date) =>
+                  setArrivalDatetime(`${date}T${arrivalTime || '00:00'}`)
+                }
+                placeholder="Select date"
+              />
+              <Select
+                value={arrivalTime}
+                onValueChange={(time) => {
+                  setArrivalTime(time ?? '');
+                  if (arrivalDatetime && time) {
+                    setArrivalDatetime(
+                      `${arrivalDatetime.slice(0, 10)}T${time}`,
+                    );
+                  }
+                }}
+              >
+                <SelectTrigger className="h-9 w-full">
+                  <SelectValue placeholder="Time" />
+                </SelectTrigger>
+                <SelectContent>
+                  {TIME_OPTIONS.map((time) => (
+                    <SelectItem key={time} value={time}>
+                      {time}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          {vendors.length > 0 && (
+            <div className="space-y-2">
+              <Label>Vendor (optional)</Label>
+              <Select
+                value={vendorId}
+                onValueChange={(v) => setVendorId(v ?? '')}
+              >
+                <SelectTrigger className="h-9 w-full">
+                  <SelectValue>
+                    {vendors.find((v) => v.id === vendorId)?.name ??
+                      'Select vendor'}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {vendors.map((vendor) => (
+                    <SelectItem key={vendor.id} value={vendor.id}>
+                      {vendor.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          <div className="rounded-md bg-muted/50 p-3 text-sm sm:col-span-2">
+            <span className="text-muted-foreground">Estimated duration: </span>
+            {durationMinutes !== null && durationMinutes > 0
+              ? `${Math.floor(durationMinutes / 60)}h ${durationMinutes % 60}m`
+              : 'Add departure and arrival times'}
+          </div>
+          <div className="space-y-2 sm:col-span-2">
+            <Label>
+              Transport cost{' '}
+              <span className="text-muted-foreground">(ETB)</span>
+            </Label>
+            <Input
+              type="number"
+              min={0}
+              step="0.01"
+              value={transportCost}
+              onChange={(e) => setTransportCost(e.target.value)}
+              placeholder="e.g. 12000"
+              className="h-9 w-full"
+            />
+            <p className="text-xs text-muted-foreground">
+              A Finance expense will be created automatically for this amount.
+            </p>
+          </div>
+          <div className="space-y-2 sm:col-span-2">
+            <Label>Notes / reference (optional)</Label>
+            <Textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="e.g. Booking reference, confirmation details"
+              className="min-h-24 w-full"
+            />
+          </div>
         </div>
-        <div className="space-y-2">
-          <Label>Notes / reference (optional)</Label>
-          <Input
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="e.g. Booking ref, confirmation details"
-          />
-        </div>
-      </div>
-      <DialogFooter>
-        <Button variant="outline" onClick={onClose} disabled={saving}>
-          Cancel
-        </Button>
-        <Button
-          onClick={() => void submit()}
-          disabled={saving || !origin || !destination || !transportCost.trim()}
-        >
-          {saving ? 'Saving…' : 'Confirm transport'}
-        </Button>
-      </DialogFooter>
-    </>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={saving}>
+            Cancel
+          </Button>
+          <Button
+            onClick={() => void submit()}
+            disabled={
+              saving ||
+              !origin ||
+              !destination ||
+              !vehicleTypeId ||
+              !vehiclePlateNumber.trim() ||
+              !transportCost.trim()
+            }
+          >
+            {saving
+              ? 'Saving…'
+              : segment
+                ? 'Save transport segment'
+                : 'Add transport segment'}
+          </Button>
+        </DialogFooter>
+      </CardContent>
+    </Card>
   );
 }
 

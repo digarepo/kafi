@@ -13,6 +13,7 @@ import type {
   LookupOption,
   PackageVersion,
   Registration,
+  TravelRound,
   Traveller,
 } from '../../../lib/api.js';
 
@@ -134,6 +135,7 @@ export interface ContactPersonFormProps {
 export interface RegistrationFormValues {
   traveller_id: string;
   package_version_id: string;
+  travel_round_id: string;
   expected_departure_date: string;
   expected_return_date: string;
   remarks: string;
@@ -145,6 +147,7 @@ export interface RegistrationFormValues {
 export interface RegistrationFormOutput {
   traveller_id: string;
   package_version_id: string;
+  travel_round_id: string;
   expected_departure_date?: string;
   expected_return_date?: string;
   remarks?: string;
@@ -158,6 +161,7 @@ export interface RegistrationFormProps {
   registration?: Registration | null;
   travellers: Traveller[];
   packageVersions: PackageVersion[];
+  travelRounds?: TravelRound[];
   onSubmit: (values: RegistrationFormOutput) => Promise<void>;
   submitLabel?: string;
   /**
