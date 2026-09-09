@@ -82,10 +82,10 @@ export function TravelGroupForm({
       );
       const departureDate = value.override_travel_dates
         ? toYmd(value.travelRange?.from)
-        : (packageVersion?.departure_date ?? undefined);
+        : toYmd(parseYmd(packageVersion?.departure_date));
       const returnDate = value.override_travel_dates
         ? toYmd(value.travelRange?.to)
-        : (packageVersion?.return_date ?? undefined);
+        : toYmd(parseYmd(packageVersion?.return_date));
       const output: TravelGroupFormOutput = {
         package_version_id: value.package_version_id,
         name: value.name.trim(),

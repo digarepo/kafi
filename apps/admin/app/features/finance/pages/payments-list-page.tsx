@@ -42,7 +42,7 @@ export function PaymentsListPage() {
 
   const [payments, setPayments] = useState<PaymentListItem[]>([]);
   const [statuses, setStatuses] = useState<LookupOption[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [referenceLoading, setReferenceLoading] = useState(true);
   const [retryNonce, setRetryNonce] = useState(0);
@@ -315,6 +315,7 @@ export function PaymentsListPage() {
         loading={loading}
         pagination={{ pageIndex: page - 1, pageSize, total }}
         onPaginationChange={setPagination}
+        onRowClick={(p) => navigate(`/payments/${p.id}`)}
       />
     </div>
   );

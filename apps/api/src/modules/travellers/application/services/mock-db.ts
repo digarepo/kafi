@@ -63,6 +63,10 @@ export class MockDb {
     return this.logCall('where');
   }
 
+  for(..._args: unknown[]) {
+    return this.logCall('for');
+  }
+
   and(..._args: unknown[]) {
     return this.logCall('and');
   }

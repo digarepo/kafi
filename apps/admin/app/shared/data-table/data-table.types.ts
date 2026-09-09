@@ -51,6 +51,16 @@ export interface DataTableProps<TData, TValue> {
   /** Called when the user chooses the bulk delete action for selected rows. */
   onDeleteSelected?: (rows: TData[]) => void;
 
+  /** Bulk actions displayed for selected rows. */
+  selectionActions?: Array<{
+    label: string;
+    onClick: (rows: TData[]) => void;
+    variant?: 'default' | 'outline' | 'destructive';
+  }>;
+
   /** When true, a checkbox column and multi-select behavior are enabled. */
   enableRowSelection?: boolean;
+
+  /** Called when a row is clicked (excluding clicks on interactive cells). */
+  onRowClick?: (row: TData) => void;
 }

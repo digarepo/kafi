@@ -96,40 +96,6 @@ function registrationRow(statusCode: string) {
 }
 
 describe('RegistrationsService', () => {
-  describe('registration number generation', () => {
-    it('starts at 1 when no registrations exist for the year', async () => {
-      const db = createMockDb([[{ max: null }]]);
-      const emitter = new EventEmitter2();
-      const service = new RegistrationsService(
-        db as any,
-        emitter as any,
-        readiness as any,
-        packages as any,
-        expenses as any,
-        financeReporting as any,
-        refunds as any,
-      );
-      const number = await (service as any).generateRegistrationNumber();
-      expect(number).toMatch(/^REG-\d{4}-000001$/);
-    });
-
-    it('increments from the existing max for the year', async () => {
-      const db = createMockDb([[{ max: 'REG-2026-000009' }]]);
-      const emitter = new EventEmitter2();
-      const service = new RegistrationsService(
-        db as any,
-        emitter as any,
-        readiness as any,
-        packages as any,
-        expenses as any,
-        financeReporting as any,
-        refunds as any,
-      );
-      const number = await (service as any).generateRegistrationNumber();
-      expect(number).toBe('REG-2026-000010');
-    });
-  });
-
   describe('package availability integration', () => {
     it('rejects registration when the package version is not available', async () => {
       packages.assertAvailableForRegistration.mockRejectedValue(
@@ -167,10 +133,18 @@ describe('RegistrationsService', () => {
 
       const db = createMockDb([
         [{ id: '01KZ4TRV', is_deleted: false }],
+        // Travel round lookup
+        [
+          {
+            id: 'TR-1',
+            round_number: 5,
+            status: 'OPEN',
+            departure_date: new Date('2026-09-20'),
+            return_date: new Date('2026-09-30'),
+          },
+        ],
         // assertNoActiveRegistrationForPackage does Promise.all with 3
-        // status lookups (DRAFT, PROCESSING, READY_FOR_TRAVEL) — the mock
-        // queue is consumed in Promise.all resolution order, so provide
-        // the same status row for all 3.
+        // status lookups (DRAFT, PROCESSING, READY_FOR_TRAVEL).
         [{ id: 'RS-DRAFT', status_code: 'DRAFT' }],
         [{ id: 'RS-PROC', status_code: 'PROCESSING' }],
         [{ id: 'RS-READY', status_code: 'READY_FOR_TRAVEL' }],
@@ -178,9 +152,9 @@ describe('RegistrationsService', () => {
         [],
         // getRegistrationStatus('DRAFT') for the new registration
         [{ id: 'RS-DRAFT', status_code: 'DRAFT' }],
-        // generateRegistrationNumber
-        [{ max: null }],
-        // insert (no result)
+        // locked round, sequence update, and registration insert
+        [{ round_number: 5, year: 2026, next: 1 }],
+        [],
         [],
         // getRegistration(id) — returns the full registration row
         registrationRow('DRAFT'),
@@ -200,6 +174,7 @@ describe('RegistrationsService', () => {
         Object.assign(new CreateRegistrationDto(), {
           traveller_id: '01KZ4TRV',
           package_version_id: 'PV',
+          travel_round_id: 'TR-1',
         }),
         'actor',
       );

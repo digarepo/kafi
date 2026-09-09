@@ -37,7 +37,7 @@ export function DocumentsListPage() {
   const [verificationStatuses, setVerificationStatuses] = useState<
     { id: string; status_code: string; name: string }[]
   >([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [globalFilter, setGlobalFilter] = useState('');
   const debouncedFilter = useDebouncedValue(globalFilter);
@@ -333,6 +333,7 @@ export function DocumentsListPage() {
         loading={loading}
         pagination={pagination}
         onPaginationChange={setPagination}
+        onRowClick={(d) => navigate(`/documents/${d.id}`)}
       />
     </div>
   );

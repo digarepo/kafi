@@ -286,7 +286,8 @@ function StayCard({
                   Edit
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  className="whitespace-nowrap text-destructive focus:text-destructive"
+                  variant="destructive"
+                  className="whitespace-nowrap"
                   onClick={() => void handleDeleteStay()}
                 >
                   <Trash2 className="mr-2 h-4 w-4" aria-hidden="true" />
@@ -934,7 +935,7 @@ function HotelStayFormDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
-        <DialogHeader>
+        <DialogHeader className="flex flex-col items-start gap-2 text-left sm:flex-col sm:items-start sm:gap-2 sm:text-left">
           <DialogTitle>
             {isEdit ? 'Edit Hotel Stay' : 'Add Hotel Stay'}
           </DialogTitle>
@@ -961,7 +962,9 @@ function HotelStayFormDialog({
 
           {/* 2. Country */}
           <div className="space-y-2">
-            <Label>Country</Label>
+            <Label>
+              Country <span className="text-destructive">*</span>
+            </Label>
             <Select
               value={countryId}
               onValueChange={(v) => setCountryId(v ?? '')}
@@ -984,7 +987,9 @@ function HotelStayFormDialog({
 
           {/* 3. City */}
           <div className="space-y-2">
-            <Label>City</Label>
+            <Label>
+              City <span className="text-destructive">*</span>
+            </Label>
             <Select value={cityId} onValueChange={(v) => setCityId(v ?? '')}>
               <SelectTrigger className="h-9 w-full">
                 <SelectValue>{selectedCity?.name ?? 'Select city'}</SelectValue>
@@ -1001,7 +1006,9 @@ function HotelStayFormDialog({
 
           {/* 4. Hotel Name */}
           <div className="space-y-2">
-            <Label>Hotel Name</Label>
+            <Label>
+              Hotel Name <span className="text-destructive">*</span>
+            </Label>
             <Input
               value={hotelName}
               onChange={(e) => setHotelName(e.target.value)}
@@ -1011,7 +1018,9 @@ function HotelStayFormDialog({
 
           {/* 5. Check-in / Check-out Date Range */}
           <div className="space-y-2">
-            <Label>Check-in — Check-out</Label>
+            <Label>
+              Check-in — Check-out <span className="text-destructive">*</span>
+            </Label>
             <DateRangePicker
               value={dateRange}
               onChange={setDateRange}
@@ -1035,7 +1044,8 @@ function HotelStayFormDialog({
           <div className="space-y-2">
             <Label>
               Accommodation cost{' '}
-              <span className="text-muted-foreground">(ETB)</span>
+              <span className="text-muted-foreground">(ETB)</span>{' '}
+              <span className="text-destructive">*</span>
             </Label>
             <Input
               type="number"

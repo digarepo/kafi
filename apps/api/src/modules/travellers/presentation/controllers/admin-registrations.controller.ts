@@ -19,8 +19,11 @@ import { RegistrationQueuesService } from '../../application/services/registrati
 import { GuaranteesService } from '../../../operations/application/services/guarantees.service.js';
 import { CreateGuaranteeDto } from '../../../operations/application/dto/operations.dto.js';
 import {
+  BulkConfirmReturnsDto,
   CancelRegistrationDto,
+  ConfirmReturnDto,
   CreateRegistrationDto,
+  ExtendStayDto,
   RegistrationFiltersDto,
   UpdateRegistrationDto,
 } from '../../application/dto/registrations.dto.js';
@@ -75,6 +78,32 @@ export class AdminRegistrationsController {
   @RequirePermissions('REGISTRATION_EDIT')
   confirmReadyForTravel(@Param('id') id: string, @Req() req: any) {
     return this.registrations.confirmReadyForTravel(id, req.user.sub);
+  }
+
+  @Post('registrations/:id/confirm-return')
+  @RequirePermissions('REGISTRATION_EDIT')
+  confirmReturn(
+    @Param('id') id: string,
+    @Body() dto: ConfirmReturnDto,
+    @Req() req: any,
+  ) {
+    return this.registrations.confirmReturn(id, dto, req.user.sub);
+  }
+
+  @Post('registrations/:id/extend-stay')
+  @RequirePermissions('REGISTRATION_EDIT')
+  extendStay(
+    @Param('id') id: string,
+    @Body() dto: ExtendStayDto,
+    @Req() req: any,
+  ) {
+    return this.registrations.extendStay(id, dto, req.user.sub);
+  }
+
+  @Post('registrations/bulk-confirm-returns')
+  @RequirePermissions('REGISTRATION_EDIT')
+  bulkConfirmReturns(@Body() dto: BulkConfirmReturnsDto, @Req() req: any) {
+    return this.registrations.bulkConfirmReturns(dto, req.user.sub);
   }
 
   @Post('registrations/:id/cancel')

@@ -15,10 +15,7 @@ import {
 import { usePermissions } from '../../../core/permissions';
 import { DateRangePicker } from '../../packages/components/date-range-picker';
 import { displayDate, toYmd } from '../lib/date';
-import {
-  AsyncState,
-  WorkflowStatusBadge,
-} from '../../../shared/operational-ui';
+import { WorkflowStatusBadge } from '../../../shared/operational-ui';
 import { DataTable } from '../../../shared/data-table';
 import { useDestructiveConfirmation } from '../../../shared/delete-dialog';
 import { actionsColumn, textColumn } from '../../../shared/data-table/columns';
@@ -351,13 +348,6 @@ export function TravelGroupListPage() {
     [can, handleDelete, navigate],
   );
 
-  const emptyTitle =
-    statusFilter === 'PLANNING'
-      ? 'No planning groups'
-      : statusFilter === 'TRAVEL_PREPARED'
-        ? 'No travel-prepared groups'
-        : 'No travel groups found';
-
   const pagination = {
     pageIndex: page - 1,
     pageSize,
@@ -498,22 +488,26 @@ export function TravelGroupListPage() {
         )}
       </div>
 
-      <AsyncState
+      {error && (
+        <div className="flex flex-col gap-3 rounded-md bg-destructive/10 p-3 text-sm text-destructive sm:flex-row sm:items-center sm:justify-between">
+          <span>{error}</span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setRetryNonce((value) => value + 1)}
+          >
+            Try again
+          </Button>
+        </div>
+      )}
+      <DataTable
+        columns={columns}
+        data={groups}
         loading={loading}
-        error={error}
-        onRetry={() => setRetryNonce((value) => value + 1)}
-        isEmpty={!loading && !error && groups.length === 0}
-        emptyTitle={emptyTitle}
-        emptyDescription="Try another status, package, or departure range."
-      >
-        <DataTable
-          columns={columns}
-          data={groups}
-          loading={false}
-          pagination={pagination}
-          onPaginationChange={setPagination}
-        />
-      </AsyncState>
+        pagination={pagination}
+        onPaginationChange={setPagination}
+        onRowClick={(group) => navigate(`/travel-groups/${group.id}`)}
+      />
     </div>
   );
 }

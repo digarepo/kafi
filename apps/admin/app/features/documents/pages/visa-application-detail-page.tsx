@@ -203,32 +203,6 @@ export function VisaApplicationDetailPage() {
         )}
       </div>
 
-      {isApproved && visa.registration && (
-        <div className="flex flex-col gap-3 rounded-md border border-success/20 bg-success/10 p-4 text-sm sm:flex-row sm:items-center sm:justify-between">
-          <p className="font-medium text-success">
-            Visa approved. Record the purchased flight ticket to proceed.
-          </p>
-          {can('FLIGHT_MANAGE') ? (
-            <Button
-              onClick={() =>
-                navigate(
-                  `/flight-bookings/new?registration_id=${visa.registration!.id}`,
-                )
-              }
-            >
-              Record flight booking
-            </Button>
-          ) : can('FLIGHT_VIEW') ? (
-            <Link
-              to={`/flight-bookings?registration_id=${visa.registration.id}`}
-              className="font-medium text-success underline hover:no-underline"
-            >
-              View flight bookings
-            </Link>
-          ) : null}
-        </div>
-      )}
-
       {can('VISA_MANAGE') && canRecordResult && (
         <div className="space-y-2">
           <h2 className="text-lg font-semibold tracking-tight">

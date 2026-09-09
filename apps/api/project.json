@@ -10,6 +10,9 @@
   "targets": {
     "dev": {
       "executor": "nx:run-commands",
+      "dependsOn": [
+        "@kafi/database:build"
+      ],
       "options": {
         "cwd": "apps/api",
         "command": "nest start --watch --port 4000"
@@ -20,7 +23,9 @@
       "outputs": [
         "{projectRoot}/dist"
       ],
-      "dependsOn": ["@kafi/database:build"],
+      "dependsOn": [
+        "@kafi/database:build"
+      ],
       "options": {
         "cwd": "apps/api",
         "command": "nest build"

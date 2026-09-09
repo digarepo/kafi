@@ -13,6 +13,23 @@ const optionalDate = z
   .optional()
   .transform((v) => (v === '' ? undefined : v));
 
+const travelRoundStatus = z.enum(['PLANNING', 'OPEN', 'CLOSED', 'COMPLETED']);
+const createTravelRoundSchema = z.object({
+  round_number: z.coerce.number().int().min(1),
+  name: z.string().min(1).max(150),
+  departure_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  return_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  status: travelRoundStatus.optional(),
+  remarks: z.string().optional(),
+});
+const updateTravelRoundSchema = createTravelRoundSchema.partial();
+const travelRoundFiltersSchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  page_size: z.coerce.number().int().min(1).default(25),
+  status: travelRoundStatus.optional(),
+  search: z.string().optional(),
+});
+
 const createTravelGroupSchema = z.object({
   package_version_id: ulidSchema,
   name: z.string().min(1).max(150),
@@ -121,6 +138,16 @@ const groupMembershipFiltersSchema = z.object({
   page_size: z.coerce.number().int().min(1).default(25),
   status_id: optionalUlid,
 });
+
+export class CreateTravelRoundDto extends createZodDto(
+  createTravelRoundSchema,
+) {}
+export class UpdateTravelRoundDto extends createZodDto(
+  updateTravelRoundSchema,
+) {}
+export class TravelRoundFiltersDto extends createZodDto(
+  travelRoundFiltersSchema,
+) {}
 
 export class CreateTravelGroupDto extends createZodDto(
   createTravelGroupSchema,
@@ -387,6 +414,8 @@ const roomAssignmentFiltersSchema = z.object({
 const createTransportSegmentSchema = z.object({
   travel_group_id: ulidSchema,
   vendor_id: optionalUlid,
+  vehicle_type_id: ulidSchema,
+  vehicle_plate_number: z.string().trim().min(1).max(30),
   transport_type: optionalTransportTypeSchema,
   segment_order: z.coerce.number().int().min(1).optional(),
   origin_location: z.string().min(1).max(255),
@@ -407,6 +436,8 @@ const createTransportSegmentForTravelGroupSchema =
 
 const updateTransportSegmentSchema = z.object({
   vendor_id: ulidSchema.optional(),
+  vehicle_type_id: ulidSchema.optional(),
+  vehicle_plate_number: z.string().trim().min(1).max(30).optional(),
   transport_type: optionalTransportTypeSchema,
   segment_order: z.coerce.number().int().min(1).optional(),
   origin_location: z.string().min(1).max(255).optional(),

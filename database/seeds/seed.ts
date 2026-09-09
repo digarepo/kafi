@@ -45,6 +45,7 @@ import {
 } from '../schema/index.js';
 import { seedLogistics } from './logistics.seed.js';
 import { seedDocuments } from './documents.seed.js';
+import { seedAirlines } from './airlines.seed.js';
 
 /**
  * Reference data and root admin seed script for the Kafi database.
@@ -206,6 +207,16 @@ const PERMISSION_CODES = [
     module: 'Accommodation',
   },
   {
+    permission_code: 'TRAVEL_ROUND_VIEW',
+    name: 'View travel rounds',
+    module: 'Travel Rounds',
+  },
+  {
+    permission_code: 'TRAVEL_ROUND_MANAGE',
+    name: 'Manage travel rounds',
+    module: 'Travel Rounds',
+  },
+  {
     permission_code: 'TRAVEL_GROUP_VIEW',
     name: 'View travel groups',
     module: 'Travel Groups',
@@ -252,6 +263,7 @@ const ROLE_PERMISSION_MAP: Record<string, string[]> = {
     'TRAVELLER_CREATE',
     'TRAVELLER_EDIT',
     'PACKAGE_VIEW',
+    'TRAVEL_ROUND_VIEW',
     'REGISTRATION_VIEW',
     'REGISTRATION_CREATE',
     'FINANCE_VIEW',
@@ -677,12 +689,13 @@ async function seed() {
     // Operations reference data
     const TRAVEL_GROUP_STATUS_CODES = [
       { status_code: 'PLANNING', name: 'Planning', display_order: 1 },
+      { status_code: 'PREPARING', name: 'Preparing', display_order: 2 },
       {
         status_code: 'TRAVEL_PREPARED',
         name: 'Travel Prepared',
-        display_order: 2,
+        display_order: 3,
       },
-      { status_code: 'DEPARTED', name: 'Departed', display_order: 3 },
+      { status_code: 'DEPARTED', name: 'Departed', display_order: 4 },
       { status_code: 'COMPLETED', name: 'Completed', display_order: 4 },
       { status_code: 'CANCELLED', name: 'Cancelled', display_order: 5 },
     ];
@@ -1111,6 +1124,7 @@ async function seed() {
 
     await seedLogistics(db);
     await seedDocuments(db);
+    await seedAirlines(db);
 
     console.log('Database seeded successfully');
   } finally {

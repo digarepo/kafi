@@ -11,6 +11,7 @@ import {
   ArrowLeft,
   ArrowRight,
   CalendarDays,
+  FileText,
   MoreVertical,
   Pencil,
   Plus,
@@ -41,6 +42,7 @@ import {
   type ReadinessItem,
 } from '../../../shared/operational-ui';
 import { DataTable } from '../../../shared/data-table';
+import { formatMoney } from '../../../shared/format';
 import { displayDate } from '../lib/date';
 import { GroupMembershipAssignDialog } from '../components/group-membership-assign-dialog';
 import { GroupMembershipDetailDialog } from '../components/group-membership-detail-dialog';
@@ -49,6 +51,7 @@ import {
   type LogisticsResolutionMode,
 } from '../components/group-logistics-resolution';
 import { AccommodationWorkspace } from '../components/accommodation-workspace';
+import { GroundTransportWorkspace } from '../components/ground-transport-workspace';
 import {
   api,
   type GroupMembership,
@@ -56,25 +59,6 @@ import {
   type TravelGroupOperationalSummary,
   type TravelGroupTraveller,
 } from '../../../lib/api.js';
-
-function formatMoney(value: number | string | null | undefined): string {
-  if (value === null || value === undefined) return '—';
-  return `${Number(value).toFixed(2)} ETB`;
-}
-
-function displayDateTime(value: string | null | undefined): string {
-  if (!value) return '—';
-  const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? value
-    : date.toLocaleString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-      });
-}
 
 function buildPreparationItems(
   summary: TravelGroupOperationalSummary,
@@ -96,6 +80,15 @@ function buildPreparationItems(
         activeMembers.length === 0
           ? { label: 'Assign member', href: '#members' }
           : undefined,
+    },
+    {
+      key: 'capacity',
+      label: 'Group capacity',
+      status:
+        activeMembers.length >= summary.maximum_capacity
+          ? 'satisfied'
+          : 'warning',
+      detail: `${activeMembers.length}/${summary.maximum_capacity} active members`,
     },
     {
       key: 'members-ready',
@@ -120,10 +113,9 @@ function buildPreparationItems(
       status: summary.logistics.has_confirmed_transport
         ? 'satisfied'
         : 'warning',
-      action:
-        !summary.logistics.has_confirmed_transport && onResolve
-          ? { label: 'Add transport', onClick: () => onResolve('transport') }
-          : undefined,
+      action: !summary.logistics.has_confirmed_transport
+        ? { label: 'Manage transport', href: '#transport' }
+        : undefined,
     },
     {
       key: 'room-assignments',
@@ -159,11 +151,13 @@ function buildPreparationItems(
 interface OperationalMembersTableProps {
   members: TravelGroupTraveller[];
   financeByRegistration: Map<string, TravelGroupOperationalMember['finance']>;
+  canViewRegistrations: boolean;
 }
 
 function OperationalMembersTable({
   members,
   financeByRegistration,
+  canViewRegistrations,
 }: OperationalMembersTableProps) {
   const columns: ColumnDef<TravelGroupTraveller>[] = [
     {
@@ -218,6 +212,26 @@ function OperationalMembersTable({
       id: 'room',
       header: 'Room',
       cell: ({ row }) => row.original.room_number ?? 'Not assigned',
+    },
+    {
+      id: 'itinerary',
+      header: 'Itinerary',
+      enableSorting: false,
+      cell: ({ row }) =>
+        canViewRegistrations ? (
+          <Link
+            to={`/registrations/${row.original.registration_id}/itinerary`}
+            className={buttonVariants({
+              variant: 'link',
+              size: 'sm',
+              className: 'h-auto px-0',
+            })}
+          >
+            View
+          </Link>
+        ) : (
+          '—'
+        ),
     },
     {
       id: 'membership',
@@ -303,6 +317,18 @@ function OperationalMembersTable({
                   </dd>
                 </div>
               </dl>
+              {canViewRegistrations && (
+                <Link
+                  to={`/registrations/${member.registration_id}/itinerary`}
+                  className={buttonVariants({
+                    variant: 'link',
+                    size: 'sm',
+                    className: 'h-auto px-0',
+                  })}
+                >
+                  View itinerary
+                </Link>
+              )}
             </article>
           );
         })}
@@ -488,43 +514,70 @@ export function TravelGroupDetailPage() {
                   </div>
                 </div>
 
-                {can('TRAVEL_GROUP_MANAGE') && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger
-                      render={
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="shrink-0"
-                          aria-label="Travel group actions"
-                        >
-                          <MoreVertical
-                            className="h-4 w-4"
-                            aria-hidden="true"
-                          />
-                        </Button>
+                <div className="flex shrink-0 items-center gap-2">
+                  {can('TRAVEL_GROUP_VIEW') && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        navigate(`/travel-groups/${summary.id}/guide-manifest`)
                       }
-                    />
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem
-                        className="whitespace-nowrap"
-                        onClick={() =>
-                          navigate(`/travel-groups/${summary.id}/edit`)
+                    >
+                      <FileText className="mr-2 h-4 w-4" aria-hidden="true" />
+                      Export schedule
+                    </Button>
+                  )}
+                  {can('TRAVEL_GROUP_VIEW') && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        navigate(`/travel-groups/${summary.id}/group-itinerary`)
+                      }
+                    >
+                      <FileText className="mr-2 h-4 w-4" aria-hidden="true" />
+                      Export itineraries
+                    </Button>
+                  )}
+                  {can('TRAVEL_GROUP_MANAGE') && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        render={
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="shrink-0"
+                            aria-label="Travel group actions"
+                          >
+                            <MoreVertical
+                              className="h-4 w-4"
+                              aria-hidden="true"
+                            />
+                          </Button>
                         }
-                      >
-                        <Pencil className="mr-2 h-4 w-4" aria-hidden="true" />
-                        Edit
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        className="whitespace-nowrap text-destructive focus:text-destructive"
-                        onClick={() => void handleDelete()}
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" aria-hidden="true" />
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
+                      />
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          className="whitespace-nowrap"
+                          onClick={() =>
+                            navigate(`/travel-groups/${summary.id}/edit`)
+                          }
+                        >
+                          <Pencil className="mr-2 h-4 w-4" aria-hidden="true" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          variant="destructive"
+                          className="whitespace-nowrap"
+                          onClick={() => void handleDelete()}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" aria-hidden="true" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+                </div>
               </header>
 
               <div className="border-t bg-muted/30 px-4 py-4 sm:px-6">
@@ -661,6 +714,7 @@ export function TravelGroupDetailPage() {
                 <OperationalMembersTable
                   members={travellers}
                   financeByRegistration={financeByRegistration}
+                  canViewRegistrations={can('REGISTRATION_VIEW')}
                 />
               </AsyncState>
             </CardContent>
@@ -673,65 +727,11 @@ export function TravelGroupDetailPage() {
             />
           </div>
 
-          <Card id="transport">
-            <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <CardTitle>Transport</CardTitle>
-                <CardDescription>
-                  Confirmed movements for this group.
-                </CardDescription>
-              </div>
-              {can('TRAVEL_GROUP_MANAGE') && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="self-start sm:self-auto"
-                  onClick={() => setLogisticsMode('transport')}
-                >
-                  <Plus className="h-4 w-4" aria-hidden="true" />
-                  Add transport
-                </Button>
-              )}
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <AsyncState
-                isEmpty={summary.logistics.transport_segments.length === 0}
-                emptyTitle="No transport segments recorded"
-                emptyDescription="Add a confirmed transport movement for this group."
-              >
-                {summary.logistics.transport_segments.map((segment) => (
-                  <div
-                    key={segment.id}
-                    className="flex flex-col items-start justify-between gap-3 border-b px-1 py-3 text-sm last:border-b-0 sm:flex-row sm:items-center"
-                  >
-                    <div className="min-w-0">
-                      <p className="font-medium">
-                        {segment.origin_location} →{' '}
-                        {segment.destination_location}
-                      </p>
-                      {(segment.vendor?.name || segment.departure_datetime) && (
-                        <p className="text-muted-foreground">
-                          {segment.vendor?.name}
-                          {segment.vendor?.name && segment.departure_datetime
-                            ? ' · '
-                            : ''}
-                          {segment.departure_datetime
-                            ? displayDateTime(segment.departure_datetime)
-                            : ''}
-                        </p>
-                      )}
-                      {segment.notes && (
-                        <p className="text-xs text-muted-foreground">
-                          {segment.notes}
-                        </p>
-                      )}
-                    </div>
-                    <WorkflowStatusBadge status={segment.status?.code} />
-                  </div>
-                ))}
-              </AsyncState>
-            </CardContent>
-          </Card>
+          <GroundTransportWorkspace
+            group={summary}
+            canManage={can('TRAVEL_GROUP_MANAGE')}
+            onChanged={() => void loadGroup()}
+          />
 
           <Card>
             <CardHeader>

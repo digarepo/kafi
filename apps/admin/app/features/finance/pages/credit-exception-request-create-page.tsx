@@ -1,12 +1,9 @@
-import { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router';
-import { toast } from 'sonner';
+import { useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router";
+import { toast } from "sonner";
 
-import { CreditExceptionRequestForm } from '../components/credit-exception-request-form';
-import {
-  api,
-  type CreateCreditExceptionRequestInput,
-} from '../../../lib/api.js';
+import { CreditExceptionRequestForm } from "../components/credit-exception-request-form";
+import { api, type CreateCreditExceptionRequestInput } from "../../../lib/api.js";
 
 interface EligibleRegistration {
   id: string;
@@ -18,12 +15,9 @@ interface EligibleRegistration {
 export function CreditExceptionRequestCreatePage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const defaultRegistrationId =
-    searchParams.get('registration_id') ?? undefined;
+  const defaultRegistrationId = searchParams.get("registration_id") ?? undefined;
 
-  const [registrations, setRegistrations] = useState<EligibleRegistration[]>(
-    [],
-  );
+  const [registrations, setRegistrations] = useState<EligibleRegistration[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -31,31 +25,27 @@ export function CreditExceptionRequestCreatePage() {
       try {
         const regRes = await api.listRegistrations(1, 100);
         const active = regRes.data.filter(
-          (r) => r.status !== 'COMPLETED' && r.status !== 'CANCELLED',
+          (r) => r.status !== "COMPLETED" && r.status !== "CANCELLED"
         );
 
         // Fetch finance summaries, existing exceptions, and existing requests
         // in parallel so we can exclude registrations that already have an
         // active exception or a pending request.
         const [summaries, exceptionResults, requestResults] = await Promise.all([
-          Promise.all(
-            active.map((r) =>
-              api.getRegistrationFinanceSummary(r.id).catch(() => null),
-            ),
-          ),
+          Promise.all(active.map((r) => api.getRegistrationFinanceSummary(r.id).catch(() => null))),
           Promise.all(
             active.map((r) =>
               api
                 .listFinanceExceptions(1, 1, r.id)
-                .catch(() => ({ data: [], total: 0, page: 1, page_size: 1 })),
-            ),
+                .catch(() => ({ data: [], total: 0, page: 1, page_size: 1 }))
+            )
           ),
           Promise.all(
             active.map((r) =>
               api
                 .listCreditExceptionRequests(1, 1, r.id)
-                .catch(() => ({ data: [], total: 0, page: 1, page_size: 1 })),
-            ),
+                .catch(() => ({ data: [], total: 0, page: 1, page_size: 1 }))
+            )
           ),
         ]);
 
@@ -65,12 +55,8 @@ export function CreditExceptionRequestCreatePage() {
           const summary = summaries[i];
           const exceptions = exceptionResults[i];
           const requests = requestResults[i];
-          const hasActiveException = exceptions.data.some(
-            (e) => e.status?.code === 'ACTIVE',
-          );
-          const hasPendingRequest = requests.data.some(
-            (r) => r.status?.code === 'PENDING',
-          );
+          const hasActiveException = exceptions.data.some((e) => e.status?.code === "ACTIVE");
+          const hasPendingRequest = requests.data.some((r) => r.status?.code === "PENDING");
           if (
             summary &&
             summary.outstanding_balance > 0 &&
@@ -80,7 +66,7 @@ export function CreditExceptionRequestCreatePage() {
             eligible.push({
               id: reg.id,
               registration_number: reg.registration_number,
-              traveller_full_name: reg.traveller?.full_name ?? 'Unknown',
+              traveller_full_name: reg.traveller?.full_name ?? "Unknown",
               outstanding_balance: summary.outstanding_balance,
             });
           }
@@ -88,9 +74,7 @@ export function CreditExceptionRequestCreatePage() {
 
         setRegistrations(eligible);
       } catch (err) {
-        toast.error(
-          err instanceof Error ? err.message : 'Failed to load registrations',
-        );
+        toast.error(err instanceof Error ? err.message : "Failed to load registrations");
       } finally {
         setLoading(false);
       }
@@ -101,11 +85,10 @@ export function CreditExceptionRequestCreatePage() {
   async function handleSubmit(values: CreateCreditExceptionRequestInput) {
     try {
       const request = await api.createCreditExceptionRequest(values);
-      toast.success('Credit exception request submitted for admin review.');
+      toast.success("Credit exception request submitted for admin review.");
       navigate(`/credit-exception-requests/${request.id}`);
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : 'Failed to submit request';
+      const message = err instanceof Error ? err.message : "Failed to submit request";
       toast.error(message);
       throw err;
     }
@@ -117,9 +100,9 @@ export function CreditExceptionRequestCreatePage() {
     return (
       <div className="py-6">
         <p className="text-sm text-muted-foreground">
-          No registrations are currently eligible for a credit exception
-          request. Registrations must have an outstanding balance greater than
-          zero, no active exception, and no pending request.
+          No registrations are currently eligible for a credit exception request. Registrations must
+          have an outstanding balance greater than zero, no active exception, and no pending
+          request.
         </p>
       </div>
     );

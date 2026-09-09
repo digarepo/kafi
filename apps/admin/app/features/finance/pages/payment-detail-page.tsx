@@ -1,17 +1,12 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router';
-import { Button, Card, CardContent, CardHeader, CardTitle } from '@kafi/ui';
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router";
+import { Button, Card, CardContent, CardHeader, CardTitle } from "@kafi/ui";
 
-import { usePermissions } from '../../../core/permissions';
-import { useDestructiveConfirmation } from '../../../shared/delete-dialog';
-import {
-  api,
-  type AllocationInput,
-  type InvoiceListItem,
-  type Payment,
-} from '../../../lib/api.js';
-import { PaymentAllocationDialog } from '../components/payment-allocation-dialog';
-import { RotateCcw } from 'lucide-react';
+import { usePermissions } from "../../../core/permissions";
+import { useDestructiveConfirmation } from "../../../shared/delete-dialog";
+import { api, type AllocationInput, type InvoiceListItem, type Payment } from "../../../lib/api.js";
+import { PaymentAllocationDialog } from "../components/payment-allocation-dialog";
+import { RotateCcw } from "lucide-react";
 
 interface PaymentDetailPageProps {
   id: string;
@@ -35,14 +30,11 @@ export function PaymentDetailPage({ id }: PaymentDetailPageProps) {
     async function load() {
       setLoading(true);
       try {
-        const [p, invoiceRes] = await Promise.all([
-          api.getPayment(id),
-          api.listInvoices(1, 100),
-        ]);
+        const [p, invoiceRes] = await Promise.all([api.getPayment(id), api.listInvoices(1, 100)]);
         setPayment(p);
         setInvoices(invoiceRes.data);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load payment');
+        setError(err instanceof Error ? err.message : "Failed to load payment");
       } finally {
         setLoading(false);
       }
@@ -54,18 +46,17 @@ export function PaymentDetailPage({ id }: PaymentDetailPageProps) {
     if (!payment) return;
     if (
       !(await confirm({
-        title: 'Archive payment?',
-        description:
-          'The payment will be removed from active records and can be restored later.',
-        confirmLabel: 'Archive',
+        title: "Archive payment?",
+        description: "The payment will be removed from active records and can be restored later.",
+        confirmLabel: "Archive",
       }))
     )
       return;
     try {
       await api.archivePayment(payment.id);
-      navigate('/payments');
+      navigate("/payments");
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Archive failed');
+      setError(err instanceof Error ? err.message : "Archive failed");
     }
   }
 
@@ -77,27 +68,22 @@ export function PaymentDetailPage({ id }: PaymentDetailPageProps) {
       await reload();
       setAllocateOpen(false);
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'Failed to allocate payment',
-      );
+      setError(err instanceof Error ? err.message : "Failed to allocate payment");
     }
   }
 
   if (loading) return <p className="text-muted-foreground">Loading...</p>;
-  if (!payment)
-    return <p className="text-destructive">{error ?? 'Payment not found'}</p>;
+  if (!payment) return <p className="text-destructive">{error ?? "Payment not found"}</p>;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">
-          Payment {payment.payment_number}
-        </h1>
+        <h1 className="text-2xl font-bold tracking-tight">Payment {payment.payment_number}</h1>
         <div className="flex gap-2">
-          {can('FINANCE_EDIT') && payment.unallocated_amount > 0 && (
+          {can("FINANCE_EDIT") && payment.unallocated_amount > 0 && (
             <Button onClick={() => setAllocateOpen(true)}>Allocate</Button>
           )}
-          {can('FINANCE_REFUND_APPROVE') && payment.unallocated_amount > 0 && (
+          {can("FINANCE_REFUND_APPROVE") && payment.unallocated_amount > 0 && (
             <Button
               variant="outline"
               onClick={() => navigate(`/refunds/new?payment_id=${payment.id}`)}
@@ -106,7 +92,7 @@ export function PaymentDetailPage({ id }: PaymentDetailPageProps) {
               Refund
             </Button>
           )}
-          {can('FINANCE_DELETE') && (
+          {can("FINANCE_DELETE") && (
             <Button variant="destructive" onClick={() => void handleArchive()}>
               Archive
             </Button>
@@ -115,9 +101,7 @@ export function PaymentDetailPage({ id }: PaymentDetailPageProps) {
       </div>
 
       {error && (
-        <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-          {error}
-        </div>
+        <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>
       )}
 
       <PaymentAllocationDialog
@@ -140,9 +124,7 @@ export function PaymentDetailPage({ id }: PaymentDetailPageProps) {
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Original amount</p>
-            <p className="font-medium">
-              {Number(payment.original_amount).toFixed(2)}
-            </p>
+            <p className="font-medium">{Number(payment.original_amount).toFixed(2)}</p>
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Exchange rate</p>
@@ -154,13 +136,11 @@ export function PaymentDetailPage({ id }: PaymentDetailPageProps) {
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Unallocated (ETB)</p>
-            <p className="font-medium">
-              {payment.unallocated_amount.toFixed(2)}
-            </p>
+            <p className="font-medium">{payment.unallocated_amount.toFixed(2)}</p>
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Reference number</p>
-            <p className="font-medium">{payment.reference_number ?? '-'}</p>
+            <p className="font-medium">{payment.reference_number ?? "-"}</p>
           </div>
         </CardContent>
       </Card>
@@ -186,9 +166,7 @@ export function PaymentDetailPage({ id }: PaymentDetailPageProps) {
                   {payment.allocations.map((a) => (
                     <tr key={a.id} className="border-t border-border">
                       <td className="p-2">{a.invoice_number}</td>
-                      <td className="p-2">
-                        {Number(a.allocated_amount).toFixed(2)}
-                      </td>
+                      <td className="p-2">{Number(a.allocated_amount).toFixed(2)}</td>
                       <td className="p-2">{a.allocation_date}</td>
                     </tr>
                   ))}

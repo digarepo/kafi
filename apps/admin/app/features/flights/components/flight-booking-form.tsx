@@ -21,7 +21,11 @@ import {
 
 import { DateRangePicker } from '../../packages/components/date-range-picker';
 import { FieldError } from '../../../shared/field-error';
-import { flightsApi, type EligibleRegistration } from '../lib/api';
+import {
+  flightsApi,
+  type Airline,
+  type EligibleRegistration,
+} from '../lib/api';
 import { api } from '../../../lib/api.js';
 import { parseYmd } from '../../travellers/lib/date';
 import { flightBookingFormSchema } from '../validation/flights.schema';
@@ -34,7 +38,9 @@ import type {
 const emptyValues: FlightBookingFormValues = {
   registration_id: '',
   pnr: '',
+  departure_airline_id: '',
   departure_flight_number: '',
+  return_airline_id: '',
   return_flight_number: '',
   travelRange: undefined,
   ticket_cost: '',
@@ -45,9 +51,17 @@ function buildDefaultValues(
   _mode: FlightBookingFormProps['mode'],
   registration: FlightBookingFormProps['registration'],
 ): FlightBookingFormValues {
+  const from = registration?.expected_departure_date
+    ? parseYmd(registration.expected_departure_date)
+    : undefined;
+  const to = registration?.expected_return_date
+    ? parseYmd(registration.expected_return_date)
+    : undefined;
+
   return {
     ...emptyValues,
     registration_id: registration?.id ?? '',
+    travelRange: from ? { from, to } : undefined,
   };
 }
 
@@ -76,6 +90,23 @@ export function FlightBookingForm({
   );
 
   const [eligibleRegs, setEligibleRegs] = useState<EligibleRegistration[]>([]);
+  const [airlines, setAirlines] = useState<Airline[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadAirlines() {
+      try {
+        const rows = await flightsApi.listAirlines();
+        if (!cancelled) setAirlines(rows);
+      } catch {
+        if (!cancelled) setAirlines([]);
+      }
+    }
+    void loadAirlines();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (registration) return; // skip lookup when pre-selected
@@ -104,9 +135,14 @@ export function FlightBookingForm({
       const output: FlightBookingFormOutput = {
         registration_id: value.registration_id,
         pnr: value.pnr.trim(),
-        departure_flight_number: value.departure_flight_number.trim(),
+        departure_airline_id: value.departure_airline_id,
+        departure_flight_number: value.departure_flight_number
+          .trim()
+          .toUpperCase(),
         departure_date: toYmd(value.travelRange?.from) ?? '',
-        return_flight_number: value.return_flight_number.trim() || undefined,
+        return_airline_id: value.return_airline_id || undefined,
+        return_flight_number:
+          value.return_flight_number.trim().toUpperCase() || undefined,
         return_date: toYmd(value.travelRange?.to) || undefined,
         supplier_cost:
           value.ticket_cost.trim() && !isNaN(costNum) && costNum > 0
@@ -119,6 +155,15 @@ export function FlightBookingForm({
   });
 
   useEffect(() => {
+    if (!form.getFieldValue('departure_airline_id') && airlines.length > 0) {
+      const ethiopian = airlines.find((airline) => airline.iata_code === 'ET');
+      if (ethiopian) {
+        form.setFieldValue('departure_airline_id', ethiopian.id);
+      }
+    }
+  }, [airlines, form]);
+
+  useEffect(() => {
     form.reset();
   }, [defaultValues, form]);
 
@@ -127,6 +172,10 @@ export function FlightBookingForm({
   const regOptions = eligibleRegs.map((r) => ({
     value: r.id,
     label: `${r.registration_number} — ${r.traveller.full_name}`,
+  }));
+  const airlineOptions = airlines.map((airline) => ({
+    value: airline.id,
+    label: `${airline.name} (${airline.iata_code})`,
   }));
 
   // When a registration is selected from the dropdown, fetch its details
@@ -192,12 +241,7 @@ export function FlightBookingForm({
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium">
-                      Registration{' '}
-                      <span className="text-muted-foreground">
-                        (visa-approved, no active booking)
-                      </span>
-                    </Label>
+                    <Label className="text-sm font-medium">Registration</Label>
                     <Select
                       value={field.state.value ?? ''}
                       onValueChange={(v) => {
@@ -244,6 +288,36 @@ export function FlightBookingForm({
               )}
             </form.Field>
 
+            <form.Field name="departure_airline_id">
+              {(field: AnyFieldApi) => (
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">
+                    Departure airline
+                  </Label>
+                  <Select
+                    value={field.state.value}
+                    onValueChange={(value) => field.handleChange(value)}
+                  >
+                    <SelectTrigger className="h-9 w-full">
+                      <SelectValue>
+                        {airlineOptions.find(
+                          (o) => o.value === field.state.value,
+                        )?.label ?? 'Select airline'}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {airlineOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FieldError field={field} />
+                </div>
+              )}
+            </form.Field>
+
             <form.Field name="departure_flight_number">
               {(field: AnyFieldApi) => (
                 <div className="space-y-2">
@@ -258,10 +332,41 @@ export function FlightBookingForm({
                     value={field.state.value}
                     onChange={(e) => field.handleChange(e.target.value)}
                     onBlur={field.handleBlur}
-                    placeholder="e.g. ET700"
+                    placeholder="e.g. 700"
                     aria-invalid={field.state.meta.errors.length > 0}
                     className="h-9 w-full"
                   />
+                  <FieldError field={field} />
+                </div>
+              )}
+            </form.Field>
+
+            <form.Field name="return_airline_id">
+              {(field: AnyFieldApi) => (
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">
+                    Return airline{' '}
+                    <span className="text-muted-foreground">(optional)</span>
+                  </Label>
+                  <Select
+                    value={field.state.value}
+                    onValueChange={(value) => field.handleChange(value)}
+                  >
+                    <SelectTrigger className="h-9 w-full">
+                      <SelectValue>
+                        {airlineOptions.find(
+                          (o) => o.value === field.state.value,
+                        )?.label ?? 'Select airline'}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {airlineOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FieldError field={field} />
                 </div>
               )}
@@ -282,7 +387,7 @@ export function FlightBookingForm({
                     value={field.state.value}
                     onChange={(e) => field.handleChange(e.target.value)}
                     onBlur={field.handleBlur}
-                    placeholder="e.g. ET701"
+                    placeholder="e.g. 701"
                     aria-invalid={field.state.meta.errors.length > 0}
                     className="h-9 w-full"
                   />

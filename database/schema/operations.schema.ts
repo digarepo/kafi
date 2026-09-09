@@ -57,6 +57,38 @@ export const groupMembershipStatuses = mysqlTable('group_membership_statuses', {
 });
 
 /**
+ * A controlled intake/departure cycle. Registration numbers are allocated
+ * from the round's locked sequence counter.
+ */
+export const travelRounds = mysqlTable(
+  'travel_rounds',
+  {
+    id: idColumn,
+    round_number: int('round_number').notNull(),
+    package_version_id: fkUuid('package_version_id'),
+    name: varchar('name', { length: 150 }).notNull(),
+    departure_date: date('departure_date').notNull(),
+    return_date: date('return_date').notNull(),
+    status: mysqlEnum('status', ['PLANNING', 'OPEN', 'CLOSED', 'COMPLETED'])
+      .notNull()
+      .default('PLANNING'),
+    next_registration_sequence: int('next_registration_sequence')
+      .notNull()
+      .default(1),
+    remarks: text('remarks'),
+    ...auditMetadata,
+    ...actorMetadata,
+    ...softDeleteMetadata,
+  },
+  (table) => [
+    unique('travel_rounds_round_number_unique').on(table.round_number),
+    unique('travel_rounds_package_version_unique').on(table.package_version_id),
+    index('travel_rounds_status_idx').on(table.status),
+    index('travel_rounds_departure_date_idx').on(table.departure_date),
+  ],
+);
+
+/**
  * A physical departure group that executes a single package version.
  *
  * One package version may have many travel groups. Capacity on this table is
@@ -197,6 +229,19 @@ export const hotelTypes = mysqlTable('hotel_types', {
  * Lookup: room classifications.
  */
 export const roomTypes = mysqlTable('room_types', {
+  id: idColumn,
+  type_code: codeColumn('type_code'),
+  name: nameColumn(),
+  description: text('description'),
+  is_active: boolean('is_active').notNull().default(true),
+  ...auditMetadata,
+  ...softDeleteMetadata,
+});
+
+/**
+ * Lookup: passenger vehicle categories used for ground transport.
+ */
+export const vehicleTypes = mysqlTable('vehicle_types', {
   id: idColumn,
   type_code: codeColumn('type_code'),
   name: nameColumn(),
@@ -493,6 +538,8 @@ export const transportSegments = mysqlTable(
       .unique(),
     travel_group_id: fkUuid('travel_group_id').notNull(),
     vendor_id: fkUuid('vendor_id'),
+    vehicle_type_id: fkUuid('vehicle_type_id'),
+    vehicle_plate_number: varchar('vehicle_plate_number', { length: 30 }),
     transport_type: mysqlEnum('transport_type', [
       'BUS',
       'COASTER',
@@ -540,6 +587,10 @@ export const transportSegments = mysqlTable(
     ),
     index('transport_segments_travel_group_id_idx').on(table.travel_group_id),
     index('transport_segments_vendor_id_idx').on(table.vendor_id),
+    index('transport_segments_vehicle_type_id_idx').on(table.vehicle_type_id),
+    index('transport_segments_vehicle_plate_idx').on(
+      table.vehicle_plate_number,
+    ),
     index('transport_segments_departure_datetime_idx').on(
       table.departure_datetime,
     ),
@@ -547,6 +598,9 @@ export const transportSegments = mysqlTable(
 );
 
 // Relations
+export const travelRoundsRelations = relations(travelRounds, ({ many }) => ({
+  registrations: many(registrations),
+}));
 
 export const hotelTypesRelations = relations(hotelTypes, ({ many }) => ({
   hotels: many(hotels),
@@ -554,6 +608,10 @@ export const hotelTypesRelations = relations(hotelTypes, ({ many }) => ({
 
 export const roomTypesRelations = relations(roomTypes, ({ many }) => ({
   rooms: many(rooms),
+}));
+
+export const vehicleTypesRelations = relations(vehicleTypes, ({ many }) => ({
+  transportSegments: many(transportSegments),
 }));
 
 export const vendorTypesRelations = relations(vendorTypes, ({ many }) => ({
@@ -730,6 +788,10 @@ export const transportSegmentsRelations = relations(
     vendor: one(vendors, {
       fields: [transportSegments.vendor_id],
       references: [vendors.id],
+    }),
+    vehicleType: one(vehicleTypes, {
+      fields: [transportSegments.vehicle_type_id],
+      references: [vehicleTypes.id],
     }),
     status: one(transportSegmentStatuses, {
       fields: [transportSegments.transport_segment_status_id],

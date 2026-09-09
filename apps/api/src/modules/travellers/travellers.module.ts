@@ -8,6 +8,7 @@ import { RegistrationsService } from './application/services/registrations.servi
 import { RegistrationReadinessService } from './application/services/registration-readiness.service.js';
 import { RegistrationOperationalSummaryService } from './application/services/registration-operational-summary.service.js';
 import { RegistrationQueuesService } from './application/services/registration-queues.service.js';
+import { RegistrationReadinessSubscriber } from './application/subscribers/registration-readiness.subscriber.js';
 import { AdminTravellersController } from './presentation/controllers/admin-travellers.controller.js';
 import { AdminRegistrationsController } from './presentation/controllers/admin-registrations.controller.js';
 
@@ -24,7 +25,13 @@ import { AdminRegistrationsController } from './presentation/controllers/admin-r
     RegistrationReadinessService,
     RegistrationOperationalSummaryService,
     RegistrationQueuesService,
+    RegistrationReadinessSubscriber,
   ],
-  exports: [TravellersService, RegistrationsService, RegistrationQueuesService],
+  exports: [
+    TravellersService,
+    RegistrationsService,
+    RegistrationOperationalSummaryService,
+    RegistrationQueuesService,
+  ],
 })
 export class TravellersModule {}

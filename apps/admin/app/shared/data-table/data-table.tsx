@@ -20,7 +20,7 @@ import {
   Button,
 } from '@kafi/ui';
 import { cn } from '@kafi/ui';
-import { Trash2 } from 'lucide-react';
+import { Loader, Trash2 } from 'lucide-react';
 
 import {
   CaretUpIcon,
@@ -58,7 +58,9 @@ export function DataTable<TData, TValue>({
   onGlobalFilterChange,
   onTableReady,
   onDeleteSelected,
+  selectionActions,
   enableRowSelection = false,
+  onRowClick,
 }: DataTableProps<TData, TValue>) {
   const renderStartedAt = performance.now();
   const [internalSorting, setInternalSorting] = useState<SortingState>([]);
@@ -179,18 +181,33 @@ export function DataTable<TData, TValue>({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-2">
-        {selectionEnabled && onDeleteSelected && selectedCount > 0 ? (
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8"
-            onClick={() => onDeleteSelected(selectedRows)}
-          >
-            <Trash2 className="mr-2 h-4 w-4" />
-            Delete selected ({selectedCount})
-          </Button>
-        ) : null}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap gap-2">
+          {selectionEnabled && onDeleteSelected && selectedCount > 0 ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8"
+              onClick={() => onDeleteSelected(selectedRows)}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete selected ({selectedCount})
+            </Button>
+          ) : null}
+          {selectionEnabled && selectionActions && selectedCount > 0
+            ? selectionActions.map((action) => (
+                <Button
+                  key={action.label}
+                  variant={action.variant ?? 'default'}
+                  size="sm"
+                  className="h-8"
+                  onClick={() => action.onClick(selectedRows)}
+                >
+                  {action.label} ({selectedCount})
+                </Button>
+              ))
+            : null}
+        </div>
         {!hideViewOptions && <DataTableViewOptions table={table} />}
       </div>
 
@@ -249,7 +266,13 @@ export function DataTable<TData, TValue>({
                   colSpan={visibleColumnCount}
                   className="h-20 text-center text-xs"
                 >
-                  Loading…
+                  <span
+                    className="inline-flex items-center gap-2"
+                    aria-label="Loading table data"
+                  >
+                    <Loader className="h-4 w-4 animate-spin" />
+                    Loading…
+                  </span>
                 </TableCell>
               </TableRow>
             ) : rowModel.rows.length ? (
@@ -258,6 +281,23 @@ export function DataTable<TData, TValue>({
                   key={row.id}
                   data-state={row.getIsSelected() ? 'selected' : undefined}
                   className="text-xs"
+                  onClick={
+                    onRowClick
+                      ? (event) => {
+                          // Skip row click when the click originated from an
+                          // interactive element (actions menu, checkbox, link, button)
+                          if (
+                            (event.target as HTMLElement).closest(
+                              'button, a, [role="menuitem"], [role="checkbox"], input, select, textarea',
+                            )
+                          ) {
+                            return;
+                          }
+                          onRowClick(row.original);
+                        }
+                      : undefined
+                  }
+                  style={onRowClick ? { cursor: 'pointer' } : undefined}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id} className="px-4 py-1">

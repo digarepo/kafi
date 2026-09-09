@@ -1,14 +1,14 @@
-import { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router';
-import { toast } from 'sonner';
+import { useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router";
+import { toast } from "sonner";
 
-import { RefundForm } from '../components/refund-form';
+import { RefundForm } from "../components/refund-form";
 import {
   api,
   type CreateRefundInput,
   type PaymentListItem,
   type Registration,
-} from '../../../lib/api.js';
+} from "../../../lib/api.js";
 
 interface RefundablePayment {
   id: string;
@@ -27,7 +27,7 @@ interface RegistrationOption {
 export function RefundCreatePage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const defaultPaymentId = searchParams.get('payment_id') ?? undefined;
+  const defaultPaymentId = searchParams.get("payment_id") ?? undefined;
 
   const [payments, setPayments] = useState<RefundablePayment[]>([]);
   const [registrations, setRegistrations] = useState<RegistrationOption[]>([]);
@@ -44,35 +44,25 @@ export function RefundCreatePage() {
         // Filter to payments with refundable (unallocated) balance > 0
         // and not cancelled
         const refundable = payRes.data
-          .filter(
-            (p) =>
-              p.unallocated_amount > 0 && p.status?.code !== 'CANCELLED',
-          )
+          .filter((p) => p.unallocated_amount > 0 && p.status?.code !== "CANCELLED")
           .map((p: PaymentListItem) => ({
             id: p.id,
             payment_number: p.payment_number,
             amount: Number(p.amount),
             unallocated_amount: p.unallocated_amount,
-            payer_label:
-              p.payer?.organization_name ??
-              p.payer?.contact_name ??
-              'Unknown payer',
+            payer_label: p.payer?.organization_name ?? p.payer?.contact_name ?? "Unknown payer",
           }));
 
         setPayments(refundable);
 
-        const regOptions: RegistrationOption[] = regRes.data.map(
-          (r: Registration) => ({
-            id: r.id,
-            registration_number: r.registration_number,
-            traveller_full_name: r.traveller?.full_name ?? 'Unknown',
-          }),
-        );
+        const regOptions: RegistrationOption[] = regRes.data.map((r: Registration) => ({
+          id: r.id,
+          registration_number: r.registration_number,
+          traveller_full_name: r.traveller?.full_name ?? "Unknown",
+        }));
         setRegistrations(regOptions);
       } catch (err) {
-        toast.error(
-          err instanceof Error ? err.message : 'Failed to load reference data',
-        );
+        toast.error(err instanceof Error ? err.message : "Failed to load reference data");
       } finally {
         setLoading(false);
       }
@@ -83,11 +73,10 @@ export function RefundCreatePage() {
   async function handleSubmit(values: CreateRefundInput) {
     try {
       const refund = await api.createRefund(values);
-      toast.success('Refund created successfully.');
+      toast.success("Refund created successfully.");
       navigate(`/refunds/${refund.id}`);
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : 'Failed to create refund';
+      const message = err instanceof Error ? err.message : "Failed to create refund";
       toast.error(message);
       throw err;
     }
@@ -99,8 +88,8 @@ export function RefundCreatePage() {
     return (
       <div className="py-6">
         <p className="text-sm text-muted-foreground">
-          No payments are currently eligible for a refund. Payments must have
-          an unallocated balance greater than zero and must not be cancelled.
+          No payments are currently eligible for a refund. Payments must have an unallocated balance
+          greater than zero and must not be cancelled.
         </p>
       </div>
     );

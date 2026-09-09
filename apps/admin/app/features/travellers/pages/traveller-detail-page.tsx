@@ -99,6 +99,22 @@ function formatTravelDate(value: string | null | undefined): string {
       });
 }
 
+function documentStateLabel(document: DocumentListItem): string {
+  const documentStatus = document.document_status?.name;
+  const verificationStatus = document.verification_status?.name;
+  const isDocumentPending = document.document_status?.status_code === 'PENDING';
+  const isVerificationPending =
+    document.verification_status?.status_code === 'PENDING';
+
+  if (isDocumentPending && isVerificationPending) {
+    return 'Pending verification';
+  }
+  if (documentStatus && verificationStatus) {
+    return `${documentStatus} · ${verificationStatus}`;
+  }
+  return verificationStatus ?? documentStatus ?? 'Status unavailable';
+}
+
 function RegistrationRow({ registration }: { registration: Registration }) {
   const departure = formatTravelDate(registration.expected_departure_date);
   const returnDate = formatTravelDate(registration.expected_return_date);
@@ -396,11 +412,7 @@ export function TravellerDetailPage({ id }: TravellerDetailPageProps) {
                               {document.document_type?.name ?? 'Document'}
                             </p>
                             <p className="mt-1 break-words text-xs text-muted-foreground">
-                              {document.verification_status?.name ??
-                                'Unverified'}{' '}
-                              ·{' '}
-                              {document.document_status?.name ??
-                                'Unknown status'}
+                              {documentStateLabel(document)}
                             </p>
                           </div>
                         </div>

@@ -55,5 +55,12 @@ export function TravelGroupMembersTable({
     return <p className="text-muted-foreground">No members assigned yet.</p>;
   }
 
-  return <DataTable data={members} columns={columns} loading={false} />;
+  return (
+    <DataTable
+      data={members}
+      columns={columns}
+      loading={false}
+      onRowClick={(m) => onView(m)}
+    />
+  );
 }

@@ -43,7 +43,7 @@ export function InvoicesListPage() {
 
   const [invoices, setInvoices] = useState<InvoiceListItem[]>([]);
   const [statuses, setStatuses] = useState<LookupOption[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [referenceLoading, setReferenceLoading] = useState(true);
   const [retryNonce, setRetryNonce] = useState(0);
@@ -307,6 +307,7 @@ export function InvoicesListPage() {
         loading={loading}
         pagination={{ pageIndex: page - 1, pageSize, total }}
         onPaginationChange={setPagination}
+        onRowClick={(i) => navigate(`/invoices/${i.id}`)}
       />
     </div>
   );

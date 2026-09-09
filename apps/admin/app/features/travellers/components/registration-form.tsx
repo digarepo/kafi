@@ -41,6 +41,7 @@ import type {
 const emptyValues: RegistrationFormValues = {
   traveller_id: '',
   package_version_id: '',
+  travel_round_id: '',
   expected_departure_date: '',
   expected_return_date: '',
   remarks: '',
@@ -55,6 +56,7 @@ function buildDefaultValues(
     return {
       traveller_id: registration.traveller?.id ?? '',
       package_version_id: registration.package_version?.id ?? '',
+      travel_round_id: registration.travel_round?.id ?? '',
       expected_departure_date: registration.expected_departure_date ?? '',
       expected_return_date: registration.expected_return_date ?? '',
       remarks: registration.remarks ?? '',
@@ -93,6 +95,7 @@ export function RegistrationForm({
   registration,
   travellers,
   packageVersions,
+  travelRounds = [],
   onSubmit,
   submitLabel,
   workflowMode = false,
@@ -112,6 +115,7 @@ export function RegistrationForm({
       const output: RegistrationFormOutput = {
         traveller_id: value.traveller_id,
         package_version_id: value.package_version_id,
+        travel_round_id: value.travel_round_id,
         expected_departure_date: value.expected_departure_date || undefined,
         expected_return_date: value.expected_return_date || undefined,
         remarks: value.remarks || undefined,
@@ -150,6 +154,9 @@ export function RegistrationForm({
   }, [values.expected_departure_date, values.expected_return_date]);
 
   useEffect(() => {
+    if (selectedPackage?.travel_round) {
+      form.setFieldValue('travel_round_id', selectedPackage.travel_round.id);
+    }
     if (manualDates || !selectedPackage) return;
     form.setFieldValue(
       'expected_departure_date',
@@ -321,6 +328,57 @@ export function RegistrationForm({
           )}
         </>
       )}
+
+      {/* Travel round */}
+      <form.Field name="travel_round_id">
+        {(field: AnyFieldApi) => (
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Travel round</Label>
+            <Select
+              value={field.state.value ?? ''}
+              onValueChange={(v) => {
+                const round = travelRounds.find((item) => item.id === v);
+
+                field.handleChange(v ?? '');
+                if (round) {
+                  form.setFieldValue(
+                    'expected_departure_date',
+                    packageDateString(round.departure_date),
+                  );
+                  form.setFieldValue(
+                    'expected_return_date',
+                    packageDateString(round.return_date),
+                  );
+                }
+              }}
+              disabled={
+                mode === 'edit' || Boolean(selectedPackage?.travel_round)
+              }
+            >
+              <SelectTrigger className="h-9 w-full">
+                <SelectValue>
+                  {selectedPackage?.travel_round
+                    ? `R${String(selectedPackage.travel_round.round_number).padStart(2, '0')} — ${selectedPackage.travel_round.name}`
+                    : travelRounds.find((item) => item.id === field.state.value)
+                      ? `R${String(travelRounds.find((item) => item.id === field.state.value)!.round_number).padStart(2, '0')} — ${travelRounds.find((item) => item.id === field.state.value)!.name}`
+                      : 'Select travel round'}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {travelRounds
+                  .filter((round) => round.status === 'OPEN')
+                  .map((round) => (
+                    <SelectItem key={round.id} value={round.id}>
+                      R{String(round.round_number).padStart(2, '0')} —{' '}
+                      {round.name}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+            <FieldError field={field} />
+          </div>
+        )}
+      </form.Field>
 
       {/* Travel dates */}
       <div className="space-y-2">

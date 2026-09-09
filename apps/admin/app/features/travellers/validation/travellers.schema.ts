@@ -64,6 +64,7 @@ export type ContactPersonFormSchema = z.infer<typeof contactPersonFormSchema>;
 export const registrationFormSchema = z.object({
   traveller_id: z.string().min(1, 'Traveller is required'),
   package_version_id: z.string().min(1, 'Package version is required'),
+  travel_round_id: z.string().min(1, 'Travel round is required'),
   expected_departure_date: z.string(),
   expected_return_date: z.string(),
   remarks: z.string(),

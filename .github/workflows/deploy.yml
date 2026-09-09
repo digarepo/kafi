@@ -176,6 +176,7 @@ jobs:
           rm -rf node_modules package-lock.json
           npm install --omit=dev --no-audit --no-fund
           test -d node_modules/@kafi/database
+          mkdir -p /home/${{ secrets.CPANEL_USER }}/storage/documents
           touch tmp/restart.txt
           echo "Deployment complete"
           EOF

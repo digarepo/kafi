@@ -46,10 +46,20 @@ export function TravelGroupCreatePage() {
       navigate(`/travel-groups/${group.id}`);
     } catch (err) {
       if (err instanceof ApiError && err.status === 400) {
+        const body = err.body as {
+          errors?: Array<{ path?: Array<string | number>; message?: string }>;
+        } | null;
+        const details =
+          body?.errors
+            ?.map((item) => item.message)
+            .filter((message): message is string => Boolean(message))
+            .join(' · ') ?? '';
         toast.error(
-          err.message || 'Please check the form fields and try again.',
+          details ||
+            err.message ||
+            'Please check the form fields and try again.',
         );
-        return;
+        throw err;
       }
       const message =
         err instanceof Error ? err.message : 'Failed to create travel group';

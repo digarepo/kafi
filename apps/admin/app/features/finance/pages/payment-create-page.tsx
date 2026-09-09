@@ -1,16 +1,16 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router';
-import { toast } from 'sonner';
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router";
+import { toast } from "sonner";
 
-import { PaymentForm } from '../components/payment-form';
-import type { PaymentFormOutput } from '../types/finance.types';
+import { PaymentForm } from "../components/payment-form";
+import type { PaymentFormOutput } from "../types/finance.types";
 import {
   api,
   type CreatePaymentInput,
   type Currency,
   type Payer,
   type PaymentMethod,
-} from '../../../lib/api.js';
+} from "../../../lib/api.js";
 
 export function PaymentCreatePage() {
   const navigate = useNavigate();
@@ -31,9 +31,7 @@ export function PaymentCreatePage() {
         setPaymentMethods(methods);
         setCurrencies(curr);
       } catch (err) {
-        toast.error(
-          err instanceof Error ? err.message : 'Failed to load reference data',
-        );
+        toast.error(err instanceof Error ? err.message : "Failed to load reference data");
       } finally {
         setLoading(false);
       }
@@ -44,11 +42,10 @@ export function PaymentCreatePage() {
   async function handleSubmit(values: PaymentFormOutput) {
     try {
       const payment = await api.createPayment(values as CreatePaymentInput);
-      toast.success('Payment recorded successfully.');
+      toast.success("Payment recorded successfully.");
       navigate(`/payments/${payment.id}`);
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : 'Failed to record payment';
+      const message = err instanceof Error ? err.message : "Failed to record payment";
       toast.error(message);
       throw err;
     }

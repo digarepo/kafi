@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router';
-import { toast } from 'sonner';
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router";
+import { toast } from "sonner";
 
-import { ExpenseForm } from '../components/expense-form';
+import { ExpenseForm } from "../components/expense-form";
 import {
   api,
   type CreateExpenseInput,
@@ -12,7 +12,7 @@ import {
   type Registration,
   type TravelGroupListItem,
   type Traveller,
-} from '../../../lib/api.js';
+} from "../../../lib/api.js";
 
 export function ExpenseCreatePage() {
   const navigate = useNavigate();
@@ -28,16 +28,15 @@ export function ExpenseCreatePage() {
   useEffect(() => {
     async function load() {
       try {
-        const [cats, srcs, curr, travRes, regRes, groupRes, pvRes] =
-          await Promise.all([
-            api.listExpenseCategories(),
-            api.listExpenseSources(),
-            api.listCurrencies(),
-            api.listTravellers(1, 100),
-            api.listRegistrations(1, 100),
-            api.listTravelGroups(1, 100),
-            api.listPackageVersions(1, 100),
-          ]);
+        const [cats, srcs, curr, travRes, regRes, groupRes, pvRes] = await Promise.all([
+          api.listExpenseCategories(),
+          api.listExpenseSources(),
+          api.listCurrencies(),
+          api.listTravellers(1, 100),
+          api.listRegistrations(1, 100),
+          api.listTravelGroups(1, 100),
+          api.listPackageVersions(1, 100),
+        ]);
         setCategories(cats);
         setSources(srcs);
         setCurrencies(curr);
@@ -46,9 +45,7 @@ export function ExpenseCreatePage() {
         setTravelGroups(groupRes.data);
         setPackageVersions(pvRes.data);
       } catch (err) {
-        toast.error(
-          err instanceof Error ? err.message : 'Failed to load reference data',
-        );
+        toast.error(err instanceof Error ? err.message : "Failed to load reference data");
       } finally {
         setLoading(false);
       }
@@ -59,11 +56,10 @@ export function ExpenseCreatePage() {
   async function handleSubmit(values: CreateExpenseInput) {
     try {
       const expense = await api.createExpense(values);
-      toast.success('Expense recorded successfully.');
+      toast.success("Expense recorded successfully.");
       navigate(`/expenses/${expense.id}`);
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : 'Failed to record expense';
+      const message = err instanceof Error ? err.message : "Failed to record expense";
       toast.error(message);
       throw err;
     }

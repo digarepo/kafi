@@ -448,6 +448,10 @@ export class PackagesService {
           schema.currencies,
           eq(schema.packageVersions.currency_id, schema.currencies.id),
         )
+        .leftJoin(
+          schema.travelRounds,
+          eq(schema.travelRounds.package_version_id, schema.packageVersions.id),
+        )
         .where(where)
         .orderBy(desc(schema.packageVersions.created_at))
         .limit(pageSize)
@@ -518,6 +522,10 @@ export class PackagesService {
           schema.pilgrimageTypes.id,
         ),
       )
+      .leftJoin(
+        schema.travelRounds,
+        eq(schema.travelRounds.package_version_id, schema.packageVersions.id),
+      )
       .where(
         and(
           eq(schema.packageVersions.id, id),
@@ -541,16 +549,29 @@ export class PackagesService {
     const nextNumber = await this.getNextVersionNumber(dto.package_template_id);
     const draftStatus = await this.getVersionStatus('DRAFT');
     const code = await this.generateVersionCode();
-    const slug = await this.ensureUniqueSlug(
-      dto.slug?.trim() || slugify(dto.version_name),
+    const displayName = this.buildVersionDisplayName(
+      template.name,
+      dto.year,
+      dto.round_number,
     );
+    const slug = await this.ensureUniqueSlug(
+      dto.slug?.trim() || slugify(displayName),
+    );
+
+    if (!dto.departure_date || !dto.return_date) {
+      throw new BadRequestException(
+        'Departure and return dates are required to create a travel round',
+      );
+    }
+
+    await this.assertTravelRoundNumberAvailable(dto.round_number);
 
     const id = ulid();
     await this.db.insert(schema.packageVersions).values({
       id,
       package_version_code: code,
       package_template_id: dto.package_template_id,
-      version_name: dto.version_name,
+      version_name: displayName,
       version_number: nextNumber,
       slug,
       hero_image_url: dto.hero_image_url ?? null,
@@ -572,6 +593,18 @@ export class PackagesService {
     if (dto.inclusions?.length) {
       await this.saveInclusions(id, dto.inclusions, actorId);
     }
+
+    await this.db.insert(schema.travelRounds).values({
+      id: ulid(),
+      package_version_id: id,
+      round_number: dto.round_number,
+      name: displayName,
+      departure_date: new Date(dto.departure_date),
+      return_date: new Date(dto.return_date),
+      status: 'PLANNING',
+      created_by: actorId,
+      updated_by: actorId,
+    });
 
     return this.getVersion(id);
   }
@@ -606,6 +639,19 @@ export class PackagesService {
     this.assertDateRangeOrder(departure, returnDate, 'travel dates');
     this.assertDateRangeOrder(salesStart, salesEnd, 'registration window');
 
+    const roundNumber =
+      dto.round_number ?? existing.travel_round?.round_number ?? 1;
+    const year = dto.year ?? existing.year;
+    const templateName =
+      existing.package_template?.name ?? existing.version_name;
+    const displayName = this.buildVersionDisplayName(
+      templateName,
+      year,
+      roundNumber,
+    );
+    if (dto.round_number !== undefined) {
+      await this.assertTravelRoundNumberAvailable(dto.round_number, id);
+    }
     const slug = dto.slug?.trim()
       ? await this.ensureUniqueSlug(dto.slug.trim(), id)
       : existing.slug;
@@ -613,9 +659,7 @@ export class PackagesService {
     await this.db
       .update(schema.packageVersions)
       .set({
-        ...(dto.version_name !== undefined && {
-          version_name: dto.version_name,
-        }),
+        version_name: displayName,
         ...(dto.slug !== undefined && { slug }),
         ...(dto.hero_image_url !== undefined && {
           hero_image_url: dto.hero_image_url ?? null,
@@ -648,6 +692,24 @@ export class PackagesService {
         updated_by: actorId,
       })
       .where(eq(schema.packageVersions.id, id));
+
+    if (existing.travel_round?.id) {
+      await this.db
+        .update(schema.travelRounds)
+        .set({
+          round_number: roundNumber,
+          name: displayName,
+          ...(dto.departure_date !== undefined && {
+            departure_date: toDateOrNull(dto.departure_date) ?? undefined,
+          }),
+          ...(dto.return_date !== undefined && {
+            return_date: toDateOrNull(dto.return_date) ?? undefined,
+          }),
+          updated_at: new Date(),
+          updated_by: actorId,
+        })
+        .where(eq(schema.travelRounds.id, existing.travel_round.id));
+    }
 
     if (dto.inclusions) {
       await this.replaceInclusions(id, dto.inclusions, actorId);
@@ -727,6 +789,33 @@ export class PackagesService {
       .where(eq(schema.packageVersions.id, id));
 
     return this.getVersion(id);
+  }
+
+  private buildVersionDisplayName(
+    templateName: string,
+    year: number,
+    roundNumber: number,
+  ) {
+    return `${templateName} ${year} · Round ${roundNumber}`;
+  }
+
+  private async assertTravelRoundNumberAvailable(
+    roundNumber: number,
+    excludePackageVersionId?: string,
+  ) {
+    const [existing] = await this.db
+      .select({
+        id: schema.travelRounds.id,
+        package_version_id: schema.travelRounds.package_version_id,
+      })
+      .from(schema.travelRounds)
+      .where(eq(schema.travelRounds.round_number, roundNumber))
+      .limit(1);
+    if (existing && existing.package_version_id !== excludePackageVersionId) {
+      throw new ConflictException(
+        `Travel round ${roundNumber} is already assigned to another package version`,
+      );
+    }
   }
 
   private assertTemplateActive(template: { status?: string | null }) {
@@ -892,7 +981,9 @@ export class PackagesService {
       .update(schema.packageVersionInclusions)
       .set({ is_deleted: true, deleted_at: new Date() })
       .where(eq(schema.packageVersionInclusions.package_version_id, versionId));
-    await this.saveInclusions(versionId, inclusions, actorId);
+    if (inclusions.length > 0) {
+      await this.saveInclusions(versionId, inclusions, actorId);
+    }
   }
 
   private async ensureUniqueSlug(slug: string, excludeId?: string) {
@@ -924,14 +1015,23 @@ export class PackagesService {
   }
 
   private mapVersionRow(row: any) {
+    const displayName = row.travel_rounds
+      ? this.buildVersionDisplayName(
+          row.package_templates?.name ?? row.package_versions.version_name,
+          row.package_versions.year,
+          row.travel_rounds.round_number,
+        )
+      : row.package_versions.version_name;
+
     return {
       id: row.package_versions.id,
       package_version_code: row.package_versions.package_version_code,
-      version_name: row.package_versions.version_name,
+      version_name: displayName,
       version_number: row.package_versions.version_number,
       slug: row.package_versions.slug,
       hero_image_url: row.package_versions.hero_image_url,
       sort_order: row.package_versions.sort_order,
+      round_number: row.travel_rounds?.round_number ?? 0,
       year: row.package_versions.year,
       departure_date: row.package_versions.departure_date,
       return_date: row.package_versions.return_date,
@@ -968,6 +1068,16 @@ export class PackagesService {
         : null,
       pilgrimage_type: row.pilgrimage_types
         ? { id: row.pilgrimage_types.id, name: row.pilgrimage_types.name }
+        : null,
+      travel_round: row.travel_rounds
+        ? {
+            id: row.travel_rounds.id,
+            round_number: row.travel_rounds.round_number,
+            name: row.travel_rounds.name,
+            status: row.travel_rounds.status,
+            departure_date: row.travel_rounds.departure_date,
+            return_date: row.travel_rounds.return_date,
+          }
         : null,
       created_at: row.package_versions.created_at,
       updated_at: row.package_versions.updated_at,

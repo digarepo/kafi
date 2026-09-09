@@ -63,6 +63,10 @@ export class TransportSegmentsService {
           eq(schema.transportSegments.vendor_id, schema.vendors.id),
         )
         .leftJoin(
+          schema.vehicleTypes,
+          eq(schema.transportSegments.vehicle_type_id, schema.vehicleTypes.id),
+        )
+        .leftJoin(
           schema.transportSegmentStatuses,
           eq(
             schema.transportSegments.transport_segment_status_id,
@@ -138,6 +142,9 @@ export class TransportSegmentsService {
     if (dto.vendor_id) {
       await this.assertVendorExists(dto.vendor_id);
     }
+    if (dto.vehicle_type_id) {
+      await this.assertVehicleTypeExists(dto.vehicle_type_id);
+    }
 
     // Segments are always created as CONFIRMED — Kafi records a segment only
     // after the Saudi partner has confirmed the arrangement.
@@ -166,6 +173,9 @@ export class TransportSegmentsService {
         transport_segment_number: number,
         travel_group_id: dto.travel_group_id,
         vendor_id: dto.vendor_id ?? null,
+        vehicle_type_id: dto.vehicle_type_id,
+        vehicle_plate_number:
+          dto.vehicle_plate_number?.trim().toUpperCase() ?? null,
         transport_type: dto.transport_type ?? null,
         segment_order: segmentOrder,
         origin_location: dto.origin_location,
@@ -235,6 +245,13 @@ export class TransportSegmentsService {
       .set({
         ...(dto.vendor_id !== undefined && {
           vendor_id: dto.vendor_id ?? null,
+        }),
+        ...(dto.vehicle_type_id !== undefined && {
+          vehicle_type_id: dto.vehicle_type_id,
+        }),
+        ...(dto.vehicle_plate_number !== undefined && {
+          vehicle_plate_number:
+            dto.vehicle_plate_number?.trim().toUpperCase() ?? null,
         }),
         ...(dto.transport_type !== undefined && {
           transport_type: dto.transport_type ?? null,
@@ -356,6 +373,21 @@ export class TransportSegmentsService {
     return row;
   }
 
+  private async assertVehicleTypeExists(id: string) {
+    const [row] = await this.db
+      .select({ id: schema.vehicleTypes.id })
+      .from(schema.vehicleTypes)
+      .where(
+        and(
+          eq(schema.vehicleTypes.id, id),
+          eq(schema.vehicleTypes.is_deleted, false),
+          eq(schema.vehicleTypes.is_active, true),
+        ),
+      )
+      .limit(1);
+    if (!row) throw new NotFoundException('Vehicle type not found');
+  }
+
   private async assertVendorExists(id: string) {
     const [row] = await this.db
       .select()
@@ -413,6 +445,15 @@ export class TransportSegmentsService {
           }
         : null,
       transport_type: segment.transport_type,
+      vehicle_type_id: segment.vehicle_type_id,
+      vehicle_type: row.vehicle_types
+        ? {
+            id: row.vehicle_types.id,
+            type_code: row.vehicle_types.type_code,
+            name: row.vehicle_types.name,
+          }
+        : null,
+      vehicle_plate_number: segment.vehicle_plate_number,
       segment_order: segment.segment_order,
       origin_location: segment.origin_location,
       destination_location: segment.destination_location,

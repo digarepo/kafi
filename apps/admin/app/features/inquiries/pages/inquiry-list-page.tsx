@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { useNavigate, useSearchParams } from 'react-router';
-import { Eye, RotateCcw, Search } from 'lucide-react';
+import { Eye, Loader, RotateCcw, Search } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -47,12 +47,14 @@ const STATUS_LABELS: Record<InquiryStatus, string> = {
   RESOLVED: 'Resolved',
 };
 
-const STATUS_VARIANT: Record<InquiryStatus, 'default' | 'secondary' | 'outline'> =
-  {
-    NEW: 'default',
-    CONTACTED: 'secondary',
-    RESOLVED: 'outline',
-  };
+const STATUS_VARIANT: Record<
+  InquiryStatus,
+  'default' | 'secondary' | 'outline'
+> = {
+  NEW: 'default',
+  CONTACTED: 'secondary',
+  RESOLVED: 'outline',
+};
 
 export function InquiryListPage() {
   const navigate = useNavigate();
@@ -98,7 +100,9 @@ export function InquiryListPage() {
       } catch (err) {
         if (!cancelled) {
           setError(
-            err instanceof Error ? err.message : 'Inquiries could not be loaded',
+            err instanceof Error
+              ? err.message
+              : 'Inquiries could not be loaded',
           );
         }
       } finally {
@@ -189,7 +193,9 @@ export function InquiryListPage() {
         header: 'Type',
         enableSorting: false,
         cell: ({ row }) => (
-          <Badge variant="outline">{TYPE_LABELS[row.original.inquiry_type]}</Badge>
+          <Badge variant="outline">
+            {TYPE_LABELS[row.original.inquiry_type]}
+          </Badge>
         ),
       },
       {
@@ -206,9 +212,7 @@ export function InquiryListPage() {
         id: 'name',
         header: 'Name',
         enableSorting: false,
-        cell: ({ row }) => (
-          <span>{row.original.full_name || '—'}</span>
-        ),
+        cell: ({ row }) => <span>{row.original.full_name || '—'}</span>,
       },
       {
         id: 'phone',
@@ -258,22 +262,36 @@ export function InquiryListPage() {
         </p>
       </div>
 
-      {summary && (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <SummaryCard label="New" value={summary.new} variant="default" />
-          <SummaryCard
-            label="Contacted"
-            value={summary.contacted}
-            variant="secondary"
-          />
-          <SummaryCard
-            label="Resolved"
-            value={summary.resolved}
-            variant="outline"
-          />
-          <SummaryCard label="Total" value={summary.total} variant="outline" />
-        </div>
-      )}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <SummaryCard
+          label="New"
+          value={summary?.new ?? 0}
+          loading={loading}
+          error={Boolean(error)}
+          variant="default"
+        />
+        <SummaryCard
+          label="Contacted"
+          value={summary?.contacted ?? 0}
+          loading={loading}
+          error={Boolean(error)}
+          variant="secondary"
+        />
+        <SummaryCard
+          label="Resolved"
+          value={summary?.resolved ?? 0}
+          loading={loading}
+          error={Boolean(error)}
+          variant="outline"
+        />
+        <SummaryCard
+          label="Total"
+          value={summary?.total ?? 0}
+          loading={loading}
+          error={Boolean(error)}
+          variant="outline"
+        />
+      </div>
 
       {error && (
         <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
@@ -313,10 +331,7 @@ export function InquiryListPage() {
             </Select>
           </div>
           <div className="lg:w-40">
-            <Select
-              value={type}
-              onValueChange={(v) => setTypeFilter(v ?? '')}
-            >
+            <Select value={type} onValueChange={(v) => setTypeFilter(v ?? '')}>
               <SelectTrigger className={cn('h-9 w-full')}>
                 <SelectValue>
                   {type ? TYPE_LABELS[type] : 'All types'}
@@ -352,6 +367,7 @@ export function InquiryListPage() {
         loading={loading}
         pagination={pagination}
         onPaginationChange={setPagination}
+        onRowClick={(inquiry) => navigate(`/inquiries/${inquiry.id}`)}
       />
     </div>
   );
@@ -360,15 +376,33 @@ export function InquiryListPage() {
 interface SummaryCardProps {
   label: string;
   value: number;
+  loading: boolean;
+  error: boolean;
   variant: 'default' | 'secondary' | 'outline';
 }
 
-function SummaryCard({ label, value, variant }: SummaryCardProps) {
+function SummaryCard({
+  label,
+  value,
+  loading,
+  error,
+  variant,
+}: SummaryCardProps) {
   return (
     <div className="rounded-lg border border-border bg-card p-3">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-muted-foreground">{label}</span>
-        <Badge variant={variant}>{value}</Badge>
+        <span className="text-xs font-medium text-muted-foreground">
+          {label}
+        </span>
+        <Badge variant={variant}>
+          {loading ? (
+            <Loader className="h-3.5 w-3.5 animate-spin" aria-label="Loading" />
+          ) : error ? (
+            '—'
+          ) : (
+            value
+          )}
+        </Badge>
       </div>
     </div>
   );

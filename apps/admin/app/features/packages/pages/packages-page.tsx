@@ -74,7 +74,7 @@ export function PackagesPage() {
   const [templates, setTemplates] = useState<PackageTemplate[]>([]);
   const [versions, setVersions] = useState<PackageVersion[]>([]);
 
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [templateSearch, setTemplateSearch] = useState('');
   const [versionSearch, setVersionSearch] = useState('');
   const [versionTemplateFilter, setVersionTemplateFilter] = useState('');
@@ -251,6 +251,7 @@ export function PackagesPage() {
       toast.error(
         err instanceof Error ? err.message : 'Failed to create version',
       );
+      throw err;
     }
   }
 
@@ -265,6 +266,7 @@ export function PackagesPage() {
       toast.error(
         err instanceof Error ? err.message : 'Failed to update version',
       );
+      throw err;
     }
   }
 
@@ -629,6 +631,7 @@ export function PackagesPage() {
               loading={loading}
               pagination={templatePagination}
               onPaginationChange={setTemplatePagination}
+              onRowClick={(t) => setViewingTemplate(t)}
             />
           </div>
         </TabsContent>
@@ -726,6 +729,7 @@ export function PackagesPage() {
               loading={loading}
               pagination={versionPagination}
               onPaginationChange={setVersionPagination}
+              onRowClick={(v) => setViewingVersion(v)}
             />
           </div>
         </TabsContent>

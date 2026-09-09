@@ -242,9 +242,9 @@ export class DocumentsService {
     const documentType = await this.findDocumentType(dto.document_type_id);
     if (!documentType) throw new NotFoundException('Document type not found');
 
-    const [pendingStatus, pendingVerification] = await Promise.all([
-      this.findStatus(schema.documentStatuses, 'PENDING'),
-      this.findStatus(schema.verificationStatuses, 'PENDING'),
+    const [validStatus, verifiedStatus] = await Promise.all([
+      this.findStatus(schema.documentStatuses, 'VALID'),
+      this.findStatus(schema.verificationStatuses, 'VERIFIED'),
     ]);
 
     const id = ulid();
@@ -271,11 +271,11 @@ export class DocumentsService {
       mime_type: file.mimetype,
       file_size: file.size,
       storage_path: storagePath,
-      verification_status_id: pendingVerification.id,
-      verified_by: null,
-      verified_at: null,
+      verification_status_id: verifiedStatus.id,
+      verified_by: actorId,
+      verified_at: new Date(),
       expiry_date: dto.expiry_date ? new Date(dto.expiry_date) : null,
-      document_status_id: pendingStatus.id,
+      document_status_id: validStatus.id,
       remarks: dto.remarks ?? null,
       created_by: actorId,
       updated_by: actorId,

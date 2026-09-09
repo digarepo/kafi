@@ -46,7 +46,7 @@ export function FinanceExceptionsListPage() {
   >([]);
   const [statuses, setStatuses] = useState<LookupOption[]>([]);
   const [requestStatuses, setRequestStatuses] = useState<LookupOption[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [referenceLoading, setReferenceLoading] = useState(true);
   const [retryNonce] = useState(0);
@@ -348,6 +348,7 @@ export function FinanceExceptionsListPage() {
         loading={loading}
         pagination={{ pageIndex: page - 1, pageSize, total }}
         onPaginationChange={setPagination}
+        onRowClick={(e) => navigate(`/finance-exceptions/${e.id}`)}
       />
     </div>
   );

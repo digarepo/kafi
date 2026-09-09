@@ -30,6 +30,12 @@ export class AdminLogisticsLookupsController {
     return this.lookups.listVendorTypes();
   }
 
+  @Get('vehicle-types')
+  @RequirePermissions('TRAVEL_GROUP_VIEW')
+  listVehicleTypes() {
+    return this.lookups.listVehicleTypes();
+  }
+
   @Get('vendor-statuses')
   @RequirePermissions('TRAVEL_GROUP_VIEW')
   listVendorStatuses() {

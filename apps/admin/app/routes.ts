@@ -27,6 +27,7 @@ export default [
       index('routes/admin/registrations/index.tsx'),
       route('new', 'routes/admin/registrations/new.tsx'),
       route(':id', 'routes/admin/registrations/$id.tsx'),
+      route(':id/itinerary', 'routes/admin/registrations/$id-itinerary.tsx'),
       route(':id/edit', 'routes/admin/registrations/$id-edit.tsx'),
     ]),
     route('inquiries', 'routes/admin/inquiries.tsx', [
@@ -71,6 +72,14 @@ export default [
       index('routes/admin/travel-groups/index.tsx'),
       route('new', 'routes/admin/travel-groups/new.tsx'),
       route(':id', 'routes/admin/travel-groups/$id.tsx'),
+      route(
+        ':id/guide-manifest',
+        'routes/admin/travel-groups/$id-guide-manifest.tsx',
+      ),
+      route(
+        ':id/group-itinerary',
+        'routes/admin/travel-groups/$id-group-itinerary.tsx',
+      ),
       route(':id/edit', 'routes/admin/travel-groups/$id-edit.tsx'),
     ]),
     route('logistics', 'routes/admin/logistics.tsx', [

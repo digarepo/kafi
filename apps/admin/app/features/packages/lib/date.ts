@@ -6,9 +6,12 @@ export function toYmd(date?: Date): string | undefined {
   return `${y}-${m}-${d}`;
 }
 
-export function parseYmd(value?: string | null): Date | undefined {
+export function parseYmd(value?: string | Date | null): Date | undefined {
   if (!value) return undefined;
-  const parts = value.split('-').map(Number);
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? undefined : value;
+  }
+  const parts = value.slice(0, 10).split('-').map(Number);
   if (parts.length !== 3 || parts.some(Number.isNaN)) return undefined;
   const [y, m, d] = parts;
   const date = new Date(y, m - 1, d);

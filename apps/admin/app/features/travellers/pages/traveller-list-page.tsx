@@ -278,6 +278,7 @@ export function TravellerListPage() {
         loading={loading}
         pagination={pagination}
         onPaginationChange={setPagination}
+        onRowClick={(t) => navigate(`/travellers/${t.id}`)}
       />
     </div>
   );
