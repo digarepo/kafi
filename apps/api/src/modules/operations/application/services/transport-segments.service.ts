@@ -142,7 +142,9 @@ export class TransportSegmentsService {
     if (dto.vendor_id) {
       await this.assertVendorExists(dto.vendor_id);
     }
-    await this.assertVehicleTypeExists(dto.vehicle_type_id);
+    if (dto.vehicle_type_id) {
+      await this.assertVehicleTypeExists(dto.vehicle_type_id);
+    }
 
     // Segments are always created as CONFIRMED — Kafi records a segment only
     // after the Saudi partner has confirmed the arrangement.
@@ -172,7 +174,8 @@ export class TransportSegmentsService {
         travel_group_id: dto.travel_group_id,
         vendor_id: dto.vendor_id ?? null,
         vehicle_type_id: dto.vehicle_type_id,
-        vehicle_plate_number: dto.vehicle_plate_number.trim().toUpperCase(),
+        vehicle_plate_number:
+          dto.vehicle_plate_number?.trim().toUpperCase() ?? null,
         transport_type: dto.transport_type ?? null,
         segment_order: segmentOrder,
         origin_location: dto.origin_location,
@@ -247,7 +250,8 @@ export class TransportSegmentsService {
           vehicle_type_id: dto.vehicle_type_id,
         }),
         ...(dto.vehicle_plate_number !== undefined && {
-          vehicle_plate_number: dto.vehicle_plate_number.trim().toUpperCase(),
+          vehicle_plate_number:
+            dto.vehicle_plate_number?.trim().toUpperCase() ?? null,
         }),
         ...(dto.transport_type !== undefined && {
           transport_type: dto.transport_type ?? null,
