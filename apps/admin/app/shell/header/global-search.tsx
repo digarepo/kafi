@@ -7,7 +7,7 @@ import {
   type KeyboardEvent,
 } from 'react';
 import { useNavigate } from 'react-router';
-import { Search, X } from 'lucide-react';
+import { Search, X, Loader } from 'lucide-react';
 import { Dialog, DialogContent, cn } from '@kafi/ui';
 
 import { usePermissions } from '../../core/permissions';
@@ -196,7 +196,7 @@ export function GlobalSearch() {
       <div className="max-h-[60dvh] overflow-y-auto">
         {loading && (
           <div className="flex items-center gap-2 px-3 py-6 text-sm text-muted-foreground">
-            <Spinner />
+            <Loader className="h-4 w-4 animate-spin" />
             Searching…
           </div>
         )}
@@ -327,14 +327,5 @@ function ResultRow({
         )}
       </span>
     </button>
-  );
-}
-
-function Spinner() {
-  return (
-    <span
-      className="h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground"
-      aria-hidden
-    />
   );
 }

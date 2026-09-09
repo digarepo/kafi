@@ -24,7 +24,7 @@ import {
   ChevronLeft,
   ChevronRight,
   FileUp,
-  Loader2,
+  Loader,
   Plus,
   ShieldCheck,
   Trash2,
@@ -182,6 +182,7 @@ export function RegistrationIntakeWorkflow({
   const [guaranteeExpiry, setGuaranteeExpiry] = useState('');
   const [guaranteeIssuer, setGuaranteeIssuer] = useState('');
   const [guaranteeNotes, setGuaranteeNotes] = useState('');
+  const [guaranteeEditing, setGuaranteeEditing] = useState(false);
 
   // Step 5: Finance
   const [financeSummary, setFinanceSummary] = useState<{
@@ -546,6 +547,25 @@ export function RegistrationIntakeWorkflow({
     }
   }, [operationalSummary, stepIndex, loadOperationalSummary]);
 
+  // ---- Pre-fill guarantee form when entering the step with an existing guarantee ----
+  useEffect(() => {
+    if (stepIndex === 3) {
+      const active = guarantees.find((g) => g.guarantee_status === 'ACTIVE');
+      if (active) {
+        setGuaranteeType(active.guarantee_type);
+        setGuaranteeContactId(active.contact_person_id ?? '');
+        setGuaranteeAmount(active.amount ? String(active.amount) : '');
+        setGuaranteeCurrencyId(active.currency_id ?? '');
+        setGuaranteeReference(active.instrument_reference ?? '');
+        setGuaranteeExpiry(active.expiry_date ?? '');
+        setGuaranteeIssuer(active.issuer ?? '');
+        setGuaranteeNotes(active.notes ?? '');
+      } else {
+        setGuaranteeEditing(false);
+      }
+    }
+  }, [stepIndex, guarantees]);
+
   // ---- Load payers for finance step ----
   useEffect(() => {
     if (stepIndex === 4 && registration) {
@@ -758,7 +778,7 @@ export function RegistrationIntakeWorkflow({
     }
   }
 
-  // ---- Step 4: Guarantee ----
+  // ---- Step 4: Guarantee (create or update) ----
   async function handleCreateGuarantee() {
     if (!registration) return;
     if (guaranteeType === 'PERSON' && !guaranteeContactId) {
@@ -780,12 +800,18 @@ export function RegistrationIntakeWorkflow({
         if (guaranteeIssuer) input.issuer = guaranteeIssuer;
         if (guaranteeNotes) input.notes = guaranteeNotes;
       }
-      await api.createRegistrationGuarantee(registration.id, input as any);
+      const active = guarantees.find((g) => g.guarantee_status === 'ACTIVE');
+      if (active) {
+        await api.updateGuarantee(active.id, input as any);
+      } else {
+        await api.createRegistrationGuarantee(registration.id, input as any);
+      }
       await loadRegistrationIntakeData();
+      setGuaranteeEditing(false);
       setStepIndex(4);
     } catch (err) {
       toast.error(
-        err instanceof Error ? err.message : 'Failed to create guarantee',
+        err instanceof Error ? err.message : 'Failed to save guarantee',
       );
     } finally {
       setSubmitting(false);
@@ -994,6 +1020,7 @@ export function RegistrationIntakeWorkflow({
       case 'contact':
         return !!linkedContactId || !!selectedContactId;
       case 'guarantee':
+        if (guaranteeEditing) return canCreateGuarantee && !submitting;
         return hasGuarantee || canCreateGuarantee;
       case 'finance':
         return paymentSatisfied;
@@ -1017,7 +1044,10 @@ export function RegistrationIntakeWorkflow({
       void handleLinkContact();
       return;
     }
-    if (currentStep.key === 'guarantee' && !hasGuarantee) {
+    if (
+      currentStep.key === 'guarantee' &&
+      (!hasGuarantee || guaranteeEditing)
+    ) {
       void handleCreateGuarantee();
       return;
     }
@@ -1168,7 +1198,7 @@ export function RegistrationIntakeWorkflow({
               aria-label={`Upload ${label}`}
             >
               {uploadingType === docType.id ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader className="h-4 w-4 animate-spin" />
               ) : (
                 <Upload className="h-4 w-4" />
               )}
@@ -1348,18 +1378,30 @@ export function RegistrationIntakeWorkflow({
     const activeGuarantee = guarantees.find(
       (g) => g.guarantee_status === 'ACTIVE',
     );
+    const showForm = !activeGuarantee || guaranteeEditing;
 
     return (
       <div className="mx-auto w-full max-w-3xl space-y-4">
         {activeGuarantee && (
-          <div className="rounded-md bg-success/10 p-3 text-sm text-success">
-            <CheckCircle2 className="inline h-4 w-4 mr-1" />
-            Active guarantee: {activeGuarantee.guarantee_number} (
-            {activeGuarantee.guarantee_type})
+          <div className="flex items-center justify-between rounded-md bg-success/10 p-3 text-sm text-success">
+            <span>
+              <CheckCircle2 className="inline h-4 w-4 mr-1" />
+              Active guarantee: {activeGuarantee.guarantee_number} (
+              {activeGuarantee.guarantee_type})
+            </span>
+            {!guaranteeEditing && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setGuaranteeEditing(true)}
+              >
+                Edit
+              </Button>
+            )}
           </div>
         )}
 
-        {!activeGuarantee && (
+        {showForm && (
           <>
             {guaranteeType === 'PERSON' && (
               <>
@@ -1466,7 +1508,12 @@ export function RegistrationIntakeWorkflow({
                     value={guaranteeReference}
                     onChange={(e) => setGuaranteeReference(e.target.value)}
                     className="h-9 w-full"
+                    placeholder="Optional — must be unique"
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Optional. Leave blank for cash deposits without a receipt
+                    number.
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label className="text-sm font-medium">
@@ -1539,6 +1586,16 @@ export function RegistrationIntakeWorkflow({
                 </div>
               </div>
             )}
+
+            {activeGuarantee && guaranteeEditing && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setGuaranteeEditing(false)}
+              >
+                Cancel edit
+              </Button>
+            )}
           </>
         )}
       </div>
@@ -1593,7 +1650,7 @@ export function RegistrationIntakeWorkflow({
               disabled={submitting}
             >
               {submitting ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader className="h-4 w-4 animate-spin" />
               ) : (
                 <FileUp className="h-4 w-4" />
               )}
@@ -1762,7 +1819,7 @@ export function RegistrationIntakeWorkflow({
                 submitting || !payerId || !paymentMethodId || !paymentAmount
               }
             >
-              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {submitting ? <Loader className="h-4 w-4 animate-spin" /> : null}
               Record payment
             </Button>
           </div>
@@ -1960,7 +2017,7 @@ export function RegistrationIntakeWorkflow({
   if (resuming) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <Loader className="h-6 w-6 animate-spin text-muted-foreground" />
         <span className="ml-2 text-muted-foreground">
           Loading registration…
         </span>
@@ -1988,13 +2045,17 @@ export function RegistrationIntakeWorkflow({
         {/* Right: Next / Complete */}
         <Button onClick={handleNext} disabled={!canAdvance()}>
           {submitting ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
+            <Loader className="h-4 w-4 animate-spin" />
           ) : isReview ? (
             <CheckCircle2 className="h-4 w-4" />
           ) : (
             <ChevronRight className="h-4 w-4" />
           )}
-          {isReview ? 'Register' : 'Next'}
+          {isReview
+            ? 'Register'
+            : currentStep.key === 'guarantee' && guaranteeEditing
+              ? 'Save'
+              : 'Next'}
         </Button>
       </div>
     );

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Mail, Loader2 } from 'lucide-react';
+import { ArrowLeft, Mail, Loader } from 'lucide-react';
 import { Button, DecorativeBackground } from '@kafi/ui';
 
 interface StatusItem {
@@ -38,7 +38,7 @@ function StatusBadge({ status }: { status: StatusItem['status'] }) {
   if (status === 'progress') {
     return (
       <div className="w-5 h-5 rounded-full bg-warning/10 flex items-center justify-center">
-        <Loader2 className="w-3 h-3 text-warning animate-spin" />
+        <Loader className="w-3 h-3 text-warning animate-spin" />
       </div>
     );
   }

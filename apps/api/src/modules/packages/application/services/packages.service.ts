@@ -746,6 +746,18 @@ export class PackagesService {
       })
       .where(eq(schema.packageVersions.id, id));
 
+    // Open the associated travel round so registrations can be created.
+    if (existing.travel_round?.id) {
+      await this.db
+        .update(schema.travelRounds)
+        .set({
+          status: 'OPEN',
+          updated_at: new Date(),
+          updated_by: actorId,
+        })
+        .where(eq(schema.travelRounds.id, existing.travel_round.id));
+    }
+
     return this.getVersion(id);
   }
 
@@ -767,6 +779,18 @@ export class PackagesService {
       })
       .where(eq(schema.packageVersions.id, id));
 
+    // Close the associated travel round — no new registrations allowed.
+    if (existing.travel_round?.id) {
+      await this.db
+        .update(schema.travelRounds)
+        .set({
+          status: 'CLOSED',
+          updated_at: new Date(),
+          updated_by: actorId,
+        })
+        .where(eq(schema.travelRounds.id, existing.travel_round.id));
+    }
+
     return this.getVersion(id);
   }
 
@@ -787,6 +811,18 @@ export class PackagesService {
         updated_by: actorId,
       })
       .where(eq(schema.packageVersions.id, id));
+
+    // Close the associated travel round — no new registrations allowed.
+    if (existing.travel_round?.id) {
+      await this.db
+        .update(schema.travelRounds)
+        .set({
+          status: 'CLOSED',
+          updated_at: new Date(),
+          updated_by: actorId,
+        })
+        .where(eq(schema.travelRounds.id, existing.travel_round.id));
+    }
 
     return this.getVersion(id);
   }

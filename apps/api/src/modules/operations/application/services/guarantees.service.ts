@@ -182,7 +182,11 @@ export class GuaranteesService {
 
   async updateGuarantee(id: string, dto: UpdateGuaranteeDto, actorId: string) {
     const existing = await this.getGuarantee(id);
-    await this.assertGroupAllowsGuaranteeChanges(existing.group_membership_id);
+    if (existing.group_membership_id) {
+      await this.assertGroupAllowsGuaranteeChanges(
+        existing.group_membership_id,
+      );
+    }
 
     if (
       ['REPLACED', 'RELEASED', 'REFUNDED', 'EXPIRED'].includes(
@@ -258,7 +262,9 @@ export class GuaranteesService {
         'Only PENDING or ACTIVE guarantees can be replaced',
       );
     }
-    await this.assertGroupAllowsGuaranteeChanges(old.group_membership_id);
+    if (old.group_membership_id) {
+      await this.assertGroupAllowsGuaranteeChanges(old.group_membership_id);
+    }
 
     const merged: CreateGuaranteeDto = {
       group_membership_id: old.group_membership_id,
@@ -277,10 +283,17 @@ export class GuaranteesService {
     this.validateTypeRules(merged);
     this.assertDateOrder(merged.effective_date, merged.expiry_date);
 
-    await this.assertNoActiveGuaranteeForMembership(
-      old.group_membership_id,
-      id,
-    );
+    if (old.group_membership_id) {
+      await this.assertNoActiveGuaranteeForMembership(
+        old.group_membership_id,
+        id,
+      );
+    } else {
+      await this.assertNoActiveGuaranteeForRegistration(
+        old.registration_id,
+        id,
+      );
+    }
 
     const newId = ulid();
     const number = await this.numbers.generateGuaranteeNumber();
@@ -320,7 +333,11 @@ export class GuaranteesService {
 
   async deleteGuarantee(id: string, actorId: string) {
     const existing = await this.getGuarantee(id);
-    await this.assertGroupAllowsGuaranteeChanges(existing.group_membership_id);
+    if (existing.group_membership_id) {
+      await this.assertGroupAllowsGuaranteeChanges(
+        existing.group_membership_id,
+      );
+    }
 
     await this.db
       .update(schema.guarantees)
