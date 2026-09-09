@@ -159,6 +159,7 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H ${{ secrets.CPANEL_HOST }} >> ~/.ssh/known_hosts
           ssh ${{ secrets.CPANEL_USER }}@${{ secrets.CPANEL_HOST }} << 'EOF'
+          set -e
           export CI=true
           echo "Installing web dependencies..."
           cd /home/${{ secrets.CPANEL_USER }}/kafitour.com
@@ -173,9 +174,11 @@ jobs:
           touch tmp/restart.txt
           echo "Installing api dependencies..."
           cd /home/${{ secrets.CPANEL_USER }}/api.kafitour.com
-          rm -rf node_modules package-lock.json
+          rm -f package-lock.json
+          rm -rf node_modules/@kafi
           npm install --omit=dev --no-audit --no-fund
           test -d node_modules/@kafi/database
+          test -d node_modules/@nestjs/core
           mkdir -p /home/${{ secrets.CPANEL_USER }}/storage/documents
           touch tmp/restart.txt
           echo "Deployment complete"
