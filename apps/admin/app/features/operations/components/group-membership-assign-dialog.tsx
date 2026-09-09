@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   Button,
-  Input,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -16,6 +15,7 @@ import {
   SelectValue,
   Textarea,
 } from '@kafi/ui';
+import { Loader } from 'lucide-react';
 import {
   api,
   type GroupMembership,
@@ -42,7 +42,6 @@ export function GroupMembershipAssignDialog({
     LookupOption[]
   >([]);
   const [loading, setLoading] = useState(false);
-  const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -52,7 +51,6 @@ export function GroupMembershipAssignDialog({
 
   useEffect(() => {
     if (!open) return;
-    setSearch('');
     setPage(1);
     setRegistrationId('');
     setRemarks('');
@@ -72,8 +70,7 @@ export function GroupMembershipAssignDialog({
         const readyStatusId = registrationStatuses.find(
           (status) => status.code === 'READY_FOR_TRAVEL',
         )?.id;
-        const result = await api.listRegistrations(page, 25, {
-          search: search || undefined,
+        const result = await api.listRegistrations(page, 100, {
           package_version_id: group.package_version?.id,
           status_id: readyStatusId,
         });
@@ -96,7 +93,7 @@ export function GroupMembershipAssignDialog({
     return () => {
       cancelled = true;
     };
-  }, [group.package_version?.id, open, page, registrationStatuses, search]);
+  }, [group.package_version?.id, open, page, registrationStatuses]);
 
   const options = useMemo(() => {
     const existing = new Set(group.members.map((m) => m.registration_id));
@@ -145,27 +142,11 @@ export function GroupMembershipAssignDialog({
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="registration-search">
-              Search eligible registrations
-            </Label>
-            <Input
-              id="registration-search"
-              value={search}
-              onChange={(event) => {
-                setSearch(event.target.value);
-                setPage(1);
-              }}
-              placeholder="Registration number, traveller, or phone"
-              disabled={loading}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Registration</Label>
+            <Label>Eligible registration</Label>
             <Select
               value={registrationId ?? ''}
               onValueChange={(v) => setRegistrationId(v ?? '')}
-              disabled={loading}
+              disabled={loading || options.length === 0}
             >
               <SelectTrigger className="h-9 w-full">
                 <SelectValue>
@@ -176,23 +157,34 @@ export function GroupMembershipAssignDialog({
                         `${r.registration_number} · ${r.traveller?.first_name ?? ''} ${r.traveller?.last_name ?? ''}`.trim(),
                     }))
                     .find((o) => o.value === registrationId)?.label ??
-                    (loading ? 'Loading…' : 'Select registration')}
+                    (loading
+                      ? 'Loading…'
+                      : options.length === 0
+                        ? 'No eligible registrations'
+                        : 'Select registration')}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                {options
-                  .map((r) => ({
-                    value: r.id,
-                    label:
-                      `${r.registration_number} · ${r.traveller?.first_name ?? ''} ${r.traveller?.last_name ?? ''}`.trim(),
-                  }))
-                  .map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
+                {options.map((r) => (
+                  <SelectItem key={r.id} value={r.id}>
+                    {r.registration_number} · {r.traveller?.first_name ?? ''}{' '}
+                    {r.traveller?.last_name ?? ''}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
+            {loading && (
+              <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Loader className="h-3 w-3 animate-spin" />
+                Loading eligible registrations…
+              </p>
+            )}
+            {!loading && options.length === 0 && (
+              <p className="text-xs text-muted-foreground">
+                No ready-for-travel registrations found for this package
+                version. Complete the registration intake workflow first.
+              </p>
+            )}
             {hasMore && (
               <Button
                 type="button"
@@ -201,7 +193,7 @@ export function GroupMembershipAssignDialog({
                 onClick={() => setPage((current) => current + 1)}
                 disabled={loading}
               >
-                Load more eligible registrations
+                Load more
               </Button>
             )}
           </div>

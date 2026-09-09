@@ -45,7 +45,6 @@ import { DataTable } from '../../../shared/data-table';
 import { formatMoney } from '../../../shared/format';
 import { displayDate } from '../lib/date';
 import { GroupMembershipAssignDialog } from '../components/group-membership-assign-dialog';
-import { GroupMembershipDetailDialog } from '../components/group-membership-detail-dialog';
 import {
   GroupLogisticsResolution,
   type LogisticsResolutionMode,
@@ -54,7 +53,6 @@ import { AccommodationWorkspace } from '../components/accommodation-workspace';
 import { GroundTransportWorkspace } from '../components/ground-transport-workspace';
 import {
   api,
-  type GroupMembership,
   type TravelGroupOperationalMember,
   type TravelGroupOperationalSummary,
   type TravelGroupTraveller,
@@ -396,9 +394,6 @@ export function TravelGroupDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [assignOpen, setAssignOpen] = useState(false);
-  const [viewMembership, setViewMembership] = useState<GroupMembership | null>(
-    null,
-  );
   const [logisticsMode, setLogisticsMode] =
     useState<LogisticsResolutionMode>(null);
 
@@ -775,20 +770,8 @@ export function TravelGroupDetailPage() {
             group={summary}
             open={assignOpen}
             onOpenChange={setAssignOpen}
-            onCreated={(membership) => {
+            onCreated={() => {
               setAssignOpen(false);
-              setViewMembership(membership);
-              void loadGroup();
-            }}
-          />
-          <GroupMembershipDetailDialog
-            membership={viewMembership}
-            open={!!viewMembership}
-            onOpenChange={(open) => {
-              if (!open) setViewMembership(null);
-            }}
-            onChanged={() => {
-              setViewMembership(null);
               void loadGroup();
             }}
           />
