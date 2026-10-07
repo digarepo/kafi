@@ -78,7 +78,9 @@ function buildDefaultValues(
       middle_name: traveller.middle_name ?? '',
       last_name: traveller.last_name,
       gender: traveller.gender ?? '',
-      date_of_birth: traveller.date_of_birth ?? '',
+      date_of_birth: traveller.date_of_birth
+        ? traveller.date_of_birth.slice(0, 10)
+        : '',
       phone_number: traveller.phone_number,
       email_address: traveller.email_address ?? '',
       passport_number: traveller.passport_number ?? '',

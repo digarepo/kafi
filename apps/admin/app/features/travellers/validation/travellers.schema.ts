@@ -17,6 +17,7 @@ export const travellerFormSchema = z.object({
   gender: z.enum(['', 'Female', 'Male']),
   date_of_birth: z
     .string()
+    .refine((v) => !v || /^\d{4}-\d{2}-\d{2}$/.test(v), 'Invalid date format')
     .refine((v) => !v || v <= (toYmd(new Date()) ?? ''), {
       message: 'Date of birth cannot be in the future',
     }),
