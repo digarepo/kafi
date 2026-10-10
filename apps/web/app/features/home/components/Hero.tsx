@@ -5,6 +5,22 @@ import { Separator } from '@ui/components/ui/separator';
 import { TypingAnimation } from '@ui/components/TypingAnimation';
 import { SparkleIcon, AirplaneIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
+import { useEffect, useState } from 'react';
+import { listPublicPackages, type PublicNextDeparture } from '@/lib/public-api';
+
+function formatDepartureDate(value: string | null): string {
+  if (!value) return 'Date TBA';
+
+  const date = new Date(`${value.slice(0, 10)}T12:00:00`);
+
+  if (Number.isNaN(date.getTime())) return 'Date TBA';
+
+  return new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(date);
+}
 
 /**
  * Renders the landing page hero section with travel highlights and departure information.
@@ -16,6 +32,32 @@ import { Link } from 'react-router';
  * - Presents a visual flight preview card highlighting Hajj and Umrah travel services.
  */
 export function Hero() {
+  const [nextDeparture, setNextDeparture] =
+    useState<PublicNextDeparture | null>(null);
+
+  const [departureLoading, setDepartureLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+
+    listPublicPackages({ includeDeparture: true })
+      .then((response) => {
+        if (active) {
+          setNextDeparture(response.nextDeparture ?? null);
+        }
+      })
+      .catch((error: unknown) => {
+        console.error('Failed to load next departure:', error);
+      })
+      .finally(() => {
+        if (active) setDepartureLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   return (
     <section
       id="hero"
@@ -88,7 +130,13 @@ export function Hero() {
               <div className="space-y-3">
                 <div className="flex justify-between text-xs font-light text-muted-foreground">
                   <span>Flight Status</span>
-                  <span>ET 501 • Confirmed</span>
+                  <span className="text-right">
+                    {departureLoading
+                      ? 'Loading flight…'
+                      : nextDeparture?.flightNumber
+                        ? `${nextDeparture.flightNumber} · Confirmed`
+                        : 'Flight details TBA'}
+                  </span>
                 </div>
                 <div className="flex justify-between items-center bg-muted/40 p-3 rounded-xl border border-border/40">
                   <div className="text-left">
@@ -102,6 +150,13 @@ export function Hero() {
                     <div className="w-full h-px bg-border relative my-1">
                       <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-accent" />
                     </div>
+                    <span className="mt-1 whitespace-nowrap text-center text-[10px] font-semibold text-accent">
+                      {departureLoading
+                        ? 'Loading date…'
+                        : formatDepartureDate(
+                            nextDeparture?.departureDate ?? null,
+                          )}
+                    </span>
                   </div>
                   <div className="text-right">
                     <p className="text-[10px] text-muted-foreground">JED</p>
@@ -118,7 +173,8 @@ export function Hero() {
                     Makkah Hotel
                   </p>
                   <p className="font-bold text-[11px] text-primary truncate">
-                    Fairmont
+                    {nextDeparture?.makkahHotel ??
+                      (departureLoading ? 'Loading…' : 'To be confirmed')}
                   </p>
                 </div>
                 <div className="p-2.5 rounded-xl border border-border/40 bg-muted/10">
@@ -126,12 +182,21 @@ export function Hero() {
                     Madinah Hotel
                   </p>
                   <p className="font-bold text-[11px] text-primary truncate">
-                    Oberoi
+                    {nextDeparture?.madinahHotel ??
+                      (departureLoading ? 'Loading…' : 'To be confirmed')}
                   </p>
                 </div>
                 <div className="p-2.5 rounded-xl border border-border/40 bg-muted/10">
-                  <p className="text-[9px] text-muted-foreground">Services</p>
-                  <p className="font-bold text-[11px] text-accent">VIP Group</p>
+                  <p className="text-[9px] text-muted-foreground">
+                    Trip Duration
+                  </p>
+                  <p className="font-bold text-[11px] text-accent">
+                    {departureLoading
+                      ? 'Loading…'
+                      : nextDeparture?.durationDays != null
+                        ? `${nextDeparture.durationDays} days`
+                        : 'To be confirmed'}
+                  </p>
                 </div>
               </div>
             </div>

@@ -29,7 +29,7 @@ import {
   SelectValue,
 } from '@kafi/ui';
 
-import { api } from '../../../lib/api';
+import { api, ApiError } from '../../../lib/api';
 import { DatePicker } from '../components/date-picker';
 import { FieldError } from '../../../shared/field-error';
 import { CountryRegionFields } from '../components/country-region-fields';
@@ -78,7 +78,9 @@ function buildDefaultValues(
       middle_name: traveller.middle_name ?? '',
       last_name: traveller.last_name,
       gender: traveller.gender ?? '',
-      date_of_birth: traveller.date_of_birth ?? '',
+      date_of_birth: traveller.date_of_birth
+        ? traveller.date_of_birth.slice(0, 10)
+        : '',
       phone_number: traveller.phone_number,
       email_address: traveller.email_address ?? '',
       passport_number: traveller.passport_number ?? '',
@@ -123,25 +125,76 @@ export function TravellerForm({
     defaultValues,
     validators: {
       onSubmit: travellerFormSchema,
+      onSubmitAsync: async ({ value }) => {
+        const output: TravellerFormOutput = {
+          first_name: value.first_name,
+          middle_name: value.middle_name || undefined,
+          last_name: value.last_name,
+          gender: value.gender as 'Female' | 'Male',
+          date_of_birth: value.date_of_birth || undefined,
+          phone_number: value.phone_number,
+          email_address: value.email_address || undefined,
+          passport_number: value.passport_number || undefined,
+          fayda_number: value.fayda_number || undefined,
+          country_id: value.country_id,
+          region_id: value.region_id || undefined,
+          preferred_language_id: value.preferred_language_id || undefined,
+          traveller_source_id: value.traveller_source_id || undefined,
+          traveller_status_id: value.traveller_status_id,
+        };
+
+        try {
+          await onSubmit(output);
+          return null;
+        } catch (error) {
+          if (error instanceof ApiError) {
+            const body = error.body;
+
+            if (
+              body &&
+              typeof body === 'object' &&
+              'errors' in body &&
+              Array.isArray(body.errors)
+            ) {
+              const fields: Record<string, string> = {};
+
+              for (const issue of body.errors) {
+                if (
+                  issue &&
+                  typeof issue === 'object' &&
+                  'path' in issue &&
+                  'message' in issue &&
+                  Array.isArray(issue.path) &&
+                  typeof issue.message === 'string'
+                ) {
+                  const path = issue.path.join('.');
+
+                  if (path) {
+                    fields[path] = issue.message;
+                  }
+                }
+              }
+
+              if (Object.keys(fields).length > 0) {
+                return { fields };
+              }
+            }
+
+            return {
+              form: error.message,
+            };
+          }
+
+          return {
+            form:
+              error instanceof Error
+                ? error.message
+                : 'Failed to update traveller',
+          };
+        }
+      },
     },
-    onSubmit: async ({ value }) => {
-      const output: TravellerFormOutput = {
-        first_name: value.first_name,
-        middle_name: value.middle_name || undefined,
-        last_name: value.last_name,
-        gender: value.gender as 'Female' | 'Male',
-        date_of_birth: value.date_of_birth || undefined,
-        phone_number: value.phone_number,
-        email_address: value.email_address || undefined,
-        passport_number: value.passport_number || undefined,
-        fayda_number: value.fayda_number || undefined,
-        country_id: value.country_id,
-        region_id: value.region_id || undefined,
-        preferred_language_id: value.preferred_language_id || undefined,
-        traveller_source_id: value.traveller_source_id || undefined,
-        traveller_status_id: value.traveller_status_id,
-      };
-      await onSubmit(output);
+    onSubmit: async () => {
       form.reset();
     },
   });
@@ -229,6 +282,7 @@ export function TravellerForm({
                     onBlur={field.handleBlur}
                     className="h-9 w-full"
                   />
+                  <FieldError field={field} />
                 </div>
               )}
             </form.Field>
@@ -293,6 +347,7 @@ export function TravellerForm({
                     value={field.state.value}
                     onChange={(value) => field.handleChange(value)}
                   />
+                  <FieldError field={field} />
                 </div>
               )}
             </form.Field>
@@ -356,6 +411,7 @@ export function TravellerForm({
                     onBlur={field.handleBlur}
                     className="h-9 w-full"
                   />
+                  <FieldError field={field} />
                 </div>
               )}
             </form.Field>
@@ -373,6 +429,7 @@ export function TravellerForm({
                     onBlur={field.handleBlur}
                     className="h-9 w-full"
                   />
+                  <FieldError field={field} />
                 </div>
               )}
             </form.Field>
@@ -407,6 +464,7 @@ export function TravellerForm({
                         ))}
                     </SelectContent>
                   </Select>
+                  <FieldError field={field} />
                 </div>
               )}
             </form.Field>
@@ -437,6 +495,7 @@ export function TravellerForm({
                         ))}
                     </SelectContent>
                   </Select>
+                  <FieldError field={field} />
                 </div>
               )}
             </form.Field>

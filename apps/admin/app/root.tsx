@@ -4,6 +4,8 @@ import type { Route } from './+types/root';
 import './app.css';
 import { getPerformanceMode } from './dev/performance-mode';
 
+import { ThemeProvider } from '@ui/providers/theme-provider';
+
 if (
   typeof window !== 'undefined' &&
   getPerformanceMode(
@@ -14,12 +16,7 @@ if (
   void import('./dev/performance-instrumentation');
 }
 
-import {
-  ThemeProvider,
-  Toaster,
-  TooltipProvider,
-  UIConfigProvider,
-} from '@kafi/ui';
+import { Toaster, TooltipProvider, UIConfigProvider } from '@kafi/ui';
 
 export function Layout({ children }: { children: React.ReactNode }) {
   return (
