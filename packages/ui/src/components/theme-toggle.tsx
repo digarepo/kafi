@@ -18,6 +18,12 @@ const THEME_OPTIONS: Array<{
 
 const MOBILE_THEME_OPTIONS: ThemeMode[] = ['light', 'dark'];
 
+function triggerHapticSafely() {
+  try {
+    haptic(8);
+  } catch {}
+}
+
 /**
  * Renders a responsive theme control that expands on desktop and cycles themes on mobile.
  *
@@ -41,8 +47,8 @@ export function ThemeToggle() {
     const nextTheme =
       MOBILE_THEME_OPTIONS[(activeIndex + 1) % MOBILE_THEME_OPTIONS.length];
 
-    haptic(8);
     setTheme(nextTheme);
+    triggerHapticSafely();
   };
 
   return (
@@ -109,8 +115,8 @@ function ThemeButton({
       variant="ghost"
       size="icon"
       onClick={() => {
-        haptic(8);
         onClick();
+        triggerHapticSafely();
       }}
       className={cn(
         'relative h-8 w-8 rounded-full transition-all duration-300 shrink-0',

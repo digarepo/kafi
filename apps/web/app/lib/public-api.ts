@@ -41,14 +41,45 @@ export interface PublicPackageVersion {
   }[];
 }
 
+export interface PublicNextDeparture {
+  packageName: string;
+  packageSlug: string;
+  departureDate: string | null;
+  returnDate: string | null;
+  durationDays: number | null;
+  flightNumber: string | null;
+  makkahHotel: string | null;
+  madinahHotel: string | null;
+}
+
+export interface PublicPackagesResponse {
+  data: PublicPackageVersion[];
+  total: number;
+  nextDeparture?: PublicNextDeparture | null;
+}
+
 export interface PublicPackageFilters {
   category?: string;
   pilgrimageType?: string;
   year?: string;
   search?: string;
+  includeDeparture?: boolean;
 }
 
-export async function listPublicPackages(filters: PublicPackageFilters = {}): Promise<{
+export interface PublicNextDeparture {
+  packageName: string;
+  packageSlug: string;
+  departureDate: string | null;
+  returnDate: string | null;
+  durationDays: number | null;
+  flightNumber: string | null;
+  makkahHotel: string | null;
+  madinahHotel: string | null;
+}
+
+export async function listPublicPackages(
+  filters: PublicPackageFilters = {},
+): Promise<{
   data: PublicPackageVersion[];
   total: number;
 }> {
@@ -57,12 +88,19 @@ export async function listPublicPackages(filters: PublicPackageFilters = {}): Pr
   if (filters.pilgrimageType) qs.set('pilgrimageType', filters.pilgrimageType);
   if (filters.year) qs.set('year', filters.year);
   if (filters.search) qs.set('search', filters.search);
-  const response = await fetch(`${API_BASE}/api/public/packages?${qs.toString()}`);
+  if (filters.includeDeparture) {
+    qs.set('includeDeparture', 'true');
+  }
+  const response = await fetch(
+    `${API_BASE}/api/public/packages?${qs.toString()}`,
+  );
   if (!response.ok) throw new Error('Failed to load packages');
-  return response.json() as Promise<{ data: PublicPackageVersion[]; total: number }>;
+  return response.json() as Promise<PublicPackagesResponse>;
 }
 
-export async function getPublicPackage(slug: string): Promise<PublicPackageVersion> {
+export async function getPublicPackage(
+  slug: string,
+): Promise<PublicPackageVersion> {
   const response = await fetch(`${API_BASE}/api/public/packages/${slug}`);
   if (!response.ok) throw new Error('Package not found');
   return response.json() as Promise<PublicPackageVersion>;

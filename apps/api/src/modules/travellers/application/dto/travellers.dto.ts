@@ -11,7 +11,12 @@ const todayYmd = () => {
 };
 
 const optionalDate = z
-  .union([z.string().regex(/^\d{4}-\d{2}-\d{2}$/), z.literal('')])
+  .union([
+    z.string().regex(/^\d{4}-\d{2}-\d{2}$/, {
+      error: 'Date must be in YYYY-MM-DD format',
+    }),
+    z.literal(''),
+  ])
   .optional()
   .transform((v) => (v === '' ? undefined : v));
 
