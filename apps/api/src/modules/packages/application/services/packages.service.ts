@@ -6,7 +6,18 @@ import {
   Inject,
 } from '@nestjs/common';
 import { MySql2Database } from 'drizzle-orm/mysql2';
-import { eq, and, or, like, desc, asc, max, sql, not } from 'drizzle-orm';
+import {
+  eq,
+  and,
+  or,
+  like,
+  desc,
+  asc,
+  max,
+  sql,
+  not,
+  inArray,
+} from 'drizzle-orm';
 import { ulid } from 'ulid';
 import { DATABASE } from '../../../../shared/infrastructure/database/database.provider.js';
 import { BusinessNumberService } from '../../../../shared/infrastructure/numbering/business-number.service.js';
@@ -40,6 +51,43 @@ function dateKey(value: Date | string | null | undefined): string | null {
   if (!value) return null;
   if (typeof value === 'string') return value.slice(0, 10);
   return value.toISOString().slice(0, 10);
+}
+
+function todayInAddisAbaba(): string {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Africa/Addis_Ababa',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date());
+
+  const part = (type: string) =>
+    parts.find((item) => item.type === type)?.value ?? '';
+
+  return `${part('year')}-${part('month')}-${part('day')}`;
+}
+
+function normalizeCityName(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
+function inclusiveDurationDays(
+  departure: string | null,
+  returnDate: string | null,
+): number | null {
+  if (!departure || !returnDate) return null;
+
+  const start = Date.parse(`${departure}T00:00:00Z`);
+  const end = Date.parse(`${returnDate}T00:00:00Z`);
+
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) {
+    return null;
+  }
+
+  return Math.round((end - start) / 86_400_000) + 1;
 }
 
 export interface PackageVersionValidationIssue {
@@ -1129,6 +1177,7 @@ export class PackagesService {
     pilgrimageType?: string;
     year?: string;
     search?: string;
+    includeDeparture?: boolean;
   }) {
     const published = await this.getVersionStatus('PUBLISHED');
     const conditions = [
@@ -1213,12 +1262,226 @@ export class PackagesService {
       }),
     );
 
-    return {
+    const result = {
       data: withInclusions,
       total: withInclusions.length,
     };
+
+    if (!filters.includeDeparture) {
+      return result;
+    }
+
+    return {
+      ...result,
+      nextDeparture: await this.getPublicNextDeparture(),
+    };
   }
 
+  private async getPublicNextDeparture() {
+    const today = todayInAddisAbaba();
+
+    const [group] = await this.db
+      .select({
+        id: schema.travelGroups.id,
+        departureDate: schema.travelGroups.departure_date,
+        returnDate: schema.travelGroups.return_date,
+        packageName: schema.packageVersions.version_name,
+        packageSlug: schema.packageVersions.slug,
+      })
+      .from(schema.travelGroups)
+      .innerJoin(
+        schema.travelGroupStatuses,
+        eq(
+          schema.travelGroups.travel_group_status_id,
+          schema.travelGroupStatuses.id,
+        ),
+      )
+      .innerJoin(
+        schema.packageVersions,
+        eq(schema.travelGroups.package_version_id, schema.packageVersions.id),
+      )
+      .innerJoin(
+        schema.packageVersionStatuses,
+        eq(
+          schema.packageVersions.package_version_status_id,
+          schema.packageVersionStatuses.id,
+        ),
+      )
+      .innerJoin(
+        schema.packageTemplates,
+        eq(
+          schema.packageVersions.package_template_id,
+          schema.packageTemplates.id,
+        ),
+      )
+      .innerJoin(
+        schema.pilgrimageTypes,
+        eq(
+          schema.packageTemplates.pilgrimage_type_id,
+          schema.pilgrimageTypes.id,
+        ),
+      )
+      .where(
+        and(
+          eq(schema.travelGroups.is_deleted, false),
+          sql`${schema.travelGroups.departure_date} >= ${today}`,
+          inArray(schema.travelGroupStatuses.status_code, [
+            'PLANNING',
+            'PREPARING',
+            'TRAVEL_PREPARED',
+          ]),
+          eq(schema.packageVersions.is_deleted, false),
+          inArray(schema.packageVersionStatuses.status_code, [
+            'PUBLISHED',
+            'CLOSED',
+          ]),
+          sql`${schema.packageVersions.published_at} IS NOT NULL`,
+          eq(schema.packageTemplates.is_deleted, false),
+          eq(schema.pilgrimageTypes.pilgrimage_type_code, 'UMRAH'),
+        ),
+      )
+      .orderBy(
+        asc(schema.travelGroups.departure_date),
+        asc(schema.travelGroups.group_number),
+      )
+      .limit(1);
+
+    if (!group) return null;
+
+    const [stays, bookings] = await Promise.all([
+      this.db
+        .select({
+          city: schema.cities.name,
+          hotelName: schema.groupHotelStays.hotel_name,
+          catalogHotelName: schema.hotels.name,
+        })
+        .from(schema.groupHotelStays)
+        .innerJoin(
+          schema.groupHotelStayStatuses,
+          eq(
+            schema.groupHotelStays.group_hotel_stay_status_id,
+            schema.groupHotelStayStatuses.id,
+          ),
+        )
+        .innerJoin(
+          schema.cities,
+          eq(schema.groupHotelStays.city_id, schema.cities.id),
+        )
+        .leftJoin(
+          schema.hotels,
+          eq(schema.groupHotelStays.hotel_id, schema.hotels.id),
+        )
+        .where(
+          and(
+            eq(schema.groupHotelStays.travel_group_id, group.id),
+            eq(schema.groupHotelStays.is_deleted, false),
+            eq(schema.groupHotelStayStatuses.status_code, 'CONFIRMED'),
+          ),
+        )
+        .orderBy(asc(schema.groupHotelStays.sequence_order)),
+
+      this.db
+        .select({
+          flightNumber: schema.flightBookings.departure_flight_number,
+          airlineCode: schema.airlines.iata_code,
+          departureDate: schema.flightBookings.departure_date,
+        })
+        .from(schema.groupMemberships)
+        .innerJoin(
+          schema.groupMembershipStatuses,
+          eq(
+            schema.groupMemberships.group_membership_status_id,
+            schema.groupMembershipStatuses.id,
+          ),
+        )
+        .innerJoin(
+          schema.registrations,
+          eq(schema.groupMemberships.registration_id, schema.registrations.id),
+        )
+        .innerJoin(
+          schema.registrationStatuses,
+          eq(
+            schema.registrations.registration_status_id,
+            schema.registrationStatuses.id,
+          ),
+        )
+        .innerJoin(
+          schema.flightBookings,
+          eq(schema.flightBookings.registration_id, schema.registrations.id),
+        )
+        .leftJoin(
+          schema.airlines,
+          eq(schema.flightBookings.departure_airline_id, schema.airlines.id),
+        )
+        .innerJoin(
+          schema.flightBookingStatuses,
+          eq(
+            schema.flightBookings.flight_booking_status_id,
+            schema.flightBookingStatuses.id,
+          ),
+        )
+        .where(
+          and(
+            eq(schema.groupMemberships.travel_group_id, group.id),
+            eq(schema.groupMemberships.is_deleted, false),
+            eq(schema.groupMembershipStatuses.status_code, 'ACTIVE'),
+            eq(schema.registrations.is_deleted, false),
+            not(eq(schema.registrationStatuses.status_code, 'CANCELLED')),
+            eq(schema.flightBookings.is_deleted, false),
+            eq(schema.flightBookingStatuses.status_code, 'CONFIRMED'),
+          ),
+        ),
+    ]);
+
+    // Display a flight number only when the confirmed bookings agree
+    // on both the flight number and departure date.
+    const distinctFlights = new Map<string, string>();
+
+    for (const booking of bookings) {
+      const flightNumber = booking.flightNumber.trim();
+      const airlineCode = booking.airlineCode?.trim().toUpperCase() ?? '';
+      const flightDate = dateKey(booking.departureDate);
+
+      if (!flightNumber || !flightDate) continue;
+
+      const key = `${airlineCode}|${flightNumber.toUpperCase()}|${flightDate}`;
+
+      distinctFlights.set(
+        key,
+        airlineCode ? `${airlineCode}${flightNumber}` : flightNumber,
+      );
+    }
+
+    const flightNumber =
+      distinctFlights.size === 1
+        ? ([...distinctFlights.values()][0] ?? null)
+        : null;
+
+    const hotelName = (stay: (typeof stays)[number]) =>
+      stay.hotelName?.trim() || stay.catalogHotelName?.trim() || null;
+
+    const makkahStay = stays.find((stay) =>
+      /makkah|mecca/.test(normalizeCityName(stay.city)),
+    );
+
+    const madinahStay = stays.find((stay) =>
+      /madinah|medina/.test(normalizeCityName(stay.city)),
+    );
+
+    const departureDate = dateKey(group.departureDate);
+    const returnDate = dateKey(group.returnDate);
+
+    return {
+      packageName: group.packageName,
+      packageSlug: group.packageSlug,
+      departureDate,
+      returnDate,
+      durationDays: inclusiveDurationDays(departureDate, returnDate),
+      flightNumber,
+      makkahHotel: makkahStay ? hotelName(makkahStay) : null,
+      madinahHotel: madinahStay ? hotelName(madinahStay) : null,
+    };
+  }
   async getPublicPackageBySlug(slug: string) {
     const published = await this.getVersionStatus('PUBLISHED');
     const [row] = await this.db

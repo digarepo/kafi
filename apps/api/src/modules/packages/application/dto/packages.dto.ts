@@ -83,6 +83,10 @@ const publicPackageFiltersSchema = z.object({
   pilgrimageType: z.string().optional(),
   year: z.string().optional(),
   search: z.string().optional(),
+  includeDeparture: z
+    .enum(['true', 'false'])
+    .transform((value) => value === 'true')
+    .optional(),
 });
 
 export const PackageVersionInclusion = packageVersionInclusionSchema;

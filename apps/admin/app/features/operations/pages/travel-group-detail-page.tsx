@@ -260,7 +260,7 @@ function OperationalMembersTable({
                   {member.traveller ? (
                     <Link
                       to={`/travellers/${member.traveller.id}`}
-                      className="break-words text-sm font-semibold hover:underline"
+                      className="wrap-break-word text-sm font-semibold hover:underline"
                     >
                       {member.traveller.full_name}
                     </Link>
@@ -271,7 +271,7 @@ function OperationalMembersTable({
                   )}
                   <Link
                     to={`/registrations/${member.registration_id}`}
-                    className="mt-1 block break-words text-xs text-muted-foreground hover:underline"
+                    className="mt-1 block wrap-break-word text-xs text-muted-foreground hover:underline"
                   >
                     {member.registration_number ?? member.registration_id}
                   </Link>
@@ -491,122 +491,102 @@ export function TravelGroupDetailPage() {
             Back to Groups
           </Link>
 
-          <Card className="overflow-hidden">
-            <CardContent className="p-0">
-              <header className="flex items-start justify-between gap-4 px-4 py-5 sm:px-6 sm:py-6">
-                <div className="min-w-0">
-                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    Travel group · {summary.group_number}
-                  </p>
-                  <h1 className="mt-1 break-words text-2xl font-semibold leading-tight tracking-tight sm:text-3xl">
-                    {summary.name}
-                  </h1>
-                  <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                    <span className="break-words">
-                      {summary.package_version?.name ?? 'Package unavailable'}
-                    </span>
-                    <WorkflowStatusBadge status={summary.status_code} />
-                  </div>
-                </div>
+          <header className="flex flex-col gap-4 px-4 py-5 sm:px-6 sm:py-6 lg:flex-row lg:items-start lg:justify-between">
+            {/* Group information */}
+            <div className="min-w-0 lg:flex-1">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Travel group · {summary.group_number}
+              </p>
 
-                <div className="flex shrink-0 items-center gap-2">
-                  {can('TRAVEL_GROUP_VIEW') && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        navigate(`/travel-groups/${summary.id}/guide-manifest`)
-                      }
-                    >
-                      <FileText className="mr-2 h-4 w-4" aria-hidden="true" />
-                      Export schedule
-                    </Button>
-                  )}
-                  {can('TRAVEL_GROUP_VIEW') && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        navigate(`/travel-groups/${summary.id}/group-itinerary`)
-                      }
-                    >
-                      <FileText className="mr-2 h-4 w-4" aria-hidden="true" />
-                      Export itineraries
-                    </Button>
-                  )}
-                  {can('TRAVEL_GROUP_MANAGE') && (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger
-                        render={
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="shrink-0"
-                            aria-label="Travel group actions"
-                          >
-                            <MoreVertical
-                              className="h-4 w-4"
-                              aria-hidden="true"
-                            />
-                          </Button>
-                        }
-                      />
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          className="whitespace-nowrap"
-                          onClick={() =>
-                            navigate(`/travel-groups/${summary.id}/edit`)
-                          }
-                        >
-                          <Pencil className="mr-2 h-4 w-4" aria-hidden="true" />
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          variant="destructive"
-                          className="whitespace-nowrap"
-                          onClick={() => void handleDelete()}
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" aria-hidden="true" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  )}
-                </div>
-              </header>
+              <h1 className="mt-1 wrap-break-word text-2xl font-semibold leading-tight tracking-tight sm:text-3xl">
+                {summary.name}
+              </h1>
 
-              <div className="border-t bg-muted/30 px-4 py-4 sm:px-6">
-                <div className="flex items-start gap-3">
-                  <CalendarDays
-                    className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground"
-                    aria-hidden="true"
-                  />
-                  <div className="grid flex-1 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start gap-2">
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold">
-                        {displayDate(summary.departure_date)}
-                      </p>
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        Departure
-                      </p>
-                    </div>
-                    <div className="mt-2 flex items-center" aria-hidden="true">
-                      <span className="h-px w-5 bg-border sm:w-10" />
-                      <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
-                    </div>
-                    <div className="min-w-0 text-right">
-                      <p className="text-sm font-semibold">
-                        {displayDate(summary.return_date)}
-                      </p>
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        Return
-                      </p>
-                    </div>
-                  </div>
-                </div>
+              <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                <span className="wrap-break-word">
+                  {summary.package_version?.name ?? 'Package unavailable'}
+                </span>
+                <WorkflowStatusBadge status={summary.status_code} />
               </div>
-            </CardContent>
-          </Card>
+            </div>
+
+            {/* Actions */}
+            <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center lg:w-auto lg:shrink-0">
+              {/* Export actions */}
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                {can('TRAVEL_GROUP_VIEW') && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full whitespace-nowrap sm:w-auto"
+                    onClick={() =>
+                      navigate(`/travel-groups/${summary.id}/guide-manifest`)
+                    }
+                  >
+                    <FileText className="mr-2 h-4 w-4" aria-hidden="true" />
+                    Export schedule
+                  </Button>
+                )}
+
+                {can('TRAVEL_GROUP_VIEW') && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full whitespace-nowrap sm:w-auto"
+                    onClick={() =>
+                      navigate(`/travel-groups/${summary.id}/group-itinerary`)
+                    }
+                  >
+                    <FileText className="mr-2 h-4 w-4" aria-hidden="true" />
+                    Export itineraries
+                  </Button>
+                )}
+              </div>
+
+              {/* Group menu */}
+              {can('TRAVEL_GROUP_MANAGE') && (
+                <div className="self-end sm:self-auto">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      render={
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="shrink-0"
+                          aria-label="Travel group actions"
+                        >
+                          <MoreVertical
+                            className="h-4 w-4"
+                            aria-hidden="true"
+                          />
+                        </Button>
+                      }
+                    />
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        className="whitespace-nowrap"
+                        onClick={() =>
+                          navigate(`/travel-groups/${summary.id}/edit`)
+                        }
+                      >
+                        <Pencil className="mr-2 h-4 w-4" aria-hidden="true" />
+                        Edit
+                      </DropdownMenuItem>
+
+                      <DropdownMenuItem
+                        variant="destructive"
+                        className="whitespace-nowrap"
+                        onClick={() => void handleDelete()}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" aria-hidden="true" />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              )}
+            </div>
+          </header>
 
           <ContextualActionBar
             entity="travel-group"
