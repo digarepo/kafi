@@ -66,23 +66,9 @@ export interface PublicPackageFilters {
   includeDeparture?: boolean;
 }
 
-export interface PublicNextDeparture {
-  packageName: string;
-  packageSlug: string;
-  departureDate: string | null;
-  returnDate: string | null;
-  durationDays: number | null;
-  flightNumber: string | null;
-  makkahHotel: string | null;
-  madinahHotel: string | null;
-}
-
 export async function listPublicPackages(
   filters: PublicPackageFilters = {},
-): Promise<{
-  data: PublicPackageVersion[];
-  total: number;
-}> {
+): Promise<PublicPackagesResponse> {
   const qs = new URLSearchParams();
   if (filters.category) qs.set('category', filters.category);
   if (filters.pilgrimageType) qs.set('pilgrimageType', filters.pilgrimageType);
