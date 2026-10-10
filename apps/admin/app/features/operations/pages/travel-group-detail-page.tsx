@@ -9,8 +9,6 @@ import type { ColumnDef } from '@tanstack/react-table';
 import { Link, useNavigate, useParams } from 'react-router';
 import {
   ArrowLeft,
-  ArrowRight,
-  CalendarDays,
   FileText,
   MoreVertical,
   Pencil,
