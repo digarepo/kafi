@@ -21,6 +21,10 @@ export const travelGroupFormSchema = z.object({
       { message: 'Departure date cannot be after return date' },
     ),
   override_travel_dates: z.boolean(),
+  departure_airline_id: z.string(),
+  departure_flight_number: z.string().max(50),
+  return_airline_id: z.string(),
+  return_flight_number: z.string().max(50),
   maximum_capacity: z
     .number()
     .int('Maximum capacity must be a whole number')

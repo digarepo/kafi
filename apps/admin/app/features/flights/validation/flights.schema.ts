@@ -13,6 +13,7 @@ const dateRangeSchema = z
 export const flightBookingFormSchema = z
   .object({
     registration_id: z.string().min(1, "Registration is required"),
+    travel_group_id: z.string().min(1, "Travel group is required"),
     pnr: z.string().trim().min(1, "PNR / booking reference is required").max(50),
     departure_airline_id: z.string().min(1, "Departure airline is required"),
     departure_flight_number: z

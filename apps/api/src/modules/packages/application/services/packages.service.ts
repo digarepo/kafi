@@ -1285,6 +1285,8 @@ export class PackagesService {
         id: schema.travelGroups.id,
         departureDate: schema.travelGroups.departure_date,
         returnDate: schema.travelGroups.return_date,
+        departureFlightNumber: schema.travelGroups.departure_flight_number,
+        departureAirlineCode: schema.airlines.iata_code,
         packageName: schema.packageVersions.version_name,
         packageSlug: schema.packageVersions.slug,
       })
@@ -1321,6 +1323,10 @@ export class PackagesService {
           schema.pilgrimageTypes.id,
         ),
       )
+      .leftJoin(
+        schema.airlines,
+        eq(schema.travelGroups.departure_airline_id, schema.airlines.id),
+      )
       .where(
         and(
           eq(schema.travelGroups.is_deleted, false),
@@ -1348,114 +1354,46 @@ export class PackagesService {
 
     if (!group) return null;
 
-    const [stays, bookings] = await Promise.all([
-      this.db
-        .select({
-          city: schema.cities.name,
-          hotelName: schema.groupHotelStays.hotel_name,
-          catalogHotelName: schema.hotels.name,
-        })
-        .from(schema.groupHotelStays)
-        .innerJoin(
-          schema.groupHotelStayStatuses,
-          eq(
-            schema.groupHotelStays.group_hotel_stay_status_id,
-            schema.groupHotelStayStatuses.id,
-          ),
-        )
-        .innerJoin(
-          schema.cities,
-          eq(schema.groupHotelStays.city_id, schema.cities.id),
-        )
-        .leftJoin(
-          schema.hotels,
-          eq(schema.groupHotelStays.hotel_id, schema.hotels.id),
-        )
-        .where(
-          and(
-            eq(schema.groupHotelStays.travel_group_id, group.id),
-            eq(schema.groupHotelStays.is_deleted, false),
-            eq(schema.groupHotelStayStatuses.status_code, 'CONFIRMED'),
-          ),
-        )
-        .orderBy(asc(schema.groupHotelStays.sequence_order)),
-
-      this.db
-        .select({
-          flightNumber: schema.flightBookings.departure_flight_number,
-          airlineCode: schema.airlines.iata_code,
-          departureDate: schema.flightBookings.departure_date,
-        })
-        .from(schema.groupMemberships)
-        .innerJoin(
-          schema.groupMembershipStatuses,
-          eq(
-            schema.groupMemberships.group_membership_status_id,
-            schema.groupMembershipStatuses.id,
-          ),
-        )
-        .innerJoin(
-          schema.registrations,
-          eq(schema.groupMemberships.registration_id, schema.registrations.id),
-        )
-        .innerJoin(
-          schema.registrationStatuses,
-          eq(
-            schema.registrations.registration_status_id,
-            schema.registrationStatuses.id,
-          ),
-        )
-        .innerJoin(
-          schema.flightBookings,
-          eq(schema.flightBookings.registration_id, schema.registrations.id),
-        )
-        .leftJoin(
-          schema.airlines,
-          eq(schema.flightBookings.departure_airline_id, schema.airlines.id),
-        )
-        .innerJoin(
-          schema.flightBookingStatuses,
-          eq(
-            schema.flightBookings.flight_booking_status_id,
-            schema.flightBookingStatuses.id,
-          ),
-        )
-        .where(
-          and(
-            eq(schema.groupMemberships.travel_group_id, group.id),
-            eq(schema.groupMemberships.is_deleted, false),
-            eq(schema.groupMembershipStatuses.status_code, 'ACTIVE'),
-            eq(schema.registrations.is_deleted, false),
-            not(eq(schema.registrationStatuses.status_code, 'CANCELLED')),
-            eq(schema.flightBookings.is_deleted, false),
-            eq(schema.flightBookingStatuses.status_code, 'CONFIRMED'),
-          ),
+    const stays = await this.db
+      .select({
+        city: schema.cities.name,
+        hotelName: schema.groupHotelStays.hotel_name,
+        catalogHotelName: schema.hotels.name,
+      })
+      .from(schema.groupHotelStays)
+      .innerJoin(
+        schema.groupHotelStayStatuses,
+        eq(
+          schema.groupHotelStays.group_hotel_stay_status_id,
+          schema.groupHotelStayStatuses.id,
         ),
-    ]);
+      )
+      .innerJoin(
+        schema.cities,
+        eq(schema.groupHotelStays.city_id, schema.cities.id),
+      )
+      .leftJoin(
+        schema.hotels,
+        eq(schema.groupHotelStays.hotel_id, schema.hotels.id),
+      )
+      .where(
+        and(
+          eq(schema.groupHotelStays.travel_group_id, group.id),
+          eq(schema.groupHotelStays.is_deleted, false),
+          eq(schema.groupHotelStayStatuses.status_code, 'CONFIRMED'),
+        ),
+      )
+      .orderBy(asc(schema.groupHotelStays.sequence_order));
 
-    // Display a flight number only when the confirmed bookings agree
-    // on both the flight number and departure date.
-    const distinctFlights = new Map<string, string>();
+    const plannedFlightNumber = group.departureFlightNumber
+      ?.trim()
+      .toUpperCase();
 
-    for (const booking of bookings) {
-      const flightNumber = booking.flightNumber.trim();
-      const airlineCode = booking.airlineCode?.trim().toUpperCase() ?? '';
-      const flightDate = dateKey(booking.departureDate);
+    const airlineCode = group.departureAirlineCode?.trim().toUpperCase();
 
-      if (!flightNumber || !flightDate) continue;
-
-      const key = `${airlineCode}|${flightNumber.toUpperCase()}|${flightDate}`;
-
-      distinctFlights.set(
-        key,
-        airlineCode ? `${airlineCode}${flightNumber}` : flightNumber,
-      );
-    }
-
-    const flightNumber =
-      distinctFlights.size === 1
-        ? ([...distinctFlights.values()][0] ?? null)
-        : null;
+    const flightNumber = plannedFlightNumber
+      ? `${airlineCode ?? ''}${plannedFlightNumber}`
+      : null;
 
     const hotelName = (stay: (typeof stays)[number]) =>
       stay.hotelName?.trim() || stay.catalogHotelName?.trim() || null;

@@ -4,6 +4,7 @@ export type FlightBookingFormMode = 'create' | 'edit';
 
 export interface FlightBookingFormValues {
   registration_id: string;
+  travel_group_id: string;
   pnr: string;
   departure_airline_id: string;
   departure_flight_number: string;
@@ -19,6 +20,7 @@ export interface FlightBookingFormValues {
 
 export interface FlightBookingFormOutput {
   registration_id: string;
+  travel_group_id: string;
   pnr: string;
   departure_airline_id: string;
   departure_flight_number: string;
