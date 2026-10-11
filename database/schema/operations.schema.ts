@@ -104,6 +104,10 @@ export const travelGroups = mysqlTable(
     name: varchar('name', { length: 150 }).notNull(),
     departure_date: date('departure_date'),
     return_date: date('return_date'),
+    departure_airline_id: fkUuid('departure_airline_id'),
+    departure_flight_number: varchar('departure_flight_number', { length: 50 }),
+    return_airline_id: fkUuid('return_airline_id'),
+    return_flight_number: varchar('return_flight_number', { length: 50 }),
     maximum_capacity: int('maximum_capacity').notNull(),
     travel_group_status_id: fkUuid('travel_group_status_id').notNull(),
     remarks: text('remarks'),
@@ -115,6 +119,10 @@ export const travelGroups = mysqlTable(
     index('travel_groups_package_version_id_idx').on(table.package_version_id),
     index('travel_groups_status_id_idx').on(table.travel_group_status_id),
     index('travel_groups_departure_date_idx').on(table.departure_date),
+    index('travel_groups_departure_airline_id_idx').on(
+      table.departure_airline_id,
+    ),
+    index('travel_groups_return_airline_id_idx').on(table.return_airline_id),
   ],
 );
 

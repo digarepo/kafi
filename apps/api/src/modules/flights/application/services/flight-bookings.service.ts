@@ -4,38 +4,38 @@ import {
   Inject,
   Injectable,
   NotFoundException,
-} from "@nestjs/common";
-import { EventEmitter2 } from "@nestjs/event-emitter";
-import { MySql2Database } from "drizzle-orm/mysql2";
-import { alias } from "drizzle-orm/mysql-core";
-import { and, asc, desc, eq, inArray, like, or, sql } from "drizzle-orm";
-import { ulid } from "ulid";
-import { DATABASE } from "../../../../shared/infrastructure/database/database.provider.js";
-import { BusinessNumberService } from "../../../../shared/infrastructure/numbering/business-number.service.js";
-import * as schema from "@kafi/database";
-import { createFlightConfirmedEvent } from "../../domain/events/flight-confirmed.event.js";
+} from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { MySql2Database } from 'drizzle-orm/mysql2';
+import { alias } from 'drizzle-orm/mysql-core';
+import { and, asc, desc, eq, inArray, like, or, sql } from 'drizzle-orm';
+import { ulid } from 'ulid';
+import { DATABASE } from '../../../../shared/infrastructure/database/database.provider.js';
+import { BusinessNumberService } from '../../../../shared/infrastructure/numbering/business-number.service.js';
+import * as schema from '@kafi/database';
+import { createFlightConfirmedEvent } from '../../domain/events/flight-confirmed.event.js';
 import {
   CreateFlightBookingDto,
   UpdateFlightBookingDto,
   CancelFlightBookingDto,
   FlightBookingFiltersDto,
-} from "../dto/flight-bookings.dto.js";
-import { ExpensesService } from "../../../finance/application/services/expenses.service.js";
-import { ExpenseAdjustmentsService } from "../../../finance/application/services/expense-adjustments.service.js";
+} from '../dto/flight-bookings.dto.js';
+import { ExpensesService } from '../../../finance/application/services/expenses.service.js';
+import { ExpenseAdjustmentsService } from '../../../finance/application/services/expense-adjustments.service.js';
 
 function toDateOrNull(value: string | Date | null | undefined): string | null {
   if (!value) return null;
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return null;
-  return d.toISOString().split("T")[0];
+  return d.toISOString().split('T')[0];
 }
 
 function toTwoDecimals(value: number): number {
   return Math.round(value * 100) / 100;
 }
 
-const departureAirlines = alias(schema.airlines, "departure_airlines");
-const returnAirlines = alias(schema.airlines, "return_airlines");
+const departureAirlines = alias(schema.airlines, 'departure_airlines');
+const returnAirlines = alias(schema.airlines, 'return_airlines');
 
 @Injectable()
 export class FlightBookingsService {
@@ -45,7 +45,7 @@ export class FlightBookingsService {
     private readonly numbers: BusinessNumberService,
     private readonly eventEmitter: EventEmitter2,
     private readonly expenses: ExpensesService,
-    private readonly adjustments: ExpenseAdjustmentsService
+    private readonly adjustments: ExpenseAdjustmentsService,
   ) {}
 
   // ---- Lookups ----
@@ -68,7 +68,12 @@ export class FlightBookingsService {
         display_order: schema.airlines.display_order,
       })
       .from(schema.airlines)
-      .where(and(eq(schema.airlines.is_active, true), eq(schema.airlines.is_deleted, false)))
+      .where(
+        and(
+          eq(schema.airlines.is_active, true),
+          eq(schema.airlines.is_deleted, false),
+        ),
+      )
       .orderBy(asc(schema.airlines.display_order), asc(schema.airlines.name));
   }
 
@@ -90,37 +95,49 @@ export class FlightBookingsService {
       .from(schema.registrations)
       .innerJoin(
         schema.registrationStatuses,
-        eq(schema.registrations.registration_status_id, schema.registrationStatuses.id)
+        eq(
+          schema.registrations.registration_status_id,
+          schema.registrationStatuses.id,
+        ),
       )
-      .innerJoin(schema.travellers, eq(schema.registrations.traveller_id, schema.travellers.id))
+      .innerJoin(
+        schema.travellers,
+        eq(schema.registrations.traveller_id, schema.travellers.id),
+      )
       .leftJoin(
         schema.flightBookings,
         and(
           eq(schema.flightBookings.registration_id, schema.registrations.id),
-          eq(schema.flightBookings.is_deleted, false)
-        )
+          eq(schema.flightBookings.is_deleted, false),
+        ),
       )
       .leftJoin(
         schema.flightBookingStatuses,
-        eq(schema.flightBookings.flight_booking_status_id, schema.flightBookingStatuses.id)
+        eq(
+          schema.flightBookings.flight_booking_status_id,
+          schema.flightBookingStatuses.id,
+        ),
       )
       .where(
         and(
           eq(schema.registrations.is_deleted, false),
-          inArray(schema.registrationStatuses.status_code, ["PROCESSING", "READY_FOR_TRAVEL"]),
+          inArray(schema.registrationStatuses.status_code, [
+            'PROCESSING',
+            'READY_FOR_TRAVEL',
+          ]),
           or(
-            eq(schema.flightBookingStatuses.status_code, "CANCELLED"),
-            sql`${schema.flightBookings.id} IS NULL`
+            eq(schema.flightBookingStatuses.status_code, 'CANCELLED'),
+            sql`${schema.flightBookings.id} IS NULL`,
           ),
           search
             ? or(
                 like(schema.registrations.registration_number, `%${search}%`),
                 like(schema.travellers.traveller_number, `%${search}%`),
                 like(schema.travellers.first_name, `%${search}%`),
-                like(schema.travellers.last_name, `%${search}%`)
+                like(schema.travellers.last_name, `%${search}%`),
               )
-            : undefined
-        )
+            : undefined,
+        ),
       )
       .groupBy(schema.registrations.id)
       .orderBy(desc(schema.registrations.updated_at))
@@ -145,10 +162,14 @@ export class FlightBookingsService {
     const conditions = [eq(schema.flightBookings.is_deleted, false)];
 
     if (filters.registration_id) {
-      conditions.push(eq(schema.flightBookings.registration_id, filters.registration_id));
+      conditions.push(
+        eq(schema.flightBookings.registration_id, filters.registration_id),
+      );
     }
     if (filters.status_id) {
-      conditions.push(eq(schema.flightBookings.flight_booking_status_id, filters.status_id));
+      conditions.push(
+        eq(schema.flightBookings.flight_booking_status_id, filters.status_id),
+      );
     }
     if (filters.search) {
       const term = `%${filters.search}%`;
@@ -159,8 +180,8 @@ export class FlightBookingsService {
           like(schema.flightBookings.departure_flight_number, term),
           like(schema.flightBookings.return_flight_number, term),
           like(schema.registrations.registration_number, term),
-          like(schema.travellers.last_name, term)
-        )!
+          like(schema.travellers.last_name, term),
+        )!,
       );
     }
 
@@ -170,13 +191,19 @@ export class FlightBookingsService {
         .from(schema.flightBookings)
         .leftJoin(
           schema.flightBookingStatuses,
-          eq(schema.flightBookings.flight_booking_status_id, schema.flightBookingStatuses.id)
+          eq(
+            schema.flightBookings.flight_booking_status_id,
+            schema.flightBookingStatuses.id,
+          ),
         )
         .leftJoin(
           schema.registrations,
-          eq(schema.flightBookings.registration_id, schema.registrations.id)
+          eq(schema.flightBookings.registration_id, schema.registrations.id),
         )
-        .leftJoin(schema.travellers, eq(schema.registrations.traveller_id, schema.travellers.id))
+        .leftJoin(
+          schema.travellers,
+          eq(schema.registrations.traveller_id, schema.travellers.id),
+        )
         .where(and(...conditions)!)
         .orderBy(desc(schema.flightBookings.created_at))
         .limit(filters.page_size)
@@ -202,22 +229,36 @@ export class FlightBookingsService {
       .from(schema.flightBookings)
       .leftJoin(
         schema.flightBookingStatuses,
-        eq(schema.flightBookings.flight_booking_status_id, schema.flightBookingStatuses.id)
+        eq(
+          schema.flightBookings.flight_booking_status_id,
+          schema.flightBookingStatuses.id,
+        ),
       )
       .leftJoin(
         departureAirlines,
-        eq(schema.flightBookings.departure_airline_id, departureAirlines.id)
+        eq(schema.flightBookings.departure_airline_id, departureAirlines.id),
       )
-      .leftJoin(returnAirlines, eq(schema.flightBookings.return_airline_id, returnAirlines.id))
+      .leftJoin(
+        returnAirlines,
+        eq(schema.flightBookings.return_airline_id, returnAirlines.id),
+      )
       .leftJoin(
         schema.registrations,
-        eq(schema.flightBookings.registration_id, schema.registrations.id)
+        eq(schema.flightBookings.registration_id, schema.registrations.id),
       )
-      .leftJoin(schema.travellers, eq(schema.registrations.traveller_id, schema.travellers.id))
-      .where(and(eq(schema.flightBookings.id, id), eq(schema.flightBookings.is_deleted, false)))
+      .leftJoin(
+        schema.travellers,
+        eq(schema.registrations.traveller_id, schema.travellers.id),
+      )
+      .where(
+        and(
+          eq(schema.flightBookings.id, id),
+          eq(schema.flightBookings.is_deleted, false),
+        ),
+      )
       .limit(1);
 
-    if (!row) throw new NotFoundException("Flight booking not found");
+    if (!row) throw new NotFoundException('Flight booking not found');
     return this.mapDetailRow(row);
   }
 
@@ -225,17 +266,136 @@ export class FlightBookingsService {
 
   async createFlightBooking(dto: CreateFlightBookingDto, actorId: string) {
     const registration = await this.findRegistration(dto.registration_id);
-    if (!registration) throw new NotFoundException("Registration not found");
+    if (!registration) throw new NotFoundException('Registration not found');
 
-    if (registration.registration_statuses?.status_code !== "PROCESSING") {
+    if (registration.registration_statuses?.status_code !== 'PROCESSING') {
       throw new BadRequestException(
-        "Flight bookings can only be created for registrations in PROCESSING"
+        'Flight bookings can only be created for registrations in PROCESSING',
+      );
+    }
+
+    const [groupRow] = await this.db
+      .select({
+        group: schema.travelGroups,
+        status_code: schema.travelGroupStatuses.status_code,
+      })
+      .from(schema.travelGroups)
+      .leftJoin(
+        schema.travelGroupStatuses,
+        eq(
+          schema.travelGroups.travel_group_status_id,
+          schema.travelGroupStatuses.id,
+        ),
+      )
+      .where(
+        and(
+          eq(schema.travelGroups.id, dto.travel_group_id),
+          eq(schema.travelGroups.is_deleted, false),
+        ),
+      )
+      .limit(1);
+
+    if (!groupRow) {
+      throw new NotFoundException('Travel group not found');
+    }
+
+    const travelGroup = groupRow.group;
+
+    // if (
+    //   ['CANCELLED', 'CLOSED', 'DEPARTED', 'COMPLETED'].includes(
+    //     groupRow.status_code ?? '',
+    //   )
+    // ) {
+    //   throw new BadRequestException(
+    //     'A closed, cancelled, departed, or completed travel group cannot receive a new flight booking',
+    //   );
+    // }
+    if (groupRow.status_code !== 'PLANNING') {
+      throw new BadRequestException(
+        'Flight bookings can only be created for travel groups in PLANNING status',
+      );
+    }
+
+    if (
+      travelGroup.package_version_id !==
+      registration.registrations.package_version_id
+    ) {
+      throw new BadRequestException(
+        'The travel group must use the same package version as the registration',
+      );
+    }
+
+    const groupDepartureDate = toDateOrNull(travelGroup.departure_date);
+    const groupDepartureFlight = travelGroup.departure_flight_number
+      ?.trim()
+      .toUpperCase();
+
+    if (
+      !groupDepartureDate ||
+      !travelGroup.departure_airline_id ||
+      !groupDepartureFlight
+    ) {
+      throw new BadRequestException(
+        "Set the travel group's departure date, airline, and flight number before creating a flight booking",
+      );
+    }
+
+    if (
+      toDateOrNull(dto.departure_date) !== groupDepartureDate ||
+      dto.departure_airline_id !== travelGroup.departure_airline_id ||
+      dto.departure_flight_number.trim().toUpperCase() !== groupDepartureFlight
+    ) {
+      throw new BadRequestException(
+        "Departure flight details must match the selected travel group's schedule. Update the group schedule first.",
+      );
+    }
+
+    const groupHasReturnAirline = Boolean(travelGroup.return_airline_id);
+    const groupHasReturnFlight = Boolean(travelGroup.return_flight_number);
+
+    if (groupHasReturnAirline !== groupHasReturnFlight) {
+      throw new BadRequestException(
+        "Complete the travel group's return airline and flight number together, or clear both",
+      );
+    }
+
+    const groupHasReturnSchedule =
+      groupHasReturnAirline && groupHasReturnFlight;
+
+    if (groupHasReturnSchedule) {
+      const groupReturnDate = toDateOrNull(travelGroup.return_date);
+
+      if (!groupReturnDate) {
+        throw new BadRequestException(
+          "Set the travel group's return date before creating its return flight booking",
+        );
+      }
+
+      if (
+        dto.return_airline_id !== travelGroup.return_airline_id ||
+        dto.return_flight_number?.trim().toUpperCase() !==
+          travelGroup.return_flight_number?.trim().toUpperCase() ||
+        toDateOrNull(dto.return_date) !== groupReturnDate
+      ) {
+        throw new BadRequestException(
+          "Return flight details must match the selected travel group's schedule. Update the group schedule first.",
+        );
+      }
+    } else if (
+      dto.return_airline_id ||
+      dto.return_flight_number ||
+      dto.return_date
+    ) {
+      throw new BadRequestException(
+        "Configure the travel group's return flight schedule before booking a return flight",
       );
     }
 
     await Promise.all([
       this.assertActiveAirline(dto.departure_airline_id),
-      dto.return_airline_id ? this.assertActiveAirline(dto.return_airline_id) : Promise.resolve(),
+      dto.return_airline_id
+        ? this.assertActiveAirline(dto.return_airline_id)
+        : Promise.resolve(),
     ]);
 
     // Enforce one active booking per registration
@@ -249,13 +409,15 @@ export class FlightBookingsService {
       (!dto.return_flight_number && dto.return_date)
     ) {
       throw new BadRequestException(
-        "Return airline, flight number, and date must be provided together"
+        'Return airline, flight number, and date must be provided together',
       );
     }
 
     // Validate date order
     if (dto.return_date && dto.return_date < dto.departure_date) {
-      throw new BadRequestException("Return date must be on or after departure date");
+      throw new BadRequestException(
+        'Return date must be on or after departure date',
+      );
     }
 
     // Flight supplier cost is required — a confirmed booking is a
@@ -263,11 +425,11 @@ export class FlightBookingsService {
     const supplierCost = Number(dto.supplier_cost ?? 0);
     if (!supplierCost || supplierCost <= 0) {
       throw new BadRequestException(
-        "Supplier cost is required to create a confirmed flight booking"
+        'Supplier cost is required to create a confirmed flight booking',
       );
     }
 
-    const confirmedStatus = await this.findStatus("CONFIRMED");
+    const confirmedStatus = await this.findStatus('CONFIRMED');
     const bookingNumber = await this.numbers.generateFlightBookingNumber();
     const id = ulid();
 
@@ -279,6 +441,7 @@ export class FlightBookingsService {
         id,
         booking_number: bookingNumber,
         registration_id: dto.registration_id,
+        travel_group_id: dto.travel_group_id,
         flight_booking_status_id: confirmedStatus.id,
         pnr: dto.pnr,
         departure_airline_id: dto.departure_airline_id,
@@ -287,7 +450,8 @@ export class FlightBookingsService {
         return_airline_id: dto.return_airline_id ?? null,
         return_flight_number: dto.return_flight_number ?? null,
         return_date: dto.return_date ? new Date(dto.return_date) : null,
-        supplier_cost: dto.supplier_cost !== undefined ? String(dto.supplier_cost) : null,
+        supplier_cost:
+          dto.supplier_cost !== undefined ? String(dto.supplier_cost) : null,
         notes: dto.notes ?? null,
         created_by: actorId,
         updated_by: actorId,
@@ -298,37 +462,42 @@ export class FlightBookingsService {
       // traveler → package dimensions automatically.
       await this.expenses.createExpenseFromOperational(
         {
-          expense_category_code: "FLIGHT",
-          expense_source_code: "FLIGHT_BOOKING",
+          expense_category_code: 'FLIGHT',
+          expense_source_code: 'FLIGHT_BOOKING',
           amount: supplierCost,
           expense_date: new Date(dto.departure_date),
           description: `Flight cost for ${bookingNumber}`,
-          attribution_scope: "TRAVELER",
+          attribution_scope: 'TRAVELER',
           registration_id: dto.registration_id,
           traveller_id: registration.registrations.traveller_id,
           source_flight_booking_id: id,
           actorId,
         },
-        tx
+        tx,
       );
     });
 
     // Emit the event only after the transaction commits successfully.
     this.eventEmitter.emit(
-      "flight.confirmed",
+      'flight.confirmed',
       createFlightConfirmedEvent({
         flight_booking_id: id,
         booking_number: bookingNumber,
         registration_id: dto.registration_id,
-      })
+      }),
     );
 
     return this.getFlightBooking(id);
   }
 
-  async updateFlightBooking(id: string, dto: UpdateFlightBookingDto, actorId: string) {
+  async updateFlightBooking(
+    id: string,
+    dto: UpdateFlightBookingDto,
+    actorId: string,
+  ) {
     const existing = await this.getFlightBooking(id);
-    if (existing.is_deleted) throw new NotFoundException("Flight booking not found");
+    if (existing.is_deleted)
+      throw new NotFoundException('Flight booking not found');
 
     const set: any = { updated_by: actorId };
     if (dto.pnr !== undefined) set.pnr = dto.pnr;
@@ -345,28 +514,37 @@ export class FlightBookingsService {
     if (dto.departure_flight_number !== undefined)
       set.departure_flight_number = dto.departure_flight_number;
     if (dto.departure_date !== undefined)
-      set.departure_date = dto.departure_date ? new Date(dto.departure_date) : null;
+      set.departure_date = dto.departure_date
+        ? new Date(dto.departure_date)
+        : null;
     if (dto.return_flight_number !== undefined)
       set.return_flight_number = dto.return_flight_number || null;
     if (dto.return_date !== undefined)
       set.return_date = dto.return_date ? new Date(dto.return_date) : null;
     if (dto.supplier_cost !== undefined)
-      set.supplier_cost = dto.supplier_cost !== null ? String(dto.supplier_cost) : null;
+      set.supplier_cost =
+        dto.supplier_cost !== null ? String(dto.supplier_cost) : null;
     if (dto.cancellation_fee !== undefined)
-      set.cancellation_fee = dto.cancellation_fee !== null ? String(dto.cancellation_fee) : null;
+      set.cancellation_fee =
+        dto.cancellation_fee !== null ? String(dto.cancellation_fee) : null;
     if (dto.notes !== undefined) set.notes = dto.notes ?? null;
 
     // Validate return flight consistency after merge
     const merged = {
       return_airline_id:
-        set.return_airline_id !== undefined ? set.return_airline_id : existing.return_airline?.id,
+        set.return_airline_id !== undefined
+          ? set.return_airline_id
+          : existing.return_airline?.id,
       return_flight_number:
         set.return_flight_number !== undefined
           ? set.return_flight_number
           : existing.return_flight_number,
-      return_date: set.return_date !== undefined ? set.return_date : existing.return_date,
+      return_date:
+        set.return_date !== undefined ? set.return_date : existing.return_date,
       departure_date:
-        set.departure_date !== undefined ? set.departure_date : existing.departure_date,
+        set.departure_date !== undefined
+          ? set.departure_date
+          : existing.departure_date,
     };
     if (
       (merged.return_airline_id && !merged.return_flight_number) ||
@@ -375,7 +553,7 @@ export class FlightBookingsService {
       (!merged.return_flight_number && merged.return_date)
     ) {
       throw new BadRequestException(
-        "Return flight number and return date must both be provided or both omitted"
+        'Return flight number and return date must both be provided or both omitted',
       );
     }
     if (
@@ -383,27 +561,39 @@ export class FlightBookingsService {
       merged.departure_date &&
       toDateOrNull(merged.return_date)! < toDateOrNull(merged.departure_date)!
     ) {
-      throw new BadRequestException("Return date must be on or after departure date");
+      throw new BadRequestException(
+        'Return date must be on or after departure date',
+      );
     }
 
-    await this.db.update(schema.flightBookings).set(set).where(eq(schema.flightBookings.id, id));
+    await this.db
+      .update(schema.flightBookings)
+      .set(set)
+      .where(eq(schema.flightBookings.id, id));
 
     return this.getFlightBooking(id);
   }
 
-  async cancelFlightBooking(id: string, dto: CancelFlightBookingDto, actorId: string) {
+  async cancelFlightBooking(
+    id: string,
+    dto: CancelFlightBookingDto,
+    actorId: string,
+  ) {
     const existing = await this.getFlightBooking(id);
-    if (existing.is_deleted) throw new NotFoundException("Flight booking not found");
+    if (existing.is_deleted)
+      throw new NotFoundException('Flight booking not found');
 
-    const statusCode = existing.status?.status_code ?? "";
-    if (statusCode === "CANCELLED") {
-      throw new ConflictException("Flight booking is already cancelled");
+    const statusCode = existing.status?.status_code ?? '';
+    if (statusCode === 'CANCELLED') {
+      throw new ConflictException('Flight booking is already cancelled');
     }
-    if (statusCode !== "CONFIRMED") {
-      throw new BadRequestException(`Cannot cancel a flight booking with status ${statusCode}`);
+    if (statusCode !== 'CONFIRMED') {
+      throw new BadRequestException(
+        `Cannot cancel a flight booking with status ${statusCode}`,
+      );
     }
 
-    const cancelledStatus = await this.findStatus("CANCELLED");
+    const cancelledStatus = await this.findStatus('CANCELLED');
     await this.db
       .update(schema.flightBookings)
       .set({
@@ -416,18 +606,26 @@ export class FlightBookingsService {
 
     // Record an explicit expense adjustment for the supplier refund/cancellation
     // fee. The original flight expense is NEVER modified or deleted.
-    await this.recordCancellationAdjustment(id, existing, dto.cancellation_reason, actorId);
+    await this.recordCancellationAdjustment(
+      id,
+      existing,
+      dto.cancellation_reason,
+      actorId,
+    );
 
     return this.getFlightBooking(id);
   }
 
   async softDelete(id: string, actorId: string) {
     const existing = await this.getFlightBooking(id);
-    if (existing.is_deleted) throw new NotFoundException("Flight booking not found");
+    if (existing.is_deleted)
+      throw new NotFoundException('Flight booking not found');
 
-    const statusCode = existing.status?.status_code ?? "";
-    if (statusCode === "CONFIRMED") {
-      throw new BadRequestException("Cannot delete a CONFIRMED flight booking. Cancel it first.");
+    const statusCode = existing.status?.status_code ?? '';
+    if (statusCode === 'CONFIRMED') {
+      throw new BadRequestException(
+        'Cannot delete a CONFIRMED flight booking. Cancel it first.',
+      );
     }
 
     await this.db
@@ -454,7 +652,7 @@ export class FlightBookingsService {
     flightBookingId: string,
     existing: any,
     reason: string | undefined,
-    actorId: string
+    actorId: string,
   ) {
     // Find the linked expense via source_flight_booking_id
     const [expense] = await this.db
@@ -463,8 +661,8 @@ export class FlightBookingsService {
       .where(
         and(
           eq(schema.expenses.source_flight_booking_id, flightBookingId),
-          eq(schema.expenses.is_deleted, false)
-        )
+          eq(schema.expenses.is_deleted, false),
+        ),
       )
       .limit(1);
     if (!expense) return; // No linked expense — nothing to adjust
@@ -478,7 +676,8 @@ export class FlightBookingsService {
     const adjustmentAmount = toTwoDecimals(-supplierCost + cancellationFee);
     if (adjustmentAmount === 0) return; // Nothing to adjust
 
-    const adjustmentType = adjustmentAmount < 0 ? "SUPPLIER_REFUND" : "CANCELLATION_FEE";
+    const adjustmentType =
+      adjustmentAmount < 0 ? 'SUPPLIER_REFUND' : 'CANCELLATION_FEE';
 
     try {
       await this.adjustments.createAdjustment(
@@ -487,12 +686,12 @@ export class FlightBookingsService {
           adjustment_type: adjustmentType as any,
           amount: adjustmentAmount,
           adjustment_date: new Date(),
-          reason: reason ?? "Flight cancellation",
-          source_record_type: "FLIGHT_BOOKING",
+          reason: reason ?? 'Flight cancellation',
+          source_record_type: 'FLIGHT_BOOKING',
           source_record_id: flightBookingId,
           source_record_number: existing.booking_number,
         } as any,
-        actorId
+        actorId,
       );
     } catch {
       // Adjustment may already exist (unique constraint per type per expense).
@@ -510,11 +709,12 @@ export class FlightBookingsService {
         and(
           eq(schema.airlines.id, id),
           eq(schema.airlines.is_active, true),
-          eq(schema.airlines.is_deleted, false)
-        )
+          eq(schema.airlines.is_deleted, false),
+        ),
       )
       .limit(1);
-    if (!airline) throw new BadRequestException("Selected airline is not active");
+    if (!airline)
+      throw new BadRequestException('Selected airline is not active');
   }
 
   private async findRegistration(id: string) {
@@ -523,7 +723,10 @@ export class FlightBookingsService {
       .from(schema.registrations)
       .leftJoin(
         schema.registrationStatuses,
-        eq(schema.registrations.registration_status_id, schema.registrationStatuses.id)
+        eq(
+          schema.registrations.registration_status_id,
+          schema.registrationStatuses.id,
+        ),
       )
       .where(eq(schema.registrations.id, id))
       .limit(1);
@@ -536,17 +739,22 @@ export class FlightBookingsService {
       .from(schema.flightBookings)
       .innerJoin(
         schema.flightBookingStatuses,
-        eq(schema.flightBookings.flight_booking_status_id, schema.flightBookingStatuses.id)
+        eq(
+          schema.flightBookings.flight_booking_status_id,
+          schema.flightBookingStatuses.id,
+        ),
       )
       .where(
         and(
           eq(schema.flightBookings.registration_id, registrationId),
           eq(schema.flightBookings.is_deleted, false),
-          eq(schema.flightBookingStatuses.status_code, "CONFIRMED")
-        )
+          eq(schema.flightBookingStatuses.status_code, 'CONFIRMED'),
+        ),
       );
     if ((existing[0]?.count ?? 0) > 0) {
-      throw new ConflictException("An active flight booking already exists for this registration");
+      throw new ConflictException(
+        'An active flight booking already exists for this registration',
+      );
     }
   }
 
@@ -556,7 +764,8 @@ export class FlightBookingsService {
       .from(schema.flightBookingStatuses)
       .where(eq(schema.flightBookingStatuses.status_code, code))
       .limit(1);
-    if (!row) throw new BadRequestException(`Flight booking status ${code} not found`);
+    if (!row)
+      throw new BadRequestException(`Flight booking status ${code} not found`);
     return row;
   }
 

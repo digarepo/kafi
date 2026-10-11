@@ -380,6 +380,10 @@ export class TravelGroupsService {
       name: dto.name,
       departure_date: toDateOrNull(dto.departure_date),
       return_date: toDateOrNull(dto.return_date),
+      departure_airline_id: dto.departure_airline_id ?? null,
+      departure_flight_number: dto.departure_flight_number ?? null,
+      return_airline_id: dto.return_airline_id ?? null,
+      return_flight_number: dto.return_flight_number ?? null,
       maximum_capacity: dto.maximum_capacity,
       travel_group_status_id: statusId,
       remarks: dto.remarks ?? null,
@@ -403,10 +407,15 @@ export class TravelGroupsService {
     // corrupt auto-transition logic and historical records.
     if (
       existing.status_code !== 'PLANNING' &&
-      (dto.departure_date !== undefined || dto.return_date !== undefined)
+      (dto.departure_date !== undefined ||
+        dto.return_date !== undefined ||
+        dto.departure_airline_id !== undefined ||
+        dto.departure_flight_number !== undefined ||
+        dto.return_airline_id !== undefined ||
+        dto.return_flight_number !== undefined)
     ) {
       throw new ConflictException(
-        'Travel dates cannot be edited after the group leaves PLANNING status',
+        'Travel dates and flight schedule cannot be edited after the group leaves PLANNING status',
       );
     }
 
@@ -428,6 +437,18 @@ export class TravelGroupsService {
         }),
         ...(dto.return_date !== undefined && {
           return_date: toDateOrNull(dto.return_date),
+        }),
+        ...(dto.departure_airline_id !== undefined && {
+          departure_airline_id: dto.departure_airline_id,
+        }),
+        ...(dto.departure_flight_number !== undefined && {
+          departure_flight_number: dto.departure_flight_number,
+        }),
+        ...(dto.return_airline_id !== undefined && {
+          return_airline_id: dto.return_airline_id,
+        }),
+        ...(dto.return_flight_number !== undefined && {
+          return_flight_number: dto.return_flight_number,
         }),
         ...(dto.maximum_capacity !== undefined && {
           maximum_capacity: dto.maximum_capacity,
@@ -1360,6 +1381,10 @@ export class TravelGroupsService {
         : null,
       departure_date: toDateStr(group.departure_date),
       return_date: toDateStr(group.return_date),
+      departure_airline_id: group.departure_airline_id ?? null,
+      departure_flight_number: group.departure_flight_number ?? null,
+      return_airline_id: group.return_airline_id ?? null,
+      return_flight_number: group.return_flight_number ?? null,
       maximum_capacity: group.maximum_capacity,
       current_capacity: counts.active_member_count,
       active_member_count: counts.active_member_count,
@@ -1397,6 +1422,10 @@ export class TravelGroupsService {
       status_code: status?.status_code ?? null,
       departure_date: toDateStr(group.departure_date),
       return_date: toDateStr(group.return_date),
+      departure_airline_id: group.departure_airline_id ?? null,
+      departure_flight_number: group.departure_flight_number ?? null,
+      return_airline_id: group.return_airline_id ?? null,
+      return_flight_number: group.return_flight_number ?? null,
       maximum_capacity: group.maximum_capacity,
       current_capacity: currentCapacity,
       remarks: group.remarks,

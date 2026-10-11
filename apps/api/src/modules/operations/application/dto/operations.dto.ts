@@ -1,12 +1,17 @@
 import { z } from 'zod';
 import { createZodDto } from '../../../../shared/infrastructure/validation/zod-dto.js';
 
-const ulidSchema = z.string().ulid();
+const ulidSchema = z.ulid();
 
 const optionalUlid = z
   .union([ulidSchema, z.literal('')])
   .optional()
   .transform((v) => (v === '' ? undefined : v));
+
+const optionalNullableUlid = z.preprocess(
+  (value) => (value === '' ? null : value),
+  z.ulid().nullable().optional(),
+);
 
 const optionalDate = z
   .union([z.string().regex(/^\d{4}-\d{2}-\d{2}$/), z.literal('')])
@@ -30,11 +35,20 @@ const travelRoundFiltersSchema = z.object({
   search: z.string().optional(),
 });
 
+const optionalFlightNumber = z.preprocess(
+  (value) => (typeof value === 'string' && value.trim() === '' ? null : value),
+  z.string().trim().max(50).nullable().optional(),
+);
+
 const createTravelGroupSchema = z.object({
   package_version_id: ulidSchema,
   name: z.string().min(1).max(150),
   departure_date: optionalDate,
   return_date: optionalDate,
+  departure_airline_id: optionalNullableUlid,
+  departure_flight_number: optionalFlightNumber,
+  return_airline_id: optionalNullableUlid,
+  return_flight_number: optionalFlightNumber,
   maximum_capacity: z.coerce.number().int().min(1),
   travel_group_status_id: optionalUlid,
   remarks: z.string().optional(),
@@ -44,6 +58,10 @@ const updateTravelGroupSchema = z.object({
   name: z.string().min(1).max(150).optional(),
   departure_date: optionalDate,
   return_date: optionalDate,
+  departure_airline_id: optionalNullableUlid,
+  departure_flight_number: optionalFlightNumber,
+  return_airline_id: optionalNullableUlid,
+  return_flight_number: optionalFlightNumber,
   maximum_capacity: z.coerce.number().int().min(1).optional(),
   travel_group_status_id: optionalUlid,
   remarks: z.string().optional(),

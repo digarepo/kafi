@@ -34,6 +34,7 @@ const flightNumberSchema = z
 const createFlightBookingSchema = z
   .object({
     registration_id: ulidSchema,
+    travel_group_id: ulidSchema,
     pnr: z.string().trim().min(1, "PNR / booking reference is required").max(50),
     departure_airline_id: ulidSchema,
     departure_flight_number: flightNumberSchema,
