@@ -12,6 +12,10 @@ export interface TravelGroupFormValues {
   name: string;
   travelRange?: DateRange;
   override_travel_dates: boolean;
+  departure_airline_id: string;
+  departure_flight_number: string;
+  return_airline_id: string;
+  return_flight_number: string;
   maximum_capacity: number;
   remarks: string;
 }
@@ -22,6 +26,10 @@ export interface TravelGroupFormOutput {
   maximum_capacity: number;
   departure_date?: string;
   return_date?: string;
+  departure_airline_id: string;
+  departure_flight_number: string;
+  return_airline_id: string;
+  return_flight_number: string;
   remarks?: string;
 }
 

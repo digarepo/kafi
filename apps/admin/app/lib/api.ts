@@ -1939,6 +1939,10 @@ export interface TravelGroupListItem {
   status: TravelGroupStatus | null;
   departure_date: string | null;
   return_date: string | null;
+  departure_airline_id: string | null;
+  departure_flight_number: string | null;
+  return_airline_id: string | null;
+  return_flight_number: string | null;
   maximum_capacity: number;
   current_capacity: number;
   active_member_count: number;
@@ -1957,6 +1961,10 @@ export interface TravelGroup {
   status_code: string | null;
   departure_date: string | null;
   return_date: string | null;
+  departure_airline_id: string | null;
+  departure_flight_number: string | null;
+  return_airline_id: string | null;
+  return_flight_number: string | null;
   maximum_capacity: number;
   current_capacity: number;
   remarks: string | null;

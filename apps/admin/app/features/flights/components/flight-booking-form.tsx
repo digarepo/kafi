@@ -26,7 +26,7 @@ import {
   type Airline,
   type EligibleRegistration,
 } from '../lib/api';
-import { api } from '../../../lib/api.js';
+import { api, type TravelGroupListItem } from '../../../lib/api.js';
 import { parseYmd } from '../../travellers/lib/date';
 import { flightBookingFormSchema } from '../validation/flights.schema';
 import type {
@@ -37,6 +37,7 @@ import type {
 
 const emptyValues: FlightBookingFormValues = {
   registration_id: '',
+  travel_group_id: '',
   pnr: '',
   departure_airline_id: '',
   departure_flight_number: '',
@@ -89,6 +90,8 @@ export function FlightBookingForm({
     [mode, registration],
   );
 
+  const [travelGroups, setTravelGroups] = useState<TravelGroupListItem[]>([]);
+  const [groupsLoading, setGroupsLoading] = useState(false);
   const [eligibleRegs, setEligibleRegs] = useState<EligibleRegistration[]>([]);
   const [airlines, setAirlines] = useState<Airline[]>([]);
 
@@ -125,6 +128,51 @@ export function FlightBookingForm({
     };
   }, [registration]);
 
+  useEffect(() => {
+    if (!registration?.id) return;
+
+    let cancelled = false;
+
+    async function loadTravelGroups() {
+      setGroupsLoading(true);
+
+      try {
+        const reg = await api.getRegistration(registration!.id);
+        const packageVersionId = reg.package_version?.id;
+
+        if (!packageVersionId) {
+          if (!cancelled) setTravelGroups([]);
+          return;
+        }
+
+        const result = await api.listTravelGroups(1, 100, {
+          package_version_id: packageVersionId,
+        });
+
+        if (!cancelled) {
+          setTravelGroups(
+            result.data.filter(
+              (group) => group.status?.status_code === 'PLANNING',
+            ),
+          );
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setTravelGroups([]);
+          console.error('Failed to load travel groups:', error);
+        }
+      } finally {
+        if (!cancelled) setGroupsLoading(false);
+      }
+    }
+
+    void loadTravelGroups();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [registration?.id]);
+
   const form = useForm({
     defaultValues,
     validators: {
@@ -134,6 +182,7 @@ export function FlightBookingForm({
       const costNum = Number(value.ticket_cost);
       const output: FlightBookingFormOutput = {
         registration_id: value.registration_id,
+        travel_group_id: value.travel_group_id,
         pnr: value.pnr.trim(),
         departure_airline_id: value.departure_airline_id,
         departure_flight_number: value.departure_flight_number
@@ -169,6 +218,11 @@ export function FlightBookingForm({
 
   const isSubmitting = useSelector(form.store, (state) => state.isSubmitting);
 
+  const selectedTravelGroupId = useSelector(
+    form.store,
+    (state) => state.values.travel_group_id,
+  );
+
   const regOptions = eligibleRegs.map((r) => ({
     value: r.id,
     label: `${r.registration_number} — ${r.traveller.full_name}`,
@@ -182,10 +236,40 @@ export function FlightBookingForm({
   // to infer travel dates from the registration's expected dates.
   async function handleRegistrationSelect(id: string) {
     form.setFieldValue('registration_id', id);
+    form.setFieldValue('travel_group_id', '');
+    form.setFieldValue('departure_airline_id', '');
+    form.setFieldValue('departure_flight_number', '');
+    form.setFieldValue('return_airline_id', '');
+    form.setFieldValue('return_flight_number', '');
+    form.setFieldValue('travelRange', undefined);
+
+    setTravelGroups([]);
     // Only auto-fill if travel range is currently empty.
     if (!form.getFieldValue('travelRange')?.from) {
       try {
         const reg = await api.getRegistration(id);
+        const packageVersionId = reg.package_version?.id;
+
+        if (packageVersionId) {
+          setGroupsLoading(true);
+
+          try {
+            const result = await api.listTravelGroups(1, 100, {
+              package_version_id: packageVersionId,
+            });
+
+            setTravelGroups(
+              result.data.filter(
+                (group) => group.status?.status_code === 'PLANNING',
+              ),
+            );
+          } catch (error) {
+            setTravelGroups([]);
+            console.error('Failed to load travel groups:', error);
+          } finally {
+            setGroupsLoading(false);
+          }
+        }
         const from = reg.expected_departure_date
           ? parseYmd(reg.expected_departure_date)
           : undefined;
@@ -288,6 +372,94 @@ export function FlightBookingForm({
               )}
             </form.Field>
 
+            <form.Field name="travel_group_id">
+              {(field: AnyFieldApi) => {
+                const selectedGroup = travelGroups.find(
+                  (group) => group.id === field.state.value,
+                );
+
+                return (
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Travel group</Label>
+
+                    <Select
+                      value={field.state.value ?? ''}
+                      onValueChange={(id) => {
+                        const group = travelGroups.find(
+                          (item) => item.id === id,
+                        );
+                        if (!group) return;
+
+                        field.handleChange(id);
+
+                        // Inherit the selected group's flight schedule.
+                        form.setFieldValue(
+                          'departure_airline_id',
+                          group.departure_airline_id ?? '',
+                        );
+                        form.setFieldValue(
+                          'departure_flight_number',
+                          group.departure_flight_number ?? '',
+                        );
+                        form.setFieldValue(
+                          'return_airline_id',
+                          group.return_airline_id ?? '',
+                        );
+                        form.setFieldValue(
+                          'return_flight_number',
+                          group.return_flight_number ?? '',
+                        );
+
+                        // Inherit the group's effective travel dates.
+                        const from = group.departure_date
+                          ? parseYmd(group.departure_date)
+                          : undefined;
+                        const to = group.return_date
+                          ? parseYmd(group.return_date)
+                          : undefined;
+
+                        form.setFieldValue(
+                          'travelRange',
+                          from ? { from, to } : undefined,
+                        );
+                      }}
+                    >
+                      <SelectTrigger className="h-9 w-full">
+                        <SelectValue>
+                          {selectedGroup
+                            ? `${selectedGroup.group_number} — ${selectedGroup.name}`
+                            : groupsLoading
+                              ? 'Loading travel groups…'
+                              : 'Select travel group'}
+                        </SelectValue>
+                      </SelectTrigger>
+
+                      <SelectContent>
+                        {travelGroups.map((group) => (
+                          <SelectItem key={group.id} value={group.id}>
+                            {group.group_number} — {group.name}
+                            {' · '}
+                            {group.departure_date ?? 'No departure date'}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    {!groupsLoading &&
+                      form.getFieldValue('registration_id') &&
+                      travelGroups.length === 0 && (
+                        <p className="text-xs text-muted-foreground">
+                          No planning groups found for this registration's
+                          package version.
+                        </p>
+                      )}
+
+                    <FieldError field={field} />
+                  </div>
+                );
+              }}
+            </form.Field>
+
             <form.Field name="departure_airline_id">
               {(field: AnyFieldApi) => (
                 <div className="space-y-2">
@@ -297,6 +469,7 @@ export function FlightBookingForm({
                   <Select
                     value={field.state.value}
                     onValueChange={(value) => field.handleChange(value)}
+                    disabled={Boolean(selectedTravelGroupId)}
                   >
                     <SelectTrigger className="h-9 w-full">
                       <SelectValue>
@@ -335,6 +508,7 @@ export function FlightBookingForm({
                     placeholder="e.g. 700"
                     aria-invalid={field.state.meta.errors.length > 0}
                     className="h-9 w-full"
+                    readOnly={Boolean(selectedTravelGroupId)}
                   />
                   <FieldError field={field} />
                 </div>
@@ -351,6 +525,7 @@ export function FlightBookingForm({
                   <Select
                     value={field.state.value}
                     onValueChange={(value) => field.handleChange(value)}
+                    disabled={Boolean(selectedTravelGroupId)}
                   >
                     <SelectTrigger className="h-9 w-full">
                       <SelectValue>
@@ -390,6 +565,7 @@ export function FlightBookingForm({
                     placeholder="e.g. 701"
                     aria-invalid={field.state.meta.errors.length > 0}
                     className="h-9 w-full"
+                    readOnly={Boolean(selectedTravelGroupId)}
                   />
                   <FieldError field={field} />
                 </div>
@@ -430,12 +606,20 @@ export function FlightBookingForm({
               {(field: AnyFieldApi) => (
                 <div className="space-y-2">
                   <Label className="text-sm font-medium">Travel dates</Label>
-                  <DateRangePicker
-                    value={field.state.value}
-                    onChange={(range) => field.handleChange(range)}
-                    placeholder="Select departure and return"
-                    aria-invalid={field.state.meta.errors.length > 0}
-                  />
+                  {selectedTravelGroupId ? (
+                    <p className="flex min-h-9 items-center text-sm">
+                      {toYmd(field.state.value?.from) ?? 'No departure date'}
+                      {' — '}
+                      {toYmd(field.state.value?.to) ?? 'No return date'}
+                    </p>
+                  ) : (
+                    <DateRangePicker
+                      value={field.state.value}
+                      onChange={(range) => field.handleChange(range)}
+                      placeholder="Select departure and return"
+                      aria-invalid={field.state.meta.errors.length > 0}
+                    />
+                  )}
                   <FieldError field={field} />
                 </div>
               )}

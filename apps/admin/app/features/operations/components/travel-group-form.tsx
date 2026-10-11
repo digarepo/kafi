@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AnyFieldApi, useForm, useSelector } from '@tanstack/react-form';
 import {
   Button,
@@ -24,6 +24,7 @@ import type {
   TravelGroupFormProps,
   TravelGroupFormValues,
 } from '../types/operations.types';
+import { flightsApi, type Airline } from '../../flights/lib/api';
 
 function buildDefaultValues(
   mode: TravelGroupFormProps['mode'],
@@ -43,6 +44,10 @@ function buildDefaultValues(
             }
           : undefined,
       override_travel_dates: true,
+      departure_airline_id: group.departure_airline_id ?? '',
+      departure_flight_number: group.departure_flight_number ?? '',
+      return_airline_id: group.return_airline_id ?? '',
+      return_flight_number: group.return_flight_number ?? '',
       maximum_capacity: group.maximum_capacity,
       remarks: group.remarks ?? '',
     };
@@ -53,6 +58,10 @@ function buildDefaultValues(
     name: '',
     travelRange: undefined,
     override_travel_dates: false,
+    departure_airline_id: '',
+    departure_flight_number: '',
+    return_airline_id: '',
+    return_flight_number: '',
     maximum_capacity: 30,
     remarks: '',
   };
@@ -66,6 +75,27 @@ export function TravelGroupForm({
   onCancel,
   submitLabel,
 }: TravelGroupFormProps) {
+  const [airlines, setAirlines] = useState<Airline[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadAirlines() {
+      try {
+        const rows = await flightsApi.listAirlines();
+        if (!cancelled) setAirlines(rows);
+      } catch {
+        if (!cancelled) setAirlines([]);
+      }
+    }
+
+    void loadAirlines();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const defaultValues = useMemo<TravelGroupFormValues>(
     () => buildDefaultValues(mode, group),
     [mode, group],
@@ -89,6 +119,12 @@ export function TravelGroupForm({
       const output: TravelGroupFormOutput = {
         package_version_id: value.package_version_id,
         name: value.name.trim(),
+        departure_airline_id: value.departure_airline_id,
+        departure_flight_number: value.departure_flight_number
+          .trim()
+          .toUpperCase(),
+        return_airline_id: value.return_airline_id,
+        return_flight_number: value.return_flight_number.trim().toUpperCase(),
         maximum_capacity: value.maximum_capacity,
         ...(departureDate && { departure_date: departureDate }),
         ...(returnDate && { return_date: returnDate }),
@@ -283,6 +319,149 @@ export function TravelGroupForm({
                   </div>
                 )}
               </form.Field>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-sm font-semibold">Flight schedule</h3>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Optional while planning. These details define the group's
+                  intended outbound and return flights.
+                </p>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <form.Field name="departure_airline_id">
+                  {(field: AnyFieldApi) => (
+                    <div className="space-y-2">
+                      <Label htmlFor="departure_airline_id">
+                        Departure airline
+                      </Label>
+                      <Select
+                        value={field.state.value || '__none__'}
+                        onValueChange={(value) =>
+                          field.handleChange(
+                            !value || value === '__none__' ? '' : value,
+                          )
+                        }
+                      >
+                        <SelectTrigger
+                          id="departure_airline_id"
+                          className="h-10 w-full"
+                        >
+                          <SelectValue>
+                            {airlines.find(
+                              (airline) => airline.id === field.state.value,
+                            )
+                              ? (() => {
+                                  const airline = airlines.find(
+                                    (item) => item.id === field.state.value,
+                                  )!;
+                                  return `${airline.name} (${airline.iata_code})`;
+                                })()
+                              : 'No airline selected'}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">
+                            No airline selected
+                          </SelectItem>
+                          {airlines.map((airline) => (
+                            <SelectItem key={airline.id} value={airline.id}>
+                              {airline.name} ({airline.iata_code})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </form.Field>
+
+                <form.Field name="departure_flight_number">
+                  {(field: AnyFieldApi) => (
+                    <div className="space-y-2">
+                      <Label htmlFor="departure_flight_number">
+                        Departure flight number
+                      </Label>
+                      <Input
+                        id="departure_flight_number"
+                        value={field.state.value}
+                        onChange={(event) =>
+                          field.handleChange(event.target.value)
+                        }
+                        onBlur={field.handleBlur}
+                        placeholder="e.g. ET612"
+                        maxLength={50}
+                        className="h-10 w-full"
+                      />
+                    </div>
+                  )}
+                </form.Field>
+
+                <form.Field name="return_airline_id">
+                  {(field: AnyFieldApi) => (
+                    <div className="space-y-2">
+                      <Label htmlFor="return_airline_id">Return airline</Label>
+                      <Select
+                        value={field.state.value || '__none__'}
+                        onValueChange={(value) =>
+                          field.handleChange(
+                            !value || value === '__none__' ? '' : value,
+                          )
+                        }
+                      >
+                        <SelectTrigger
+                          id="return_airline_id"
+                          className="h-10 w-full"
+                        >
+                          <SelectValue>
+                            {airlines.find(
+                              (airline) => airline.id === field.state.value,
+                            )
+                              ? (() => {
+                                  const airline = airlines.find(
+                                    (item) => item.id === field.state.value,
+                                  )!;
+                                  return `${airline.name} (${airline.iata_code})`;
+                                })()
+                              : 'No airline selected'}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">
+                            No airline selected
+                          </SelectItem>
+                          {airlines.map((airline) => (
+                            <SelectItem key={airline.id} value={airline.id}>
+                              {airline.name} ({airline.iata_code})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </form.Field>
+
+                <form.Field name="return_flight_number">
+                  {(field: AnyFieldApi) => (
+                    <div className="space-y-2">
+                      <Label htmlFor="return_flight_number">
+                        Return flight number
+                      </Label>
+                      <Input
+                        id="return_flight_number"
+                        value={field.state.value}
+                        onChange={(event) =>
+                          field.handleChange(event.target.value)
+                        }
+                        onBlur={field.handleBlur}
+                        placeholder="e.g. ET613"
+                        maxLength={50}
+                        className="h-10 w-full"
+                      />
+                    </div>
+                  )}
+                </form.Field>
+              </div>
             </div>
           </section>
 
