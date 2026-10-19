@@ -183,7 +183,12 @@ export function RegistrationIntakeWorkflow({
   const [guaranteeIssuer, setGuaranteeIssuer] = useState('');
   const [guaranteeNotes, setGuaranteeNotes] = useState('');
   const [guaranteeEditing, setGuaranteeEditing] = useState(false);
-
+  const [registrationDiscountType, setRegistrationDiscountType] = useState<
+    'FIXED' | 'PERCENT'
+  >('FIXED');
+  const [registrationDiscountValue, setRegistrationDiscountValue] =
+    useState('0');
+  const [financeFormOpen, setFinanceFormOpen] = useState(false);
   // Step 5: Finance
   const [financeSummary, setFinanceSummary] = useState<{
     total_invoiced: number;
@@ -506,7 +511,18 @@ export function RegistrationIntakeWorkflow({
       );
     }
     if (summaryResult.status === 'fulfilled') {
-      setOperationalSummary(summaryResult.value);
+      const summary = summaryResult.value;
+      setOperationalSummary(summary);
+
+      const invoice = summary.invoices?.[0];
+
+      if (invoice) {
+        setRegistrationDiscountType(invoice.discount_type);
+        setRegistrationDiscountValue(String(invoice.discount_value ?? 0));
+      } else {
+        setRegistrationDiscountType('FIXED');
+        setRegistrationDiscountValue('0');
+      }
     } else {
       console.error('Failed to load operational summary', summaryResult.reason);
     }
@@ -826,6 +842,8 @@ export function RegistrationIntakeWorkflow({
       await api.createInvoice({
         registration_id: registration.id,
         invoice_date: today(),
+        discount_type: registrationDiscountType,
+        discount_value: Number(registrationDiscountValue || 0),
         line_items: [
           {
             description: `Package: ${selectedPackage.version_name}`,
@@ -838,6 +856,59 @@ export function RegistrationIntakeWorkflow({
     } catch (err) {
       toast.error(
         err instanceof Error ? err.message : 'Failed to create invoice',
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleUpdateRegistrationDiscount() {
+    const invoice = operationalSummary?.invoices?.[0];
+
+    if (!invoice) {
+      toast.error('Invoice details are unavailable. Refresh and try again.');
+      return;
+    }
+
+    const value = Number(registrationDiscountValue || 0);
+    const subtotal = Number(invoice.subtotal);
+
+    const discountAmount =
+      registrationDiscountType === 'PERCENT'
+        ? Math.round(((subtotal * value) / 100) * 100) / 100
+        : value;
+
+    const valid =
+      Number.isFinite(value) &&
+      value >= 0 &&
+      (registrationDiscountType === 'PERCENT'
+        ? value <= 100
+        : discountAmount <= subtotal);
+
+    if (!valid) {
+      toast.error(
+        registrationDiscountType === 'PERCENT'
+          ? 'Discount percentage must be between 0 and 100.'
+          : 'Discount cannot exceed the invoice subtotal.',
+      );
+      return;
+    }
+
+    setSubmitting(true);
+
+    try {
+      await api.updateInvoice(invoice.id, {
+        discount_type: registrationDiscountType,
+        discount_value: value,
+      });
+
+      await loadRegistrationIntakeData();
+      toast.success('Invoice discount updated successfully.');
+    } catch (err) {
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : 'Failed to update invoice discount',
       );
     } finally {
       setSubmitting(false);
@@ -1603,6 +1674,71 @@ export function RegistrationIntakeWorkflow({
   }
 
   function renderFinanceStep() {
+    const packagePrice = Number(selectedPackage?.base_price ?? 0);
+    const invoice = operationalSummary?.invoices?.[0] ?? null;
+
+    // Use the invoice subtotal when editing an existing invoice.
+    const discountBase = Number(invoice?.subtotal ?? packagePrice);
+    const discountValue = Number(registrationDiscountValue || 0);
+
+    const rawDiscountAmount =
+      registrationDiscountType === 'PERCENT'
+        ? Math.round(((discountBase * discountValue) / 100) * 100) / 100
+        : discountValue;
+
+    const registrationDiscountAmount = Number.isFinite(rawDiscountAmount)
+      ? rawDiscountAmount
+      : 0;
+
+    const registrationDiscountValid =
+      Number.isFinite(discountValue) &&
+      discountValue >= 0 &&
+      (registrationDiscountType === 'PERCENT'
+        ? discountValue <= 100
+        : registrationDiscountAmount <= discountBase);
+
+    const proposedInvoiceTotal =
+      Math.round(Math.max(0, discountBase - registrationDiscountAmount) * 100) /
+      100;
+
+    const currentTotalInvoiced = Number(financeSummary?.total_invoiced ?? 0);
+
+    const currentOutstandingBalance = Number(
+      financeSummary?.outstanding_balance ?? 0,
+    );
+
+    const previousInvoiceTotal = Number(invoice?.total_amount ?? 0);
+
+    const projectedTotalInvoiced = invoice
+      ? Math.max(
+          0,
+          currentTotalInvoiced - previousInvoiceTotal + proposedInvoiceTotal,
+        )
+      : proposedInvoiceTotal;
+
+    const projectedOutstandingBalance = invoice
+      ? Math.max(
+          0,
+          currentOutstandingBalance -
+            previousInvoiceTotal +
+            proposedInvoiceTotal,
+        )
+      : proposedInvoiceTotal;
+
+    const allocatedAmount = invoice
+      ? Math.max(
+          0,
+          Number(invoice.total_amount) - Number(invoice.outstanding_balance),
+        )
+      : 0;
+
+    const discountConflictsWithPayments =
+      !!invoice && proposedInvoiceTotal < allocatedAmount - 0.005;
+
+    const currencyCode = selectedPackage?.currency?.code ?? 'ETB';
+
+    // Keep your existing return (...) and JSX below this line.
+
     return (
       <div className="mx-auto w-full max-w-3xl space-y-4">
         {selectedPackage && (
@@ -1638,30 +1774,33 @@ export function RegistrationIntakeWorkflow({
           </div>
         )}
 
-        {!hasInvoice && (
-          <div className="space-y-3">
-            <div className="rounded-md bg-warning/10 p-3 text-sm text-warning">
-              <AlertCircle className="inline h-4 w-4 mr-1" />
-              No invoice yet. Create one to record payment.
-            </div>
-            <Button
-              type="button"
-              onClick={() => void handleCreateInvoice()}
-              disabled={submitting}
-            >
-              {submitting ? (
-                <Loader className="h-4 w-4 animate-spin" />
-              ) : (
-                <FileUp className="h-4 w-4" />
-              )}
-              Create invoice from package price
-            </Button>
-          </div>
+        {!hasInvoice && !financeFormOpen && selectedPackage && (
+          <Button
+            type="button"
+            onClick={() => setFinanceFormOpen(true)}
+            disabled={submitting}
+          >
+            <FileUp className="h-4 w-4" />
+            Create invoice
+          </Button>
         )}
 
-        {hasInvoice && outstandingBalance > 0 && (
+        {hasInvoice && outstandingBalance <= 0 && !financeFormOpen && (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setFinanceFormOpen(true)}
+            disabled={submitting}
+          >
+            Edit discount
+          </Button>
+        )}
+
+        {(financeFormOpen || (hasInvoice && outstandingBalance > 0)) && (
           <div className="space-y-4 rounded-md border p-4">
-            <h4 className="font-medium text-sm">Record payment</h4>
+            <h4 className="font-medium text-sm">
+              {hasInvoice ? 'Record payment' : 'Create invoice and payment'}
+            </h4>
 
             <div className="space-y-2">
               <Label className="text-sm font-medium">
@@ -1758,46 +1897,102 @@ export function RegistrationIntakeWorkflow({
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
+                <Label className="text-sm font-medium">Discount type</Label>
+
+                <div className="flex h-9 flex-wrap items-center gap-x-4 gap-y-2">
+                  <label className="flex cursor-pointer items-center gap-2 text-sm">
+                    <input
+                      type="radio"
+                      name="registration-discount-type"
+                      value="FIXED"
+                      checked={registrationDiscountType === 'FIXED'}
+                      onChange={() => setRegistrationDiscountType('FIXED')}
+                      className="h-4 w-4 accent-primary"
+                    />
+                    Fixed amount
+                  </label>
+
+                  <label className="flex cursor-pointer items-center gap-2 text-sm">
+                    <input
+                      type="radio"
+                      name="registration-discount-type"
+                      value="PERCENT"
+                      checked={registrationDiscountType === 'PERCENT'}
+                      onChange={() => setRegistrationDiscountType('PERCENT')}
+                      className="h-4 w-4 accent-primary"
+                    />
+                    Percentage
+                  </label>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label
+                  htmlFor="registration-discount-value"
+                  className="text-sm font-medium"
+                >
+                  {registrationDiscountType === 'PERCENT'
+                    ? 'Discount percentage'
+                    : `Discount amount (${currencyCode})`}
+                </Label>
+
+                <Input
+                  id="registration-discount-value"
+                  type="number"
+                  min={0}
+                  max={registrationDiscountType === 'PERCENT' ? 100 : undefined}
+                  step="0.01"
+                  value={registrationDiscountValue}
+                  onChange={(event) =>
+                    setRegistrationDiscountValue(event.target.value)
+                  }
+                  className="h-9 w-full"
+                  aria-invalid={!registrationDiscountValid}
+                />
+
+                {!registrationDiscountValid && (
+                  <p className="text-sm text-destructive">
+                    {registrationDiscountType === 'PERCENT'
+                      ? 'Percentage must be between 0 and 100.'
+                      : 'Discount cannot exceed the invoice subtotal.'}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
                 <Label className="text-sm font-medium">
                   Payment method <span className="text-destructive">*</span>
                 </Label>
+
                 <Select
                   value={paymentMethodId ?? ''}
                   onValueChange={(v) => setPaymentMethodId(v ?? '')}
                 >
                   <SelectTrigger className="h-9 w-full">
                     <SelectValue>
-                      {paymentMethods
-                        .map((m) => ({
-                          value: m.id,
-                          label: m.name,
-                        }))
-                        .find((o) => o.value === paymentMethodId)?.label ??
-                        'Select method'}
+                      {paymentMethods.find((m) => m.id === paymentMethodId)
+                        ?.name ?? 'Select method'}
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    {paymentMethods
-                      .map((m) => ({
-                        value: m.id,
-                        label: m.name,
-                      }))
-                      .map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </SelectItem>
-                      ))}
+                    {paymentMethods.map((method) => (
+                      <SelectItem key={method.id} value={method.id}>
+                        {method.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
+
               <div className="space-y-2">
                 <Label className="text-sm font-medium">
                   Amount <span className="text-destructive">*</span>
                 </Label>
+
                 <Input
                   type="number"
                   value={paymentAmount}
-                  onChange={(e) => setPaymentAmount(e.target.value)}
+                  onChange={(event) => setPaymentAmount(event.target.value)}
                   className="h-9 w-full"
                 />
               </div>
@@ -1812,16 +2007,64 @@ export function RegistrationIntakeWorkflow({
               />
             </div>
 
-            <Button
-              type="button"
-              onClick={() => void handleRecordPayment()}
-              disabled={
-                submitting || !payerId || !paymentMethodId || !paymentAmount
-              }
-            >
-              {submitting ? <Loader className="h-4 w-4 animate-spin" /> : null}
-              Record payment
-            </Button>
+            {!hasInvoice ? (
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  onClick={() => void handleCreateInvoice()}
+                  disabled={submitting || !registrationDiscountValid}
+                >
+                  {submitting ? (
+                    <Loader className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <FileUp className="h-4 w-4" />
+                  )}
+                  Create invoice
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setFinanceFormOpen(false)}
+                  disabled={submitting}
+                >
+                  Cancel
+                </Button>
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => void handleUpdateRegistrationDiscount()}
+                  disabled={
+                    submitting ||
+                    !registrationDiscountValid ||
+                    discountConflictsWithPayments
+                  }
+                >
+                  Save discount
+                </Button>
+
+                {outstandingBalance > 0 && (
+                  <Button
+                    type="button"
+                    onClick={() => void handleRecordPayment()}
+                    disabled={
+                      submitting ||
+                      !payerId ||
+                      !paymentMethodId ||
+                      !paymentAmount
+                    }
+                  >
+                    {submitting ? (
+                      <Loader className="h-4 w-4 animate-spin" />
+                    ) : null}
+                    Record payment
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
         )}
 

@@ -12,7 +12,8 @@ import { createZodDto } from '../../../../shared/infrastructure/validation/zod-d
  *   `InvoicesService` from `invoice_line_items` and `discount_amount`.
  */
 
-const ulidSchema = z.string().ulid();
+const ulidSchema = z.ulid();
+const discountTypeSchema = z.enum(['FIXED', 'PERCENT']);
 
 const optionalUlid = z
   .union([ulidSchema, z.literal('')])
@@ -36,6 +37,10 @@ const createInvoiceSchema = z.object({
   registration_id: ulidSchema,
   invoice_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   due_date: optionalDate,
+  discount_type: discountTypeSchema.optional(),
+  discount_value: z.coerce.number().min(0).optional(),
+
+  /** @deprecated Use discount_type and discount_value. */
   discount_amount: z.coerce.number().min(0).default(0),
   notes: z.string().optional(),
   line_items: z.array(invoiceLineItemInputSchema).min(1),
@@ -43,6 +48,10 @@ const createInvoiceSchema = z.object({
 
 const updateInvoiceSchema = z.object({
   due_date: optionalDate,
+  discount_type: discountTypeSchema.optional(),
+  discount_value: z.coerce.number().min(0).optional(),
+
+  /** @deprecated Use discount_type and discount_value. */
   discount_amount: z.coerce.number().min(0).optional(),
   notes: z.string().optional(),
 });

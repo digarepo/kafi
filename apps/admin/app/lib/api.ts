@@ -859,6 +859,10 @@ export interface RegistrationOperationalSummary extends Registration {
     invoice_number: string;
     invoice_date: string;
     due_date: string | null;
+    subtotal: number | string;
+    discount_type: 'FIXED' | 'PERCENT';
+    discount_value: number | string;
+    discount_amount: number | string;
     total_amount: number | string;
     outstanding_balance: number;
     status: { id: string; code: string; name: string } | null;
@@ -1299,6 +1303,8 @@ export interface Invoice {
   invoice_date: string;
   due_date: string | null;
   subtotal: string | number;
+  discount_type: 'FIXED' | 'PERCENT';
+  discount_value: string | number;
   discount_amount: string | number;
   total_amount: string | number;
   currency_id: string;
@@ -1329,14 +1335,24 @@ export interface CreateInvoiceInput {
   registration_id: string;
   invoice_date: string;
   due_date?: string;
+  discount_type?: 'FIXED' | 'PERCENT';
+  discount_value?: number;
+
+  /** @deprecated Use discount_type and discount_value. */
   discount_amount?: number;
+
   notes?: string;
   line_items: CreateInvoiceLineItemInput[];
 }
 
 export interface UpdateInvoiceInput {
   due_date?: string | null;
+  discount_type?: 'FIXED' | 'PERCENT';
+  discount_value?: number;
+
+  /** @deprecated Use discount_type and discount_value. */
   discount_amount?: number;
+
   notes?: string;
 }
 

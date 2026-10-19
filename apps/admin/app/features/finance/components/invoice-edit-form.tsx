@@ -20,6 +20,11 @@ import {
   CardTitle,
   Input,
   Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   Textarea,
 } from '@kafi/ui';
 
@@ -36,7 +41,10 @@ function buildDefaultValues(
 ): InvoiceEditFormValues {
   return {
     due_date: invoice.due_date ?? '',
-    discount_amount: String(invoice.discount_amount ?? '0'),
+    discount_type: invoice.discount_type ?? 'FIXED',
+    discount_value: String(
+      invoice.discount_value ?? invoice.discount_amount ?? '0',
+    ),
     notes: invoice.notes ?? '',
   };
 }
@@ -59,9 +67,8 @@ export function InvoiceEditForm({
     onSubmit: async ({ value }) => {
       await onSubmit({
         due_date: value.due_date || null,
-        discount_amount: value.discount_amount
-          ? Number(value.discount_amount)
-          : undefined,
+        discount_type: value.discount_type,
+        discount_value: Number(value.discount_value),
         notes: value.notes || undefined,
       });
       form.reset();
@@ -73,6 +80,28 @@ export function InvoiceEditForm({
   }, [defaultValues, form]);
 
   const isSubmitting = useSelector(form.store, (state) => state.isSubmitting);
+
+  const formValues = useSelector(form.store, (state) => state.values);
+  const subtotal = Number(invoice.subtotal);
+  const discountValue = Number(formValues.discount_value || 0);
+
+  const discountAmount =
+    formValues.discount_type === 'PERCENT'
+      ? Math.round(((subtotal * discountValue) / 100) * 100) / 100
+      : discountValue;
+
+  const discountValid =
+    Number.isFinite(discountValue) &&
+    discountValue >= 0 &&
+    (formValues.discount_type === 'PERCENT'
+      ? discountValue <= 100
+      : discountAmount <= subtotal);
+
+  const formatEtb = (amount: number) =>
+    `${amount.toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })} ETB`;
 
   return (
     <Card className="border-0 bg-transparent">
@@ -104,30 +133,98 @@ export function InvoiceEditForm({
             )}
           </form.Field>
 
-          <form.Field name="discount_amount">
-            {(field: AnyFieldApi) => (
-              <div className="space-y-2">
-                <Label
-                  htmlFor="discount_amount"
-                  className="text-sm font-medium"
-                >
-                  Discount (ETB)
-                </Label>
-                <Input
-                  id="discount_amount"
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  value={field.state.value ?? ''}
-                  onChange={(e) => field.handleChange(e.target.value)}
-                  onBlur={field.handleBlur}
-                  className="h-9 w-full"
-                  aria-invalid={field.state.meta.errors.length > 0}
-                />
-                <FieldError field={field} />
-              </div>
-            )}
-          </form.Field>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <form.Field name="discount_type">
+              {(field: AnyFieldApi) => (
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Discount type</Label>
+                  <Select
+                    value={field.state.value}
+                    onValueChange={(value) =>
+                      field.handleChange(
+                        (value ?? 'FIXED') as 'FIXED' | 'PERCENT',
+                      )
+                    }
+                  >
+                    <SelectTrigger className="h-9 w-full">
+                      <SelectValue>
+                        {field.state.value === 'PERCENT'
+                          ? 'Percentage (%)'
+                          : 'Fixed amount (ETB)'}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="FIXED">Fixed amount (ETB)</SelectItem>
+                      <SelectItem value="PERCENT">Percentage (%)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </form.Field>
+
+            <form.Field name="discount_value">
+              {(field: AnyFieldApi) => (
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="edit_discount_value"
+                    className="text-sm font-medium"
+                  >
+                    {formValues.discount_type === 'PERCENT'
+                      ? 'Discount percentage'
+                      : 'Discount amount (ETB)'}
+                  </Label>
+                  <Input
+                    id="edit_discount_value"
+                    type="number"
+                    min={0}
+                    max={
+                      formValues.discount_type === 'PERCENT' ? 100 : undefined
+                    }
+                    step="0.01"
+                    value={field.state.value ?? ''}
+                    onChange={(e) => field.handleChange(e.target.value)}
+                    onBlur={field.handleBlur}
+                    className="h-9 w-full"
+                    aria-invalid={
+                      field.state.meta.errors.length > 0 || !discountValid
+                    }
+                  />
+                  <FieldError field={field} />
+                  {!discountValid && (
+                    <p className="text-sm text-destructive">
+                      {formValues.discount_type === 'PERCENT'
+                        ? 'Enter a percentage between 0 and 100.'
+                        : 'Discount cannot exceed the invoice subtotal.'}
+                    </p>
+                  )}
+                </div>
+              )}
+            </form.Field>
+          </div>
+
+          <div className="space-y-2 rounded-md border bg-muted/30 p-4 text-sm">
+            <div className="flex justify-between gap-4">
+              <span className="text-muted-foreground">Subtotal</span>
+              <span>{formatEtb(subtotal)}</span>
+            </div>
+            <div className="flex justify-between gap-4">
+              <span className="text-muted-foreground">
+                Discount
+                {formValues.discount_type === 'PERCENT'
+                  ? ` (${discountValue}%)`
+                  : ''}
+              </span>
+              <span>− {formatEtb(discountAmount)}</span>
+            </div>
+            <div className="flex justify-between gap-4 border-t pt-2 font-semibold">
+              <span>Final total</span>
+              <span>
+                {discountValid
+                  ? formatEtb(subtotal - discountAmount)
+                  : 'Check discount value'}
+              </span>
+            </div>
+          </div>
 
           <form.Field name="notes">
             {(field: AnyFieldApi) => (
@@ -151,7 +248,7 @@ export function InvoiceEditForm({
       <CardFooter className="gap-3">
         <Button
           type="button"
-          disabled={isSubmitting}
+          disabled={isSubmitting || !discountValid}
           onClick={() => form.handleSubmit().catch(() => null)}
           className="h-9 flex-1"
         >

@@ -27,18 +27,49 @@ export type InvoiceLineItemFormSchema = z.infer<
   typeof invoiceLineItemFormSchema
 >;
 
-export const invoiceFormSchema = z.object({
-  registration_id: z.string().min(1, 'Registration is required'),
-  invoice_date: z.string().min(1, 'Invoice date is required'),
-  due_date: z.string(),
-  discount_amount: z
-    .string()
-    .refine((v) => v === '' || Number(v) >= 0, 'Discount must be 0 or greater'),
-  notes: z.string(),
-  line_items: z
-    .array(invoiceLineItemFormSchema)
-    .min(1, 'Add at least one line item'),
-});
+export const invoiceFormSchema = z
+  .object({
+    registration_id: z.string().min(1, 'Registration is required'),
+    invoice_date: z.string().min(1, 'Invoice date is required'),
+    due_date: z.string(),
+    discount_type: z.enum(['FIXED', 'PERCENT']),
+    discount_value: z
+      .string()
+      .refine(
+        (v) => v === '' || (Number.isFinite(Number(v)) && Number(v) >= 0),
+        'Discount must be zero or greater',
+      ),
+    notes: z.string(),
+    line_items: z
+      .array(invoiceLineItemFormSchema)
+      .min(1, 'Add at least one line item'),
+  })
+  .superRefine((data, ctx) => {
+    const subtotal = data.line_items.reduce((sum, item) => {
+      const lineTotal =
+        Math.round(Number(item.quantity) * Number(item.unit_price) * 100) / 100;
+      return sum + lineTotal;
+    }, 0);
+
+    const discountValue =
+      data.discount_value === '' ? 0 : Number(data.discount_value);
+
+    if (data.discount_type === 'PERCENT' && discountValue > 100) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Percentage discount cannot exceed 100%',
+        path: ['discount_value'],
+      });
+    }
+
+    if (data.discount_type === 'FIXED' && discountValue > subtotal) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Discount cannot exceed the invoice subtotal',
+        path: ['discount_value'],
+      });
+    }
+  });
 
 export type InvoiceFormSchema = z.infer<typeof invoiceFormSchema>;
 
@@ -51,7 +82,7 @@ export const payerFormSchema = z
     contact_name: z.string(),
     phone_number: z.string(),
     email_address: z.union([
-      z.string().email({ message: 'Invalid email' }),
+      z.email({ message: 'Invalid email' }),
       z.string().length(0),
     ]),
     notes: z.string(),
@@ -113,13 +144,30 @@ export const allocationFormSchema = z.object({
 
 export type AllocationFormSchema = z.infer<typeof allocationFormSchema>;
 
-export const invoiceEditFormSchema = z.object({
-  due_date: z.string(),
-  discount_amount: z
-    .string()
-    .refine((v) => v === '' || Number(v) >= 0, 'Discount must be 0 or greater'),
-  notes: z.string(),
-});
+export const invoiceEditFormSchema = z
+  .object({
+    due_date: z.string(),
+    discount_type: z.enum(['FIXED', 'PERCENT']),
+    discount_value: z
+      .string()
+      .refine(
+        (value) =>
+          value.trim() !== '' &&
+          Number.isFinite(Number(value)) &&
+          Number(value) >= 0,
+        'Enter a discount value of zero or greater',
+      ),
+    notes: z.string(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.discount_type === 'PERCENT' && Number(data.discount_value) > 100) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Percentage discount cannot exceed 100%',
+        path: ['discount_value'],
+      });
+    }
+  });
 
 export type InvoiceEditFormSchema = z.infer<typeof invoiceEditFormSchema>;
 
