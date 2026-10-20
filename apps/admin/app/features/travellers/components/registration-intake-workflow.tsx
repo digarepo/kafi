@@ -1701,30 +1701,6 @@ export function RegistrationIntakeWorkflow({
       Math.round(Math.max(0, discountBase - registrationDiscountAmount) * 100) /
       100;
 
-    const currentTotalInvoiced = Number(financeSummary?.total_invoiced ?? 0);
-
-    const currentOutstandingBalance = Number(
-      financeSummary?.outstanding_balance ?? 0,
-    );
-
-    const previousInvoiceTotal = Number(invoice?.total_amount ?? 0);
-
-    const projectedTotalInvoiced = invoice
-      ? Math.max(
-          0,
-          currentTotalInvoiced - previousInvoiceTotal + proposedInvoiceTotal,
-        )
-      : proposedInvoiceTotal;
-
-    const projectedOutstandingBalance = invoice
-      ? Math.max(
-          0,
-          currentOutstandingBalance -
-            previousInvoiceTotal +
-            proposedInvoiceTotal,
-        )
-      : proposedInvoiceTotal;
-
     const allocatedAmount = invoice
       ? Math.max(
           0,
@@ -1758,6 +1734,15 @@ export function RegistrationIntakeWorkflow({
               <span className="text-muted-foreground">Amount paid:</span>
               <span>{formatMoney(financeSummary?.total_paid)}</span>
             </div>
+            {invoice && Number(invoice.discount_amount) > 0 && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Discount:</span>
+                <span className="text-success">
+                  − {formatMoney(invoice.discount_amount)}{' '}
+                  {selectedPackage.currency?.code ?? ''}
+                </span>
+              </div>
+            )}
             <div className="flex justify-between">
               <span className="text-muted-foreground">
                 Outstanding balance:
@@ -1786,21 +1771,63 @@ export function RegistrationIntakeWorkflow({
         )}
 
         {hasInvoice && outstandingBalance <= 0 && !financeFormOpen && (
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setFinanceFormOpen(true)}
-            disabled={submitting}
-          >
-            Edit discount
-          </Button>
+          <div className="space-y-3">
+            <div className="rounded-md border bg-muted/30 p-4 text-sm">
+              <p className="text-success font-medium">
+                Payment complete. No outstanding balance.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setFinanceFormOpen(true)}
+              disabled={submitting}
+            >
+              Edit discount
+            </Button>
+          </div>
         )}
 
-        {(financeFormOpen || (hasInvoice && outstandingBalance > 0)) && (
+        {(financeFormOpen || hasInvoice) && (
           <div className="space-y-4 rounded-md border p-4">
             <h4 className="font-medium text-sm">
-              {hasInvoice ? 'Record payment' : 'Create invoice and payment'}
+              {hasInvoice ? 'Edit invoice or record payment' : 'Create invoice'}
             </h4>
+
+            {/* Show current invoice details when editing */}
+            {hasInvoice && invoice && (
+              <div className="space-y-2 rounded-md border bg-muted/30 p-4 text-sm">
+                <div className="flex justify-between gap-4">
+                  <span className="text-muted-foreground">Invoice number:</span>
+                  <span className="font-medium">{invoice.invoice_number}</span>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <span className="text-muted-foreground">Subtotal:</span>
+                  <span>
+                    {formatMoney(discountBase)}{' '}
+                    {selectedPackage?.currency?.code ?? ''}
+                  </span>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <span className="text-muted-foreground">
+                    Current discount:
+                  </span>
+                  <span>
+                    {invoice.discount_type === 'PERCENT'
+                      ? `${Number(invoice.discount_value)}%`
+                      : formatMoney(invoice.discount_amount)}{' '}
+                    {selectedPackage?.currency?.code ?? ''}
+                  </span>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <span className="text-muted-foreground">Current total:</span>
+                  <span className="font-medium">
+                    {formatMoney(invoice.total_amount)}{' '}
+                    {selectedPackage?.currency?.code ?? ''}
+                  </span>
+                </div>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label className="text-sm font-medium">
@@ -1933,7 +1960,7 @@ export function RegistrationIntakeWorkflow({
                 >
                   {registrationDiscountType === 'PERCENT'
                     ? 'Discount percentage'
-                    : `Discount amount (${currencyCode})`}
+                    : `Discount amount (${selectedPackage?.currency?.code ?? 'ETB'})`}
                 </Label>
 
                 <Input
@@ -1958,6 +1985,45 @@ export function RegistrationIntakeWorkflow({
                   </p>
                 )}
               </div>
+
+              {/* Discount preview when editing */}
+              {hasInvoice && (
+                <div className="space-y-2 rounded-md border bg-muted/30 p-4 text-sm">
+                  <div className="flex justify-between gap-4">
+                    <span className="text-muted-foreground">Subtotal</span>
+                    <span>
+                      {formatMoney(discountBase)} {currencyCode}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <span className="text-muted-foreground">
+                      New discount
+                      {registrationDiscountType === 'PERCENT'
+                        ? ` (${discountValue}%)`
+                        : ''}
+                    </span>
+                    <span>
+                      − {formatMoney(registrationDiscountAmount)} {currencyCode}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-4 border-t pt-2 font-semibold">
+                    <span>New total</span>
+                    <span>
+                      {registrationDiscountValid
+                        ? formatMoney(proposedInvoiceTotal)
+                        : 'Check discount value'}{' '}
+                      {currencyCode}
+                    </span>
+                  </div>
+                  {discountConflictsWithPayments && selectedPackage && (
+                    <p className="text-xs text-destructive">
+                      Cannot reduce total below allocated amount (
+                      {formatMoney(allocatedAmount)}{' '}
+                      {selectedPackage.currency?.code ?? ''})
+                    </p>
+                  )}
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label className="text-sm font-medium">
@@ -1993,8 +2059,17 @@ export function RegistrationIntakeWorkflow({
                   type="number"
                   value={paymentAmount}
                   onChange={(event) => setPaymentAmount(event.target.value)}
+                  placeholder={
+                    hasInvoice ? formatMoney(outstandingBalance) : ''
+                  }
                   className="h-9 w-full"
                 />
+                {hasInvoice && selectedPackage && (
+                  <p className="text-xs text-muted-foreground">
+                    Outstanding balance: {formatMoney(outstandingBalance)}{' '}
+                    {selectedPackage.currency?.code ?? ''}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -2008,29 +2083,64 @@ export function RegistrationIntakeWorkflow({
             </div>
 
             {!hasInvoice ? (
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  onClick={() => void handleCreateInvoice()}
-                  disabled={submitting || !registrationDiscountValid}
-                >
-                  {submitting ? (
-                    <Loader className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <FileUp className="h-4 w-4" />
-                  )}
-                  Create invoice
-                </Button>
+              <>
+                {/* Invoice creation preview */}
+                {selectedPackage && (
+                  <div className="space-y-2 rounded-md border bg-muted/30 p-4 text-sm">
+                    <div className="flex justify-between gap-4">
+                      <span className="text-muted-foreground">Subtotal</span>
+                      <span>
+                        {formatMoney(discountBase)} {currencyCode}
+                      </span>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <span className="text-muted-foreground">
+                        Discount
+                        {registrationDiscountType === 'PERCENT'
+                          ? ` (${discountValue}%)`
+                          : ''}
+                      </span>
+                      <span>
+                        − {formatMoney(registrationDiscountAmount)}{' '}
+                        {selectedPackage?.currency?.code ?? ''}
+                      </span>
+                    </div>
+                    <div className="flex justify-between gap-4 border-t pt-2 font-semibold">
+                      <span>Total</span>
+                      <span>
+                        {registrationDiscountValid
+                          ? formatMoney(proposedInvoiceTotal)
+                          : 'Check discount value'}{' '}
+                        {selectedPackage?.currency?.code ?? ''}
+                      </span>
+                    </div>
+                  </div>
+                )}
 
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => setFinanceFormOpen(false)}
-                  disabled={submitting}
-                >
-                  Cancel
-                </Button>
-              </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    onClick={() => void handleCreateInvoice()}
+                    disabled={submitting || !registrationDiscountValid}
+                  >
+                    {submitting ? (
+                      <Loader className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <FileUp className="h-4 w-4" />
+                    )}
+                    Create invoice
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => setFinanceFormOpen(false)}
+                    disabled={submitting}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </>
             ) : (
               <div className="flex flex-wrap gap-2">
                 <Button
