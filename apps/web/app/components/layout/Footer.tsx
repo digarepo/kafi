@@ -3,9 +3,9 @@ import {
   PhoneCallIcon,
   EnvelopeIcon,
   MapPinIcon,
-  FacebookLogo,
-  InstagramLogo,
-  TelegramLogo,
+  TelegramLogoIcon,
+  TiktokLogoIcon,
+  WhatsappLogoIcon,
 } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 
@@ -55,38 +55,41 @@ export function Footer() {
           <h2 className="font-heading text-xs font-bold text-foreground uppercase tracking-wider">
             Follow Us
           </h2>
+
           <ul className="space-y-2">
             <li>
               <a
-                href="https://t.me/kafitours"
+                href="https://t.me/kafitour"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="hover:text-accent transition-colors text-xs text-muted-foreground flex items-center gap-2"
+                className="flex items-center gap-2 text-xs text-muted-foreground transition-colors hover:text-accent"
               >
-                <TelegramLogo className="w-4 h-4 text-accent shrink-0" />
+                <TelegramLogoIcon className="h-4 w-4 shrink-0 text-accent" />
                 <span>Telegram</span>
               </a>
             </li>
+
             <li>
               <a
-                href="https://facebook.com/kafitours"
+                href="https://www.tiktok.com/@kafitour5"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="hover:text-accent transition-colors text-xs text-muted-foreground flex items-center gap-2"
+                className="flex items-center gap-2 text-xs text-muted-foreground transition-colors hover:text-accent"
               >
-                <FacebookLogo className="w-4 h-4 text-accent shrink-0" />
-                <span>Facebook</span>
+                <TiktokLogoIcon className="h-4 w-4 shrink-0 text-accent" />
+                <span>TikTok</span>
               </a>
             </li>
+
             <li>
               <a
-                href="https://instagram.com/kafitours"
+                href="https://wa.me/kafitour"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="hover:text-accent transition-colors text-xs text-muted-foreground flex items-center gap-2"
+                className="flex items-center gap-2 text-xs text-muted-foreground transition-colors hover:text-accent"
               >
-                <InstagramLogo className="w-4 h-4 text-accent shrink-0" />
-                <span>Instagram</span>
+                <WhatsappLogoIcon className="h-4 w-4 shrink-0 text-accent" />
+                <span>WhatsApp</span>
               </a>
             </li>
           </ul>
@@ -167,7 +170,7 @@ export function Footer() {
             <li className="flex items-center gap-1.5">
               <MapPinIcon className="w-4 h-4 text-accent shrink-0" />
               <a
-                href="https://www.google.com/maps/dir/?api=1&destination=9.013567%2C38.747418"
+                href="https://www.google.com/maps/dir/?api=1&destination=Kafi%20Tour%20and%20Travel%20Plc%2C%20Yobek%20Business%20Center%2C%20Addis%20Ababa%2C%20Ethiopia"
                 target="_blank"
                 rel="noopener noreferrer"
               >

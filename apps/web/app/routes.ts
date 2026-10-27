@@ -17,6 +17,7 @@ export default [
   route('about', 'routes/about.tsx'),
 
   route('faq', 'routes/faq.tsx'),
+  route('links', 'routes/links.tsx'),
 
   route('privacy', 'routes/privacy.tsx'),
   route('tos', 'routes/tos.tsx'),
