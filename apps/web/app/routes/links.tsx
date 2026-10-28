@@ -32,7 +32,7 @@ const socialLinks = [
   },
   {
     name: 'WhatsApp',
-    href: 'https://wa.me/kafitour',
+    href: 'https://wa.me/251930737337',
     Icon: WhatsappLogoIcon,
   },
   {
