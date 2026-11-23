@@ -202,6 +202,8 @@ export function RegistrationIntakeWorkflow({
   >([]);
   const [paymentMethodId, setPaymentMethodId] = useState('');
   const [paymentAmount, setPaymentAmount] = useState('');
+  // Invoice subtotal input — empty means "use the full package price".
+  const [invoiceAmount, setInvoiceAmount] = useState('');
   const [paymentReference, setPaymentReference] = useState('');
   const [showCustomPayerForm, setShowCustomPayerForm] = useState(false);
   const [customPayerName, setCustomPayerName] = useState('');
@@ -306,19 +308,37 @@ export function RegistrationIntakeWorkflow({
           } catch {
             // ignore
           }
-          // Load existing traveller contacts to restore linked contact
+          // Load existing traveller contacts to restore linked contact.
+          // Only a primary + ACTIVE contact satisfies the readiness gate —
+          // anything else must be re-linked so the flags get repaired.
           try {
-            const contacts = await api.listTravellerContacts(travellerId);
+            const [contacts, contactStatuses] = await Promise.all([
+              api.listTravellerContacts(travellerId),
+              api.listTravellerContactStatuses(),
+            ]);
             if (!cancelled) {
-              // Prefer primary/emergency contact, fall back to any active contact
-              const primary =
-                contacts.find(
-                  (c) => c.is_primary_contact || c.is_emergency_contact,
-                ) ?? contacts[0];
-              if (primary) {
-                linkedContact = primary.contact_person?.id ?? null;
+              const activeStatusId = contactStatuses.find(
+                (s) => s.status_code?.toUpperCase() === 'ACTIVE',
+              )?.id;
+              const satisfied = contacts.find(
+                (c) =>
+                  c.is_primary_contact &&
+                  (!activeStatusId || c.status?.id === activeStatusId),
+              );
+              if (satisfied) {
+                linkedContact = satisfied.contact_person?.id ?? null;
                 setLinkedContactId(linkedContact);
                 setSelectedContactId(linkedContact ?? '');
+              } else {
+                // A contact exists but doesn't satisfy readiness — preselect
+                // it so the Next action re-links and sets primary/emergency.
+                const fallback =
+                  contacts.find(
+                    (c) => c.is_primary_contact || c.is_emergency_contact,
+                  ) ?? contacts[0];
+                if (fallback) {
+                  setSelectedContactId(fallback.contact_person?.id ?? '');
+                }
               }
             }
           } catch {
@@ -754,13 +774,17 @@ export function RegistrationIntakeWorkflow({
         const existing = existingContacts.find(
           (c) => c.contact_person?.id === selectedContactId,
         );
-        if (existing) {
-          await api.updateTravellerContact(selectedTravellerId, existing.id, {
-            is_primary_contact: true,
-            is_emergency_contact: true,
-            traveller_contact_status_id: activeStatus.id,
-          });
+        if (!existing) {
+          toast.error(
+            'Could not update the existing contact link. Refresh and try again.',
+          );
+          return;
         }
+        await api.updateTravellerContact(selectedTravellerId, existing.id, {
+          is_primary_contact: true,
+          is_emergency_contact: true,
+          traveller_contact_status_id: activeStatus.id,
+        });
       }
       setLinkedContactId(selectedContactId);
       await loadRegistrationIntakeData();
@@ -848,10 +872,14 @@ export function RegistrationIntakeWorkflow({
           {
             description: `Package: ${selectedPackage.version_name}`,
             quantity: 1,
-            unit_price: selectedPackage.base_price,
+            unit_price:
+              Number(invoiceAmount) > 0
+                ? Number(invoiceAmount)
+                : selectedPackage.base_price,
           },
         ],
       });
+      setInvoiceAmount('');
       await loadRegistrationIntakeData();
     } catch (err) {
       toast.error(
@@ -956,9 +984,17 @@ export function RegistrationIntakeWorkflow({
     }
   }
 
-  async function handleRecordPayment() {
-    if (!registration || !payerId || !paymentMethodId || !paymentAmount) {
-      toast.error('Fill in payer, method, and amount');
+  async function handleRecordPayment(amountOverride?: number) {
+    const amount =
+      amountOverride ?? Number(paymentAmount);
+    if (
+      !registration ||
+      !payerId ||
+      !paymentMethodId ||
+      !Number.isFinite(amount) ||
+      amount <= 0
+    ) {
+      toast.error('Fill in payer, method, and a valid amount');
       return;
     }
     setSubmitting(true);
@@ -972,7 +1008,7 @@ export function RegistrationIntakeWorkflow({
         payer_id: payerId,
         payment_method_id: paymentMethodId,
         payment_date: today(),
-        original_amount: Number(paymentAmount),
+        original_amount: amount,
         original_currency_id: currencyId,
         exchange_rate: 1,
         reference_number: paymentReference || undefined,
@@ -983,7 +1019,7 @@ export function RegistrationIntakeWorkflow({
           allocations: [
             {
               invoice_id: operationalSummary.invoices[0].id,
-              allocated_amount: Number(paymentAmount),
+              allocated_amount: amount,
             },
           ],
         });
@@ -1004,11 +1040,31 @@ export function RegistrationIntakeWorkflow({
   }
 
   // Applies any pending discount change to the invoice, then records the
-  // payment against the (possibly newly discounted) total.
+  // payment against the (possibly newly discounted) outstanding balance.
   async function handlePaymentWithDiscount() {
     const invoice = operationalSummary?.invoices?.[0];
+
+    // Compute the outstanding balance as it will be after the pending
+    // discount is applied — the payment must be validated against this,
+    // not the stale pre-discount balance.
+    let postDiscountOutstanding = outstandingBalance;
     if (invoice) {
+      const subtotal = Number(invoice.subtotal);
       const value = Number(registrationDiscountValue || 0);
+      const discountAmt =
+        registrationDiscountType === 'PERCENT'
+          ? Math.round(((subtotal * value) / 100) * 100) / 100
+          : value;
+      const newTotal = Math.max(
+        0,
+        Math.round((subtotal - discountAmt) * 100) / 100,
+      );
+      const allocated = Math.max(
+        0,
+        Number(invoice.total_amount) - Number(invoice.outstanding_balance),
+      );
+      postDiscountOutstanding = Math.max(0, newTotal - allocated);
+
       const changed =
         registrationDiscountType !== invoice.discount_type ||
         value !== Number(invoice.discount_value);
@@ -1031,7 +1087,15 @@ export function RegistrationIntakeWorkflow({
         setSubmitting(false);
       }
     }
-    await handleRecordPayment();
+
+    const amount = Number(paymentAmount || postDiscountOutstanding);
+    if (paymentAmount !== '' && amount > postDiscountOutstanding + 0.005) {
+      toast.error(
+        `Amount exceeds the outstanding balance (${formatMoney(postDiscountOutstanding)})`,
+      );
+      return;
+    }
+    await handleRecordPayment(amount);
   }
 
   // ---- Step 7: Complete registration ----
@@ -1445,7 +1509,9 @@ export function RegistrationIntakeWorkflow({
 
         {selectedContactId && !linkedContactId && (
           <div className="rounded-md border p-3 text-sm">
-            <p className="text-muted-foreground mb-1">Selected contact:</p>
+            <p className="text-muted-foreground mb-1">
+              Selected contact (press Next to link as primary):
+            </p>
             {(() => {
               const c = contacts.find((x) => x.id === selectedContactId);
               return c
@@ -1708,8 +1774,13 @@ export function RegistrationIntakeWorkflow({
     const packagePrice = Number(selectedPackage?.base_price ?? 0);
     const invoice = operationalSummary?.invoices?.[0] ?? null;
 
-    // Use the invoice subtotal when editing an existing invoice.
-    const discountBase = Number(invoice?.subtotal ?? packagePrice);
+    // In create mode the subtotal is the editable invoice amount (defaulting
+    // to the package price); when editing it is the invoice's stored subtotal.
+    const createSubtotal =
+      invoiceAmount !== '' && Number.isFinite(Number(invoiceAmount))
+        ? Math.max(0, Number(invoiceAmount))
+        : packagePrice;
+    const discountBase = invoice ? Number(invoice.subtotal) : createSubtotal;
     const discountValue = Number(registrationDiscountValue || 0);
 
     const rawDiscountAmount =
@@ -1749,6 +1820,21 @@ export function RegistrationIntakeWorkflow({
       (registrationDiscountType !== invoice.discount_type ||
         Number(registrationDiscountValue || 0) !==
           Number(invoice.discount_value));
+
+    // Post-discount outstanding — what will remain owed if the pending
+    // discount is applied. Payments are validated against this, not the
+    // stale pre-discount balance.
+    const postDiscountOutstanding = invoice
+      ? Math.max(0, proposedInvoiceTotal - allocatedAmount)
+      : outstandingBalance;
+
+    // Payment amount defaults to the full outstanding balance; a typed value
+    // is a (possibly partial) override and must not exceed what is owed.
+    const paymentAmountInvalid =
+      paymentAmount !== '' &&
+      (!Number.isFinite(Number(paymentAmount)) ||
+        Number(paymentAmount) <= 0 ||
+        Number(paymentAmount) > postDiscountOutstanding + 0.005);
 
     return (
       <div className="mx-auto w-full max-w-3xl space-y-4">
@@ -1965,20 +2051,51 @@ export function RegistrationIntakeWorkflow({
                   <Label className="text-sm font-medium">
                     Amount <span className="text-destructive">*</span>
                   </Label>
-                  <Input
-                    type="number"
-                    value={paymentAmount}
-                    onChange={(event) => setPaymentAmount(event.target.value)}
-                    placeholder={
-                      hasInvoice ? formatMoney(outstandingBalance) : ''
-                    }
-                    className="h-9 w-full"
-                  />
-                  {hasInvoice && selectedPackage && (
-                    <p className="text-xs text-muted-foreground">
-                      Outstanding balance: {formatMoney(outstandingBalance)}{' '}
-                      {selectedPackage.currency?.code ?? ''}
-                    </p>
+                  {hasInvoice ? (
+                    <>
+                      <Input
+                        type="number"
+                        value={
+                          paymentAmount === ''
+                            ? String(postDiscountOutstanding)
+                            : paymentAmount
+                        }
+                        onChange={(event) =>
+                          setPaymentAmount(event.target.value)
+                        }
+                        min={0}
+                        className="h-9 w-full"
+                        aria-invalid={paymentAmountInvalid}
+                      />
+                      {paymentAmountInvalid ? (
+                        <p className="text-xs text-destructive">
+                          Amount must be between 0 and the outstanding balance
+                          ({formatMoney(postDiscountOutstanding)} {currencyCode}
+                          ).
+                        </p>
+                      ) : (
+                        <p className="text-xs text-muted-foreground">
+                          Defaults to the full outstanding balance — lower it
+                          only for a partial payment.
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <Input
+                        type="number"
+                        value={invoiceAmount}
+                        onChange={(event) =>
+                          setInvoiceAmount(event.target.value)
+                        }
+                        placeholder={String(packagePrice)}
+                        min={0}
+                        className="h-9 w-full"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Invoice amount — defaults to the full package price.
+                      </p>
+                    </>
                   )}
                 </div>
 
@@ -2079,13 +2196,7 @@ export function RegistrationIntakeWorkflow({
                         New outstanding
                       </span>
                       <span>
-                        {formatMoney(
-                          Math.max(
-                            0,
-                            proposedInvoiceTotal - allocatedAmount,
-                          ),
-                        )}{' '}
-                        {currencyCode}
+                        {formatMoney(postDiscountOutstanding)} {currencyCode}
                       </span>
                     </div>
                   )}
@@ -2134,7 +2245,8 @@ export function RegistrationIntakeWorkflow({
                       submitting ||
                       !payerId ||
                       !paymentMethodId ||
-                      !paymentAmount ||
+                      postDiscountOutstanding <= 0 ||
+                      paymentAmountInvalid ||
                       !registrationDiscountValid ||
                       discountConflictsWithPayments
                     }
@@ -2145,7 +2257,7 @@ export function RegistrationIntakeWorkflow({
                     Record payment
                   </Button>
                 )}
-                {outstandingBalance <= 0 && discountChanged && (
+                {discountChanged && (
                   <Button
                     type="button"
                     onClick={() => void handleUpdateRegistrationDiscount()}
@@ -2287,9 +2399,12 @@ export function RegistrationIntakeWorkflow({
       },
       {
         label: 'Emergency contact',
-        satisfied: !!linkedContactId || !!selectedContactId,
-        detail:
-          linkedContactId || selectedContactId ? 'Contact linked' : 'Missing',
+        satisfied: !!linkedContactId,
+        detail: linkedContactId
+          ? 'Primary contact linked'
+          : selectedContactId
+            ? 'Selected — go back and link it'
+            : 'Missing',
       },
       {
         label: 'Guarantee',
