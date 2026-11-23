@@ -43,7 +43,7 @@ export function useLogin() {
         const message =
           err instanceof ApiError
             ? err.message
-            : 'Login failed. Please check your credentials and try again.';
+            : 'Unable to reach the server. Check your connection and try again.';
         toast.error(message);
       }
     },

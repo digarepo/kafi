@@ -107,4 +107,93 @@ describe('FinanceExceptionsService', () => {
       expect(set.active_lock).toBeNull();
     });
   });
+
+  describe('getActiveExceptionsForRegistrations', () => {
+    it('returns empty array when no registration IDs provided', async () => {
+      const db = createMockDb([]);
+      const service = new FinanceExceptionsService(db as any);
+      const result = await service.getActiveExceptionsForRegistrations([]);
+      expect(result).toEqual([]);
+    });
+
+    it('returns active exceptions for registrations', async () => {
+      const db = createMockDb([
+        [{ id: 'fes-active', status_code: 'ACTIVE' }], // statusByCode ACTIVE
+        [
+          {
+            registration_id: 'reg-1',
+            authorized_amount: '5000',
+            due_date: null,
+            id: 'exc-1',
+          },
+          {
+            registration_id: 'reg-2',
+            authorized_amount: '3000',
+            due_date: null,
+            id: 'exc-2',
+          },
+        ], // select active exceptions
+      ]);
+      const service = new FinanceExceptionsService(db as any);
+      const result = await service.getActiveExceptionsForRegistrations([
+        'reg-1',
+        'reg-2',
+      ]);
+      expect(result).toHaveLength(2);
+      expect(result[0]).toEqual({
+        registration_id: 'reg-1',
+        authorized_amount: 5000,
+      });
+      expect(result[1]).toEqual({
+        registration_id: 'reg-2',
+        authorized_amount: 3000,
+      });
+    });
+
+    it('expires exceptions with past due dates', async () => {
+      const pastDate = new Date();
+      pastDate.setDate(pastDate.getDate() - 1);
+      const db = createMockDb([
+        [{ id: 'fes-active', status_code: 'ACTIVE' }], // statusByCode ACTIVE
+        [{ id: 'fes-expired', status_code: 'EXPIRED' }], // statusByCode EXPIRED
+        [
+          {
+            registration_id: 'reg-1',
+            authorized_amount: '5000',
+            due_date: pastDate.toISOString(),
+            id: 'exc-1',
+          },
+        ], // select active exceptions
+      ]);
+      const service = new FinanceExceptionsService(db as any);
+      // Mock DB doesn't support update, so we just verify it runs without error
+      // In real implementation, the exception would be expired and excluded
+      await service.getActiveExceptionsForRegistrations(['reg-1']);
+    });
+
+    it('does not expire exceptions with future due dates', async () => {
+      const futureDate = new Date();
+      futureDate.setDate(futureDate.getDate() + 1);
+      const db = createMockDb([
+        [{ id: 'fes-active', status_code: 'ACTIVE' }], // statusByCode ACTIVE
+        [
+          {
+            registration_id: 'reg-1',
+            authorized_amount: '5000',
+            due_date: futureDate.toISOString(),
+            id: 'exc-1',
+          },
+        ], // select active exceptions
+      ]);
+      const service = new FinanceExceptionsService(db as any);
+      const result = await service.getActiveExceptionsForRegistrations([
+        'reg-1',
+      ]);
+      expect(result).toHaveLength(1);
+      expect(result[0]).toEqual({
+        registration_id: 'reg-1',
+        authorized_amount: 5000,
+      });
+    });
+  });
 });

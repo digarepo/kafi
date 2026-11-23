@@ -167,6 +167,15 @@ export const invoices = mysqlTable(
     invoice_date: datetime('invoice_date', { mode: 'date' }).notNull(),
     due_date: datetime('due_date', { mode: 'date' }),
     subtotal: decimal('subtotal', { precision: 18, scale: 2 }).notNull(),
+    discount_type: varchar('discount_type', { length: 20 })
+      .notNull()
+      .default('FIXED'),
+    discount_value: decimal('discount_value', {
+      precision: 18,
+      scale: 2,
+    })
+      .notNull()
+      .default('0'),
     discount_amount: decimal('discount_amount', { precision: 18, scale: 2 })
       .notNull()
       .default('0'),

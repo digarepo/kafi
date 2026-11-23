@@ -7,18 +7,33 @@
 import { getPerformanceMode } from '../dev/performance-mode';
 
 const API_BASE_URL = (() => {
-  if (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL as string;
-  }
+  const envUrl =
+    typeof import.meta !== 'undefined'
+      ? (import.meta.env?.VITE_API_URL as string | undefined)
+      : undefined;
 
   // When accessing the dev server from another device on the network (e.g. a
-  // phone), "localhost" points to that device, so derive the API host from the
-  // page's current hostname instead.
+  // phone), a "localhost" API URL would point to that device, not the machine
+  // running the API. In that case derive the API host from the page's current
+  // hostname instead.
   if (typeof window !== 'undefined') {
-    return `${window.location.protocol}//${window.location.hostname}:4000`;
+    try {
+      const pageHost = window.location.hostname;
+      const envHost = envUrl ? new URL(envUrl).hostname : null;
+      const envIsLocal = envHost === 'localhost' || envHost === '127.0.0.1';
+      if (envUrl && (!envIsLocal || envHost === pageHost)) return envUrl;
+      if (envUrl && envIsLocal && envHost !== pageHost) {
+        const url = new URL(envUrl);
+        url.hostname = pageHost;
+        return url.origin;
+      }
+      return `${window.location.protocol}//${pageHost}:4000`;
+    } catch {
+      return envUrl ?? 'http://localhost:4000';
+    }
   }
 
-  return 'http://localhost:4000';
+  return envUrl ?? 'http://localhost:4000';
 })();
 
 /**
@@ -859,6 +874,10 @@ export interface RegistrationOperationalSummary extends Registration {
     invoice_number: string;
     invoice_date: string;
     due_date: string | null;
+    subtotal: number | string;
+    discount_type: 'FIXED' | 'PERCENT';
+    discount_value: number | string;
+    discount_amount: number | string;
     total_amount: number | string;
     outstanding_balance: number;
     status: { id: string; code: string; name: string } | null;
@@ -1299,6 +1318,8 @@ export interface Invoice {
   invoice_date: string;
   due_date: string | null;
   subtotal: string | number;
+  discount_type: 'FIXED' | 'PERCENT';
+  discount_value: string | number;
   discount_amount: string | number;
   total_amount: string | number;
   currency_id: string;
@@ -1329,14 +1350,24 @@ export interface CreateInvoiceInput {
   registration_id: string;
   invoice_date: string;
   due_date?: string;
+  discount_type?: 'FIXED' | 'PERCENT';
+  discount_value?: number;
+
+  /** @deprecated Use discount_type and discount_value. */
   discount_amount?: number;
+
   notes?: string;
   line_items: CreateInvoiceLineItemInput[];
 }
 
 export interface UpdateInvoiceInput {
   due_date?: string | null;
+  discount_type?: 'FIXED' | 'PERCENT';
+  discount_value?: number;
+
+  /** @deprecated Use discount_type and discount_value. */
   discount_amount?: number;
+
   notes?: string;
 }
 
