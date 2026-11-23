@@ -1003,6 +1003,37 @@ export function RegistrationIntakeWorkflow({
     }
   }
 
+  // Applies any pending discount change to the invoice, then records the
+  // payment against the (possibly newly discounted) total.
+  async function handlePaymentWithDiscount() {
+    const invoice = operationalSummary?.invoices?.[0];
+    if (invoice) {
+      const value = Number(registrationDiscountValue || 0);
+      const changed =
+        registrationDiscountType !== invoice.discount_type ||
+        value !== Number(invoice.discount_value);
+      if (changed) {
+        setSubmitting(true);
+        try {
+          await api.updateInvoice(invoice.id, {
+            discount_type: registrationDiscountType,
+            discount_value: value,
+          });
+        } catch (err) {
+          toast.error(
+            err instanceof Error
+              ? err.message
+              : 'Failed to update invoice discount',
+          );
+          setSubmitting(false);
+          return;
+        }
+        setSubmitting(false);
+      }
+    }
+    await handleRecordPayment();
+  }
+
   // ---- Step 7: Complete registration ----
   async function handleCompleteRegistration() {
     if (!registration) return;
@@ -1713,7 +1744,11 @@ export function RegistrationIntakeWorkflow({
 
     const currencyCode = selectedPackage?.currency?.code ?? 'ETB';
 
-    // Keep your existing return (...) and JSX below this line.
+    const discountChanged =
+      !!invoice &&
+      (registrationDiscountType !== invoice.discount_type ||
+        Number(registrationDiscountValue || 0) !==
+          Number(invoice.discount_value));
 
     return (
       <div className="mx-auto w-full max-w-3xl space-y-4">
@@ -1734,15 +1769,13 @@ export function RegistrationIntakeWorkflow({
               <span className="text-muted-foreground">Amount paid:</span>
               <span>{formatMoney(financeSummary?.total_paid)}</span>
             </div>
-            {invoice && Number(invoice.discount_amount) > 0 && (
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Discount:</span>
-                <span className="text-success">
-                  − {formatMoney(invoice.discount_amount)}{' '}
-                  {selectedPackage.currency?.code ?? ''}
-                </span>
-              </div>
-            )}
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Discount:</span>
+              <span className="text-success">
+                − {formatMoney(invoice?.discount_amount ?? 0)}{' '}
+                {selectedPackage.currency?.code ?? ''}
+              </span>
+            </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">
                 Outstanding balance:
@@ -1789,205 +1822,230 @@ export function RegistrationIntakeWorkflow({
         )}
 
         {(financeFormOpen || hasInvoice) && (
-          <div className="space-y-4 rounded-md border p-4">
+          <div className="space-y-6 rounded-md border p-4">
             <h4 className="font-medium text-sm">
-              {hasInvoice ? 'Edit invoice or record payment' : 'Create invoice'}
+              {hasInvoice ? 'Record payment' : 'Create invoice'}
             </h4>
 
-            {/* Show current invoice details when editing */}
-            {hasInvoice && invoice && (
-              <div className="space-y-2 rounded-md border bg-muted/30 p-4 text-sm">
-                <div className="flex justify-between gap-4">
-                  <span className="text-muted-foreground">Invoice number:</span>
-                  <span className="font-medium">{invoice.invoice_number}</span>
-                </div>
-                <div className="flex justify-between gap-4">
-                  <span className="text-muted-foreground">Subtotal:</span>
-                  <span>
-                    {formatMoney(discountBase)}{' '}
-                    {selectedPackage?.currency?.code ?? ''}
-                  </span>
-                </div>
-                <div className="flex justify-between gap-4">
-                  <span className="text-muted-foreground">
-                    Current discount:
-                  </span>
-                  <span>
-                    {invoice.discount_type === 'PERCENT'
-                      ? `${Number(invoice.discount_value)}%`
-                      : formatMoney(invoice.discount_amount)}{' '}
-                    {selectedPackage?.currency?.code ?? ''}
-                  </span>
-                </div>
-                <div className="flex justify-between gap-4">
-                  <span className="text-muted-foreground">Current total:</span>
-                  <span className="font-medium">
-                    {formatMoney(invoice.total_amount)}{' '}
-                    {selectedPackage?.currency?.code ?? ''}
-                  </span>
-                </div>
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">
-                Payer <span className="text-destructive">*</span>
-              </Label>
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                <Select
-                  value={payerId ?? ''}
-                  onValueChange={(v) => setPayerId(v ?? '')}
-                >
-                  <SelectTrigger
-                    className={cn('h-9 w-full', 'w-full sm:flex-1')}
+            {/* Payer & payment details */}
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">
+                  Payer <span className="text-destructive">*</span>
+                </Label>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <Select
+                    value={payerId ?? ''}
+                    onValueChange={(v) => setPayerId(v ?? '')}
                   >
-                    <SelectValue>
+                    <SelectTrigger
+                      className={cn('h-9 w-full', 'w-full sm:flex-1')}
+                    >
+                      <SelectValue>
+                        {payers
+                          .map((p) => ({
+                            value: p.id,
+                            label: `${p.contact_name ?? p.payer_number}`,
+                          }))
+                          .find((o) => o.value === payerId)?.label ??
+                          'Select payer'}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
                       {payers
                         .map((p) => ({
                           value: p.id,
                           label: `${p.contact_name ?? p.payer_number}`,
                         }))
-                        .find((o) => o.value === payerId)?.label ??
-                        'Select payer'}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {payers
-                      .map((p) => ({
-                        value: p.id,
-                        label: `${p.contact_name ?? p.payer_number}`,
-                      }))
-                      .map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => void handleCreatePayer(true)}
-                    disabled={submitting}
-                  >
-                    Use traveller
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowCustomPayerForm((v) => !v)}
-                    disabled={submitting}
-                  >
-                    <Plus className="h-4 w-4" />
-                    Other payer
-                  </Button>
-                </div>
-              </div>
-              {showCustomPayerForm && (
-                <div className="space-y-2 rounded-md border p-3">
-                  <div className="grid gap-2 md:grid-cols-2">
-                    <div className="space-y-1">
-                      <Label className="xs">Payer name</Label>
-                      <Input
-                        value={customPayerName}
-                        onChange={(e) => setCustomPayerName(e.target.value)}
-                        placeholder="Full name"
-                        className="h-9"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Phone number</Label>
-                      <Input
-                        value={customPayerPhone}
-                        onChange={(e) => setCustomPayerPhone(e.target.value)}
-                        placeholder="Phone number"
-                        className="h-9"
-                      />
-                    </div>
+                        .map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => void handleCreatePayer(true)}
+                      disabled={submitting}
+                    >
+                      Use traveller
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowCustomPayerForm((v) => !v)}
+                      disabled={submitting}
+                    >
+                      <Plus className="h-4 w-4" />
+                      Other payer
+                    </Button>
                   </div>
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={() => void handleCreatePayer(false)}
-                    disabled={
-                      submitting || !customPayerName || !customPayerPhone
-                    }
-                  >
-                    Create payer
-                  </Button>
                 </div>
-              )}
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Discount type</Label>
-
-                <div className="flex h-9 flex-wrap items-center gap-x-4 gap-y-2">
-                  <label className="flex cursor-pointer items-center gap-2 text-sm">
-                    <input
-                      type="radio"
-                      name="registration-discount-type"
-                      value="FIXED"
-                      checked={registrationDiscountType === 'FIXED'}
-                      onChange={() => setRegistrationDiscountType('FIXED')}
-                      className="h-4 w-4 accent-primary"
-                    />
-                    Fixed amount
-                  </label>
-
-                  <label className="flex cursor-pointer items-center gap-2 text-sm">
-                    <input
-                      type="radio"
-                      name="registration-discount-type"
-                      value="PERCENT"
-                      checked={registrationDiscountType === 'PERCENT'}
-                      onChange={() => setRegistrationDiscountType('PERCENT')}
-                      className="h-4 w-4 accent-primary"
-                    />
-                    Percentage
-                  </label>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label
-                  htmlFor="registration-discount-value"
-                  className="text-sm font-medium"
-                >
-                  {registrationDiscountType === 'PERCENT'
-                    ? 'Discount percentage'
-                    : `Discount amount (${selectedPackage?.currency?.code ?? 'ETB'})`}
-                </Label>
-
-                <Input
-                  id="registration-discount-value"
-                  type="number"
-                  min={0}
-                  max={registrationDiscountType === 'PERCENT' ? 100 : undefined}
-                  step="0.01"
-                  value={registrationDiscountValue}
-                  onChange={(event) =>
-                    setRegistrationDiscountValue(event.target.value)
-                  }
-                  className="h-9 w-full"
-                  aria-invalid={!registrationDiscountValid}
-                />
-
-                {!registrationDiscountValid && (
-                  <p className="text-sm text-destructive">
-                    {registrationDiscountType === 'PERCENT'
-                      ? 'Percentage must be between 0 and 100.'
-                      : 'Discount cannot exceed the invoice subtotal.'}
-                  </p>
+                {showCustomPayerForm && (
+                  <div className="space-y-2 rounded-md border p-3">
+                    <div className="grid gap-2 md:grid-cols-2">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Payer name</Label>
+                        <Input
+                          value={customPayerName}
+                          onChange={(e) => setCustomPayerName(e.target.value)}
+                          placeholder="Full name"
+                          className="h-9"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Phone number</Label>
+                        <Input
+                          value={customPayerPhone}
+                          onChange={(e) => setCustomPayerPhone(e.target.value)}
+                          placeholder="Phone number"
+                          className="h-9"
+                        />
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => void handleCreatePayer(false)}
+                      disabled={
+                        submitting || !customPayerName || !customPayerPhone
+                      }
+                    >
+                      Create payer
+                    </Button>
+                  </div>
                 )}
               </div>
 
-              {/* Discount preview when editing */}
-              {hasInvoice && (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">
+                    Payment method <span className="text-destructive">*</span>
+                  </Label>
+                  <Select
+                    value={paymentMethodId ?? ''}
+                    onValueChange={(v) => setPaymentMethodId(v ?? '')}
+                  >
+                    <SelectTrigger className="h-9 w-full">
+                      <SelectValue>
+                        {paymentMethods.find((m) => m.id === paymentMethodId)
+                          ?.name ?? 'Select method'}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {paymentMethods.map((method) => (
+                        <SelectItem key={method.id} value={method.id}>
+                          {method.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Reference number</Label>
+                  <Input
+                    value={paymentReference}
+                    onChange={(e) => setPaymentReference(e.target.value)}
+                    className="h-9 w-full"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Amount & discount */}
+            <div className="space-y-4 border-t pt-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">
+                    Amount <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    type="number"
+                    value={paymentAmount}
+                    onChange={(event) => setPaymentAmount(event.target.value)}
+                    placeholder={
+                      hasInvoice ? formatMoney(outstandingBalance) : ''
+                    }
+                    className="h-9 w-full"
+                  />
+                  {hasInvoice && selectedPackage && (
+                    <p className="text-xs text-muted-foreground">
+                      Outstanding balance: {formatMoney(outstandingBalance)}{' '}
+                      {selectedPackage.currency?.code ?? ''}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Discount type</Label>
+                  <div className="flex h-9 flex-wrap items-center gap-x-4 gap-y-2">
+                    <label className="flex cursor-pointer items-center gap-2 text-sm">
+                      <input
+                        type="radio"
+                        name="registration-discount-type"
+                        value="FIXED"
+                        checked={registrationDiscountType === 'FIXED'}
+                        onChange={() => setRegistrationDiscountType('FIXED')}
+                        className="h-4 w-4 accent-primary"
+                      />
+                      Fixed amount
+                    </label>
+                    <label className="flex cursor-pointer items-center gap-2 text-sm">
+                      <input
+                        type="radio"
+                        name="registration-discount-type"
+                        value="PERCENT"
+                        checked={registrationDiscountType === 'PERCENT'}
+                        onChange={() => setRegistrationDiscountType('PERCENT')}
+                        className="h-4 w-4 accent-primary"
+                      />
+                      Percentage
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="registration-discount-value"
+                    className="text-sm font-medium"
+                  >
+                    {registrationDiscountType === 'PERCENT'
+                      ? 'Discount percentage'
+                      : `Discount amount (${selectedPackage?.currency?.code ?? 'ETB'})`}
+                  </Label>
+                  <Input
+                    id="registration-discount-value"
+                    type="number"
+                    min={0}
+                    max={registrationDiscountType === 'PERCENT' ? 100 : undefined}
+                    step="0.01"
+                    value={registrationDiscountValue}
+                    onChange={(event) =>
+                      setRegistrationDiscountValue(event.target.value)
+                    }
+                    className="h-9 w-full"
+                    aria-invalid={!registrationDiscountValid}
+                  />
+                  {!registrationDiscountValid && (
+                    <p className="text-sm text-destructive">
+                      {registrationDiscountType === 'PERCENT'
+                        ? 'Percentage must be between 0 and 100.'
+                        : 'Discount cannot exceed the invoice subtotal.'}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Real-time invoice preview */}
+              {selectedPackage && (
                 <div className="space-y-2 rounded-md border bg-muted/30 p-4 text-sm">
                   <div className="flex justify-between gap-4">
                     <span className="text-muted-foreground">Subtotal</span>
@@ -1997,7 +2055,7 @@ export function RegistrationIntakeWorkflow({
                   </div>
                   <div className="flex justify-between gap-4">
                     <span className="text-muted-foreground">
-                      New discount
+                      Discount
                       {registrationDiscountType === 'PERCENT'
                         ? ` (${discountValue}%)`
                         : ''}
@@ -2007,7 +2065,7 @@ export function RegistrationIntakeWorkflow({
                     </span>
                   </div>
                   <div className="flex justify-between gap-4 border-t pt-2 font-semibold">
-                    <span>New total</span>
+                    <span>Invoice total</span>
                     <span>
                       {registrationDiscountValid
                         ? formatMoney(proposedInvoiceTotal)
@@ -2015,156 +2073,70 @@ export function RegistrationIntakeWorkflow({
                       {currencyCode}
                     </span>
                   </div>
-                  {discountConflictsWithPayments && selectedPackage && (
+                  {hasInvoice && (
+                    <div className="flex justify-between gap-4">
+                      <span className="text-muted-foreground">
+                        New outstanding
+                      </span>
+                      <span>
+                        {formatMoney(
+                          Math.max(
+                            0,
+                            proposedInvoiceTotal - allocatedAmount,
+                          ),
+                        )}{' '}
+                        {currencyCode}
+                      </span>
+                    </div>
+                  )}
+                  {discountConflictsWithPayments && (
                     <p className="text-xs text-destructive">
                       Cannot reduce total below allocated amount (
-                      {formatMoney(allocatedAmount)}{' '}
-                      {selectedPackage.currency?.code ?? ''})
+                      {formatMoney(allocatedAmount)} {currencyCode})
                     </p>
                   )}
                 </div>
               )}
-
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">
-                  Payment method <span className="text-destructive">*</span>
-                </Label>
-
-                <Select
-                  value={paymentMethodId ?? ''}
-                  onValueChange={(v) => setPaymentMethodId(v ?? '')}
-                >
-                  <SelectTrigger className="h-9 w-full">
-                    <SelectValue>
-                      {paymentMethods.find((m) => m.id === paymentMethodId)
-                        ?.name ?? 'Select method'}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {paymentMethods.map((method) => (
-                      <SelectItem key={method.id} value={method.id}>
-                        {method.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">
-                  Amount <span className="text-destructive">*</span>
-                </Label>
-
-                <Input
-                  type="number"
-                  value={paymentAmount}
-                  onChange={(event) => setPaymentAmount(event.target.value)}
-                  placeholder={
-                    hasInvoice ? formatMoney(outstandingBalance) : ''
-                  }
-                  className="h-9 w-full"
-                />
-                {hasInvoice && selectedPackage && (
-                  <p className="text-xs text-muted-foreground">
-                    Outstanding balance: {formatMoney(outstandingBalance)}{' '}
-                    {selectedPackage.currency?.code ?? ''}
-                  </p>
-                )}
-              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Reference number</Label>
-              <Input
-                value={paymentReference}
-                onChange={(e) => setPaymentReference(e.target.value)}
-                className="h-9 w-full"
-              />
-            </div>
-
+            {/* Actions */}
             {!hasInvoice ? (
-              <>
-                {/* Invoice creation preview */}
-                {selectedPackage && (
-                  <div className="space-y-2 rounded-md border bg-muted/30 p-4 text-sm">
-                    <div className="flex justify-between gap-4">
-                      <span className="text-muted-foreground">Subtotal</span>
-                      <span>
-                        {formatMoney(discountBase)} {currencyCode}
-                      </span>
-                    </div>
-                    <div className="flex justify-between gap-4">
-                      <span className="text-muted-foreground">
-                        Discount
-                        {registrationDiscountType === 'PERCENT'
-                          ? ` (${discountValue}%)`
-                          : ''}
-                      </span>
-                      <span>
-                        − {formatMoney(registrationDiscountAmount)}{' '}
-                        {selectedPackage?.currency?.code ?? ''}
-                      </span>
-                    </div>
-                    <div className="flex justify-between gap-4 border-t pt-2 font-semibold">
-                      <span>Total</span>
-                      <span>
-                        {registrationDiscountValid
-                          ? formatMoney(proposedInvoiceTotal)
-                          : 'Check discount value'}{' '}
-                        {selectedPackage?.currency?.code ?? ''}
-                      </span>
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    type="button"
-                    onClick={() => void handleCreateInvoice()}
-                    disabled={submitting || !registrationDiscountValid}
-                  >
-                    {submitting ? (
-                      <Loader className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <FileUp className="h-4 w-4" />
-                    )}
-                    Create invoice
-                  </Button>
-
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() => setFinanceFormOpen(false)}
-                    disabled={submitting}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </>
-            ) : (
               <div className="flex flex-wrap gap-2">
                 <Button
                   type="button"
-                  variant="outline"
-                  onClick={() => void handleUpdateRegistrationDiscount()}
-                  disabled={
-                    submitting ||
-                    !registrationDiscountValid ||
-                    discountConflictsWithPayments
-                  }
+                  onClick={() => void handleCreateInvoice()}
+                  disabled={submitting || !registrationDiscountValid}
                 >
-                  Save discount
+                  {submitting ? (
+                    <Loader className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <FileUp className="h-4 w-4" />
+                  )}
+                  Create invoice
                 </Button>
 
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setFinanceFormOpen(false)}
+                  disabled={submitting}
+                >
+                  Cancel
+                </Button>
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-2">
                 {outstandingBalance > 0 && (
                   <Button
                     type="button"
-                    onClick={() => void handleRecordPayment()}
+                    onClick={() => void handlePaymentWithDiscount()}
                     disabled={
                       submitting ||
                       !payerId ||
                       !paymentMethodId ||
-                      !paymentAmount
+                      !paymentAmount ||
+                      !registrationDiscountValid ||
+                      discountConflictsWithPayments
                     }
                   >
                     {submitting ? (
@@ -2173,6 +2145,30 @@ export function RegistrationIntakeWorkflow({
                     Record payment
                   </Button>
                 )}
+                {outstandingBalance <= 0 && discountChanged && (
+                  <Button
+                    type="button"
+                    onClick={() => void handleUpdateRegistrationDiscount()}
+                    disabled={
+                      submitting ||
+                      !registrationDiscountValid ||
+                      discountConflictsWithPayments
+                    }
+                  >
+                    {submitting ? (
+                      <Loader className="h-4 w-4 animate-spin" />
+                    ) : null}
+                    Update discount
+                  </Button>
+                )}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setFinanceFormOpen(false)}
+                  disabled={submitting}
+                >
+                  Cancel
+                </Button>
               </div>
             )}
           </div>
