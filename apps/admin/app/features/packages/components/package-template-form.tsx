@@ -109,8 +109,7 @@ export function PackageTemplateForm({
               {(field: AnyFieldApi) => (
                 <div className="space-y-2">
                   <Label htmlFor="name" className="text-sm font-medium">
-                    Name
-                  </Label>
+                    Name <span className="text-destructive">*</span></Label>
                   <Input
                     id="name"
                     value={field.state.value ?? ''}
@@ -146,7 +145,7 @@ export function PackageTemplateForm({
             <form.Field name="pilgrimage_type_id">
               {(field: AnyFieldApi) => (
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium">Travel type</Label>
+                  <Label className="text-sm font-medium">Travel type <span className="text-destructive">*</span></Label>
                   <Select
                     value={field.state.value ?? ''}
                     onValueChange={(value: string) => field.handleChange(value)}
@@ -176,7 +175,7 @@ export function PackageTemplateForm({
             <form.Field name="package_category_id">
               {(field: AnyFieldApi) => (
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium">Category</Label>
+                  <Label className="text-sm font-medium">Category <span className="text-destructive">*</span></Label>
                   <Select
                     value={field.state.value ?? ''}
                     onValueChange={(value: string) => field.handleChange(value)}
@@ -210,8 +209,7 @@ export function PackageTemplateForm({
                     htmlFor="default_duration_days"
                     className="text-sm font-medium"
                   >
-                    Default duration (days)
-                  </Label>
+                    Default duration (days) <span className="text-destructive">*</span></Label>
                   <Input
                     id="default_duration_days"
                     type="number"

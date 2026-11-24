@@ -79,7 +79,7 @@ export function PaymentAllocationDialog({
           )}
 
           <div className="space-y-2">
-            <Label className="text-sm font-medium">Invoice</Label>
+            <Label className="text-sm font-medium">Invoice <span className="text-destructive">*</span></Label>
             <Select
               value={invoiceId ?? ''}
               onValueChange={(v) => setInvoiceId(v ?? '')}
@@ -112,8 +112,7 @@ export function PaymentAllocationDialog({
 
           <div className="space-y-2">
             <Label htmlFor="allocated_amount" className="text-sm font-medium">
-              Allocated amount (ETB)
-            </Label>
+              Allocated amount (ETB) <span className="text-destructive">*</span></Label>
             <Input
               id="allocated_amount"
               type="number"

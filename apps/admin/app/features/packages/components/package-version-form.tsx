@@ -204,7 +204,7 @@ export function PackageVersionForm({
             <form.Field name="package_template_id">
               {(field: AnyFieldApi) => (
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium">Template</Label>
+                  <Label className="text-sm font-medium">Template <span className="text-destructive">*</span></Label>
                   <Select
                     value={field.state.value ?? ''}
                     onValueChange={(value: string) => field.handleChange(value)}
@@ -236,8 +236,7 @@ export function PackageVersionForm({
               {(field: AnyFieldApi) => (
                 <div className="space-y-2">
                   <Label htmlFor="version_name" className="text-sm font-medium">
-                    Version name (generated)
-                  </Label>
+                    Version name (generated) <span className="text-destructive">*</span></Label>
                   <Input
                     id="version_name"
                     value={generatedVersionName}
@@ -259,7 +258,7 @@ export function PackageVersionForm({
                   >
                     Hero image URL
                   </Label>
-                  <Input
+                  <Input aria-invalid={field.state.meta.errors.length > 0}
                     id="hero_image_url"
                     value={field.state.value ?? ''}
                     onChange={(e) => field.handleChange(e.target.value)}
@@ -274,8 +273,7 @@ export function PackageVersionForm({
               {(field: AnyFieldApi) => (
                 <div className="space-y-2">
                   <Label htmlFor="round_number" className="text-sm font-medium">
-                    Travel round
-                  </Label>
+                    Travel round <span className="text-destructive">*</span></Label>
                   <Input
                     id="round_number"
                     type="number"
@@ -298,7 +296,7 @@ export function PackageVersionForm({
                   <Label htmlFor="year" className="text-sm font-medium">
                     Year
                   </Label>
-                  <Input
+                  <Input aria-invalid={field.state.meta.errors.length > 0}
                     id="year"
                     type="number"
                     value={String(
@@ -364,8 +362,7 @@ export function PackageVersionForm({
               {(field: AnyFieldApi) => (
                 <div className="space-y-2">
                   <Label htmlFor="base_price" className="text-sm font-medium">
-                    Base price
-                  </Label>
+                    Base price <span className="text-destructive">*</span></Label>
                   <Input
                     id="base_price"
                     type="number"
@@ -385,7 +382,7 @@ export function PackageVersionForm({
             <form.Field name="currency_id">
               {(field: AnyFieldApi) => (
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium">Currency</Label>
+                  <Label className="text-sm font-medium">Currency <span className="text-destructive">*</span></Label>
                   <Select
                     value={field.state.value ?? ''}
                     onValueChange={(value: string) => field.handleChange(value)}
@@ -428,7 +425,7 @@ export function PackageVersionForm({
                       }
                       disabled
                     >
-                      <SelectTrigger className="h-9 w-full">
+                      <SelectTrigger aria-invalid={field.state.meta.errors.length > 0} className="h-9 w-full">
                         <SelectValue>
                           {seasons.find((s) => s.id === field.state.value)
                             ?.name ?? '—'}
@@ -453,7 +450,7 @@ export function PackageVersionForm({
                   <Label htmlFor="max_capacity" className="text-sm font-medium">
                     Max capacity
                   </Label>
-                  <Input
+                  <Input aria-invalid={field.state.meta.errors.length > 0}
                     id="max_capacity"
                     type="number"
                     value={
@@ -483,7 +480,7 @@ export function PackageVersionForm({
                 <div className="space-y-2">
                   <Label className="text-sm font-medium">Inclusions</Label>
                   <div className="flex gap-2">
-                    <Input
+                    <Input aria-invalid={field.state.meta.errors.length > 0}
                       value={inclusionText}
                       onChange={(e) => setInclusionText(e.target.value)}
                       placeholder="e.g. 4-star hotel"

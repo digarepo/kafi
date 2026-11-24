@@ -72,3 +72,17 @@ export const registrationFormSchema = z.object({
 });
 
 export type RegistrationFormSchema = z.infer<typeof registrationFormSchema>;
+
+export const travellerContactFormSchema = z.object({
+  contact_person_id: z.string().min(1, 'Contact person is required'),
+  relationship_type_id: z.string().min(1, 'Relationship is required'),
+  traveller_contact_status_id: z.string().min(1, 'Status is required'),
+  is_primary_contact: z.boolean(),
+  is_emergency_contact: z.boolean(),
+  priority: z.string(),
+  notes: z.string(),
+});
+
+export type TravellerContactFormSchema = z.infer<
+  typeof travellerContactFormSchema
+>;

@@ -65,7 +65,7 @@ export function ForgotPasswordForm({
               <form.Field name="email">
                 {(field: AnyFieldApi) => (
                   <Field>
-                    <FieldLabel htmlFor="email">Email Address</FieldLabel>
+                    <FieldLabel htmlFor="email">Email Address <span className="text-destructive">*</span></FieldLabel>
 
                     <Input
                       id="email"

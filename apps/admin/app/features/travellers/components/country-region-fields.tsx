@@ -89,7 +89,7 @@ export function CountryRegionFields({
       <form.Field name="country_id">
         {(field: AnyFieldApi) => (
           <div className="space-y-2">
-            <Label className="text-sm font-medium">Country</Label>
+            <Label className="text-sm font-medium">Country <span className="text-destructive">*</span></Label>
             <Select
               value={field.state.value ?? ''}
               onValueChange={(v) => {
@@ -132,7 +132,7 @@ export function CountryRegionFields({
               onValueChange={(v) => field.handleChange(v ?? '')}
               disabled={regionsLoading || regions.length === 0}
             >
-              <SelectTrigger className="h-9 w-full">
+              <SelectTrigger aria-invalid={field.state.meta.errors.length > 0} className="h-9 w-full">
                 <SelectValue>
                   {regions
                     .map((r) => ({ value: r.id, label: r.name }))

@@ -71,8 +71,7 @@ export function ChangePasswordForm({
               {(field: AnyFieldApi) => (
                 <Field>
                   <FieldLabel htmlFor="oldPassword">
-                    Current password
-                  </FieldLabel>
+                    Current password <span className="text-destructive">*</span></FieldLabel>
                   <Input
                     id="oldPassword"
                     name={field.name}
@@ -90,7 +89,7 @@ export function ChangePasswordForm({
             <form.Field name="newPassword">
               {(field: AnyFieldApi) => (
                 <Field>
-                  <FieldLabel htmlFor="newPassword">New password</FieldLabel>
+                  <FieldLabel htmlFor="newPassword">New password <span className="text-destructive">*</span></FieldLabel>
                   <Input
                     id="newPassword"
                     name={field.name}
@@ -111,8 +110,7 @@ export function ChangePasswordForm({
               {(field: AnyFieldApi) => (
                 <Field>
                   <FieldLabel htmlFor="confirmPassword">
-                    Confirm new password
-                  </FieldLabel>
+                    Confirm new password <span className="text-destructive">*</span></FieldLabel>
                   <Input
                     id="confirmPassword"
                     name={field.name}

@@ -417,7 +417,7 @@ function TransportResolution({
             />
           </div>
           <div className="space-y-2">
-            <Label>Vehicle type</Label>
+            <Label>Vehicle type <span className="text-destructive">*</span></Label>
             <Select
               value={vehicleTypeId}
               onValueChange={(v) => setVehicleTypeId(v ?? '')}
@@ -438,7 +438,7 @@ function TransportResolution({
             </Select>
           </div>
           <div className="space-y-2">
-            <Label>Vehicle plate number</Label>
+            <Label>Vehicle plate number <span className="text-destructive">*</span></Label>
             <Input
               value={vehiclePlateNumber}
               onChange={(event) => setVehiclePlateNumber(event.target.value)}

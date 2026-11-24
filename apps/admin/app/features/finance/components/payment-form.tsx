@@ -124,7 +124,7 @@ export function PaymentForm({
               <form.Field name="payer_id">
                 {(field: AnyFieldApi) => (
                   <div className="space-y-2 md:col-span-2">
-                    <Label className="text-sm font-medium">Payer</Label>
+                    <Label className="text-sm font-medium">Payer <span className="text-destructive">*</span></Label>
                     <Select
                       value={field.state.value ?? ''}
                       onValueChange={(v) => field.handleChange(v ?? '')}
@@ -165,8 +165,7 @@ export function PaymentForm({
                 {(field: AnyFieldApi) => (
                   <div className="space-y-2">
                     <Label className="text-sm font-medium">
-                      Payment method
-                    </Label>
+                      Payment method <span className="text-destructive">*</span></Label>
                     <Select
                       value={field.state.value ?? ''}
                       onValueChange={(v) => field.handleChange(v ?? '')}
@@ -204,8 +203,7 @@ export function PaymentForm({
                       htmlFor="payment_date"
                       className="text-sm font-medium"
                     >
-                      Payment date
-                    </Label>
+                      Payment date <span className="text-destructive">*</span></Label>
                     <DatePicker
                       id="payment_date"
                       value={field.state.value}
@@ -223,8 +221,7 @@ export function PaymentForm({
                       htmlFor="original_amount"
                       className="text-sm font-medium"
                     >
-                      Amount paid (original currency)
-                    </Label>
+                      Amount paid (original currency) <span className="text-destructive">*</span></Label>
                     <Input
                       id="original_amount"
                       type="number"
@@ -245,8 +242,7 @@ export function PaymentForm({
                 {(field: AnyFieldApi) => (
                   <div className="space-y-2">
                     <Label className="text-sm font-medium">
-                      Original currency
-                    </Label>
+                      Original currency <span className="text-destructive">*</span></Label>
                     <Select
                       value={field.state.value ?? ''}
                       onValueChange={(v) => field.handleChange(v ?? '')}
@@ -290,8 +286,7 @@ export function PaymentForm({
                       htmlFor="exchange_rate"
                       className="text-sm font-medium"
                     >
-                      Exchange rate to ETB
-                    </Label>
+                      Exchange rate to ETB <span className="text-destructive">*</span></Label>
                     <Input
                       id="exchange_rate"
                       type="number"
@@ -317,7 +312,7 @@ export function PaymentForm({
                     >
                       Reference number
                     </Label>
-                    <Input
+                    <Input aria-invalid={field.state.meta.errors.length > 0}
                       id="reference_number"
                       value={field.state.value ?? ''}
                       onChange={(e) => field.handleChange(e.target.value)}
@@ -334,7 +329,7 @@ export function PaymentForm({
                     <Label htmlFor="notes" className="text-sm font-medium">
                       Notes
                     </Label>
-                    <Textarea
+                    <Textarea aria-invalid={field.state.meta.errors.length > 0}
                       id="notes"
                       value={field.state.value ?? ''}
                       onChange={(e) => field.handleChange(e.target.value)}
