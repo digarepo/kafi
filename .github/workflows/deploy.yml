@@ -198,7 +198,7 @@ jobs:
           export CI=true
           cd ~/${{ inputs.web_dir }}
           tar -xzf deploy-web.tar.gz --strip-components=1
-          rm deploy-web.tar.gz build/client/index.html
+          rm -f deploy-web.tar.gz build/client/index.html
           NEW_HASH=$(cat package.json kafi-*.tgz | sha256sum | cut -d' ' -f1)
           OLD_HASH=$(cat .installed-package-sha 2>/dev/null || echo none)
           if [ "$NEW_HASH" != "$OLD_HASH" ]; then
@@ -220,7 +220,7 @@ jobs:
           export CI=true
           cd ~/${{ inputs.admin_dir }}
           tar -xzf deploy-admin.tar.gz --strip-components=1
-          rm deploy-admin.tar.gz
+          rm -f deploy-admin.tar.gz
           NEW_HASH=$(cat package.json kafi-*.tgz | sha256sum | cut -d' ' -f1)
           OLD_HASH=$(cat .installed-package-sha 2>/dev/null || echo none)
           if [ "$NEW_HASH" != "$OLD_HASH" ]; then
@@ -242,7 +242,7 @@ jobs:
           export CI=true
           cd ~/${{ inputs.api_dir }}
           tar -xzf deploy-api.tar.gz --strip-components=1
-          rm deploy-api.tar.gz package-lock.json
+          rm -f deploy-api.tar.gz package-lock.json
           NEW_HASH=$(cat package.json kafi-*.tgz | sha256sum | cut -d' ' -f1)
           OLD_HASH=$(cat .installed-package-sha 2>/dev/null || echo none)
           if [ "$NEW_HASH" != "$OLD_HASH" ]; then
