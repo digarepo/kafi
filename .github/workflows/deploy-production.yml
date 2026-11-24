@@ -3,6 +3,7 @@ name: Deploy Production
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 concurrency:
   group: deploy-${{ github.ref }}
@@ -18,3 +19,4 @@ jobs:
       admin_dir: admin.kafitour.com
       api_dir: api.kafitour.com
       api_url: https://api.kafitour.com
+      enable_analytics: true
