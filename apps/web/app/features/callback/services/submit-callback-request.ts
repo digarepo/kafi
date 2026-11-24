@@ -1,4 +1,5 @@
 import type { CallbackPayload } from '../types/callback.types';
+import { API_BASE } from '../../../lib/api-base';
 
 /**
  * Submits a callback request to the backend inquiry endpoint.
@@ -15,7 +16,7 @@ import type { CallbackPayload } from '../types/callback.types';
 export async function submitCallbackRequest(
   payload: CallbackPayload,
 ): Promise<{ ok: true }> {
-  const apiUrl = import.meta.env.VITE_API_URL;
+  const apiUrl = API_BASE;
   if (!apiUrl) {
     throw new Error(
       'Callback submission is not configured. Please try again later.',

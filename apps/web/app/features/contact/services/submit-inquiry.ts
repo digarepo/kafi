@@ -1,4 +1,5 @@
 import type { InquiryPayload } from '../validation/enquiry-schema';
+import { API_BASE } from '../../../lib/api-base';
 
 /**
  * Submits a travel enquiry to the backend inquiry endpoint.
@@ -15,7 +16,7 @@ import type { InquiryPayload } from '../validation/enquiry-schema';
 export async function submitInquiry(
   payload: InquiryPayload,
 ): Promise<{ ok: true }> {
-  const apiUrl = import.meta.env.VITE_API_URL;
+  const apiUrl = API_BASE;
   if (!apiUrl) {
     throw new Error(
       'Contact submission is not configured. Please try again later.',
