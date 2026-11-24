@@ -1,4 +1,5 @@
 export { documentsMeta } from './meta';
+export { TravellerDocumentsSection } from './components/traveller-documents-section';
 export { DocumentsListPage } from './pages/documents-list-page';
 export { DocumentNewPage } from './pages/document-new-page';
 export { DocumentDetailPage } from './pages/document-detail-page';

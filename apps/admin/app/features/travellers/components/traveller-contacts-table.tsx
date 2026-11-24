@@ -1,6 +1,6 @@
 import type { ColumnDef } from '@tanstack/react-table';
-import { Archive } from 'lucide-react';
-import { Button } from '@kafi/ui';
+import { Archive, Star } from 'lucide-react';
+import { Badge, Button } from '@kafi/ui';
 import { DataTable } from '../../../shared/data-table';
 import { actionsColumn } from '../../../shared/data-table/columns';
 import type { TravellerContact } from '../../../lib/api.js';
@@ -10,6 +10,7 @@ interface TravellerContactsTableProps {
   contacts: TravellerContact[];
   loading?: boolean;
   onArchive?: (id: string) => Promise<void>;
+  onSetPrimary?: (id: string) => Promise<void>;
 }
 
 function contactName(contact: TravellerContact): string {
@@ -18,18 +19,25 @@ function contactName(contact: TravellerContact): string {
   return [person.first_name, person.last_name].filter(Boolean).join(' ');
 }
 
-function contactRole(contact: TravellerContact): string {
-  const roles = [
-    contact.is_primary_contact ? 'Primary' : null,
-    contact.is_emergency_contact ? 'Emergency' : null,
-  ].filter(Boolean);
-  return roles.join(' · ') || 'Standard';
+function ContactRoleBadges({ contact }: { contact: TravellerContact }) {
+  if (!contact.is_primary_contact && !contact.is_emergency_contact) {
+    return <span className="text-muted-foreground">Standard</span>;
+  }
+  return (
+    <span className="inline-flex flex-wrap gap-1">
+      {contact.is_primary_contact && <Badge variant="default">Primary</Badge>}
+      {contact.is_emergency_contact && (
+        <Badge variant="secondary">Emergency</Badge>
+      )}
+    </span>
+  );
 }
 
 export function TravellerContactsTable({
   contacts,
   loading,
   onArchive,
+  onSetPrimary,
 }: TravellerContactsTableProps) {
   const columns: ColumnDef<TravellerContact>[] = [
     {
@@ -52,20 +60,37 @@ export function TravellerContactsTable({
     {
       id: 'role',
       header: 'Contact type',
-      cell: ({ row }) => contactRole(row.original),
+      cell: ({ row }) => <ContactRoleBadges contact={row.original} />,
     },
   ];
 
-  if (onArchive) {
+  if (onArchive || onSetPrimary) {
     columns.push(
       actionsColumn<TravellerContact>({
         actions: [
-          {
-            label: 'Archive',
-            icon: Archive,
-            variant: 'destructive',
-            onClick: (contact) => void onArchive(contact.id),
-          },
+          ...(onSetPrimary
+            ? [
+                {
+                  label: 'Set as primary',
+                  icon: Star,
+                  onClick: (contact: TravellerContact) =>
+                    void onSetPrimary(contact.id),
+                  disabled: (contact: TravellerContact) =>
+                    contact.is_primary_contact,
+                },
+              ]
+            : []),
+          ...(onArchive
+            ? [
+                {
+                  label: 'Archive',
+                  icon: Archive,
+                  variant: 'destructive' as const,
+                  onClick: (contact: TravellerContact) =>
+                    void onArchive(contact.id),
+                },
+              ]
+            : []),
         ],
       }),
     );
@@ -107,7 +132,9 @@ export function TravellerContactsTable({
               </div>
               <div>
                 <p className="text-muted-foreground">Contact type</p>
-                <p className="mt-1 font-medium">{contactRole(contact)}</p>
+                <p className="mt-1 font-medium">
+                  <ContactRoleBadges contact={contact} />
+                </p>
               </div>
             </div>
           </div>

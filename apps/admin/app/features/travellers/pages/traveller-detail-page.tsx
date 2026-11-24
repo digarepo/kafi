@@ -1,22 +1,27 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
+import { ArrowLeft, ArrowRight, CalendarDays, Plus } from 'lucide-react';
+import { toast } from 'sonner';
 import {
-  ArrowLeft,
-  ArrowRight,
-  CalendarDays,
-  FileText,
-  Plus,
-  Upload,
-} from 'lucide-react';
-import { Button, Skeleton, buttonVariants } from '@kafi/ui';
+  Badge,
+  Button,
+  Skeleton,
+  buttonVariants,
+} from '@kafi/ui';
 import { usePermissions } from '../../../core/permissions';
 import { useDestructiveConfirmation } from '../../../shared/delete-dialog';
 import {
   AsyncState,
   WorkflowStatusBadge,
 } from '../../../shared/operational-ui';
-import { documentsApi, type DocumentListItem } from '../../documents/lib/api';
-import { api, type Registration, type Traveller } from '../../../lib/api.js';
+import { TravellerDocumentsSection } from '../../documents/components/traveller-documents-section';
+import {
+  api,
+  type Payer,
+  type Registration,
+  type Traveller,
+} from '../../../lib/api.js';
+import { AddTravellerContactDialog } from '../components/add-traveller-contact-dialog';
 import { TravellerDetailCard } from '../components/traveller-detail-card';
 import { TravellerContactsTable } from '../components/traveller-contacts-table';
 
@@ -99,22 +104,6 @@ function formatTravelDate(value: string | null | undefined): string {
       });
 }
 
-function documentStateLabel(document: DocumentListItem): string {
-  const documentStatus = document.document_status?.name;
-  const verificationStatus = document.verification_status?.name;
-  const isDocumentPending = document.document_status?.status_code === 'PENDING';
-  const isVerificationPending =
-    document.verification_status?.status_code === 'PENDING';
-
-  if (isDocumentPending && isVerificationPending) {
-    return 'Pending verification';
-  }
-  if (documentStatus && verificationStatus) {
-    return `${documentStatus} · ${verificationStatus}`;
-  }
-  return verificationStatus ?? documentStatus ?? 'Status unavailable';
-}
-
 function RegistrationRow({ registration }: { registration: Registration }) {
   const departure = formatTravelDate(registration.expected_departure_date);
   const returnDate = formatTravelDate(registration.expected_return_date);
@@ -183,7 +172,10 @@ export function TravellerDetailPage({ id }: TravellerDetailPageProps) {
   const [registrations, setRegistrations] = useState<Registration[] | null>(
     null,
   );
-  const [documents, setDocuments] = useState<DocumentListItem[] | null>(null);
+  const [payer, setPayer] = useState<Payer | null>(null);
+  const [payerLoaded, setPayerLoaded] = useState(false);
+  const [creatingPayer, setCreatingPayer] = useState(false);
+  const [addContactOpen, setAddContactOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -191,19 +183,31 @@ export function TravellerDetailPage({ id }: TravellerDetailPageProps) {
     setLoading(true);
     setError(null);
     try {
-      const [travellerResult, registrationResult, documentResult] =
-        await Promise.all([
-          api.getTraveller(id),
-          can('REGISTRATION_VIEW')
-            ? listAllTravellerRegistrations(id)
-            : Promise.resolve(null),
-          can('DOCUMENT_VIEW')
-            ? documentsApi.listTravellerDocuments(id, 1, 20)
-            : Promise.resolve(null),
-        ]);
+      const [travellerResult, registrationResult] = await Promise.all([
+        api.getTraveller(id),
+        can('REGISTRATION_VIEW')
+          ? listAllTravellerRegistrations(id)
+          : Promise.resolve(null),
+      ]);
       setTraveller(travellerResult);
       setRegistrations(registrationResult);
-      setDocuments(documentResult?.data ?? null);
+      // Payer profile is best-effort — absence of finance permission or a
+      // missing record should not block the page.
+      try {
+        const payers = await api.listPayers(
+          1,
+          1,
+          undefined,
+          undefined,
+          undefined,
+          id,
+        );
+        setPayer(payers.data[0] ?? null);
+      } catch {
+        setPayer(null);
+      } finally {
+        setPayerLoaded(true);
+      }
     } catch (err) {
       setError(
         err instanceof Error
@@ -227,6 +231,49 @@ export function TravellerDetailPage({ id }: TravellerDetailPageProps) {
     },
     [id],
   );
+
+  const handleSetPrimaryContact = useCallback(
+    async (contactId: string) => {
+      // The backend unsets the previous primary when a new one is set.
+      await api.updateTravellerContact(id, contactId, {
+        is_primary_contact: true,
+      });
+      const updated = await api.getTraveller(id);
+      setTraveller(updated);
+    },
+    [id],
+  );
+
+  const handleCreatePayer = useCallback(async () => {
+    if (!traveller) return;
+    setCreatingPayer(true);
+    try {
+      const payerTypes = await api.listPayerTypes();
+      const individualType = payerTypes.find(
+        (t) =>
+          (t as { type_code?: string }).type_code?.toUpperCase() ===
+          'INDIVIDUAL',
+      );
+      if (!individualType) {
+        toast.error('No individual payer type found');
+        return;
+      }
+      const created = await api.createPayer({
+        payer_type_id: individualType.id,
+        traveller_id: id,
+        contact_name: `${traveller.first_name} ${traveller.last_name}`,
+        phone_number: traveller.phone_number,
+      });
+      setPayer(created);
+      toast.success('Payer profile created');
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : 'Failed to create payer profile',
+      );
+    } finally {
+      setCreatingPayer(false);
+    }
+  }, [id, traveller]);
 
   const activeRegistrations = useMemo(
     () =>
@@ -271,7 +318,7 @@ export function TravellerDetailPage({ id }: TravellerDetailPageProps) {
             traveller={traveller}
             onAddContact={
               can('TRAVELLER_CREATE')
-                ? () => navigate(`/travellers/${id}/contacts/new`)
+                ? () => setAddContactOpen(true)
                 : undefined
             }
             onArchive={
@@ -348,7 +395,7 @@ export function TravellerDetailPage({ id }: TravellerDetailPageProps) {
               </section>
             )}
 
-            {can('DOCUMENT_VIEW') && documents && (
+            {can('DOCUMENT_VIEW') && (
               <section
                 className="min-w-0 space-y-4"
                 aria-labelledby="traveller-documents-title"
@@ -376,69 +423,94 @@ export function TravellerDetailPage({ id }: TravellerDetailPageProps) {
                     >
                       View all
                     </Link>
-                    {can('DOCUMENT_MANAGE') && (
-                      <Link
-                        to={`/documents/new?traveller_id=${id}`}
-                        className={buttonVariants({
-                          variant: 'link',
-                          size: 'sm',
-                          className: 'h-auto px-0',
-                        })}
-                      >
-                        <Upload className="h-4 w-4" aria-hidden="true" />
-                        Upload
-                      </Link>
-                    )}
                   </div>
                 </div>
-                <div className="overflow-hidden rounded-lg border">
-                  {documents.length === 0 ? (
-                    <div className="p-6 text-sm text-muted-foreground">
-                      No documents uploaded.
-                    </div>
-                  ) : (
-                    <div className="divide-y">
-                      {documents.map((document) => (
-                        <div
-                          key={document.id}
-                          className="flex items-start gap-3 px-4 py-3 sm:px-5"
-                        >
-                          <FileText
-                            className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground"
-                            aria-hidden="true"
-                          />
-                          <div className="min-w-0">
-                            <p className="break-words text-sm font-medium leading-snug">
-                              {document.document_type?.name ?? 'Document'}
-                            </p>
-                            <p className="mt-1 break-words text-xs text-muted-foreground">
-                              {documentStateLabel(document)}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                <TravellerDocumentsSection
+                  travellerId={id}
+                  canManage={can('DOCUMENT_MANAGE')}
+                />
               </section>
             )}
           </div>
+
+          {can('FINANCE_VIEW') && payerLoaded && (
+            <section
+              className="space-y-4"
+              aria-labelledby="traveller-payer-title"
+            >
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <h2
+                    id="traveller-payer-title"
+                    className="text-lg font-semibold tracking-tight"
+                  >
+                    Payer profile
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    How this traveller is identified when making payments.
+                  </p>
+                </div>
+                {!payer && can('FINANCE_CREATE') && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => void handleCreatePayer()}
+                    disabled={creatingPayer}
+                  >
+                    <Plus className="h-4 w-4" aria-hidden="true" />
+                    Create payer profile
+                  </Button>
+                )}
+              </div>
+              <div className="rounded-lg border px-4 py-3 sm:px-5">
+                {payer ? (
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+                    <span className="font-medium">{payer.payer_number}</span>
+                    <span className="text-muted-foreground">
+                      {payer.contact_name ??
+                        `${traveller.first_name} ${traveller.last_name}`}
+                    </span>
+                    {payer.status?.name && (
+                      <Badge variant="secondary">{payer.status.name}</Badge>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    No payer profile yet — one is created automatically during
+                    the payment step, or you can create it now.
+                  </p>
+                )}
+              </div>
+            </section>
+          )}
 
           {can('TRAVELLER_VIEW') && (
             <section
               className="space-y-4"
               aria-labelledby="traveller-contacts-title"
             >
-              <div>
-                <h2
-                  id="traveller-contacts-title"
-                  className="text-lg font-semibold tracking-tight"
-                >
-                  Contacts
-                </h2>
-                <p className="text-sm text-muted-foreground">
-                  People connected to this traveller.
-                </p>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <h2
+                    id="traveller-contacts-title"
+                    className="text-lg font-semibold tracking-tight"
+                  >
+                    Contacts
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    People connected to this traveller.
+                  </p>
+                </div>
+                {can('TRAVELLER_CREATE') && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setAddContactOpen(true)}
+                  >
+                    <Plus className="h-4 w-4" aria-hidden="true" />
+                    Add contact
+                  </Button>
+                )}
               </div>
               <AsyncState
                 isEmpty={traveller.contacts.length === 0}
@@ -450,10 +522,24 @@ export function TravellerDetailPage({ id }: TravellerDetailPageProps) {
                   onArchive={
                     can('TRAVELLER_DELETE') ? handleArchiveContact : undefined
                   }
+                  onSetPrimary={
+                    can('TRAVELLER_EDIT')
+                      ? handleSetPrimaryContact
+                      : undefined
+                  }
                 />
               </AsyncState>
             </section>
           )}
+
+          <AddTravellerContactDialog
+            travellerId={id}
+            open={addContactOpen}
+            onOpenChange={setAddContactOpen}
+            onSaved={() => {
+              void api.getTraveller(id).then(setTraveller);
+            }}
+          />
         </div>
       )}
     </AsyncState>

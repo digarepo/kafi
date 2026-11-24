@@ -3,20 +3,22 @@
  *
  * Walks staff through the complete registration intake process:
  *   1. Traveler selection
- *   2. Registration documents (passport, photo, other)
- *   3. Emergency contact
- *   4. Guarantee
- *   5. Finance / payment
- *   6. Review
- *   7. Complete registration
+ *   2. Emergency contact
+ *   3. Guarantee
+ *   4. Finance / payment
+ *   5. Review
+ *   6. Complete registration
  *
  * The workflow creates the registration on step 1, then progressively
  * attaches intake requirements. When all conditions are satisfied the
  * system transitions the registration from DRAFT to PROCESSING.
+ *
+ * Traveller documents (passport, photo) are managed on the traveller
+ * profile — they are checked at the review step, not collected here.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useCallback, useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router';
 import { toast } from 'sonner';
 import {
   AlertCircle,
@@ -27,8 +29,6 @@ import {
   Loader,
   Plus,
   ShieldCheck,
-  Trash2,
-  Upload,
 } from 'lucide-react';
 import {
   Button,
@@ -77,7 +77,6 @@ import type {
 
 const WORKFLOW_STEPS = [
   { key: 'traveler', label: 'Traveler' },
-  { key: 'documents', label: 'Documents' },
   { key: 'contact', label: 'Emergency Contact' },
   { key: 'guarantee', label: 'Guarantee' },
   { key: 'finance', label: 'Payment' },
@@ -149,15 +148,11 @@ export function RegistrationIntakeWorkflow({
   const [remarks, setRemarks] = useState('');
   const [registration, setRegistration] = useState<Registration | null>(null);
 
-  // Step 2: Documents
+  // Traveller documents (managed on the traveller profile — tracked here
+  // only for the review-step readiness checklist)
   const [travellerDocuments, setTravellerDocuments] = useState<
     DocumentListItem[]
   >([]);
-  const [registrationDocuments, setRegistrationDocuments] = useState<
-    DocumentListItem[]
-  >([]);
-  const [uploadingType, setUploadingType] = useState<string | null>(null);
-  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   // Step 3: Emergency contact
   const [contacts, setContacts] = useState<ContactPerson[]>([]);
@@ -286,8 +281,6 @@ export function RegistrationIntakeWorkflow({
         setRemarks(reg.remarks ?? '');
 
         // Load intake data (documents, guarantees, finance, contacts)
-        let regDocCount = 0;
-        let travDocCount = 0;
         let linkedContact: string | null = null;
         let hasGuar = false;
         let outstandingBalance = 0;
@@ -303,7 +296,6 @@ export function RegistrationIntakeWorkflow({
             );
             if (!cancelled) {
               setTravellerDocuments(docs.data);
-              travDocCount = docs.data.length;
             }
           } catch {
             // ignore
@@ -346,19 +338,6 @@ export function RegistrationIntakeWorkflow({
           }
         }
         try {
-          const docsResult = await documentsApi.listRegistrationDocuments(
-            registrationId!,
-            1,
-            100,
-          );
-          if (!cancelled) {
-            setRegistrationDocuments(docsResult.data);
-            regDocCount = docsResult.data.length;
-          }
-        } catch {
-          // ignore
-        }
-        try {
           const guaranteesResult = await api.listRegistrationGuarantees(
             registrationId!,
           );
@@ -399,22 +378,19 @@ export function RegistrationIntakeWorkflow({
           // ignore
         }
 
-        const hasDocs = regDocCount > 0 || travDocCount > 0;
         const hasContact = !!linkedContact;
         const hasFin = invoiceCount > 0 && outstandingBalance <= 0;
 
         if (!reg.traveller?.id || !reg.package_version?.id) {
           setStepIndex(0);
-        } else if (!hasDocs) {
-          setStepIndex(1);
         } else if (!hasContact) {
-          setStepIndex(2);
+          setStepIndex(1);
         } else if (!hasGuar) {
-          setStepIndex(3);
+          setStepIndex(2);
         } else if (!hasFin) {
-          setStepIndex(4);
+          setStepIndex(3);
         } else {
-          setStepIndex(5);
+          setStepIndex(4);
         }
       } catch (err) {
         toast.error(
@@ -485,11 +461,10 @@ export function RegistrationIntakeWorkflow({
     void loadTravellerDocuments();
   }, [loadTravellerDocuments]);
 
-  // ---- Load registration documents and intake data ----
+  // ---- Load intake data (guarantees, finance, operational summary) ----
   const loadRegistrationIntakeData = useCallback(async () => {
     if (!registration) return;
     const results = await Promise.allSettled([
-      documentsApi.listRegistrationDocuments(registration.id, 1, 100),
       api.listRegistrationGuarantees(registration.id),
       api.getRegistrationFinanceSummary(registration.id),
       api.getRegistrationOperationalSummary(registration.id),
@@ -498,22 +473,12 @@ export function RegistrationIntakeWorkflow({
     ]);
 
     const [
-      documentsResult,
       guaranteesResult,
       financeResult,
       summaryResult,
       exceptionsResult,
       requestsResult,
     ] = results;
-    if (documentsResult.status === 'fulfilled') {
-      setRegistrationDocuments(documentsResult.value.data);
-    } else {
-      console.error(
-        'Failed to load registration documents',
-        documentsResult.reason,
-      );
-      toast.error('Failed to load registration documents');
-    }
     if (guaranteesResult.status === 'fulfilled') {
       setGuarantees(guaranteesResult.value);
     } else {
@@ -676,63 +641,6 @@ export function RegistrationIntakeWorkflow({
       );
     } finally {
       setSubmitting(false);
-    }
-  }
-
-  // ---- Step 2: Document upload ----
-  async function handleUploadDocument(
-    typeId: string,
-    file: File,
-  ): Promise<void> {
-    if (!registration || !selectedTravellerId) return;
-    setUploadingType(typeId);
-    try {
-      const created = await documentsApi.uploadDocument({
-        document_type_id: typeId,
-        traveller_id: selectedTravellerId,
-        registration_id: registration.id,
-        file,
-      });
-      // Use the response directly — don't rely on a re-fetch
-      setRegistrationDocuments((prev) => {
-        // Replace any existing doc of the same type (for single-doc types)
-        const filtered = prev.filter((d) => d.document_type?.id !== typeId);
-        return [...filtered, created as unknown as DocumentListItem];
-      });
-      setTravellerDocuments((prev) => {
-        const filtered = prev.filter((d) => d.document_type?.id !== typeId);
-        return [...filtered, created as unknown as DocumentListItem];
-      });
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : 'Document upload failed',
-      );
-    } finally {
-      setUploadingType(null);
-    }
-  }
-
-  async function handleDeleteDocument(docId: string) {
-    try {
-      await documentsApi.deleteDocument(docId);
-      setRegistrationDocuments((prev) => prev.filter((d) => d.id !== docId));
-      setTravellerDocuments((prev) => prev.filter((d) => d.id !== docId));
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : 'Failed to remove document',
-      );
-    }
-  }
-
-  async function handleAttachExistingDocument(docId: string) {
-    if (!registration) return;
-    try {
-      await documentsApi.attachDocumentToRegistration(docId, registration.id);
-      await loadRegistrationIntakeData();
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : 'Failed to attach document',
-      );
     }
   }
 
@@ -1127,27 +1035,18 @@ export function RegistrationIntakeWorkflow({
   // ---- Derived state ----
   const passportType = documentTypes.find((t) => t.type_code === 'PASSPORT');
   const photoType = documentTypes.find((t) => t.type_code === 'PHOTO');
-  const otherTypes = documentTypes.filter(
-    (t) => t.type_code !== 'PASSPORT' && t.type_code !== 'PHOTO',
-  );
 
-  // Check both registration-owned and traveller-owned documents.
-  // Registration-owned is preferred, but traveller-owned is a fallback
-  // because the document may have been uploaded with traveller_id only.
-  const registrationDocTypeIds = new Set(
-    registrationDocuments.map((d) => d.document_type?.id),
-  );
+  // Documents are traveller-scoped (managed on the traveller profile) —
+  // this mirrors the backend readiness check on documents.traveller_id.
   const travellerDocTypeIds = new Set(
     travellerDocuments.map((d) => d.document_type?.id),
   );
 
   const hasPassport = passportType
-    ? registrationDocTypeIds.has(passportType.id) ||
-      travellerDocTypeIds.has(passportType.id)
+    ? travellerDocTypeIds.has(passportType.id)
     : false;
   const hasPhoto = photoType
-    ? registrationDocTypeIds.has(photoType.id) ||
-      travellerDocTypeIds.has(photoType.id)
+    ? travellerDocTypeIds.has(photoType.id)
     : false;
 
   const hasGuarantee = guarantees.some((g) => g.guarantee_status === 'ACTIVE');
@@ -1181,8 +1080,6 @@ export function RegistrationIntakeWorkflow({
         return (
           !!selectedTravellerId && !!selectedPackageVersionId && !submitting
         );
-      case 'documents':
-        return hasPassport && hasPhoto;
       case 'contact':
         return !!linkedContactId || !!selectedContactId;
       case 'guarantee':
@@ -1272,181 +1169,6 @@ export function RegistrationIntakeWorkflow({
           setRemarks(values.remarks);
         }}
       />
-    );
-  }
-
-  function renderDocumentTypeSection(
-    docType: DocumentType | undefined,
-    label: string,
-    isRequired: boolean,
-    _allowMultiple: boolean,
-  ) {
-    if (!docType) return null;
-    const attached = registrationDocuments.filter(
-      (d) => d.document_type?.id === docType.id,
-    );
-    // Also show traveller-owned documents of this type that aren't yet
-    // linked to the registration — these count toward readiness too.
-    const travellerOwned = travellerDocuments.filter(
-      (d) =>
-        d.document_type?.id === docType.id &&
-        !registrationDocuments.some((rd) => rd.id === d.id),
-    );
-    const allAttached = [...attached, ...travellerOwned];
-
-    return (
-      <div className="rounded-lg border p-4 space-y-3">
-        {/* Row 1: title + status (left), controls (right) */}
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h4 className="font-medium text-sm">
-              {label}
-              {isRequired && <span className="text-destructive ml-1">*</span>}
-            </h4>
-            {allAttached.length > 0 ? (
-              <p className="text-xs text-success">
-                {allAttached.length} attached
-              </p>
-            ) : (
-              <p className="text-xs text-muted-foreground">Not yet attached</p>
-            )}
-          </div>
-
-          {/* Controls: select + upload inline on desktop, stacked on mobile */}
-          <div className="flex flex-col items-end gap-2 sm:flex-row sm:items-center sm:gap-2">
-            {travellerOwned.length > 0 && (
-              <div className="w-40 sm:w-44">
-                <Select
-                  value={''}
-                  onValueChange={(v) =>
-                    v && handleAttachExistingDocument(v ?? '')
-                  }
-                >
-                  <SelectTrigger className="h-9 w-full">
-                    <SelectValue>
-                      {travellerOwned
-                        .map((d) => ({
-                          value: d.id,
-                          label:
-                            d.display_name ??
-                            d.original_filename ??
-                            d.document_number,
-                        }))
-                        .find((o) => o.value === '')?.label ??
-                        'Select existing'}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {travellerOwned
-                      .map((d) => ({
-                        value: d.id,
-                        label:
-                          d.display_name ??
-                          d.original_filename ??
-                          d.document_number,
-                      }))
-                      .map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              disabled={uploadingType === docType.id}
-              onClick={() => fileInputRefs.current[docType.id]?.click()}
-              className="h-9 w-9 shrink-0 rounded-full sm:h-8 sm:w-auto sm:rounded-md sm:px-3"
-              aria-label={`Upload ${label}`}
-            >
-              {uploadingType === docType.id ? (
-                <Loader className="h-4 w-4 animate-spin" />
-              ) : (
-                <Upload className="h-4 w-4" />
-              )}
-              <span className="hidden sm:inline">Upload</span>
-            </Button>
-            <input
-              ref={(el) => {
-                fileInputRefs.current[docType.id] = el;
-              }}
-              type="file"
-              accept=".pdf,.jpg,.jpeg"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) void handleUploadDocument(docType.id, file);
-                e.target.value = '';
-              }}
-            />
-          </div>
-        </div>
-
-        {allAttached.length > 0 && (
-          <ul className="space-y-1 text-sm">
-            {allAttached.map((doc) => (
-              <li
-                key={doc.id}
-                className="flex items-center gap-2 rounded bg-muted/30 px-2 py-1.5"
-              >
-                <CheckCircle2 className="h-3.5 w-3.5 text-success shrink-0" />
-                <button
-                  type="button"
-                  onClick={() => void documentsApi.viewDocument(doc.id)}
-                  className="flex-1 truncate text-left text-foreground underline-offset-2 hover:underline"
-                  title="Click to view document"
-                >
-                  {doc.display_name ??
-                    doc.original_filename ??
-                    doc.document_number}
-                </button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
-                  onClick={() => void handleDeleteDocument(doc.id)}
-                  aria-label="Remove document"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        {/* {!_allowMultiple && allAttached.length > 0 && (
-          <p className="text-xs text-muted-foreground">
-            Upload a new document to replace the current one. Use the trash icon
-            to remove an unwanted upload.
-          </p>
-        )} */}
-      </div>
-    );
-  }
-
-  function renderDocumentsStep() {
-    return (
-      <div className="mx-auto w-full max-w-3xl space-y-4">
-        {renderDocumentTypeSection(passportType, 'Passport', true, false)}
-        {renderDocumentTypeSection(photoType, 'Traveler Photo', true, false)}
-
-        <div className="space-y-3">
-          <h4 className="font-medium text-sm">Other Documents</h4>
-          {otherTypes.map((t) =>
-            renderDocumentTypeSection(t, t.name, false, true),
-          )}
-          {otherTypes.length === 0 && (
-            <p className="text-sm text-muted-foreground">
-              No additional document types configured.
-            </p>
-          )}
-        </div>
-      </div>
     );
   }
 
@@ -2381,6 +2103,7 @@ export function RegistrationIntakeWorkflow({
       label: string;
       satisfied: boolean;
       detail?: string;
+      action?: { to: string; label: string };
     }> = [
       {
         label: 'Traveler selected',
@@ -2396,6 +2119,13 @@ export function RegistrationIntakeWorkflow({
           hasPassport && hasPhoto
             ? 'Passport and photo attached'
             : `Missing: ${!hasPassport ? 'passport' : ''}${!hasPassport && !hasPhoto ? ', ' : ''}${!hasPhoto ? 'photo' : ''}`,
+        action:
+          !(hasPassport && hasPhoto) && selectedTravellerId
+            ? {
+                to: `/travellers/${selectedTravellerId}`,
+                label: 'Manage on traveller profile',
+              }
+            : undefined,
       },
       {
         label: 'Emergency contact',
@@ -2443,6 +2173,14 @@ export function RegistrationIntakeWorkflow({
                 <p className="font-medium">{item.label}</p>
                 {item.detail && (
                   <p className="text-muted-foreground">{item.detail}</p>
+                )}
+                {item.action && (
+                  <Link
+                    to={item.action.to}
+                    className="text-primary underline-offset-2 hover:underline"
+                  >
+                    {item.action.label}
+                  </Link>
                 )}
               </div>
             </li>
@@ -2527,7 +2265,6 @@ export function RegistrationIntakeWorkflow({
 
   const stepTitles: Record<string, string> = {
     traveler: 'Traveler & package',
-    documents: 'Travel documents',
     contact: 'Emergency contact',
     guarantee: 'Guarantee',
     finance: 'Payment',
@@ -2536,7 +2273,6 @@ export function RegistrationIntakeWorkflow({
 
   const stepsInCard =
     currentStep.key === 'traveler' ||
-    currentStep.key === 'documents' ||
     currentStep.key === 'contact' ||
     currentStep.key === 'guarantee' ||
     currentStep.key === 'finance' ||
@@ -2554,7 +2290,7 @@ export function RegistrationIntakeWorkflow({
           </CardHeader>
           <CardContent className="space-y-6">
             {currentStep.key === 'traveler' && renderTravelerStep()}
-            {currentStep.key === 'documents' && renderDocumentsStep()}
+
             {currentStep.key === 'contact' && renderContactStep()}
             {currentStep.key === 'guarantee' && renderGuaranteeStep()}
             {currentStep.key === 'finance' && renderFinanceStep()}

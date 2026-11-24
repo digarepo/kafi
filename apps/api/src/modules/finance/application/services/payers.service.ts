@@ -34,12 +34,21 @@ export class PayersService {
   ) {}
 
   async listPayers(dto: PayerFiltersDto) {
-    const { page, page_size, search, payer_type_id, payer_status_id } = dto;
+    const {
+      page,
+      page_size,
+      search,
+      payer_type_id,
+      payer_status_id,
+      traveller_id,
+    } = dto;
     const filters = [eq(schema.payers.is_deleted, false)];
     if (payer_type_id)
       filters.push(eq(schema.payers.payer_type_id, payer_type_id));
     if (payer_status_id)
       filters.push(eq(schema.payers.payer_status_id, payer_status_id));
+    if (traveller_id)
+      filters.push(eq(schema.payers.traveller_id, traveller_id));
     if (search) {
       filters.push(
         or(

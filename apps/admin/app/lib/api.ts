@@ -3349,6 +3349,7 @@ export const api = {
     search?: string,
     payerTypeId?: string,
     payerStatusId?: string,
+    travellerId?: string,
   ): Promise<PaginatedPayers> {
     const qs = new URLSearchParams({
       page: String(page),
@@ -3357,6 +3358,7 @@ export const api = {
     if (search) qs.set('search', search);
     if (payerTypeId) qs.set('payer_type_id', payerTypeId);
     if (payerStatusId) qs.set('payer_status_id', payerStatusId);
+    if (travellerId) qs.set('traveller_id', travellerId);
     return request(`/api/admin/payers?${qs.toString()}`);
   },
 
