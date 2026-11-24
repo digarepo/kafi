@@ -8,6 +8,34 @@ const PORT = Number.parseInt(process.env.PORT || '3000');
 
 const app = express();
 
+// Self-terminate after an idle period so Passenger frees its process slot on
+// shared hosting (CloudLinux NPROC limits). Passenger spawns a fresh process
+// on the next request. Override/disable via APP_IDLE_TIMEOUT_MINUTES (0 = off).
+const IDLE_MINUTES = Number.parseInt(
+  process.env.APP_IDLE_TIMEOUT_MINUTES ?? '15',
+  10,
+);
+if (IDLE_MINUTES > 0) {
+  let inFlight = 0;
+  let lastActivity = Date.now();
+  app.use((req, res, next) => {
+    inFlight += 1;
+    lastActivity = Date.now();
+    res.on('finish', () => {
+      inFlight -= 1;
+    });
+    next();
+  });
+  setInterval(() => {
+    if (inFlight === 0 && Date.now() - lastActivity > IDLE_MINUTES * 60_000) {
+      console.log(
+        `Idle for ${IDLE_MINUTES}m; exiting so Passenger can reclaim the process`,
+      );
+      process.exit(0);
+    }
+  }, 60_000).unref();
+}
+
 app.use(compression());
 app.disable('x-powered-by');
 
