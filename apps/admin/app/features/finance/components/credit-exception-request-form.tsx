@@ -106,7 +106,7 @@ export function CreditExceptionRequestForm({
                     value={field.state.value ?? ''}
                     onValueChange={(v) => field.handleChange(v ?? '')}
                   >
-                    <SelectTrigger className="h-9 w-full">
+                    <SelectTrigger aria-invalid={field.state.meta.errors.length > 0} className="h-9 w-full">
                       <SelectValue>
                         {registrations
                           .map((r) => ({
@@ -152,8 +152,7 @@ export function CreditExceptionRequestForm({
                       htmlFor="requested_amount"
                       className="text-sm font-medium"
                     >
-                      Requested amount
-                    </Label>
+                      Requested amount <span className="text-destructive">*</span></Label>
                     <Input
                       id="requested_amount"
                       type="number"
@@ -190,8 +189,7 @@ export function CreditExceptionRequestForm({
               {(field: AnyFieldApi) => (
                 <div className="space-y-2">
                   <Label htmlFor="reason" className="text-sm font-medium">
-                    Reason
-                  </Label>
+                    Reason <span className="text-destructive">*</span></Label>
                   <Textarea
                     id="reason"
                     value={field.state.value ?? ''}
@@ -211,7 +209,7 @@ export function CreditExceptionRequestForm({
                   <Label htmlFor="notes" className="text-sm font-medium">
                     Notes (optional)
                   </Label>
-                  <Textarea
+                  <Textarea aria-invalid={field.state.meta.errors.length > 0}
                     id="notes"
                     value={field.state.value ?? ''}
                     onChange={(e) => field.handleChange(e.target.value)}

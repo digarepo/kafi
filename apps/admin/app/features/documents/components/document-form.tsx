@@ -128,8 +128,7 @@ export function DocumentForm({
         {(field: AnyFieldApi) => (
           <div className="space-y-2">
             <Label htmlFor="file" className="text-sm font-medium">
-              File
-            </Label>
+              File <span className="text-destructive">*</span></Label>
             <p className="text-xs text-muted-foreground">
               Accepted files: PDF, JPG, JPEG · Maximum size:{' '}
               {MAX_DOCUMENT_FILE_SIZE / 1024 / 1024} MB
@@ -174,8 +173,7 @@ export function DocumentForm({
         {(field: AnyFieldApi) => (
           <div className="space-y-2">
             <Label htmlFor="document_type_id" className="text-sm font-medium">
-              Document type
-            </Label>
+              Document type <span className="text-destructive">*</span></Label>
             <Select
               value={field.state.value ?? ''}
               onValueChange={(v) => field.handleChange(v ?? '')}

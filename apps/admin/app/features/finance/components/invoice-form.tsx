@@ -142,7 +142,7 @@ export function InvoiceForm({
               <form.Field name="registration_id">
                 {(field: AnyFieldApi) => (
                   <div className="space-y-2 md:col-span-2">
-                    <Label className="text-sm font-medium">Registration</Label>
+                    <Label className="text-sm font-medium">Registration <span className="text-destructive">*</span></Label>
                     <Select
                       value={field.state.value ?? ''}
                       onValueChange={(v) => field.handleChange(v ?? '')}
@@ -186,8 +186,7 @@ export function InvoiceForm({
                       htmlFor="invoice_date"
                       className="text-sm font-medium"
                     >
-                      Invoice date
-                    </Label>
+                      Invoice date <span className="text-destructive">*</span></Label>
                     <DatePicker
                       id="invoice_date"
                       value={field.state.value}
@@ -218,8 +217,7 @@ export function InvoiceForm({
                   {(field: AnyFieldApi) => (
                     <div className="space-y-2">
                       <Label className="text-sm font-medium">
-                        Discount type
-                      </Label>
+                        Discount type <span className="text-destructive">*</span></Label>
                       <Select
                         value={field.state.value}
                         onValueChange={(value) =>
@@ -228,7 +226,7 @@ export function InvoiceForm({
                           )
                         }
                       >
-                        <SelectTrigger className="h-9 w-full">
+                        <SelectTrigger aria-invalid={field.state.meta.errors.length > 0} className="h-9 w-full">
                           <SelectValue>
                             {field.state.value === 'PERCENT'
                               ? 'Percentage (%)'
@@ -287,7 +285,7 @@ export function InvoiceForm({
                     <Label htmlFor="notes" className="text-sm font-medium">
                       Notes
                     </Label>
-                    <Textarea
+                    <Textarea aria-invalid={field.state.meta.errors.length > 0}
                       id="notes"
                       value={field.state.value ?? ''}
                       onChange={(e) => field.handleChange(e.target.value)}

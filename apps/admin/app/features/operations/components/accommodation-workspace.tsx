@@ -1222,7 +1222,7 @@ function CreateRoomDialog({
         {error && <p className="text-sm text-destructive">{error}</p>}
         <div className="grid gap-4">
           <div className="space-y-2">
-            <Label>Room Number</Label>
+            <Label>Room Number <span className="text-destructive">*</span></Label>
             <Input
               value={roomNumber}
               onChange={(e) => setRoomNumber(e.target.value)}
@@ -1230,7 +1230,7 @@ function CreateRoomDialog({
             />
           </div>
           <div className="space-y-2">
-            <Label>Capacity</Label>
+            <Label>Capacity <span className="text-destructive">*</span></Label>
             <Input
               type="number"
               min={1}
@@ -1349,14 +1349,14 @@ function EditRoomDialog({
         {error && <p className="text-sm text-destructive">{error}</p>}
         <div className="grid gap-4">
           <div className="space-y-2">
-            <Label>Room Number</Label>
+            <Label>Room Number <span className="text-destructive">*</span></Label>
             <Input
               value={roomNumber}
               onChange={(e) => setRoomNumber(e.target.value)}
             />
           </div>
           <div className="space-y-2">
-            <Label>Capacity</Label>
+            <Label>Capacity <span className="text-destructive">*</span></Label>
             <Input
               type="number"
               min={1}

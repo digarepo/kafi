@@ -306,7 +306,7 @@ export function FlightBookingForm({
               {(field: AnyFieldApi) =>
                 registration ? (
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium">Registration</Label>
+                    <Label className="text-sm font-medium">Registration <span className="text-destructive">*</span></Label>
                     <p className="text-sm font-medium">
                       {registration.registration_number}
                     </p>
@@ -332,7 +332,7 @@ export function FlightBookingForm({
                         if (v) void handleRegistrationSelect(v);
                       }}
                     >
-                      <SelectTrigger className="h-9 w-full">
+                      <SelectTrigger aria-invalid={field.state.meta.errors.length > 0} className="h-9 w-full">
                         <SelectValue>
                           {regOptions.find((o) => o.value === field.state.value)
                             ?.label ?? 'Select registration'}
@@ -356,8 +356,7 @@ export function FlightBookingForm({
               {(field: AnyFieldApi) => (
                 <div className="space-y-2">
                   <Label htmlFor="pnr" className="text-sm font-medium">
-                    PNR / booking reference
-                  </Label>
+                    PNR / booking reference <span className="text-destructive">*</span></Label>
                   <Input
                     id="pnr"
                     value={field.state.value}
@@ -380,7 +379,7 @@ export function FlightBookingForm({
 
                 return (
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium">Travel group</Label>
+                    <Label className="text-sm font-medium">Travel group <span className="text-destructive">*</span></Label>
 
                     <Select
                       value={field.state.value ?? ''}
@@ -424,7 +423,7 @@ export function FlightBookingForm({
                         );
                       }}
                     >
-                      <SelectTrigger className="h-9 w-full">
+                      <SelectTrigger aria-invalid={field.state.meta.errors.length > 0} className="h-9 w-full">
                         <SelectValue>
                           {selectedGroup
                             ? `${selectedGroup.group_number} — ${selectedGroup.name}`
@@ -464,14 +463,13 @@ export function FlightBookingForm({
               {(field: AnyFieldApi) => (
                 <div className="space-y-2">
                   <Label className="text-sm font-medium">
-                    Departure airline
-                  </Label>
+                    Departure airline <span className="text-destructive">*</span></Label>
                   <Select
                     value={field.state.value}
                     onValueChange={(value) => field.handleChange(value)}
                     disabled={Boolean(selectedTravelGroupId)}
                   >
-                    <SelectTrigger className="h-9 w-full">
+                    <SelectTrigger aria-invalid={field.state.meta.errors.length > 0} className="h-9 w-full">
                       <SelectValue>
                         {airlineOptions.find(
                           (o) => o.value === field.state.value,
@@ -527,7 +525,7 @@ export function FlightBookingForm({
                     onValueChange={(value) => field.handleChange(value)}
                     disabled={Boolean(selectedTravelGroupId)}
                   >
-                    <SelectTrigger className="h-9 w-full">
+                    <SelectTrigger aria-invalid={field.state.meta.errors.length > 0} className="h-9 w-full">
                       <SelectValue>
                         {airlineOptions.find(
                           (o) => o.value === field.state.value,

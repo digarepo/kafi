@@ -67,7 +67,7 @@ export function InvoiceLineItemsEditor({
       <div className="space-y-3 rounded-md border border-border p-4">
         <div className="grid gap-3 md:grid-cols-2">
           <div className="space-y-2 md:col-span-2">
-            <Label className="text-sm font-medium">Description</Label>
+            <Label className="text-sm font-medium">Description <span className="text-destructive">*</span></Label>
             <Input
               value={draft.description}
               onChange={(e) =>
@@ -78,7 +78,7 @@ export function InvoiceLineItemsEditor({
           </div>
 
           <div className="space-y-2">
-            <Label className="text-sm font-medium">Quantity</Label>
+            <Label className="text-sm font-medium">Quantity <span className="text-destructive">*</span></Label>
             <Input
               type="number"
               min={0}
@@ -92,7 +92,7 @@ export function InvoiceLineItemsEditor({
           </div>
 
           <div className="space-y-2">
-            <Label className="text-sm font-medium">Unit price (ETB)</Label>
+            <Label className="text-sm font-medium">Unit price (ETB) <span className="text-destructive">*</span></Label>
             <Input
               type="number"
               min={0}

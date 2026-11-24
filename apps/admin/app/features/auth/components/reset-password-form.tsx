@@ -72,7 +72,7 @@ export function ResetPasswordForm({
               <form.Field name="newPassword">
                 {(field: AnyFieldApi) => (
                   <Field>
-                    <FieldLabel htmlFor="newPassword">New password</FieldLabel>
+                    <FieldLabel htmlFor="newPassword">New password <span className="text-destructive">*</span></FieldLabel>
 
                     <div className="relative">
                       <Input
@@ -110,8 +110,7 @@ export function ResetPasswordForm({
                 {(field: AnyFieldApi) => (
                   <Field>
                     <FieldLabel htmlFor="confirmPassword">
-                      Confirm new password
-                    </FieldLabel>
+                      Confirm new password <span className="text-destructive">*</span></FieldLabel>
 
                     <Input
                       id="confirmPassword"

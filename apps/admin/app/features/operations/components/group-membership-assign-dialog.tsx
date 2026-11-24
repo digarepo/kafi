@@ -142,7 +142,7 @@ export function GroupMembershipAssignDialog({
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label>Eligible registration</Label>
+            <Label>Eligible registration <span className="text-destructive">*</span></Label>
             <Select
               value={registrationId ?? ''}
               onValueChange={(v) => setRegistrationId(v ?? '')}

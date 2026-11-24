@@ -146,7 +146,7 @@ export function InvoiceEditForm({
                       )
                     }
                   >
-                    <SelectTrigger className="h-9 w-full">
+                    <SelectTrigger aria-invalid={field.state.meta.errors.length > 0} className="h-9 w-full">
                       <SelectValue>
                         {field.state.value === 'PERCENT'
                           ? 'Percentage (%)'
@@ -232,7 +232,7 @@ export function InvoiceEditForm({
                 <Label htmlFor="invoice_notes" className="text-sm font-medium">
                   Notes
                 </Label>
-                <Textarea
+                <Textarea aria-invalid={field.state.meta.errors.length > 0}
                   id="invoice_notes"
                   value={field.state.value ?? ''}
                   onChange={(e) => field.handleChange(e.target.value)}

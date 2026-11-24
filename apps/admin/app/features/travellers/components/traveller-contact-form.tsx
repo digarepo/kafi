@@ -17,6 +17,7 @@ import type {
   UpdateTravellerContactInput,
 } from '../../../lib/api.js';
 import { FieldError } from '../../../shared/field-error';
+import { travellerContactFormSchema } from '../validation/travellers.schema';
 
 interface TravellerContactFormProps {
   mode: 'create' | 'edit';
@@ -62,6 +63,9 @@ export function TravellerContactForm({
 
   const form = useForm({
     defaultValues,
+    validators: {
+      onSubmit: travellerContactFormSchema,
+    },
     onSubmit: async ({ value }) => {
       const payload = {
         contact_person_id: value.contact_person_id,
@@ -95,12 +99,14 @@ export function TravellerContactForm({
         <form.Field name="contact_person_id">
           {(field: AnyFieldApi) => (
             <div className="space-y-2 md:col-span-2">
-              <Label className="text-sm font-medium">Contact person</Label>
+              <Label className="text-sm font-medium">
+                Contact person <span className="text-destructive">*</span>
+              </Label>
               <Select
                 value={field.state.value ?? ''}
                 onValueChange={(v) => field.handleChange(v ?? '')}
               >
-                <SelectTrigger className="h-9 w-full">
+                <SelectTrigger aria-invalid={field.state.meta.errors.length > 0} className="h-9 w-full">
                   <SelectValue>
                     {contactPersons
                       .map((c) => ({
@@ -132,12 +138,14 @@ export function TravellerContactForm({
         <form.Field name="relationship_type_id">
           {(field: AnyFieldApi) => (
             <div className="space-y-2">
-              <Label className="text-sm font-medium">Relationship</Label>
+              <Label className="text-sm font-medium">
+                Relationship <span className="text-destructive">*</span>
+              </Label>
               <Select
                 value={field.state.value ?? ''}
                 onValueChange={(v) => field.handleChange(v ?? '')}
               >
-                <SelectTrigger className="h-9 w-full">
+                <SelectTrigger aria-invalid={field.state.meta.errors.length > 0} className="h-9 w-full">
                   <SelectValue>
                     {relationshipTypes
                       .map((r) => ({
@@ -169,12 +177,14 @@ export function TravellerContactForm({
         <form.Field name="traveller_contact_status_id">
           {(field: AnyFieldApi) => (
             <div className="space-y-2">
-              <Label className="text-sm font-medium">Status</Label>
+              <Label className="text-sm font-medium">
+                Status <span className="text-destructive">*</span>
+              </Label>
               <Select
                 value={field.state.value ?? ''}
                 onValueChange={(v) => field.handleChange(v ?? '')}
               >
-                <SelectTrigger className="h-9 w-full">
+                <SelectTrigger aria-invalid={field.state.meta.errors.length > 0} className="h-9 w-full">
                   <SelectValue>
                     {statuses
                       .map((s) => ({ value: s.id, label: s.name }))
@@ -201,7 +211,7 @@ export function TravellerContactForm({
           {(field: AnyFieldApi) => (
             <div className="space-y-2">
               <Label className="text-sm font-medium">Priority</Label>
-              <Input
+              <Input aria-invalid={field.state.meta.errors.length > 0}
                 type="number"
                 value={field.state.value}
                 onChange={(e) => field.handleChange(e.target.value)}
@@ -246,7 +256,7 @@ export function TravellerContactForm({
           {(field: AnyFieldApi) => (
             <div className="space-y-2 md:col-span-2">
               <Label className="text-sm font-medium">Notes</Label>
-              <Input
+              <Input aria-invalid={field.state.meta.errors.length > 0}
                 value={field.state.value}
                 onChange={(e) => field.handleChange(e.target.value)}
                 onBlur={field.handleBlur}
