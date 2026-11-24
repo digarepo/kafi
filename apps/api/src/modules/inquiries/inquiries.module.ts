@@ -3,6 +3,11 @@ import { SharedModule } from '../../shared/shared.module.js';
 import { IAMModule } from '../iam/iam.module.js';
 import { AnalyticsModule } from '../analytics/analytics.module.js';
 import { InquiriesService } from './application/services/inquiries.service.js';
+import {
+  BotApiTelegramNotifier,
+  DisabledTelegramNotifier,
+  TelegramNotifier,
+} from './infrastructure/telegram/telegram-notifier.service.js';
 import { AdminInquiriesController } from './presentation/controllers/admin-inquiries.controller.js';
 import { PublicInquiriesController } from './presentation/controllers/public-inquiries.controller.js';
 
@@ -22,7 +27,26 @@ import { PublicInquiriesController } from './presentation/controllers/public-inq
 @Module({
   imports: [SharedModule, IAMModule, AnalyticsModule],
   controllers: [PublicInquiriesController, AdminInquiriesController],
-  providers: [InquiriesService],
+  providers: [
+    InquiriesService,
+    {
+      provide: TelegramNotifier,
+      useFactory: () => {
+        const botToken = process.env['TELEGRAM_BOT_TOKEN'];
+        const chatId = process.env['TELEGRAM_CHAT_ID'];
+        if (!botToken || !chatId) {
+          return new DisabledTelegramNotifier();
+        }
+
+        const appUrl =
+          process.env['APP_URL'] ??
+          (process.env['NODE_ENV'] === 'production'
+            ? 'https://admin.kafitour.com'
+            : 'http://localhost:3002');
+        return new BotApiTelegramNotifier({ botToken, chatId, appUrl });
+      },
+    },
+  ],
   exports: [InquiriesService],
 })
 export class InquiriesModule {}

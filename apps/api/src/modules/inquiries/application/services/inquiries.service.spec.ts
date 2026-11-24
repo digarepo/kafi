@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { InquiriesService } from './inquiries.service.js';
 import { BusinessNumberService } from '../../../../shared/infrastructure/numbering/business-number.service.js';
 import { Mailer } from '../../../iam/application/ports/mailer.port.js';
+import { TelegramNotifier } from '../../infrastructure/telegram/telegram-notifier.service.js';
 import { AnalyticsEventsService } from '../../../analytics/application/services/analytics-events.service.js';
 
 /**
@@ -133,6 +134,10 @@ function buildService(db: any, mailer?: Partial<Mailer>) {
     ...mailer,
   } as unknown as Mailer;
 
+  const telegramImpl = {
+    sendInquiryNotification: vi.fn().mockResolvedValue(undefined),
+  } as unknown as TelegramNotifier;
+
   const eventEmitter = {
     emit: vi.fn(),
   } as unknown as EventEmitter2;
@@ -146,10 +151,12 @@ function buildService(db: any, mailer?: Partial<Mailer>) {
       db,
       numbers,
       mailerImpl,
+      telegramImpl,
       eventEmitter,
       analytics,
     ),
     mailer: mailerImpl,
+    telegram: telegramImpl,
     numbers,
     eventEmitter,
     analytics,
@@ -402,6 +409,41 @@ describe('InquiriesService', () => {
         service.createCallbackInquiry({ phone: '0911222333' } as any, {}),
       ).resolves.toMatchObject({ ok: true });
       expect(mailer.sendInquiryNotification).not.toHaveBeenCalled();
+    });
+
+    it('sends a telegram notification after a successful write', async () => {
+      const db = new MockDb().setQueue([]);
+      const { service, telegram } = buildService(db);
+
+      await service.createCallbackInquiry({ phone: '0911222333' } as any, {});
+
+      expect(telegram.sendInquiryNotification).toHaveBeenCalledTimes(1);
+      const payload = (telegram.sendInquiryNotification as any).mock.calls[0][0];
+      expect(payload.inquiry_number).toBe('INQ-2026-000001');
+      expect(payload.inquiry_type).toBe('CALLBACK');
+    });
+
+    it('still sends telegram when email recipients are not configured', async () => {
+      delete process.env['INQUIRY_NOTIFY_EMAILS'];
+      const db = new MockDb().setQueue([]);
+      const { service, mailer, telegram } = buildService(db);
+
+      await service.createCallbackInquiry({ phone: '0911222333' } as any, {});
+
+      expect(mailer.sendInquiryNotification).not.toHaveBeenCalled();
+      expect(telegram.sendInquiryNotification).toHaveBeenCalledTimes(1);
+    });
+
+    it('still succeeds when the telegram provider fails', async () => {
+      const db = new MockDb().setQueue([]);
+      const { service, telegram } = buildService(db);
+      (telegram.sendInquiryNotification as any).mockRejectedValue(
+        new Error('Telegram API error: 401'),
+      );
+
+      await expect(
+        service.createCallbackInquiry({ phone: '0911222333' } as any, {}),
+      ).resolves.toEqual({ ok: true, inquiry_number: 'INQ-2026-000001' });
     });
   });
 
