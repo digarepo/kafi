@@ -51,6 +51,7 @@ const payerFiltersSchema = z.object({
   search: z.string().optional(),
   payer_type_id: optionalUlid,
   payer_status_id: optionalUlid,
+  traveller_id: optionalUlid,
 });
 
 export class CreatePayerDto extends createZodDto(createPayerSchema) {}
