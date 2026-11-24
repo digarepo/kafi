@@ -1,9 +1,8 @@
 import { Button } from '@ui/components/ui/button';
 import { Card } from '@ui/components/ui/card';
-import { Badge } from '@ui/components/ui/badge';
 import { Separator } from '@ui/components/ui/separator';
 import { TypingAnimation } from '@ui/components/TypingAnimation';
-import { SparkleIcon, AirplaneIcon } from '@phosphor-icons/react';
+import { AirplaneIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { useEffect, useState } from 'react';
 import { listPublicPackages, type PublicNextDeparture } from '@/lib/public-api';
@@ -66,14 +65,6 @@ export function Hero() {
       <div className="mx-auto max-w-7xl w-full px-6 sm:px-8 lg:px-12 grid gap-12 lg:grid-cols-12 lg:items-center relative z-10">
         {/* Left Side Content */}
         <div className="space-y-8 lg:col-span-6 text-left">
-          <Badge
-            variant="outline"
-            className="px-3.5 py-1 text-xs border-accent/20 bg-accent/5 text-accent font-semibold flex items-center gap-1.5 w-fit"
-          >
-            <SparkleIcon weight="fill" className="w-3.5 h-3.5 text-accent" />
-            Umrah Flights
-          </Badge>
-
           <div className="space-y-4">
             <h1
               className="font-heading text-3xl sm:text-5xl font-extrabold tracking-tight text-balance leading-[1.1] text-foreground"

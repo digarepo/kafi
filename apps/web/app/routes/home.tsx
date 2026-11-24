@@ -15,7 +15,7 @@ const OG_IMAGE = DEFAULT_OG_IMAGE;
  * Home page SEO metadata: title, description, canonical, Open Graph, Twitter.
  */
 export function meta({}: Route.MetaArgs) {
-  const title = 'Kafi Tours — Umrah Travel Packages from Ethiopia';
+  const title = 'Kafi Tours - Umrah Packages from Ethiopia';
   const description =
     'Kafi Tours arranges Umrah travel packages from Addis Ababa to Makkah and Madinah. Ethiopian Airlines flights, visa assistance, hotel accommodation, and group guidance for Economy, Comfort, and Premium tiers.';
   return [
