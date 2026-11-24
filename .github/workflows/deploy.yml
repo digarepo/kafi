@@ -48,7 +48,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
 
       - name: Restore Nx cache
@@ -135,6 +135,16 @@ jobs:
           cp -R apps/web/build deploy/web/
           cp -R apps/web/public deploy/web/
           mkdir deploy/web/tmp
+          NEW_HASH=$(cat deploy/web/package.json deploy/web/kafi-*.tgz | sha256sum | cut -d' ' -f1)
+          OLD_HASH=$(ssh ${{ secrets.CPANEL_USER }}@${{ secrets.CPANEL_HOST }} \
+            'cat ~/${{ inputs.web_dir }}/.installed-package-sha 2>/dev/null || echo none')
+          if [ "$NEW_HASH" != "$OLD_HASH" ]; then
+            echo "Dependency set changed; bundling node_modules in CI"
+            (cd deploy/web && npm install --omit=dev --no-audit --no-fund && echo "$NEW_HASH" > DEP_HASH)
+            test -d deploy/web/node_modules/@kafi/ui
+          else
+            echo "Dependencies unchanged; shipping code only"
+          fi
           tar -czf deploy-web.tar.gz -C deploy web
           test -f deploy/web/build/server/index.js
 
@@ -152,6 +162,16 @@ jobs:
           cp -R apps/admin/build deploy/admin/
           cp -R apps/admin/public deploy/admin/
           mkdir deploy/admin/tmp
+          NEW_HASH=$(cat deploy/admin/package.json deploy/admin/kafi-*.tgz | sha256sum | cut -d' ' -f1)
+          OLD_HASH=$(ssh ${{ secrets.CPANEL_USER }}@${{ secrets.CPANEL_HOST }} \
+            'cat ~/${{ inputs.admin_dir }}/.installed-package-sha 2>/dev/null || echo none')
+          if [ "$NEW_HASH" != "$OLD_HASH" ]; then
+            echo "Dependency set changed; bundling node_modules in CI"
+            (cd deploy/admin && npm install --omit=dev --no-audit --no-fund && echo "$NEW_HASH" > DEP_HASH)
+            test -d deploy/admin/node_modules/@kafi/ui
+          else
+            echo "Dependencies unchanged; shipping code only"
+          fi
           tar -czf deploy-admin.tar.gz -C deploy admin
           test -f deploy/admin/build/server/index.js
 
@@ -167,6 +187,17 @@ jobs:
           cp -R apps/api/dist deploy/api/
           node deployment/prepare-package-json.mjs deploy/api/package.json "$DATABASE_PACKAGE" database
           mkdir deploy/api/tmp
+          NEW_HASH=$(cat deploy/api/package.json deploy/api/kafi-*.tgz | sha256sum | cut -d' ' -f1)
+          OLD_HASH=$(ssh ${{ secrets.CPANEL_USER }}@${{ secrets.CPANEL_HOST }} \
+            'cat ~/${{ inputs.api_dir }}/.installed-package-sha 2>/dev/null || echo none')
+          if [ "$NEW_HASH" != "$OLD_HASH" ]; then
+            echo "Dependency set changed; bundling node_modules in CI"
+            (cd deploy/api && npm install --omit=dev --no-audit --no-fund && echo "$NEW_HASH" > DEP_HASH)
+            test -d deploy/api/node_modules/@kafi/database
+            test -d deploy/api/node_modules/@nestjs/core
+          else
+            echo "Dependencies unchanged; shipping code only"
+          fi
           tar -czf deploy-api.tar.gz -C deploy api
           test -f deploy/api/dist/main.js
 
@@ -197,18 +228,12 @@ jobs:
           set -e
           export CI=true
           cd ~/${{ inputs.web_dir }}
-          echo "node: $(node -v) npm: $(npm -v) mem: $(free -m | awk '/Mem:/{print $2}')MB"
           tar -xzf deploy-web.tar.gz --strip-components=1
-          rm -f deploy-web.tar.gz build/client/index.html
-          NEW_HASH=$(cat package.json kafi-*.tgz | sha256sum | cut -d' ' -f1)
-          OLD_HASH=$(cat .installed-package-sha 2>/dev/null || echo none)
-          if [ "$NEW_HASH" != "$OLD_HASH" ]; then
-            echo "package.json changed; installing dependencies"
-            timeout 600 npm install --omit=dev --no-audit --no-fund --loglevel=warn --fetch-retries=2
+          rm -f deploy-web.tar.gz package-lock.json build/client/index.html
+          if [ -f DEP_HASH ]; then
             test -d node_modules/@kafi/ui
-            echo "$NEW_HASH" > .installed-package-sha
-          else
-            echo "Dependencies unchanged; skipping npm install"
+            mv DEP_HASH .installed-package-sha
+            echo "Dependencies updated from CI bundle"
           fi
           touch tmp/restart.txt
           EOF
@@ -220,18 +245,12 @@ jobs:
           set -e
           export CI=true
           cd ~/${{ inputs.admin_dir }}
-          echo "node: $(node -v) npm: $(npm -v) mem: $(free -m | awk '/Mem:/{print $2}')MB"
           tar -xzf deploy-admin.tar.gz --strip-components=1
-          rm -f deploy-admin.tar.gz
-          NEW_HASH=$(cat package.json kafi-*.tgz | sha256sum | cut -d' ' -f1)
-          OLD_HASH=$(cat .installed-package-sha 2>/dev/null || echo none)
-          if [ "$NEW_HASH" != "$OLD_HASH" ]; then
-            echo "package.json changed; installing dependencies"
-            timeout 600 npm install --omit=dev --no-audit --no-fund --loglevel=warn --fetch-retries=2
+          rm -f deploy-admin.tar.gz package-lock.json
+          if [ -f DEP_HASH ]; then
             test -d node_modules/@kafi/ui
-            echo "$NEW_HASH" > .installed-package-sha
-          else
-            echo "Dependencies unchanged; skipping npm install"
+            mv DEP_HASH .installed-package-sha
+            echo "Dependencies updated from CI bundle"
           fi
           touch tmp/restart.txt
           EOF
@@ -243,20 +262,13 @@ jobs:
           set -e
           export CI=true
           cd ~/${{ inputs.api_dir }}
-          echo "node: $(node -v) npm: $(npm -v) mem: $(free -m | awk '/Mem:/{print $2}')MB"
           tar -xzf deploy-api.tar.gz --strip-components=1
           rm -f deploy-api.tar.gz package-lock.json
-          NEW_HASH=$(cat package.json kafi-*.tgz | sha256sum | cut -d' ' -f1)
-          OLD_HASH=$(cat .installed-package-sha 2>/dev/null || echo none)
-          if [ "$NEW_HASH" != "$OLD_HASH" ]; then
-            echo "package.json changed; installing dependencies"
-            rm -rf node_modules/@kafi
-            timeout 600 npm install --omit=dev --no-audit --no-fund --loglevel=warn --fetch-retries=2
+          if [ -f DEP_HASH ]; then
             test -d node_modules/@kafi/database
             test -d node_modules/@nestjs/core
-            echo "$NEW_HASH" > .installed-package-sha
-          else
-            echo "Dependencies unchanged; skipping npm install"
+            mv DEP_HASH .installed-package-sha
+            echo "Dependencies updated from CI bundle"
           fi
           mkdir -p ~/storage/documents
           touch tmp/restart.txt
