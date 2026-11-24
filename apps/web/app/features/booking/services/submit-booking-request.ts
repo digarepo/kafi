@@ -1,4 +1,5 @@
 import type { BookingRequestPayload } from '../types/booking.types';
+import { API_BASE } from '../../../lib/api-base';
 
 /**
  * Submits a booking request to the backend inquiry endpoint.
@@ -15,7 +16,7 @@ import type { BookingRequestPayload } from '../types/booking.types';
 export async function submitBookingRequest(
   payload: BookingRequestPayload,
 ): Promise<{ ok: true }> {
-  const apiUrl = import.meta.env.VITE_API_URL;
+  const apiUrl = API_BASE;
   if (!apiUrl) {
     throw new Error(
       'Booking submission is not configured. Please try again later.',

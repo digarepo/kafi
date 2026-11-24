@@ -1,4 +1,5 @@
 import type { EnquiryPayload } from '../types/enquiry.types';
+import { API_BASE } from '../../../lib/api-base';
 
 /**
  * Submits a standalone enquiry to the backend inquiry endpoint.
@@ -15,7 +16,7 @@ import type { EnquiryPayload } from '../types/enquiry.types';
 export async function submitInquiry(
   payload: EnquiryPayload,
 ): Promise<{ ok: true }> {
-  const apiUrl = import.meta.env.VITE_API_URL;
+  const apiUrl = API_BASE;
   if (!apiUrl) {
     throw new Error(
       'Enquiry submission is not configured. Please try again later.',

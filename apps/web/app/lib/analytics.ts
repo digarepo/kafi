@@ -70,12 +70,7 @@ export function trackPageView(path: string): void {
   }
 }
 
-/** Public analytics API base URL, derived from the same env as the rest of the app. */
-const API_BASE =
-  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) ||
-  (typeof window !== 'undefined'
-    ? `${window.location.protocol}//${window.location.hostname}:4000`
-    : 'http://localhost:4000');
+import { API_BASE } from './api-base';
 
 /**
  * Allowed first-party server-tracked events. These are recorded in the
