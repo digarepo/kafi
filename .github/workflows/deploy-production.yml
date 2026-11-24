@@ -1,0 +1,20 @@
+name: Deploy Production
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    uses: ./.github/workflows/deploy.yml
+    secrets: inherit
+    with:
+      environment: production
+      web_dir: kafitour.com
+      admin_dir: admin.kafitour.com
+      api_dir: api.kafitour.com
+      api_url: https://api.kafitour.com

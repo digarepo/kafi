@@ -1,71 +1,114 @@
 name: Deploy Kafi Monorepo
 
-on:
-  push:
-    branches: [main]
+# Reusable incremental deployment. Called by deploy-staging.yml (dev pushes)
+# and deploy-production.yml (main pushes) with environment-specific remote
+# directories and public API URL. Only apps affected since the last
+# successful deploy of THIS environment are built, uploaded, installed, and
+# restarted; state is tracked per environment on the server.
 
-concurrency:
-  group: deploy-${{ github.ref }}
-  cancel-in-progress: true
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+        description: Deployment environment name (staging | production)
+      web_dir:
+        required: true
+        type: string
+        description: Remote directory for the public site
+      admin_dir:
+        required: true
+        type: string
+        description: Remote directory for the admin app
+      api_dir:
+        required: true
+        type: string
+        description: Remote directory for the API app
+      api_url:
+        required: true
+        type: string
+        description: Public API URL baked into the frontend builds
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
 
     steps:
-      # 1. Checkout FULL history (IMPORTANT for nx affected)
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      # 2. Setup Node
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
 
-      # 3. Install dependencies
+      - name: Restore Nx cache
+        uses: actions/cache@v4
+        with:
+          path: .nx/cache
+          key: nx-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ github.sha }}
+          restore-keys: |
+            nx-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-
+            nx-${{ runner.os }}-
+
       - name: Install dependencies
         run: npm ci
 
-      # 4. Write frontend production env files
+      # ---------------------------------------------------------------
+      # 1. Determine which deployable apps changed since the last deploy
+      #    of this environment
+      # ---------------------------------------------------------------
+      - name: Read last deployed SHA
+        id: last-sha
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.CPANEL_DEPLOY_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.CPANEL_HOST }} >> ~/.ssh/known_hosts
+          LAST_SHA=$(ssh ${{ secrets.CPANEL_USER }}@${{ secrets.CPANEL_HOST }} \
+            'cat ~/deploy-state/last-sha-${{ inputs.environment }} 2>/dev/null || true')
+          if [ -z "$LAST_SHA" ] || ! git merge-base --is-ancestor "$LAST_SHA" HEAD 2>/dev/null; then
+            echo "No usable last-deploy SHA; falling back to previous commit"
+            LAST_SHA=$(git rev-parse HEAD~1)
+          fi
+          echo "last_sha=$LAST_SHA" >> "$GITHUB_OUTPUT"
+          echo "Base for affected check: $LAST_SHA"
+
+      - name: Detect affected apps
+        id: affected
+        run: |
+          AFFECTED=$(npx nx show projects --affected --base=${{ steps.last-sha.outputs.last_sha }} --head=HEAD 2>/dev/null || echo "@kafi/web @kafi/admin @kafi/api @kafi/database @kafi/ui")
+          echo "Affected projects: $AFFECTED"
+          echo "web=$(echo "$AFFECTED" | grep -qE '@kafi/(web|ui)' && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "admin=$(echo "$AFFECTED" | grep -qE '@kafi/(admin|ui)' && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "api=$(echo "$AFFECTED" | grep -qE '@kafi/(api|database)' && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
       - name: Write frontend production env files
         run: |
-          echo "VITE_API_URL=https://api.kafitour.com" > apps/web/.env
-          echo "VITE_API_URL=https://api.kafitour.com" >> apps/web/.env
-          echo "VITE_GA4_MEASUREMENT_ID=G-CZGQTYBLBZ" >> apps/web/.env
-          echo "VITE_API_URL=https://api.kafitour.com" > apps/web/.env.production
+          echo "VITE_API_URL=${{ inputs.api_url }}" > apps/web/.env.production
           echo "VITE_GA4_MEASUREMENT_ID=G-CZGQTYBLBZ" >> apps/web/.env.production
-          echo "VITE_API_URL=https://api.kafitour.com" > apps/admin/.env
-          echo "VITE_API_URL=https://api.kafitour.com" > apps/admin/.env.production
+          echo "VITE_API_URL=${{ inputs.api_url }}" > apps/admin/.env.production
 
-      # 5. Build all apps
-      - name: Build all apps
-        run: |
-          npx nx build database --skip-nx-cache
-          npx nx run-many -t build --skip-nx-cache
+      # ---------------------------------------------------------------
+      # 2. Build only the affected projects (Nx cache enabled)
+      # ---------------------------------------------------------------
+      - name: Build affected projects
+        run: npx nx affected -t build --base=${{ steps.last-sha.outputs.last_sha }} --head=HEAD
 
-      - name: Pack UI package
+      # ---------------------------------------------------------------
+      # 3. Package each affected app into a single tarball
+      # ---------------------------------------------------------------
+      - name: Package web
+        if: steps.affected.outputs.web == 'true'
         run: |
           npm pack ./packages/ui
-
-      - name: Pack database package
-        run: |
-          npm pack ./database
-
-      # 6. Prepare deployment package
-      - name: Create deploy package
-        run: |
-          rm -rf deploy
-          mkdir deploy
-          UI_PACKAGE=$(ls kafi-ui-*.tgz)
-          DATABASE_PACKAGE=$(ls kafi-database-*.tgz)
-          #################################
-          # WEB
-          #################################
           mkdir -p deploy/web
+          UI_PACKAGE=$(ls kafi-ui-*.tgz)
           cp apps/web/package.json deploy/web/
           cp "$UI_PACKAGE" deploy/web/
           node deployment/prepare-package-json.mjs deploy/web/package.json "$UI_PACKAGE"
@@ -74,10 +117,15 @@ jobs:
           cp -R apps/web/build deploy/web/
           cp -R apps/web/public deploy/web/
           mkdir deploy/web/tmp
-          #################################
-          # ADMIN
-          #################################
+          tar -czf deploy-web.tar.gz -C deploy web
+          test -f deploy/web/build/server/index.js
+
+      - name: Package admin
+        if: steps.affected.outputs.admin == 'true'
+        run: |
+          test -f kafi-ui-1.0.0.tgz || npm pack ./packages/ui
           mkdir -p deploy/admin
+          UI_PACKAGE=$(ls kafi-ui-*.tgz)
           cp apps/admin/package.json deploy/admin/
           cp "$UI_PACKAGE" deploy/admin/
           node deployment/prepare-package-json.mjs deploy/admin/package.json "$UI_PACKAGE"
@@ -86,100 +134,118 @@ jobs:
           cp -R apps/admin/build deploy/admin/
           cp -R apps/admin/public deploy/admin/
           mkdir deploy/admin/tmp
-          #################################
-          # API
-          #################################
+          tar -czf deploy-admin.tar.gz -C deploy admin
+          test -f deploy/admin/build/server/index.js
+
+      - name: Package api
+        if: steps.affected.outputs.api == 'true'
+        run: |
+          npm pack ./database
           mkdir -p deploy/api
           cp apps/api/package.json deploy/api/
+          DATABASE_PACKAGE=$(ls kafi-database-*.tgz)
           cp "$DATABASE_PACKAGE" deploy/api/
           cp deployment/api/start.cjs deploy/api/
           cp -R apps/api/dist deploy/api/
           node deployment/prepare-package-json.mjs deploy/api/package.json "$DATABASE_PACKAGE" database
           mkdir deploy/api/tmp
-
-      - name: Verify deployment package
-        run: |
-          echo "WEB"
-          test -f deploy/web/package.json
-          test -f deploy/web/kafi-ui-1.0.0.tgz
-          test -f deploy/web/build/server/index.js
-          echo "ADMIN"
-          test -f deploy/admin/package.json
-          test -f deploy/admin/kafi-ui-1.0.0.tgz
-          test -f deploy/admin/build/server/index.js
-          echo "API"
-          test -f deploy/api/package.json
-          test -f deploy/api/kafi-database-1.0.0.tgz
-          test -d deploy/api/dist
+          tar -czf deploy-api.tar.gz -C deploy api
           test -f deploy/api/dist/main.js
-          echo "Deployment package looks good"
 
-      # Step 7: Upload the deploy folder
-      - name: Upload Web
-        uses: wlixcc/SFTP-Deploy-Action@v1.2.4
-        with:
-          username: ${{ secrets.CPANEL_USER }}
-          server: ${{ secrets.CPANEL_HOST }}
-          ssh_private_key: ${{ secrets.CPANEL_DEPLOY_KEY }}
-          local_path: ./deploy/web/*
-          remote_path: /home/${{ secrets.CPANEL_USER }}/kafitour.com
-          port: 22
-          sftp_only: true
-          delete_remote_files: false
-
-      - name: Upload Admin
-        uses: wlixcc/SFTP-Deploy-Action@v1.2.4
-        with:
-          username: ${{ secrets.CPANEL_USER }}
-          server: ${{ secrets.CPANEL_HOST }}
-          ssh_private_key: ${{ secrets.CPANEL_DEPLOY_KEY }}
-          local_path: ./deploy/admin/*
-          remote_path: /home/${{ secrets.CPANEL_USER }}/admin.kafitour.com
-          port: 22
-          sftp_only: true
-          delete_remote_files: false
-
-      - name: Upload API
-        uses: wlixcc/SFTP-Deploy-Action@v1.2.4
-        with:
-          username: ${{ secrets.CPANEL_USER }}
-          server: ${{ secrets.CPANEL_HOST }}
-          ssh_private_key: ${{ secrets.CPANEL_DEPLOY_KEY }}
-          local_path: ./deploy/api/*
-          remote_path: /home/${{ secrets.CPANEL_USER }}/api.kafitour.com
-          port: 22
-          sftp_only: true
-          delete_remote_files: false
-
-      # Step 8: Install dependencies and restart Passenger apps
-      - name: Install dependencies and restart Passenger
+      # ---------------------------------------------------------------
+      # 4. Upload one tarball per changed app, extract, install (only when
+      #    package.json or the bundled workspace package changed), and
+      #    restart Passenger
+      # ---------------------------------------------------------------
+      - name: Upload web
+        if: steps.affected.outputs.web == 'true'
         run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.CPANEL_DEPLOY_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H ${{ secrets.CPANEL_HOST }} >> ~/.ssh/known_hosts
+          scp deploy-web.tar.gz ${{ secrets.CPANEL_USER }}@${{ secrets.CPANEL_HOST }}:${{ inputs.web_dir }}/deploy-web.tar.gz
+
+      - name: Upload admin
+        if: steps.affected.outputs.admin == 'true'
+        run: |
+          scp deploy-admin.tar.gz ${{ secrets.CPANEL_USER }}@${{ secrets.CPANEL_HOST }}:${{ inputs.admin_dir }}/deploy-admin.tar.gz
+
+      - name: Upload api
+        if: steps.affected.outputs.api == 'true'
+        run: |
+          scp deploy-api.tar.gz ${{ secrets.CPANEL_USER }}@${{ secrets.CPANEL_HOST }}:${{ inputs.api_dir }}/deploy-api.tar.gz
+
+      - name: Apply web on server
+        if: steps.affected.outputs.web == 'true'
+        run: |
           ssh ${{ secrets.CPANEL_USER }}@${{ secrets.CPANEL_HOST }} << 'EOF'
           set -e
           export CI=true
-          echo "Installing web dependencies..."
-          cd /home/${{ secrets.CPANEL_USER }}/kafitour.com
-          rm -f build/client/index.html
-          npm install --omit=dev --no-audit --no-fund
-          test -d node_modules/@kafi/ui
+          cd ~/${{ inputs.web_dir }}
+          tar -xzf deploy-web.tar.gz --strip-components=1
+          rm deploy-web.tar.gz build/client/index.html
+          NEW_HASH=$(cat package.json kafi-*.tgz | sha256sum | cut -d' ' -f1)
+          OLD_HASH=$(cat .installed-package-sha 2>/dev/null || echo none)
+          if [ "$NEW_HASH" != "$OLD_HASH" ]; then
+            echo "package.json changed; installing dependencies"
+            npm install --omit=dev --no-audit --no-fund
+            test -d node_modules/@kafi/ui
+            echo "$NEW_HASH" > .installed-package-sha
+          else
+            echo "Dependencies unchanged; skipping npm install"
+          fi
           touch tmp/restart.txt
-          echo "Installing admin dependencies..."
-          cd /home/${{ secrets.CPANEL_USER }}/admin.kafitour.com
-          npm install --omit=dev --no-audit --no-fund
-          test -d node_modules/@kafi/ui
-          touch tmp/restart.txt
-          echo "Installing api dependencies..."
-          cd /home/${{ secrets.CPANEL_USER }}/api.kafitour.com
-          rm -f package-lock.json
-          rm -rf node_modules/@kafi
-          npm install --omit=dev --no-audit --no-fund
-          test -d node_modules/@kafi/database
-          test -d node_modules/@nestjs/core
-          mkdir -p /home/${{ secrets.CPANEL_USER }}/storage/documents
-          touch tmp/restart.txt
-          echo "Deployment complete"
           EOF
+
+      - name: Apply admin on server
+        if: steps.affected.outputs.admin == 'true'
+        run: |
+          ssh ${{ secrets.CPANEL_USER }}@${{ secrets.CPANEL_HOST }} << 'EOF'
+          set -e
+          export CI=true
+          cd ~/${{ inputs.admin_dir }}
+          tar -xzf deploy-admin.tar.gz --strip-components=1
+          rm deploy-admin.tar.gz
+          NEW_HASH=$(cat package.json kafi-*.tgz | sha256sum | cut -d' ' -f1)
+          OLD_HASH=$(cat .installed-package-sha 2>/dev/null || echo none)
+          if [ "$NEW_HASH" != "$OLD_HASH" ]; then
+            echo "package.json changed; installing dependencies"
+            npm install --omit=dev --no-audit --no-fund
+            test -d node_modules/@kafi/ui
+            echo "$NEW_HASH" > .installed-package-sha
+          else
+            echo "Dependencies unchanged; skipping npm install"
+          fi
+          touch tmp/restart.txt
+          EOF
+
+      - name: Apply api on server
+        if: steps.affected.outputs.api == 'true'
+        run: |
+          ssh ${{ secrets.CPANEL_USER }}@${{ secrets.CPANEL_HOST }} << 'EOF'
+          set -e
+          export CI=true
+          cd ~/${{ inputs.api_dir }}
+          tar -xzf deploy-api.tar.gz --strip-components=1
+          rm deploy-api.tar.gz package-lock.json
+          NEW_HASH=$(cat package.json kafi-*.tgz | sha256sum | cut -d' ' -f1)
+          OLD_HASH=$(cat .installed-package-sha 2>/dev/null || echo none)
+          if [ "$NEW_HASH" != "$OLD_HASH" ]; then
+            echo "package.json changed; installing dependencies"
+            rm -rf node_modules/@kafi
+            npm install --omit=dev --no-audit --no-fund
+            test -d node_modules/@kafi/database
+            test -d node_modules/@nestjs/core
+            echo "$NEW_HASH" > .installed-package-sha
+          else
+            echo "Dependencies unchanged; skipping npm install"
+          fi
+          mkdir -p ~/storage/documents
+          touch tmp/restart.txt
+          EOF
+
+      # ---------------------------------------------------------------
+      # 5. Record the deployed SHA only after every enabled step succeeded
+      # ---------------------------------------------------------------
+      - name: Record deployed SHA
+        run: |
+          ssh ${{ secrets.CPANEL_USER }}@${{ secrets.CPANEL_HOST }} \
+            "mkdir -p ~/deploy-state && echo ${{ github.sha }} > ~/deploy-state/last-sha-${{ inputs.environment }}"
+          echo "Deployment complete (${{ inputs.environment }}) — ${{ github.sha }}"
