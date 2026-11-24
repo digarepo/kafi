@@ -29,6 +29,10 @@ on:
         required: true
         type: string
         description: Public API URL baked into the frontend builds
+      enable_analytics:
+        required: true
+        type: boolean
+        description: Whether to include the GA4 measurement id in the web build
 
 jobs:
   deploy:
@@ -73,8 +77,11 @@ jobs:
           LAST_SHA=$(ssh ${{ secrets.CPANEL_USER }}@${{ secrets.CPANEL_HOST }} \
             'cat ~/deploy-state/last-sha-${{ inputs.environment }} 2>/dev/null || true')
           if [ -z "$LAST_SHA" ] || ! git merge-base --is-ancestor "$LAST_SHA" HEAD 2>/dev/null; then
-            echo "No usable last-deploy SHA; falling back to previous commit"
-            LAST_SHA=$(git rev-parse HEAD~1)
+            echo "No usable last-deploy SHA; doing a full deploy"
+            LAST_SHA=""
+            echo "full_deploy=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "full_deploy=false" >> "$GITHUB_OUTPUT"
           fi
           echo "last_sha=$LAST_SHA" >> "$GITHUB_OUTPUT"
           echo "Base for affected check: $LAST_SHA"
@@ -82,7 +89,11 @@ jobs:
       - name: Detect affected apps
         id: affected
         run: |
-          AFFECTED=$(npx nx show projects --affected --base=${{ steps.last-sha.outputs.last_sha }} --head=HEAD 2>/dev/null || echo "@kafi/web @kafi/admin @kafi/api @kafi/database @kafi/ui")
+          if [ "${{ steps.last-sha.outputs.full_deploy }}" = "true" ]; then
+            AFFECTED="@kafi/web @kafi/admin @kafi/api"
+          else
+            AFFECTED=$(npx nx show projects --affected --base=${{ steps.last-sha.outputs.last_sha }} --head=HEAD 2>/dev/null || echo "@kafi/web @kafi/admin @kafi/api @kafi/database @kafi/ui")
+          fi
           echo "Affected projects: $AFFECTED"
           echo "web=$(echo "$AFFECTED" | grep -qE '@kafi/(web|ui)' && echo true || echo false)" >> "$GITHUB_OUTPUT"
           echo "admin=$(echo "$AFFECTED" | grep -qE '@kafi/(admin|ui)' && echo true || echo false)" >> "$GITHUB_OUTPUT"
@@ -91,14 +102,21 @@ jobs:
       - name: Write frontend production env files
         run: |
           echo "VITE_API_URL=${{ inputs.api_url }}" > apps/web/.env.production
-          echo "VITE_GA4_MEASUREMENT_ID=G-CZGQTYBLBZ" >> apps/web/.env.production
+          if [ "${{ inputs.enable_analytics }}" = "true" ]; then
+            echo "VITE_GA4_MEASUREMENT_ID=G-CZGQTYBLBZ" >> apps/web/.env.production
+          fi
           echo "VITE_API_URL=${{ inputs.api_url }}" > apps/admin/.env.production
 
       # ---------------------------------------------------------------
       # 2. Build only the affected projects (Nx cache enabled)
       # ---------------------------------------------------------------
       - name: Build affected projects
-        run: npx nx affected -t build --base=${{ steps.last-sha.outputs.last_sha }} --head=HEAD
+        run: |
+          if [ "${{ steps.last-sha.outputs.full_deploy }}" = "true" ]; then
+            npx nx run-many -t build
+          else
+            npx nx affected -t build --base=${{ steps.last-sha.outputs.last_sha }} --head=HEAD
+          fi
 
       # ---------------------------------------------------------------
       # 3. Package each affected app into a single tarball
