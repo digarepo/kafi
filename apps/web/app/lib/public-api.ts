@@ -1,12 +1,4 @@
-const API_BASE = (() => {
-  if (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL as string;
-  }
-  if (typeof window !== 'undefined') {
-    return `${window.location.protocol}//${window.location.hostname}:4000`;
-  }
-  return 'http://localhost:4000';
-})();
+import { API_BASE } from './api-base';
 
 export interface PublicPackageVersion {
   id: string;

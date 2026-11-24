@@ -155,8 +155,7 @@ export function ContactPersonForm({
                     htmlFor="cp_first_name"
                     className="text-sm font-medium"
                   >
-                    First name
-                  </Label>
+                    First name <span className="text-destructive">*</span></Label>
                   <Input
                     id="cp_first_name"
                     value={field.state.value ?? ''}
@@ -179,7 +178,7 @@ export function ContactPersonForm({
                   >
                     Middle name
                   </Label>
-                  <Input
+                  <Input aria-invalid={field.state.meta.errors.length > 0}
                     id="cp_middle_name"
                     value={field.state.value ?? ''}
                     onChange={(e) => field.handleChange(e.target.value)}
@@ -194,8 +193,7 @@ export function ContactPersonForm({
               {(field: AnyFieldApi) => (
                 <div className="space-y-2">
                   <Label htmlFor="cp_last_name" className="text-sm font-medium">
-                    Last name
-                  </Label>
+                    Last name <span className="text-destructive">*</span></Label>
                   <Input
                     id="cp_last_name"
                     value={field.state.value ?? ''}
@@ -255,8 +253,7 @@ export function ContactPersonForm({
               {(field: AnyFieldApi) => (
                 <div className="space-y-2">
                   <Label htmlFor="cp_phone" className="text-sm font-medium">
-                    Phone number
-                  </Label>
+                    Phone number <span className="text-destructive">*</span></Label>
                   <Input
                     id="cp_phone"
                     type="tel"
@@ -277,7 +274,7 @@ export function ContactPersonForm({
                   <Label htmlFor="cp_alt_phone" className="text-sm font-medium">
                     Alternate phone
                   </Label>
-                  <Input
+                  <Input aria-invalid={field.state.meta.errors.length > 0}
                     id="cp_alt_phone"
                     type="tel"
                     value={field.state.value ?? ''}
@@ -315,7 +312,7 @@ export function ContactPersonForm({
                   <Label htmlFor="cp_address" className="text-sm font-medium">
                     Address
                   </Label>
-                  <Input
+                  <Input aria-invalid={field.state.meta.errors.length > 0}
                     id="cp_address"
                     value={field.state.value ?? ''}
                     onChange={(e) => field.handleChange(e.target.value)}
@@ -338,7 +335,7 @@ export function ContactPersonForm({
                     value={field.state.value ?? ''}
                     onValueChange={(v) => field.handleChange(v ?? '')}
                   >
-                    <SelectTrigger className="h-9 w-full">
+                    <SelectTrigger aria-invalid={field.state.meta.errors.length > 0} className="h-9 w-full">
                       <SelectValue>
                         {languages
                           .map((l) => ({ value: l.id, label: l.name }))
@@ -363,7 +360,7 @@ export function ContactPersonForm({
             <form.Field name="contact_person_status_id">
               {(field: AnyFieldApi) => (
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium">Status</Label>
+                  <Label className="text-sm font-medium">Status <span className="text-destructive">*</span></Label>
                   <Select
                     value={field.state.value ?? ''}
                     onValueChange={(v) => field.handleChange(v ?? '')}

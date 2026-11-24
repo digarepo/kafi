@@ -669,6 +669,15 @@ export class RegistrationReadinessService {
     const finance =
       await this.invoices.getRegistrationFinanceSummaries(registrationIdsValid);
 
+    // Fetch authorized credit exceptions for all registrations
+    const creditExceptions =
+      await this.financeExceptions.getActiveExceptionsForRegistrations(
+        registrationIdsValid,
+      );
+    const creditByRegistration = new Map(
+      creditExceptions.map((e) => [e.registration_id, e]),
+    );
+
     for (const registration of registrations) {
       const packagePublished =
         packageStatusById.get(registration.package_version_id) === 'PUBLISHED';
@@ -687,9 +696,27 @@ export class RegistrationReadinessService {
         outstanding_balance: 0,
       };
 
+      const creditException = creditByRegistration.get(registration.id);
+      const authorizedCredit = creditException?.authorized_amount ?? 0;
+      const hasAuthorizedCredit = authorizedCredit > 0;
+
+      // Intake payment: either the balance is paid in full, or an authorized
+      // credit exception covers the outstanding balance. This mirrors the
+      // ready-for-travel payment check so that an approved credit exception
+      // releases the intake gate as well.
       const hasPaymentForIntake =
-        summary.total_invoiced > 0 && summary.outstanding_balance <= 0;
-      const hasPaymentForReady = summary.outstanding_balance <= 0;
+        summary.total_invoiced > 0 &&
+        (summary.outstanding_balance <= 0 ||
+          (hasAuthorizedCredit &&
+            authorizedCredit >= summary.outstanding_balance));
+
+      // Ready-for-travel payment: either balance is zero, or an authorized
+      // credit exception covers the outstanding balance.
+      const hasPaymentForReady =
+        summary.outstanding_balance <= 0 ||
+        (hasAuthorizedCredit &&
+          authorizedCredit >= summary.outstanding_balance);
+
       const hasGuarantee = guaranteedRegistrations.has(registration.id);
 
       // Intake (DRAFT -> PROCESSING): documents only need to be uploaded
@@ -733,8 +760,8 @@ export class RegistrationReadinessService {
         payment_satisfied: hasPaymentForReady,
         intake_payment_satisfied: hasPaymentForIntake,
         has_guarantee: hasGuarantee,
-        has_authorized_credit: false,
-        authorized_credit_amount: 0,
+        has_authorized_credit: hasAuthorizedCredit,
+        authorized_credit_amount: authorizedCredit,
         outstanding_balance: summary.outstanding_balance,
         can_start_processing: canStartProcessing,
         can_confirm_ready: canConfirmReady,

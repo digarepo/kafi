@@ -162,7 +162,7 @@ export function VisaApplicationForm({
               {(field: AnyFieldApi) =>
                 registration ? (
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium">Registration</Label>
+                    <Label className="text-sm font-medium">Registration <span className="text-destructive">*</span></Label>
                     <p className="text-sm font-medium">
                       {registration.registration_number}
                     </p>
@@ -186,7 +186,7 @@ export function VisaApplicationForm({
                       value={field.state.value ?? ''}
                       onValueChange={(v) => field.handleChange(v ?? '')}
                     >
-                      <SelectTrigger className="h-9 w-full">
+                      <SelectTrigger aria-invalid={field.state.meta.errors.length > 0} className="h-9 w-full">
                         <SelectValue>
                           {regOptions.find((o) => o.value === field.state.value)
                             ?.label ?? 'Select registration'}

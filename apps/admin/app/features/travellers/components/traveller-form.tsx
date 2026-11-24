@@ -254,8 +254,7 @@ export function TravellerForm({
               {(field: AnyFieldApi) => (
                 <div className="space-y-2">
                   <Label htmlFor="first_name" className="text-sm font-medium">
-                    First name
-                  </Label>
+                    First name <span className="text-destructive">*</span></Label>
                   <Input
                     id="first_name"
                     value={field.state.value ?? ''}
@@ -275,7 +274,7 @@ export function TravellerForm({
                   <Label htmlFor="middle_name" className="text-sm font-medium">
                     Middle name
                   </Label>
-                  <Input
+                  <Input aria-invalid={field.state.meta.errors.length > 0}
                     id="middle_name"
                     value={field.state.value ?? ''}
                     onChange={(e) => field.handleChange(e.target.value)}
@@ -291,8 +290,7 @@ export function TravellerForm({
               {(field: AnyFieldApi) => (
                 <div className="space-y-2">
                   <Label htmlFor="last_name" className="text-sm font-medium">
-                    Last name
-                  </Label>
+                    Last name <span className="text-destructive">*</span></Label>
                   <Input
                     id="last_name"
                     value={field.state.value ?? ''}
@@ -356,8 +354,7 @@ export function TravellerForm({
               {(field: AnyFieldApi) => (
                 <div className="space-y-2">
                   <Label htmlFor="phone_number" className="text-sm font-medium">
-                    Phone number
-                  </Label>
+                    Phone number <span className="text-destructive">*</span></Label>
                   <Input
                     id="phone_number"
                     type="tel"
@@ -404,7 +401,7 @@ export function TravellerForm({
                   >
                     Passport number
                   </Label>
-                  <Input
+                  <Input aria-invalid={field.state.meta.errors.length > 0}
                     id="passport_number"
                     value={field.state.value ?? ''}
                     onChange={(e) => field.handleChange(e.target.value)}
@@ -422,7 +419,7 @@ export function TravellerForm({
                   <Label htmlFor="fayda_number" className="text-sm font-medium">
                     Fayda number
                   </Label>
-                  <Input
+                  <Input aria-invalid={field.state.meta.errors.length > 0}
                     id="fayda_number"
                     value={field.state.value ?? ''}
                     onChange={(e) => field.handleChange(e.target.value)}
@@ -446,7 +443,7 @@ export function TravellerForm({
                     value={field.state.value ?? ''}
                     onValueChange={(v) => field.handleChange(v ?? '')}
                   >
-                    <SelectTrigger className="h-9 w-full">
+                    <SelectTrigger aria-invalid={field.state.meta.errors.length > 0} className="h-9 w-full">
                       <SelectValue>
                         {languages
                           .map((l) => ({ value: l.id, label: l.name }))
@@ -477,7 +474,7 @@ export function TravellerForm({
                     value={field.state.value ?? ''}
                     onValueChange={(v) => field.handleChange(v ?? '')}
                   >
-                    <SelectTrigger className="h-9 w-full">
+                    <SelectTrigger aria-invalid={field.state.meta.errors.length > 0} className="h-9 w-full">
                       <SelectValue>
                         {sources
                           .map((s) => ({ value: s.id, label: s.name }))
@@ -503,7 +500,7 @@ export function TravellerForm({
             <form.Field name="traveller_status_id">
               {(field: AnyFieldApi) => (
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium">Status</Label>
+                  <Label className="text-sm font-medium">Status <span className="text-destructive">*</span></Label>
                   <Select
                     value={field.state.value ?? ''}
                     onValueChange={(v) => field.handleChange(v ?? '')}

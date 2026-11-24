@@ -213,7 +213,7 @@ export function RegistrationForm({
           <form.Field name="traveller_id">
             {(field: AnyFieldApi) => (
               <div className="space-y-2">
-                <Label className="text-sm font-medium">Traveler</Label>
+                <Label className="text-sm font-medium">Traveler <span className="text-destructive">*</span></Label>
                 <Select
                   value={field.state.value ?? ''}
                   onValueChange={(v) => field.handleChange(v ?? '')}
@@ -254,7 +254,7 @@ export function RegistrationForm({
           <form.Field name="package_version_id">
             {(field: AnyFieldApi) => (
               <div className="space-y-2">
-                <Label className="text-sm font-medium">Package</Label>
+                <Label className="text-sm font-medium">Package <span className="text-destructive">*</span></Label>
                 <Select
                   value={field.state.value ?? ''}
                   onValueChange={(v) => field.handleChange(v ?? '')}
@@ -333,7 +333,7 @@ export function RegistrationForm({
       <form.Field name="travel_round_id">
         {(field: AnyFieldApi) => (
           <div className="space-y-2">
-            <Label className="text-sm font-medium">Travel round</Label>
+            <Label className="text-sm font-medium">Travel round <span className="text-destructive">*</span></Label>
             <Select
               value={field.state.value ?? ''}
               onValueChange={(v) => {
@@ -355,7 +355,7 @@ export function RegistrationForm({
                 mode === 'edit' || Boolean(selectedPackage?.travel_round)
               }
             >
-              <SelectTrigger className="h-9 w-full">
+              <SelectTrigger aria-invalid={field.state.meta.errors.length > 0} className="h-9 w-full">
                 <SelectValue>
                   {selectedPackage?.travel_round
                     ? `R${String(selectedPackage.travel_round.round_number).padStart(2, '0')} — ${selectedPackage.travel_round.name}`
@@ -420,7 +420,7 @@ export function RegistrationForm({
             <Label htmlFor="remarks" className="text-sm font-medium">
               Remarks
             </Label>
-            <Textarea
+            <Textarea aria-invalid={field.state.meta.errors.length > 0}
               id="remarks"
               value={field.state.value ?? ''}
               onChange={(e) => field.handleChange(e.target.value)}

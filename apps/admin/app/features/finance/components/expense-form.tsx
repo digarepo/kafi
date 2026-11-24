@@ -150,7 +150,7 @@ export function ExpenseForm({
               <form.Field name="expense_category_id">
                 {(field: AnyFieldApi) => (
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium">Category</Label>
+                    <Label className="text-sm font-medium">Category <span className="text-destructive">*</span></Label>
                     <Select
                       value={field.state.value ?? ''}
                       onValueChange={(v) => field.handleChange(v ?? '')}
@@ -184,7 +184,7 @@ export function ExpenseForm({
               <form.Field name="expense_source_id">
                 {(field: AnyFieldApi) => (
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium">Source</Label>
+                    <Label className="text-sm font-medium">Source <span className="text-destructive">*</span></Label>
                     <Select
                       value={field.state.value ?? ''}
                       onValueChange={(v) => field.handleChange(v ?? '')}
@@ -222,8 +222,7 @@ export function ExpenseForm({
                       htmlFor="expense_date"
                       className="text-sm font-medium"
                     >
-                      Expense date
-                    </Label>
+                      Expense date <span className="text-destructive">*</span></Label>
                     <DatePicker
                       id="expense_date"
                       value={field.state.value}
@@ -238,8 +237,7 @@ export function ExpenseForm({
                 {(field: AnyFieldApi) => (
                   <div className="space-y-2">
                     <Label className="text-sm font-medium">
-                      Attribution scope
-                    </Label>
+                      Attribution scope <span className="text-destructive">*</span></Label>
                     <Select
                       value={field.state.value ?? ''}
                       onValueChange={(v) =>
@@ -249,7 +247,7 @@ export function ExpenseForm({
                         )
                       }
                     >
-                      <SelectTrigger className="h-9 w-full">
+                      <SelectTrigger aria-invalid={field.state.meta.errors.length > 0} className="h-9 w-full">
                         <SelectValue>
                           {[
                             { value: 'GENERAL', label: 'General' },
@@ -280,7 +278,7 @@ export function ExpenseForm({
                         value={field.state.value ?? ''}
                         onValueChange={(v) => field.handleChange(v ?? '')}
                       >
-                        <SelectTrigger className="h-9 w-full">
+                        <SelectTrigger aria-invalid={field.state.meta.errors.length > 0} className="h-9 w-full">
                           <SelectValue>
                             {travellers
                               .map((t) => ({
@@ -318,7 +316,7 @@ export function ExpenseForm({
                         value={field.state.value ?? ''}
                         onValueChange={(v) => field.handleChange(v ?? '')}
                       >
-                        <SelectTrigger className="h-9 w-full">
+                        <SelectTrigger aria-invalid={field.state.meta.errors.length > 0} className="h-9 w-full">
                           <SelectValue>
                             {registrations
                               .map((r) => ({
@@ -360,7 +358,7 @@ export function ExpenseForm({
                         value={field.state.value ?? ''}
                         onValueChange={(v) => field.handleChange(v ?? '')}
                       >
-                        <SelectTrigger className="h-9 w-full">
+                        <SelectTrigger aria-invalid={field.state.meta.errors.length > 0} className="h-9 w-full">
                           <SelectValue>
                             {travelGroups
                               .map((g) => ({
@@ -398,7 +396,7 @@ export function ExpenseForm({
                         value={field.state.value ?? ''}
                         onValueChange={(v) => field.handleChange(v ?? '')}
                       >
-                        <SelectTrigger className="h-9 w-full">
+                        <SelectTrigger aria-invalid={field.state.meta.errors.length > 0} className="h-9 w-full">
                           <SelectValue>
                             {packageVersions
                               .map((p) => ({
@@ -435,7 +433,7 @@ export function ExpenseForm({
                     <Label htmlFor="payee_name" className="text-sm font-medium">
                       Payee name (optional)
                     </Label>
-                    <Input
+                    <Input aria-invalid={field.state.meta.errors.length > 0}
                       id="payee_name"
                       value={field.state.value ?? ''}
                       onChange={(e) => field.handleChange(e.target.value)}
@@ -456,7 +454,7 @@ export function ExpenseForm({
                       value={field.state.value ?? ''}
                       onValueChange={(v) => field.handleChange(v ?? '')}
                     >
-                      <SelectTrigger className="h-9 w-full">
+                      <SelectTrigger aria-invalid={field.state.meta.errors.length > 0} className="h-9 w-full">
                         <SelectValue>
                           {currencies
                             .map((c) => ({
@@ -495,7 +493,7 @@ export function ExpenseForm({
                         >
                           Amount (original currency)
                         </Label>
-                        <Input
+                        <Input aria-invalid={field.state.meta.errors.length > 0}
                           id="original_amount"
                           type="number"
                           min={0}
@@ -518,7 +516,7 @@ export function ExpenseForm({
                         >
                           Exchange rate to ETB
                         </Label>
-                        <Input
+                        <Input aria-invalid={field.state.meta.errors.length > 0}
                           id="exchange_rate"
                           type="number"
                           min={0}
@@ -537,8 +535,7 @@ export function ExpenseForm({
                   {(field: AnyFieldApi) => (
                     <div className="space-y-2">
                       <Label htmlFor="amount" className="text-sm font-medium">
-                        Amount (ETB)
-                      </Label>
+                        Amount (ETB) <span className="text-destructive">*</span></Label>
                       <Input
                         id="amount"
                         type="number"
@@ -567,7 +564,7 @@ export function ExpenseForm({
                     >
                       Description
                     </Label>
-                    <Textarea
+                    <Textarea aria-invalid={field.state.meta.errors.length > 0}
                       id="description"
                       value={field.state.value ?? ''}
                       onChange={(e) => field.handleChange(e.target.value)}
@@ -584,7 +581,7 @@ export function ExpenseForm({
                     <Label htmlFor="notes" className="text-sm font-medium">
                       Notes
                     </Label>
-                    <Textarea
+                    <Textarea aria-invalid={field.state.meta.errors.length > 0}
                       id="notes"
                       value={field.state.value ?? ''}
                       onChange={(e) => field.handleChange(e.target.value)}

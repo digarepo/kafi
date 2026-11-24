@@ -102,12 +102,12 @@ export function RefundForm({
             <form.Field name="payment_id">
               {(field: AnyFieldApi) => (
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium">Payment</Label>
+                  <Label className="text-sm font-medium">Payment <span className="text-destructive">*</span></Label>
                   <Select
                     value={field.state.value ?? ''}
                     onValueChange={(v) => field.handleChange(v ?? '')}
                   >
-                    <SelectTrigger className="h-9 w-full">
+                    <SelectTrigger aria-invalid={field.state.meta.errors.length > 0} className="h-9 w-full">
                       <SelectValue>
                         {payments
                           .map((p) => ({
@@ -150,8 +150,7 @@ export function RefundForm({
                 {(field: AnyFieldApi) => (
                   <div className="space-y-2">
                     <Label htmlFor="amount" className="text-sm font-medium">
-                      Amount
-                    </Label>
+                      Amount <span className="text-destructive">*</span></Label>
                     <Input
                       id="amount"
                       type="number"
@@ -171,7 +170,7 @@ export function RefundForm({
               <form.Field name="refund_date">
                 {(field: AnyFieldApi) => (
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium">Refund date</Label>
+                    <Label className="text-sm font-medium">Refund date <span className="text-destructive">*</span></Label>
                     <DatePicker
                       value={field.state.value ?? ''}
                       onChange={(v) => field.handleChange(v)}
@@ -191,7 +190,7 @@ export function RefundForm({
                     value={field.state.value ?? ''}
                     onValueChange={(v) => field.handleChange(v ?? '')}
                   >
-                    <SelectTrigger className="h-9 w-full">
+                    <SelectTrigger aria-invalid={field.state.meta.errors.length > 0} className="h-9 w-full">
                       <SelectValue>
                         {registrations
                           .map((r) => ({
@@ -224,8 +223,7 @@ export function RefundForm({
               {(field: AnyFieldApi) => (
                 <div className="space-y-2">
                   <Label htmlFor="reason" className="text-sm font-medium">
-                    Reason
-                  </Label>
+                    Reason <span className="text-destructive">*</span></Label>
                   <Textarea
                     id="reason"
                     value={field.state.value ?? ''}
@@ -245,7 +243,7 @@ export function RefundForm({
                   <Label htmlFor="notes" className="text-sm font-medium">
                     Notes (optional)
                   </Label>
-                  <Textarea
+                  <Textarea aria-invalid={field.state.meta.errors.length > 0}
                     id="notes"
                     value={field.state.value ?? ''}
                     onChange={(e) => field.handleChange(e.target.value)}

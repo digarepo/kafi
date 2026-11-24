@@ -140,8 +140,7 @@ export function UserForm({
                 {(field: AnyFieldApi) => (
                   <div className="space-y-2">
                     <Label htmlFor="firstName" className="text-sm font-medium">
-                      First name
-                    </Label>
+                      First name <span className="text-destructive">*</span></Label>
                     <Input
                       id="firstName"
                       value={field.state.value ?? ''}
@@ -196,7 +195,7 @@ export function UserForm({
               <form.Field name="gender">
                 {(field: AnyFieldApi) => (
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium">Gender</Label>
+                    <Label className="text-sm font-medium">Gender <span className="text-destructive">*</span></Label>
                     <div className="flex h-9 items-center gap-6 rounded-md border border-input bg-transparent px-3">
                       {(['Male', 'Female'] as const).map((option) => (
                         <div key={option} className="flex items-center gap-2">
@@ -229,8 +228,7 @@ export function UserForm({
                 {(field: AnyFieldApi) => (
                   <div className="space-y-2">
                     <Label htmlFor="email" className="text-sm font-medium">
-                      Email address
-                    </Label>
+                      Email address <span className="text-destructive">*</span></Label>
                     <Input
                       id="email"
                       type="email"
@@ -249,8 +247,7 @@ export function UserForm({
                 {(field: AnyFieldApi) => (
                   <div className="space-y-2">
                     <Label htmlFor="phone" className="text-sm font-medium">
-                      Phone number
-                    </Label>
+                      Phone number <span className="text-destructive">*</span></Label>
                     <Input
                       id="phone"
                       type="tel"
@@ -279,7 +276,7 @@ export function UserForm({
               <form.Field name="role_id">
                 {(field: AnyFieldApi) => (
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium">Role</Label>
+                    <Label className="text-sm font-medium">Role <span className="text-destructive">*</span></Label>
                     <div className="flex h-9 flex-wrap items-center gap-6 rounded-md border border-input bg-transparent px-3">
                       {roles.map((role) => (
                         <div key={role.id} className="flex items-center gap-2">

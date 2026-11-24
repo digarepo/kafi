@@ -1,0 +1,22 @@
+name: Deploy Staging
+
+on:
+  push:
+    branches: [dev]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    uses: ./.github/workflows/deploy.yml
+    secrets: inherit
+    with:
+      environment: staging
+      web_dir: staging.kafitour.com
+      admin_dir: staging-admin.kafitour.com
+      api_dir: staging-api.kafitour.com
+      api_url: https://staging-api.kafitour.com
+      enable_analytics: false

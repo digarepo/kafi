@@ -53,7 +53,7 @@ export function SidebarHeader() {
           </Link>
           <SidebarTrigger
             aria-label="Expand sidebar"
-            className="pointer-events-none absolute inset-1 h-auto w-auto bg-sidebar/80 opacity-0 transition-opacity group-hover/sidebar-brand:pointer-events-auto group-hover/sidebar-brand:opacity-100 group-focus-within/sidebar-brand:pointer-events-auto group-focus-within/sidebar-brand:opacity-100"
+            className="pointer-events-none absolute inset-1 h-auto w-auto bg-sidebar/80 opacity-0 transition-opacity group-hover/sidebar-brand:pointer-events-auto group-hover/sidebar-brand:opacity-100 group-has-[:focus-visible]/sidebar-brand:pointer-events-auto group-has-[:focus-visible]/sidebar-brand:opacity-100"
           />
         </div>
       )}

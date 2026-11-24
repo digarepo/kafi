@@ -1,10 +1,53 @@
 import { describe, expect, it } from 'vitest';
-import { NotFoundException } from '@nestjs/common';
-import { InvoicesService } from './invoices.service.js';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  calculateDiscountAmount,
+  InvoicesService,
+} from './invoices.service.js';
 import { ReferenceDataService } from './reference-data.service.js';
 import { createMockDb } from './mock-db.js';
 
 describe('InvoicesService', () => {
+  describe('discount calculation', () => {
+    it('calculates a fixed-amount discount', () => {
+      expect(calculateDiscountAmount(100_000, 'FIXED', 5_000)).toBe(5_000);
+    });
+
+    it('calculates a percentage discount', () => {
+      expect(calculateDiscountAmount(100_000, 'PERCENT', 10)).toBe(10_000);
+    });
+
+    it('rounds percentage discounts to two decimal places', () => {
+      expect(calculateDiscountAmount(999.99, 'PERCENT', 12.5)).toBe(125);
+    });
+
+    it('allows a 100% discount', () => {
+      expect(calculateDiscountAmount(1_000, 'PERCENT', 100)).toBe(1_000);
+    });
+
+    it('allows a zero discount', () => {
+      expect(calculateDiscountAmount(1_000, 'FIXED', 0)).toBe(0);
+    });
+
+    it('rejects a percentage greater than 100%', () => {
+      expect(() => calculateDiscountAmount(1_000, 'PERCENT', 101)).toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('rejects a fixed discount greater than the subtotal', () => {
+      expect(() => calculateDiscountAmount(1_000, 'FIXED', 1_001)).toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('rejects a negative discount', () => {
+      expect(() => calculateDiscountAmount(1_000, 'FIXED', -1)).toThrow(
+        BadRequestException,
+      );
+    });
+  });
+
   describe('invoice number generation', () => {
     it('starts at 1 when no invoices exist for the year', async () => {
       const db = createMockDb([[{ max: null }]]);

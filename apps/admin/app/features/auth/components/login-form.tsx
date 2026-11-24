@@ -71,7 +71,7 @@ export function LoginForm({ className, onSubmit }: LoginFormProps) {
               <form.Field name="email">
                 {(field: AnyFieldApi) => (
                   <Field>
-                    <FieldLabel htmlFor="email">Email Address</FieldLabel>
+                    <FieldLabel htmlFor="email">Email Address <span className="text-destructive">*</span></FieldLabel>
 
                     <Input
                       id="email"
@@ -92,7 +92,7 @@ export function LoginForm({ className, onSubmit }: LoginFormProps) {
               <form.Field name="password">
                 {(field: AnyFieldApi) => (
                   <Field>
-                    <FieldLabel htmlFor="password">Password</FieldLabel>
+                    <FieldLabel htmlFor="password">Password <span className="text-destructive">*</span></FieldLabel>
 
                     <div className="relative">
                       <Input
@@ -128,7 +128,7 @@ export function LoginForm({ className, onSubmit }: LoginFormProps) {
                   <Field>
                     <div className="flex items-center justify-between">
                       <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <Checkbox
+                        <Checkbox aria-invalid={field.state.meta.errors.length > 0}
                           checked={field.state.value}
                           onCheckedChange={(checked) =>
                             field.handleChange(Boolean(checked))

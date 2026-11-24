@@ -3,20 +3,22 @@
  *
  * Walks staff through the complete registration intake process:
  *   1. Traveler selection
- *   2. Registration documents (passport, photo, other)
- *   3. Emergency contact
- *   4. Guarantee
- *   5. Finance / payment
- *   6. Review
- *   7. Complete registration
+ *   2. Emergency contact
+ *   3. Guarantee
+ *   4. Finance / payment
+ *   5. Review
+ *   6. Complete registration
  *
  * The workflow creates the registration on step 1, then progressively
  * attaches intake requirements. When all conditions are satisfied the
  * system transitions the registration from DRAFT to PROCESSING.
+ *
+ * Traveller documents (passport, photo) are managed on the traveller
+ * profile — they are checked at the review step, not collected here.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useCallback, useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router';
 import { toast } from 'sonner';
 import {
   AlertCircle,
@@ -27,8 +29,6 @@ import {
   Loader,
   Plus,
   ShieldCheck,
-  Trash2,
-  Upload,
 } from 'lucide-react';
 import {
   Button,
@@ -77,7 +77,6 @@ import type {
 
 const WORKFLOW_STEPS = [
   { key: 'traveler', label: 'Traveler' },
-  { key: 'documents', label: 'Documents' },
   { key: 'contact', label: 'Emergency Contact' },
   { key: 'guarantee', label: 'Guarantee' },
   { key: 'finance', label: 'Payment' },
@@ -149,15 +148,11 @@ export function RegistrationIntakeWorkflow({
   const [remarks, setRemarks] = useState('');
   const [registration, setRegistration] = useState<Registration | null>(null);
 
-  // Step 2: Documents
+  // Traveller documents (managed on the traveller profile — tracked here
+  // only for the review-step readiness checklist)
   const [travellerDocuments, setTravellerDocuments] = useState<
     DocumentListItem[]
   >([]);
-  const [registrationDocuments, setRegistrationDocuments] = useState<
-    DocumentListItem[]
-  >([]);
-  const [uploadingType, setUploadingType] = useState<string | null>(null);
-  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   // Step 3: Emergency contact
   const [contacts, setContacts] = useState<ContactPerson[]>([]);
@@ -183,7 +178,12 @@ export function RegistrationIntakeWorkflow({
   const [guaranteeIssuer, setGuaranteeIssuer] = useState('');
   const [guaranteeNotes, setGuaranteeNotes] = useState('');
   const [guaranteeEditing, setGuaranteeEditing] = useState(false);
-
+  const [registrationDiscountType, setRegistrationDiscountType] = useState<
+    'FIXED' | 'PERCENT'
+  >('FIXED');
+  const [registrationDiscountValue, setRegistrationDiscountValue] =
+    useState('0');
+  const [financeFormOpen, setFinanceFormOpen] = useState(false);
   // Step 5: Finance
   const [financeSummary, setFinanceSummary] = useState<{
     total_invoiced: number;
@@ -197,6 +197,8 @@ export function RegistrationIntakeWorkflow({
   >([]);
   const [paymentMethodId, setPaymentMethodId] = useState('');
   const [paymentAmount, setPaymentAmount] = useState('');
+  // Invoice subtotal input — empty means "use the full package price".
+  const [invoiceAmount, setInvoiceAmount] = useState('');
   const [paymentReference, setPaymentReference] = useState('');
   const [showCustomPayerForm, setShowCustomPayerForm] = useState(false);
   const [customPayerName, setCustomPayerName] = useState('');
@@ -279,8 +281,6 @@ export function RegistrationIntakeWorkflow({
         setRemarks(reg.remarks ?? '');
 
         // Load intake data (documents, guarantees, finance, contacts)
-        let regDocCount = 0;
-        let travDocCount = 0;
         let linkedContact: string | null = null;
         let hasGuar = false;
         let outstandingBalance = 0;
@@ -296,42 +296,46 @@ export function RegistrationIntakeWorkflow({
             );
             if (!cancelled) {
               setTravellerDocuments(docs.data);
-              travDocCount = docs.data.length;
             }
           } catch {
             // ignore
           }
-          // Load existing traveller contacts to restore linked contact
+          // Load existing traveller contacts to restore linked contact.
+          // Only a primary + ACTIVE contact satisfies the readiness gate —
+          // anything else must be re-linked so the flags get repaired.
           try {
-            const contacts = await api.listTravellerContacts(travellerId);
+            const [contacts, contactStatuses] = await Promise.all([
+              api.listTravellerContacts(travellerId),
+              api.listTravellerContactStatuses(),
+            ]);
             if (!cancelled) {
-              // Prefer primary/emergency contact, fall back to any active contact
-              const primary =
-                contacts.find(
-                  (c) => c.is_primary_contact || c.is_emergency_contact,
-                ) ?? contacts[0];
-              if (primary) {
-                linkedContact = primary.contact_person?.id ?? null;
+              const activeStatusId = contactStatuses.find(
+                (s) => s.status_code?.toUpperCase() === 'ACTIVE',
+              )?.id;
+              const satisfied = contacts.find(
+                (c) =>
+                  c.is_primary_contact &&
+                  (!activeStatusId || c.status?.id === activeStatusId),
+              );
+              if (satisfied) {
+                linkedContact = satisfied.contact_person?.id ?? null;
                 setLinkedContactId(linkedContact);
                 setSelectedContactId(linkedContact ?? '');
+              } else {
+                // A contact exists but doesn't satisfy readiness — preselect
+                // it so the Next action re-links and sets primary/emergency.
+                const fallback =
+                  contacts.find(
+                    (c) => c.is_primary_contact || c.is_emergency_contact,
+                  ) ?? contacts[0];
+                if (fallback) {
+                  setSelectedContactId(fallback.contact_person?.id ?? '');
+                }
               }
             }
           } catch {
             // ignore
           }
-        }
-        try {
-          const docsResult = await documentsApi.listRegistrationDocuments(
-            registrationId!,
-            1,
-            100,
-          );
-          if (!cancelled) {
-            setRegistrationDocuments(docsResult.data);
-            regDocCount = docsResult.data.length;
-          }
-        } catch {
-          // ignore
         }
         try {
           const guaranteesResult = await api.listRegistrationGuarantees(
@@ -374,22 +378,19 @@ export function RegistrationIntakeWorkflow({
           // ignore
         }
 
-        const hasDocs = regDocCount > 0 || travDocCount > 0;
         const hasContact = !!linkedContact;
         const hasFin = invoiceCount > 0 && outstandingBalance <= 0;
 
         if (!reg.traveller?.id || !reg.package_version?.id) {
           setStepIndex(0);
-        } else if (!hasDocs) {
-          setStepIndex(1);
         } else if (!hasContact) {
-          setStepIndex(2);
+          setStepIndex(1);
         } else if (!hasGuar) {
-          setStepIndex(3);
+          setStepIndex(2);
         } else if (!hasFin) {
-          setStepIndex(4);
+          setStepIndex(3);
         } else {
-          setStepIndex(5);
+          setStepIndex(4);
         }
       } catch (err) {
         toast.error(
@@ -460,11 +461,10 @@ export function RegistrationIntakeWorkflow({
     void loadTravellerDocuments();
   }, [loadTravellerDocuments]);
 
-  // ---- Load registration documents and intake data ----
+  // ---- Load intake data (guarantees, finance, operational summary) ----
   const loadRegistrationIntakeData = useCallback(async () => {
     if (!registration) return;
     const results = await Promise.allSettled([
-      documentsApi.listRegistrationDocuments(registration.id, 1, 100),
       api.listRegistrationGuarantees(registration.id),
       api.getRegistrationFinanceSummary(registration.id),
       api.getRegistrationOperationalSummary(registration.id),
@@ -473,22 +473,12 @@ export function RegistrationIntakeWorkflow({
     ]);
 
     const [
-      documentsResult,
       guaranteesResult,
       financeResult,
       summaryResult,
       exceptionsResult,
       requestsResult,
     ] = results;
-    if (documentsResult.status === 'fulfilled') {
-      setRegistrationDocuments(documentsResult.value.data);
-    } else {
-      console.error(
-        'Failed to load registration documents',
-        documentsResult.reason,
-      );
-      toast.error('Failed to load registration documents');
-    }
     if (guaranteesResult.status === 'fulfilled') {
       setGuarantees(guaranteesResult.value);
     } else {
@@ -506,7 +496,18 @@ export function RegistrationIntakeWorkflow({
       );
     }
     if (summaryResult.status === 'fulfilled') {
-      setOperationalSummary(summaryResult.value);
+      const summary = summaryResult.value;
+      setOperationalSummary(summary);
+
+      const invoice = summary.invoices?.[0];
+
+      if (invoice) {
+        setRegistrationDiscountType(invoice.discount_type);
+        setRegistrationDiscountValue(String(invoice.discount_value ?? 0));
+      } else {
+        setRegistrationDiscountType('FIXED');
+        setRegistrationDiscountValue('0');
+      }
     } else {
       console.error('Failed to load operational summary', summaryResult.reason);
     }
@@ -643,63 +644,6 @@ export function RegistrationIntakeWorkflow({
     }
   }
 
-  // ---- Step 2: Document upload ----
-  async function handleUploadDocument(
-    typeId: string,
-    file: File,
-  ): Promise<void> {
-    if (!registration || !selectedTravellerId) return;
-    setUploadingType(typeId);
-    try {
-      const created = await documentsApi.uploadDocument({
-        document_type_id: typeId,
-        traveller_id: selectedTravellerId,
-        registration_id: registration.id,
-        file,
-      });
-      // Use the response directly — don't rely on a re-fetch
-      setRegistrationDocuments((prev) => {
-        // Replace any existing doc of the same type (for single-doc types)
-        const filtered = prev.filter((d) => d.document_type?.id !== typeId);
-        return [...filtered, created as unknown as DocumentListItem];
-      });
-      setTravellerDocuments((prev) => {
-        const filtered = prev.filter((d) => d.document_type?.id !== typeId);
-        return [...filtered, created as unknown as DocumentListItem];
-      });
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : 'Document upload failed',
-      );
-    } finally {
-      setUploadingType(null);
-    }
-  }
-
-  async function handleDeleteDocument(docId: string) {
-    try {
-      await documentsApi.deleteDocument(docId);
-      setRegistrationDocuments((prev) => prev.filter((d) => d.id !== docId));
-      setTravellerDocuments((prev) => prev.filter((d) => d.id !== docId));
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : 'Failed to remove document',
-      );
-    }
-  }
-
-  async function handleAttachExistingDocument(docId: string) {
-    if (!registration) return;
-    try {
-      await documentsApi.attachDocumentToRegistration(docId, registration.id);
-      await loadRegistrationIntakeData();
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : 'Failed to attach document',
-      );
-    }
-  }
-
   // ---- Step 3: Emergency contact ----
   async function handleLinkContact() {
     if (!registration || !selectedContactId || !selectedTravellerId) return;
@@ -738,13 +682,17 @@ export function RegistrationIntakeWorkflow({
         const existing = existingContacts.find(
           (c) => c.contact_person?.id === selectedContactId,
         );
-        if (existing) {
-          await api.updateTravellerContact(selectedTravellerId, existing.id, {
-            is_primary_contact: true,
-            is_emergency_contact: true,
-            traveller_contact_status_id: activeStatus.id,
-          });
+        if (!existing) {
+          toast.error(
+            'Could not update the existing contact link. Refresh and try again.',
+          );
+          return;
         }
+        await api.updateTravellerContact(selectedTravellerId, existing.id, {
+          is_primary_contact: true,
+          is_emergency_contact: true,
+          traveller_contact_status_id: activeStatus.id,
+        });
       }
       setLinkedContactId(selectedContactId);
       await loadRegistrationIntakeData();
@@ -826,18 +774,77 @@ export function RegistrationIntakeWorkflow({
       await api.createInvoice({
         registration_id: registration.id,
         invoice_date: today(),
+        discount_type: registrationDiscountType,
+        discount_value: Number(registrationDiscountValue || 0),
         line_items: [
           {
             description: `Package: ${selectedPackage.version_name}`,
             quantity: 1,
-            unit_price: selectedPackage.base_price,
+            unit_price:
+              Number(invoiceAmount) > 0
+                ? Number(invoiceAmount)
+                : selectedPackage.base_price,
           },
         ],
       });
+      setInvoiceAmount('');
       await loadRegistrationIntakeData();
     } catch (err) {
       toast.error(
         err instanceof Error ? err.message : 'Failed to create invoice',
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleUpdateRegistrationDiscount() {
+    const invoice = operationalSummary?.invoices?.[0];
+
+    if (!invoice) {
+      toast.error('Invoice details are unavailable. Refresh and try again.');
+      return;
+    }
+
+    const value = Number(registrationDiscountValue || 0);
+    const subtotal = Number(invoice.subtotal);
+
+    const discountAmount =
+      registrationDiscountType === 'PERCENT'
+        ? Math.round(((subtotal * value) / 100) * 100) / 100
+        : value;
+
+    const valid =
+      Number.isFinite(value) &&
+      value >= 0 &&
+      (registrationDiscountType === 'PERCENT'
+        ? value <= 100
+        : discountAmount <= subtotal);
+
+    if (!valid) {
+      toast.error(
+        registrationDiscountType === 'PERCENT'
+          ? 'Discount percentage must be between 0 and 100.'
+          : 'Discount cannot exceed the invoice subtotal.',
+      );
+      return;
+    }
+
+    setSubmitting(true);
+
+    try {
+      await api.updateInvoice(invoice.id, {
+        discount_type: registrationDiscountType,
+        discount_value: value,
+      });
+
+      await loadRegistrationIntakeData();
+      toast.success('Invoice discount updated successfully.');
+    } catch (err) {
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : 'Failed to update invoice discount',
       );
     } finally {
       setSubmitting(false);
@@ -885,9 +892,17 @@ export function RegistrationIntakeWorkflow({
     }
   }
 
-  async function handleRecordPayment() {
-    if (!registration || !payerId || !paymentMethodId || !paymentAmount) {
-      toast.error('Fill in payer, method, and amount');
+  async function handleRecordPayment(amountOverride?: number) {
+    const amount =
+      amountOverride ?? Number(paymentAmount);
+    if (
+      !registration ||
+      !payerId ||
+      !paymentMethodId ||
+      !Number.isFinite(amount) ||
+      amount <= 0
+    ) {
+      toast.error('Fill in payer, method, and a valid amount');
       return;
     }
     setSubmitting(true);
@@ -901,7 +916,7 @@ export function RegistrationIntakeWorkflow({
         payer_id: payerId,
         payment_method_id: paymentMethodId,
         payment_date: today(),
-        original_amount: Number(paymentAmount),
+        original_amount: amount,
         original_currency_id: currencyId,
         exchange_rate: 1,
         reference_number: paymentReference || undefined,
@@ -912,7 +927,7 @@ export function RegistrationIntakeWorkflow({
           allocations: [
             {
               invoice_id: operationalSummary.invoices[0].id,
-              allocated_amount: Number(paymentAmount),
+              allocated_amount: amount,
             },
           ],
         });
@@ -930,6 +945,65 @@ export function RegistrationIntakeWorkflow({
     } finally {
       setSubmitting(false);
     }
+  }
+
+  // Applies any pending discount change to the invoice, then records the
+  // payment against the (possibly newly discounted) outstanding balance.
+  async function handlePaymentWithDiscount() {
+    const invoice = operationalSummary?.invoices?.[0];
+
+    // Compute the outstanding balance as it will be after the pending
+    // discount is applied — the payment must be validated against this,
+    // not the stale pre-discount balance.
+    let postDiscountOutstanding = outstandingBalance;
+    if (invoice) {
+      const subtotal = Number(invoice.subtotal);
+      const value = Number(registrationDiscountValue || 0);
+      const discountAmt =
+        registrationDiscountType === 'PERCENT'
+          ? Math.round(((subtotal * value) / 100) * 100) / 100
+          : value;
+      const newTotal = Math.max(
+        0,
+        Math.round((subtotal - discountAmt) * 100) / 100,
+      );
+      const allocated = Math.max(
+        0,
+        Number(invoice.total_amount) - Number(invoice.outstanding_balance),
+      );
+      postDiscountOutstanding = Math.max(0, newTotal - allocated);
+
+      const changed =
+        registrationDiscountType !== invoice.discount_type ||
+        value !== Number(invoice.discount_value);
+      if (changed) {
+        setSubmitting(true);
+        try {
+          await api.updateInvoice(invoice.id, {
+            discount_type: registrationDiscountType,
+            discount_value: value,
+          });
+        } catch (err) {
+          toast.error(
+            err instanceof Error
+              ? err.message
+              : 'Failed to update invoice discount',
+          );
+          setSubmitting(false);
+          return;
+        }
+        setSubmitting(false);
+      }
+    }
+
+    const amount = Number(paymentAmount || postDiscountOutstanding);
+    if (paymentAmount !== '' && amount > postDiscountOutstanding + 0.005) {
+      toast.error(
+        `Amount exceeds the outstanding balance (${formatMoney(postDiscountOutstanding)})`,
+      );
+      return;
+    }
+    await handleRecordPayment(amount);
   }
 
   // ---- Step 7: Complete registration ----
@@ -961,27 +1035,18 @@ export function RegistrationIntakeWorkflow({
   // ---- Derived state ----
   const passportType = documentTypes.find((t) => t.type_code === 'PASSPORT');
   const photoType = documentTypes.find((t) => t.type_code === 'PHOTO');
-  const otherTypes = documentTypes.filter(
-    (t) => t.type_code !== 'PASSPORT' && t.type_code !== 'PHOTO',
-  );
 
-  // Check both registration-owned and traveller-owned documents.
-  // Registration-owned is preferred, but traveller-owned is a fallback
-  // because the document may have been uploaded with traveller_id only.
-  const registrationDocTypeIds = new Set(
-    registrationDocuments.map((d) => d.document_type?.id),
-  );
+  // Documents are traveller-scoped (managed on the traveller profile) —
+  // this mirrors the backend readiness check on documents.traveller_id.
   const travellerDocTypeIds = new Set(
     travellerDocuments.map((d) => d.document_type?.id),
   );
 
   const hasPassport = passportType
-    ? registrationDocTypeIds.has(passportType.id) ||
-      travellerDocTypeIds.has(passportType.id)
+    ? travellerDocTypeIds.has(passportType.id)
     : false;
   const hasPhoto = photoType
-    ? registrationDocTypeIds.has(photoType.id) ||
-      travellerDocTypeIds.has(photoType.id)
+    ? travellerDocTypeIds.has(photoType.id)
     : false;
 
   const hasGuarantee = guarantees.some((g) => g.guarantee_status === 'ACTIVE');
@@ -1015,8 +1080,6 @@ export function RegistrationIntakeWorkflow({
         return (
           !!selectedTravellerId && !!selectedPackageVersionId && !submitting
         );
-      case 'documents':
-        return hasPassport && hasPhoto;
       case 'contact':
         return !!linkedContactId || !!selectedContactId;
       case 'guarantee':
@@ -1109,181 +1172,6 @@ export function RegistrationIntakeWorkflow({
     );
   }
 
-  function renderDocumentTypeSection(
-    docType: DocumentType | undefined,
-    label: string,
-    isRequired: boolean,
-    _allowMultiple: boolean,
-  ) {
-    if (!docType) return null;
-    const attached = registrationDocuments.filter(
-      (d) => d.document_type?.id === docType.id,
-    );
-    // Also show traveller-owned documents of this type that aren't yet
-    // linked to the registration — these count toward readiness too.
-    const travellerOwned = travellerDocuments.filter(
-      (d) =>
-        d.document_type?.id === docType.id &&
-        !registrationDocuments.some((rd) => rd.id === d.id),
-    );
-    const allAttached = [...attached, ...travellerOwned];
-
-    return (
-      <div className="rounded-lg border p-4 space-y-3">
-        {/* Row 1: title + status (left), controls (right) */}
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h4 className="font-medium text-sm">
-              {label}
-              {isRequired && <span className="text-destructive ml-1">*</span>}
-            </h4>
-            {allAttached.length > 0 ? (
-              <p className="text-xs text-success">
-                {allAttached.length} attached
-              </p>
-            ) : (
-              <p className="text-xs text-muted-foreground">Not yet attached</p>
-            )}
-          </div>
-
-          {/* Controls: select + upload inline on desktop, stacked on mobile */}
-          <div className="flex flex-col items-end gap-2 sm:flex-row sm:items-center sm:gap-2">
-            {travellerOwned.length > 0 && (
-              <div className="w-40 sm:w-44">
-                <Select
-                  value={''}
-                  onValueChange={(v) =>
-                    v && handleAttachExistingDocument(v ?? '')
-                  }
-                >
-                  <SelectTrigger className="h-9 w-full">
-                    <SelectValue>
-                      {travellerOwned
-                        .map((d) => ({
-                          value: d.id,
-                          label:
-                            d.display_name ??
-                            d.original_filename ??
-                            d.document_number,
-                        }))
-                        .find((o) => o.value === '')?.label ??
-                        'Select existing'}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {travellerOwned
-                      .map((d) => ({
-                        value: d.id,
-                        label:
-                          d.display_name ??
-                          d.original_filename ??
-                          d.document_number,
-                      }))
-                      .map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              disabled={uploadingType === docType.id}
-              onClick={() => fileInputRefs.current[docType.id]?.click()}
-              className="h-9 w-9 shrink-0 rounded-full sm:h-8 sm:w-auto sm:rounded-md sm:px-3"
-              aria-label={`Upload ${label}`}
-            >
-              {uploadingType === docType.id ? (
-                <Loader className="h-4 w-4 animate-spin" />
-              ) : (
-                <Upload className="h-4 w-4" />
-              )}
-              <span className="hidden sm:inline">Upload</span>
-            </Button>
-            <input
-              ref={(el) => {
-                fileInputRefs.current[docType.id] = el;
-              }}
-              type="file"
-              accept=".pdf,.jpg,.jpeg"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) void handleUploadDocument(docType.id, file);
-                e.target.value = '';
-              }}
-            />
-          </div>
-        </div>
-
-        {allAttached.length > 0 && (
-          <ul className="space-y-1 text-sm">
-            {allAttached.map((doc) => (
-              <li
-                key={doc.id}
-                className="flex items-center gap-2 rounded bg-muted/30 px-2 py-1.5"
-              >
-                <CheckCircle2 className="h-3.5 w-3.5 text-success shrink-0" />
-                <button
-                  type="button"
-                  onClick={() => void documentsApi.viewDocument(doc.id)}
-                  className="flex-1 truncate text-left text-foreground underline-offset-2 hover:underline"
-                  title="Click to view document"
-                >
-                  {doc.display_name ??
-                    doc.original_filename ??
-                    doc.document_number}
-                </button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
-                  onClick={() => void handleDeleteDocument(doc.id)}
-                  aria-label="Remove document"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        {/* {!_allowMultiple && allAttached.length > 0 && (
-          <p className="text-xs text-muted-foreground">
-            Upload a new document to replace the current one. Use the trash icon
-            to remove an unwanted upload.
-          </p>
-        )} */}
-      </div>
-    );
-  }
-
-  function renderDocumentsStep() {
-    return (
-      <div className="mx-auto w-full max-w-3xl space-y-4">
-        {renderDocumentTypeSection(passportType, 'Passport', true, false)}
-        {renderDocumentTypeSection(photoType, 'Traveler Photo', true, false)}
-
-        <div className="space-y-3">
-          <h4 className="font-medium text-sm">Other Documents</h4>
-          {otherTypes.map((t) =>
-            renderDocumentTypeSection(t, t.name, false, true),
-          )}
-          {otherTypes.length === 0 && (
-            <p className="text-sm text-muted-foreground">
-              No additional document types configured.
-            </p>
-          )}
-        </div>
-      </div>
-    );
-  }
-
   function renderContactStep() {
     return (
       <div className="mx-auto w-full max-w-3xl space-y-4">
@@ -1343,7 +1231,9 @@ export function RegistrationIntakeWorkflow({
 
         {selectedContactId && !linkedContactId && (
           <div className="rounded-md border p-3 text-sm">
-            <p className="text-muted-foreground mb-1">Selected contact:</p>
+            <p className="text-muted-foreground mb-1">
+              Selected contact (press Next to link as primary):
+            </p>
             {(() => {
               const c = contacts.find((x) => x.id === selectedContactId);
               return c
@@ -1603,6 +1493,71 @@ export function RegistrationIntakeWorkflow({
   }
 
   function renderFinanceStep() {
+    const packagePrice = Number(selectedPackage?.base_price ?? 0);
+    const invoice = operationalSummary?.invoices?.[0] ?? null;
+
+    // In create mode the subtotal is the editable invoice amount (defaulting
+    // to the package price); when editing it is the invoice's stored subtotal.
+    const createSubtotal =
+      invoiceAmount !== '' && Number.isFinite(Number(invoiceAmount))
+        ? Math.max(0, Number(invoiceAmount))
+        : packagePrice;
+    const discountBase = invoice ? Number(invoice.subtotal) : createSubtotal;
+    const discountValue = Number(registrationDiscountValue || 0);
+
+    const rawDiscountAmount =
+      registrationDiscountType === 'PERCENT'
+        ? Math.round(((discountBase * discountValue) / 100) * 100) / 100
+        : discountValue;
+
+    const registrationDiscountAmount = Number.isFinite(rawDiscountAmount)
+      ? rawDiscountAmount
+      : 0;
+
+    const registrationDiscountValid =
+      Number.isFinite(discountValue) &&
+      discountValue >= 0 &&
+      (registrationDiscountType === 'PERCENT'
+        ? discountValue <= 100
+        : registrationDiscountAmount <= discountBase);
+
+    const proposedInvoiceTotal =
+      Math.round(Math.max(0, discountBase - registrationDiscountAmount) * 100) /
+      100;
+
+    const allocatedAmount = invoice
+      ? Math.max(
+          0,
+          Number(invoice.total_amount) - Number(invoice.outstanding_balance),
+        )
+      : 0;
+
+    const discountConflictsWithPayments =
+      !!invoice && proposedInvoiceTotal < allocatedAmount - 0.005;
+
+    const currencyCode = selectedPackage?.currency?.code ?? 'ETB';
+
+    const discountChanged =
+      !!invoice &&
+      (registrationDiscountType !== invoice.discount_type ||
+        Number(registrationDiscountValue || 0) !==
+          Number(invoice.discount_value));
+
+    // Post-discount outstanding — what will remain owed if the pending
+    // discount is applied. Payments are validated against this, not the
+    // stale pre-discount balance.
+    const postDiscountOutstanding = invoice
+      ? Math.max(0, proposedInvoiceTotal - allocatedAmount)
+      : outstandingBalance;
+
+    // Payment amount defaults to the full outstanding balance; a typed value
+    // is a (possibly partial) override and must not exceed what is owed.
+    const paymentAmountInvalid =
+      paymentAmount !== '' &&
+      (!Number.isFinite(Number(paymentAmount)) ||
+        Number(paymentAmount) <= 0 ||
+        Number(paymentAmount) > postDiscountOutstanding + 0.005);
+
     return (
       <div className="mx-auto w-full max-w-3xl space-y-4">
         {selectedPackage && (
@@ -1623,6 +1578,13 @@ export function RegistrationIntakeWorkflow({
               <span>{formatMoney(financeSummary?.total_paid)}</span>
             </div>
             <div className="flex justify-between">
+              <span className="text-muted-foreground">Discount:</span>
+              <span className="text-success">
+                − {formatMoney(invoice?.discount_amount ?? 0)}{' '}
+                {selectedPackage.currency?.code ?? ''}
+              </span>
+            </div>
+            <div className="flex justify-between">
               <span className="text-muted-foreground">
                 Outstanding balance:
               </span>
@@ -1638,190 +1600,411 @@ export function RegistrationIntakeWorkflow({
           </div>
         )}
 
-        {!hasInvoice && (
+        {!hasInvoice && !financeFormOpen && selectedPackage && (
+          <Button
+            type="button"
+            onClick={() => setFinanceFormOpen(true)}
+            disabled={submitting}
+          >
+            <FileUp className="h-4 w-4" />
+            Create invoice
+          </Button>
+        )}
+
+        {hasInvoice && outstandingBalance <= 0 && !financeFormOpen && (
           <div className="space-y-3">
-            <div className="rounded-md bg-warning/10 p-3 text-sm text-warning">
-              <AlertCircle className="inline h-4 w-4 mr-1" />
-              No invoice yet. Create one to record payment.
+            <div className="rounded-md border bg-muted/30 p-4 text-sm">
+              <p className="text-success font-medium">
+                Payment complete. No outstanding balance.
+              </p>
             </div>
             <Button
               type="button"
-              onClick={() => void handleCreateInvoice()}
+              variant="outline"
+              onClick={() => setFinanceFormOpen(true)}
               disabled={submitting}
             >
-              {submitting ? (
-                <Loader className="h-4 w-4 animate-spin" />
-              ) : (
-                <FileUp className="h-4 w-4" />
-              )}
-              Create invoice from package price
+              Edit discount
             </Button>
           </div>
         )}
 
-        {hasInvoice && outstandingBalance > 0 && (
-          <div className="space-y-4 rounded-md border p-4">
-            <h4 className="font-medium text-sm">Record payment</h4>
+        {(financeFormOpen || hasInvoice) && (
+          <div className="space-y-6 rounded-md border p-4">
+            <h4 className="font-medium text-sm">
+              {hasInvoice ? 'Record payment' : 'Create invoice'}
+            </h4>
 
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">
-                Payer <span className="text-destructive">*</span>
-              </Label>
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                <Select
-                  value={payerId ?? ''}
-                  onValueChange={(v) => setPayerId(v ?? '')}
-                >
-                  <SelectTrigger
-                    className={cn('h-9 w-full', 'w-full sm:flex-1')}
+            {/* Payer & payment details */}
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">
+                  Payer <span className="text-destructive">*</span>
+                </Label>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <Select
+                    value={payerId ?? ''}
+                    onValueChange={(v) => setPayerId(v ?? '')}
                   >
-                    <SelectValue>
+                    <SelectTrigger
+                      className={cn('h-9 w-full', 'w-full sm:flex-1')}
+                    >
+                      <SelectValue>
+                        {payers
+                          .map((p) => ({
+                            value: p.id,
+                            label: `${p.contact_name ?? p.payer_number}`,
+                          }))
+                          .find((o) => o.value === payerId)?.label ??
+                          'Select payer'}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
                       {payers
                         .map((p) => ({
                           value: p.id,
                           label: `${p.contact_name ?? p.payer_number}`,
                         }))
-                        .find((o) => o.value === payerId)?.label ??
-                        'Select payer'}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {payers
-                      .map((p) => ({
-                        value: p.id,
-                        label: `${p.contact_name ?? p.payer_number}`,
-                      }))
-                      .map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          {opt.label}
+                        .map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => void handleCreatePayer(true)}
+                      disabled={submitting}
+                    >
+                      Use traveller
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowCustomPayerForm((v) => !v)}
+                      disabled={submitting}
+                    >
+                      <Plus className="h-4 w-4" />
+                      Other payer
+                    </Button>
+                  </div>
+                </div>
+                {showCustomPayerForm && (
+                  <div className="space-y-2 rounded-md border p-3">
+                    <div className="grid gap-2 md:grid-cols-2">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Payer name</Label>
+                        <Input
+                          value={customPayerName}
+                          onChange={(e) => setCustomPayerName(e.target.value)}
+                          placeholder="Full name"
+                          className="h-9"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Phone number</Label>
+                        <Input
+                          value={customPayerPhone}
+                          onChange={(e) => setCustomPayerPhone(e.target.value)}
+                          placeholder="Phone number"
+                          className="h-9"
+                        />
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => void handleCreatePayer(false)}
+                      disabled={
+                        submitting || !customPayerName || !customPayerPhone
+                      }
+                    >
+                      Create payer
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">
+                    Payment method <span className="text-destructive">*</span>
+                  </Label>
+                  <Select
+                    value={paymentMethodId ?? ''}
+                    onValueChange={(v) => setPaymentMethodId(v ?? '')}
+                  >
+                    <SelectTrigger className="h-9 w-full">
+                      <SelectValue>
+                        {paymentMethods.find((m) => m.id === paymentMethodId)
+                          ?.name ?? 'Select method'}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {paymentMethods.map((method) => (
+                        <SelectItem key={method.id} value={method.id}>
+                          {method.name}
                         </SelectItem>
                       ))}
-                  </SelectContent>
-                </Select>
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => void handleCreatePayer(true)}
-                    disabled={submitting}
-                  >
-                    Use traveller
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowCustomPayerForm((v) => !v)}
-                    disabled={submitting}
-                  >
-                    <Plus className="h-4 w-4" />
-                    Other payer
-                  </Button>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Reference number</Label>
+                  <Input
+                    value={paymentReference}
+                    onChange={(e) => setPaymentReference(e.target.value)}
+                    className="h-9 w-full"
+                  />
                 </div>
               </div>
-              {showCustomPayerForm && (
-                <div className="space-y-2 rounded-md border p-3">
-                  <div className="grid gap-2 md:grid-cols-2">
-                    <div className="space-y-1">
-                      <Label className="xs">Payer name</Label>
+            </div>
+
+            {/* Amount & discount */}
+            <div className="space-y-4 border-t pt-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">
+                    Amount <span className="text-destructive">*</span>
+                  </Label>
+                  {hasInvoice ? (
+                    <>
                       <Input
-                        value={customPayerName}
-                        onChange={(e) => setCustomPayerName(e.target.value)}
-                        placeholder="Full name"
-                        className="h-9"
+                        type="number"
+                        value={
+                          paymentAmount === ''
+                            ? String(postDiscountOutstanding)
+                            : paymentAmount
+                        }
+                        onChange={(event) =>
+                          setPaymentAmount(event.target.value)
+                        }
+                        min={0}
+                        className="h-9 w-full"
+                        aria-invalid={paymentAmountInvalid}
                       />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Phone number</Label>
+                      {paymentAmountInvalid ? (
+                        <p className="text-xs text-destructive">
+                          Amount must be between 0 and the outstanding balance
+                          ({formatMoney(postDiscountOutstanding)} {currencyCode}
+                          ).
+                        </p>
+                      ) : (
+                        <p className="text-xs text-muted-foreground">
+                          Defaults to the full outstanding balance — lower it
+                          only for a partial payment.
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <>
                       <Input
-                        value={customPayerPhone}
-                        onChange={(e) => setCustomPayerPhone(e.target.value)}
-                        placeholder="Phone number"
-                        className="h-9"
+                        type="number"
+                        value={invoiceAmount}
+                        onChange={(event) =>
+                          setInvoiceAmount(event.target.value)
+                        }
+                        placeholder={String(packagePrice)}
+                        min={0}
+                        className="h-9 w-full"
                       />
-                    </div>
+                      <p className="text-xs text-muted-foreground">
+                        Invoice amount — defaults to the full package price.
+                      </p>
+                    </>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Discount type</Label>
+                  <div className="flex h-9 flex-wrap items-center gap-x-4 gap-y-2">
+                    <label className="flex cursor-pointer items-center gap-2 text-sm">
+                      <input
+                        type="radio"
+                        name="registration-discount-type"
+                        value="FIXED"
+                        checked={registrationDiscountType === 'FIXED'}
+                        onChange={() => setRegistrationDiscountType('FIXED')}
+                        className="h-4 w-4 accent-primary"
+                      />
+                      Fixed amount
+                    </label>
+                    <label className="flex cursor-pointer items-center gap-2 text-sm">
+                      <input
+                        type="radio"
+                        name="registration-discount-type"
+                        value="PERCENT"
+                        checked={registrationDiscountType === 'PERCENT'}
+                        onChange={() => setRegistrationDiscountType('PERCENT')}
+                        className="h-4 w-4 accent-primary"
+                      />
+                      Percentage
+                    </label>
                   </div>
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={() => void handleCreatePayer(false)}
-                    disabled={
-                      submitting || !customPayerName || !customPayerPhone
-                    }
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="registration-discount-value"
+                    className="text-sm font-medium"
                   >
-                    Create payer
-                  </Button>
+                    {registrationDiscountType === 'PERCENT'
+                      ? 'Discount percentage'
+                      : `Discount amount (${selectedPackage?.currency?.code ?? 'ETB'})`}
+                  </Label>
+                  <Input
+                    id="registration-discount-value"
+                    type="number"
+                    min={0}
+                    max={registrationDiscountType === 'PERCENT' ? 100 : undefined}
+                    step="0.01"
+                    value={registrationDiscountValue}
+                    onChange={(event) =>
+                      setRegistrationDiscountValue(event.target.value)
+                    }
+                    className="h-9 w-full"
+                    aria-invalid={!registrationDiscountValid}
+                  />
+                  {!registrationDiscountValid && (
+                    <p className="text-sm text-destructive">
+                      {registrationDiscountType === 'PERCENT'
+                        ? 'Percentage must be between 0 and 100.'
+                        : 'Discount cannot exceed the invoice subtotal.'}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Real-time invoice preview */}
+              {selectedPackage && (
+                <div className="space-y-2 rounded-md border bg-muted/30 p-4 text-sm">
+                  <div className="flex justify-between gap-4">
+                    <span className="text-muted-foreground">Subtotal</span>
+                    <span>
+                      {formatMoney(discountBase)} {currencyCode}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <span className="text-muted-foreground">
+                      Discount
+                      {registrationDiscountType === 'PERCENT'
+                        ? ` (${discountValue}%)`
+                        : ''}
+                    </span>
+                    <span>
+                      − {formatMoney(registrationDiscountAmount)} {currencyCode}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-4 border-t pt-2 font-semibold">
+                    <span>Invoice total</span>
+                    <span>
+                      {registrationDiscountValid
+                        ? formatMoney(proposedInvoiceTotal)
+                        : 'Check discount value'}{' '}
+                      {currencyCode}
+                    </span>
+                  </div>
+                  {hasInvoice && (
+                    <div className="flex justify-between gap-4">
+                      <span className="text-muted-foreground">
+                        New outstanding
+                      </span>
+                      <span>
+                        {formatMoney(postDiscountOutstanding)} {currencyCode}
+                      </span>
+                    </div>
+                  )}
+                  {discountConflictsWithPayments && (
+                    <p className="text-xs text-destructive">
+                      Cannot reduce total below allocated amount (
+                      {formatMoney(allocatedAmount)} {currencyCode})
+                    </p>
+                  )}
                 </div>
               )}
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">
-                  Payment method <span className="text-destructive">*</span>
-                </Label>
-                <Select
-                  value={paymentMethodId ?? ''}
-                  onValueChange={(v) => setPaymentMethodId(v ?? '')}
+            {/* Actions */}
+            {!hasInvoice ? (
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  onClick={() => void handleCreateInvoice()}
+                  disabled={submitting || !registrationDiscountValid}
                 >
-                  <SelectTrigger className="h-9 w-full">
-                    <SelectValue>
-                      {paymentMethods
-                        .map((m) => ({
-                          value: m.id,
-                          label: m.name,
-                        }))
-                        .find((o) => o.value === paymentMethodId)?.label ??
-                        'Select method'}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {paymentMethods
-                      .map((m) => ({
-                        value: m.id,
-                        label: m.name,
-                      }))
-                      .map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">
-                  Amount <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  type="number"
-                  value={paymentAmount}
-                  onChange={(e) => setPaymentAmount(e.target.value)}
-                  className="h-9 w-full"
-                />
-              </div>
-            </div>
+                  {submitting ? (
+                    <Loader className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <FileUp className="h-4 w-4" />
+                  )}
+                  Create invoice
+                </Button>
 
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Reference number</Label>
-              <Input
-                value={paymentReference}
-                onChange={(e) => setPaymentReference(e.target.value)}
-                className="h-9 w-full"
-              />
-            </div>
-
-            <Button
-              type="button"
-              onClick={() => void handleRecordPayment()}
-              disabled={
-                submitting || !payerId || !paymentMethodId || !paymentAmount
-              }
-            >
-              {submitting ? <Loader className="h-4 w-4 animate-spin" /> : null}
-              Record payment
-            </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setFinanceFormOpen(false)}
+                  disabled={submitting}
+                >
+                  Cancel
+                </Button>
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {outstandingBalance > 0 && (
+                  <Button
+                    type="button"
+                    onClick={() => void handlePaymentWithDiscount()}
+                    disabled={
+                      submitting ||
+                      !payerId ||
+                      !paymentMethodId ||
+                      postDiscountOutstanding <= 0 ||
+                      paymentAmountInvalid ||
+                      !registrationDiscountValid ||
+                      discountConflictsWithPayments
+                    }
+                  >
+                    {submitting ? (
+                      <Loader className="h-4 w-4 animate-spin" />
+                    ) : null}
+                    Record payment
+                  </Button>
+                )}
+                {discountChanged && (
+                  <Button
+                    type="button"
+                    onClick={() => void handleUpdateRegistrationDiscount()}
+                    disabled={
+                      submitting ||
+                      !registrationDiscountValid ||
+                      discountConflictsWithPayments
+                    }
+                  >
+                    {submitting ? (
+                      <Loader className="h-4 w-4 animate-spin" />
+                    ) : null}
+                    Update discount
+                  </Button>
+                )}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setFinanceFormOpen(false)}
+                  disabled={submitting}
+                >
+                  Cancel
+                </Button>
+              </div>
+            )}
           </div>
         )}
 
@@ -1920,6 +2103,7 @@ export function RegistrationIntakeWorkflow({
       label: string;
       satisfied: boolean;
       detail?: string;
+      action?: { to: string; label: string };
     }> = [
       {
         label: 'Traveler selected',
@@ -1935,12 +2119,22 @@ export function RegistrationIntakeWorkflow({
           hasPassport && hasPhoto
             ? 'Passport and photo attached'
             : `Missing: ${!hasPassport ? 'passport' : ''}${!hasPassport && !hasPhoto ? ', ' : ''}${!hasPhoto ? 'photo' : ''}`,
+        action:
+          !(hasPassport && hasPhoto) && selectedTravellerId
+            ? {
+                to: `/travellers/${selectedTravellerId}`,
+                label: 'Manage on traveller profile',
+              }
+            : undefined,
       },
       {
         label: 'Emergency contact',
-        satisfied: !!linkedContactId || !!selectedContactId,
-        detail:
-          linkedContactId || selectedContactId ? 'Contact linked' : 'Missing',
+        satisfied: !!linkedContactId,
+        detail: linkedContactId
+          ? 'Primary contact linked'
+          : selectedContactId
+            ? 'Selected — go back and link it'
+            : 'Missing',
       },
       {
         label: 'Guarantee',
@@ -1979,6 +2173,14 @@ export function RegistrationIntakeWorkflow({
                 <p className="font-medium">{item.label}</p>
                 {item.detail && (
                   <p className="text-muted-foreground">{item.detail}</p>
+                )}
+                {item.action && (
+                  <Link
+                    to={item.action.to}
+                    className="text-primary underline-offset-2 hover:underline"
+                  >
+                    {item.action.label}
+                  </Link>
                 )}
               </div>
             </li>
@@ -2063,7 +2265,6 @@ export function RegistrationIntakeWorkflow({
 
   const stepTitles: Record<string, string> = {
     traveler: 'Traveler & package',
-    documents: 'Travel documents',
     contact: 'Emergency contact',
     guarantee: 'Guarantee',
     finance: 'Payment',
@@ -2072,7 +2273,6 @@ export function RegistrationIntakeWorkflow({
 
   const stepsInCard =
     currentStep.key === 'traveler' ||
-    currentStep.key === 'documents' ||
     currentStep.key === 'contact' ||
     currentStep.key === 'guarantee' ||
     currentStep.key === 'finance' ||
@@ -2090,7 +2290,7 @@ export function RegistrationIntakeWorkflow({
           </CardHeader>
           <CardContent className="space-y-6">
             {currentStep.key === 'traveler' && renderTravelerStep()}
-            {currentStep.key === 'documents' && renderDocumentsStep()}
+
             {currentStep.key === 'contact' && renderContactStep()}
             {currentStep.key === 'guarantee' && renderGuaranteeStep()}
             {currentStep.key === 'finance' && renderFinanceStep()}

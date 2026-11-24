@@ -17,6 +17,31 @@ async function bootstrap() {
     app.use(performanceMiddleware);
   }
 
+  // Self-terminate after an idle period so Passenger frees its process slot on
+  // shared hosting (CloudLinux NPROC limits). Passenger respawns on the next
+  // request. Override/disable via APP_IDLE_TIMEOUT_MINUTES (0 = off).
+  const idleMinutes = Number.parseInt(
+    process.env.APP_IDLE_TIMEOUT_MINUTES ?? '15',
+    10,
+  );
+  if (isProduction && idleMinutes > 0) {
+    let inFlight = 0;
+    let lastActivity = Date.now();
+    app.use((req: any, res: any, next: () => void) => {
+      inFlight += 1;
+      lastActivity = Date.now();
+      res.on('finish', () => {
+        inFlight -= 1;
+      });
+      next();
+    });
+    setInterval(() => {
+      if (inFlight === 0 && Date.now() - lastActivity > idleMinutes * 60_000) {
+        process.exit(0);
+      }
+    }, 60_000).unref();
+  }
+
   app.enableCors({
     // In production, only allow configured origins. In development, reflect the
     // request origin so the app works from any local/IP address (e.g. mobile).

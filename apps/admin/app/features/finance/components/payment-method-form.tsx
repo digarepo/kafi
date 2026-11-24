@@ -111,8 +111,7 @@ export function PaymentMethodForm({
               {(field: AnyFieldApi) => (
                 <div className="space-y-2">
                   <Label htmlFor="method_code" className="text-sm font-medium">
-                    Code
-                  </Label>
+                    Code <span className="text-destructive">*</span></Label>
                   <Input
                     id="method_code"
                     value={field.state.value ?? ''}
@@ -133,8 +132,7 @@ export function PaymentMethodForm({
               {(field: AnyFieldApi) => (
                 <div className="space-y-2">
                   <Label htmlFor="name" className="text-sm font-medium">
-                    Name
-                  </Label>
+                    Name <span className="text-destructive">*</span></Label>
                   <Input
                     id="name"
                     value={field.state.value ?? ''}
@@ -179,7 +177,7 @@ export function PaymentMethodForm({
                 <Label htmlFor="description" className="text-sm font-medium">
                   Description
                 </Label>
-                <Textarea
+                <Textarea aria-invalid={field.state.meta.errors.length > 0}
                   id="description"
                   value={field.state.value ?? ''}
                   onChange={(e) => field.handleChange(e.target.value)}

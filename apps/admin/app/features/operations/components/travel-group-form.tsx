@@ -201,7 +201,7 @@ export function TravelGroupForm({
             <form.Field name="package_version_id">
               {(field: AnyFieldApi) => (
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium">Package version</Label>
+                  <Label className="text-sm font-medium">Package version <span className="text-destructive">*</span></Label>
                   <Select
                     value={field.state.value}
                     onValueChange={(value) => {
@@ -272,7 +272,7 @@ export function TravelGroupForm({
                 <form.Field name="override_travel_dates">
                   {(field: AnyFieldApi) => (
                     <div className="flex items-center gap-2">
-                      <Checkbox
+                      <Checkbox aria-invalid={field.state.meta.errors.length > 0}
                         id="override_travel_dates"
                         checked={field.state.value}
                         onCheckedChange={(checked) => {
@@ -344,7 +344,7 @@ export function TravelGroupForm({
                           )
                         }
                       >
-                        <SelectTrigger
+                        <SelectTrigger aria-invalid={field.state.meta.errors.length > 0}
                           id="departure_airline_id"
                           className="h-10 w-full"
                         >
@@ -382,7 +382,7 @@ export function TravelGroupForm({
                       <Label htmlFor="departure_flight_number">
                         Departure flight number
                       </Label>
-                      <Input
+                      <Input aria-invalid={field.state.meta.errors.length > 0}
                         id="departure_flight_number"
                         value={field.state.value}
                         onChange={(event) =>
@@ -409,7 +409,7 @@ export function TravelGroupForm({
                           )
                         }
                       >
-                        <SelectTrigger
+                        <SelectTrigger aria-invalid={field.state.meta.errors.length > 0}
                           id="return_airline_id"
                           className="h-10 w-full"
                         >
@@ -447,7 +447,7 @@ export function TravelGroupForm({
                       <Label htmlFor="return_flight_number">
                         Return flight number
                       </Label>
-                      <Input
+                      <Input aria-invalid={field.state.meta.errors.length > 0}
                         id="return_flight_number"
                         value={field.state.value}
                         onChange={(event) =>

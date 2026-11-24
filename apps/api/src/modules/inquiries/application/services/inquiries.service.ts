@@ -14,6 +14,7 @@ import * as schema from '@kafi/database';
 import { DATABASE } from '../../../../shared/infrastructure/database/database.provider.js';
 import { BusinessNumberService } from '../../../../shared/infrastructure/numbering/business-number.service.js';
 import { Mailer } from '../../../iam/application/ports/mailer.port.js';
+import { TelegramNotifier } from '../../infrastructure/telegram/telegram-notifier.service.js';
 import { AnalyticsEventsService } from '../../../analytics/application/services/analytics-events.service.js';
 import {
   createInquiryCreatedEvent,
@@ -80,6 +81,7 @@ export class InquiriesService {
     private readonly db: MySql2Database<typeof schema>,
     private readonly numbers: BusinessNumberService,
     private readonly mailer: Mailer,
+    private readonly telegram: TelegramNotifier,
     private readonly eventEmitter: EventEmitter2,
     private readonly analytics: AnalyticsEventsService,
   ) {}
@@ -293,6 +295,26 @@ export class InquiriesService {
       anonymous_visitor_id?: string;
     },
   ) {
+    const notification = {
+      inquiry_id: id,
+      inquiry_number: inquiryNumber,
+      inquiry_type: values.inquiry_type,
+      full_name: blankToNull(values.full_name),
+      phone_number: values.phone_number,
+      email_address: blankToNull(values.email_address),
+      message: blankToNull(values.message),
+      enquiry_category: blankToNull(values.enquiry_category),
+      package_interest: blankToNull(values.package_interest),
+      service_interest: blankToNull(values.service_interest),
+      travel_period: blankToNull(values.travel_period),
+      group_size: blankToNull(values.group_size),
+      source_channel: blankToNull(values.source_channel),
+      received_at: new Date(),
+    };
+
+    // Each channel is independent: a missing configuration or a provider
+    // failure on one must not block the other, and provider errors are never
+    // surfaced to the public caller.
     const recipients = (process.env['INQUIRY_NOTIFY_EMAILS'] ?? '')
       .split(',')
       .map((address) => address.trim())
@@ -300,32 +322,25 @@ export class InquiriesService {
 
     if (recipients.length === 0) {
       this.logger.warn(
-        `INQUIRY_NOTIFY_EMAILS is not configured; skipping notification for ${inquiryNumber}`,
+        `INQUIRY_NOTIFY_EMAILS is not configured; skipping email notification for ${inquiryNumber}`,
       );
-      return;
+    } else {
+      try {
+        await this.mailer.sendInquiryNotification(recipients, notification);
+      } catch (error) {
+        this.logger.error(
+          `Failed to send inquiry email notification for ${inquiryNumber}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      }
     }
 
     try {
-      await this.mailer.sendInquiryNotification(recipients, {
-        inquiry_id: id,
-        inquiry_number: inquiryNumber,
-        inquiry_type: values.inquiry_type,
-        full_name: blankToNull(values.full_name),
-        phone_number: values.phone_number,
-        email_address: blankToNull(values.email_address),
-        message: blankToNull(values.message),
-        enquiry_category: blankToNull(values.enquiry_category),
-        package_interest: blankToNull(values.package_interest),
-        service_interest: blankToNull(values.service_interest),
-        travel_period: blankToNull(values.travel_period),
-        group_size: blankToNull(values.group_size),
-        source_channel: blankToNull(values.source_channel),
-        received_at: new Date(),
-      });
+      await this.telegram.sendInquiryNotification(notification);
     } catch (error) {
-      // Never surface provider errors to the public caller.
       this.logger.error(
-        `Failed to send inquiry notification for ${inquiryNumber}: ${
+        `Failed to send inquiry telegram notification for ${inquiryNumber}: ${
           error instanceof Error ? error.message : String(error)
         }`,
       );

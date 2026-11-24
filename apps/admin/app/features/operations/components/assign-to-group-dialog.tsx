@@ -142,7 +142,7 @@ export function AssignToGroupDialog({
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label>Compatible travel group</Label>
+            <Label>Compatible travel group <span className="text-destructive">*</span></Label>
             <Select
               value={groupId ?? ''}
               onValueChange={(v) => setGroupId(v ?? '')}

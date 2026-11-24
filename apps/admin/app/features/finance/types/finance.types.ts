@@ -43,7 +43,8 @@ export interface InvoiceFormValues {
   registration_id: string;
   invoice_date: string;
   due_date: string;
-  discount_amount: string;
+  discount_type: 'FIXED' | 'PERCENT';
+  discount_value: string;
   notes: string;
   line_items: InvoiceLineItemFormValues[];
 }
@@ -55,7 +56,8 @@ export interface InvoiceFormOutput {
   registration_id: string;
   invoice_date: string;
   due_date?: string;
-  discount_amount?: number;
+  discount_type: 'FIXED' | 'PERCENT';
+  discount_value: number;
   notes?: string;
   line_items: CreateInvoiceLineItemInput[];
 }
@@ -174,7 +176,8 @@ export type { Invoice, Payer, Payment, PaymentMethod };
  */
 export interface InvoiceEditFormValues {
   due_date: string;
-  discount_amount: string;
+  discount_type: 'FIXED' | 'PERCENT';
+  discount_value: string;
   notes: string;
 }
 

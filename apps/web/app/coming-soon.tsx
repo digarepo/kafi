@@ -66,7 +66,7 @@ function ConstructionIllustration() {
       {/* Center icon container */}
       <div className="absolute inset-0 flex items-center justify-center">
         <div className="w-22 h-22 md:w-24 md:h-24 rounded-full bg-linear-to-br from-brand-primary to-brand-light dark:from-brand-primary dark:to-brand-dark flex items-center justify-center shadow-elevated transform  hover:rotate-360 transition-transform duration-900">
-          <img src="/kafi-icon-gold.svg" className="w-16 h-16 object-contain" />
+          <img src="/kafi-icon-gold.svg" alt="Kafi Tours Logo" className="w-16 h-16 object-contain" />
         </div>
       </div>
 

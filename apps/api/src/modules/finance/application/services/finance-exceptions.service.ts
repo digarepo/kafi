@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { MySql2Database } from 'drizzle-orm/mysql2';
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { ulid } from 'ulid';
 import { DATABASE } from '../../../../shared/infrastructure/database/database.provider.js';
 import * as schema from '@kafi/database';
@@ -235,6 +235,69 @@ export class FinanceExceptionsService {
     }
 
     return { authorized_amount: Number(row.authorized_amount) };
+  }
+
+  /**
+   * Batch version of getActiveExceptionForRegistration.
+   *
+   * @returns A map of registration_id to the active finance exception,
+   * if any. Registrations without active exceptions are omitted.
+   */
+  async getActiveExceptionsForRegistrations(
+    registrationIds: string[],
+  ): Promise<Array<{ registration_id: string; authorized_amount: number }>> {
+    if (registrationIds.length === 0) {
+      return [];
+    }
+
+    const activeStatus = await this.getStatusByCode('ACTIVE');
+    const rows = await this.db
+      .select({
+        registration_id: schema.financeExceptions.registration_id,
+        authorized_amount: schema.financeExceptions.authorized_amount,
+        due_date: schema.financeExceptions.due_date,
+        id: schema.financeExceptions.id,
+      })
+      .from(schema.financeExceptions)
+      .where(
+        and(
+          inArray(schema.financeExceptions.registration_id, registrationIds),
+          eq(
+            schema.financeExceptions.finance_exception_status_id,
+            activeStatus.id,
+          ),
+          eq(schema.financeExceptions.is_deleted, false),
+        ),
+      );
+
+    // Filter out expired exceptions
+    const now = new Date();
+    const activeExceptions: Array<{
+      registration_id: string;
+      authorized_amount: number;
+    }> = [];
+
+    for (const row of rows) {
+      if (row.due_date && new Date(row.due_date) < now) {
+        // Expire this exception
+        const expiredStatus = await this.getStatusByCode('EXPIRED');
+        await this.db
+          .update(schema.financeExceptions)
+          .set({
+            finance_exception_status_id: expiredStatus.id,
+            active_lock: null,
+            updated_at: new Date(),
+          })
+          .where(eq(schema.financeExceptions.id, row.id));
+      } else {
+        activeExceptions.push({
+          registration_id: row.registration_id,
+          authorized_amount: Number(row.authorized_amount),
+        });
+      }
+    }
+
+    return activeExceptions;
   }
 
   // ---- Private helpers ----

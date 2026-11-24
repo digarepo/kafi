@@ -137,8 +137,7 @@ export function RecordVisaResultDialog({
           {/* Outcome selector */}
           <div className="space-y-2">
             <Label htmlFor="visa-outcome" className="text-sm font-medium">
-              Outcome
-            </Label>
+              Outcome <span className="text-destructive">*</span></Label>
             <Select
               value={values.outcome}
               onValueChange={(v) => {
@@ -191,8 +190,7 @@ export function RecordVisaResultDialog({
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="visa-number" className="text-sm font-medium">
-                  Visa number
-                </Label>
+                  Visa number <span className="text-destructive">*</span></Label>
                 <Input
                   id="visa-number"
                   value={values.visa_number}
@@ -214,8 +212,7 @@ export function RecordVisaResultDialog({
                     htmlFor="approval-date"
                     className="text-sm font-medium"
                   >
-                    Approval date
-                  </Label>
+                    Approval date <span className="text-destructive">*</span></Label>
                   <DatePicker
                     id="approval-date"
                     value={values.approval_date}
@@ -231,8 +228,7 @@ export function RecordVisaResultDialog({
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="expiry-date" className="text-sm font-medium">
-                    Expiry date
-                  </Label>
+                    Expiry date <span className="text-destructive">*</span></Label>
                   <DatePicker
                     id="expiry-date"
                     value={values.expiry_date}
@@ -280,8 +276,7 @@ export function RecordVisaResultDialog({
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="rejection-date" className="text-sm font-medium">
-                  Rejection date
-                </Label>
+                  Rejection date <span className="text-destructive">*</span></Label>
                 <DatePicker
                   id="rejection-date"
                   value={values.rejection_date}
@@ -300,8 +295,7 @@ export function RecordVisaResultDialog({
                   htmlFor="rejection-reason"
                   className="text-sm font-medium"
                 >
-                  Rejection reason
-                </Label>
+                  Rejection reason <span className="text-destructive">*</span></Label>
                 <Textarea
                   id="rejection-reason"
                   value={values.rejection_reason}
@@ -328,8 +322,7 @@ export function RecordVisaResultDialog({
                   htmlFor="cancellation-date"
                   className="text-sm font-medium"
                 >
-                  Cancellation date
-                </Label>
+                  Cancellation date <span className="text-destructive">*</span></Label>
                 <DatePicker
                   id="cancellation-date"
                   value={values.cancellation_date}
@@ -348,8 +341,7 @@ export function RecordVisaResultDialog({
                   htmlFor="cancellation-reason"
                   className="text-sm font-medium"
                 >
-                  Cancellation reason
-                </Label>
+                  Cancellation reason <span className="text-destructive">*</span></Label>
                 <Textarea
                   id="cancellation-reason"
                   value={values.cancellation_reason}

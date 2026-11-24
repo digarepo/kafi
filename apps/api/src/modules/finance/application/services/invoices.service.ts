@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Inject,
   Injectable,
@@ -21,6 +22,36 @@ import { ReferenceDataService } from './reference-data.service.js';
 
 function toTwoDecimals(value: number): number {
   return Math.round(value * 100) / 100;
+}
+
+type DiscountType = 'FIXED' | 'PERCENT';
+
+export function calculateDiscountAmount(
+  subtotal: number,
+  discountType: DiscountType,
+  discountValue: number,
+): number {
+  if (!Number.isFinite(discountValue) || discountValue < 0) {
+    throw new BadRequestException('Discount must be zero or greater');
+  }
+
+  if (discountType === 'PERCENT' && discountValue > 100) {
+    throw new BadRequestException('Percentage discount cannot exceed 100%');
+  }
+
+  const amount = toTwoDecimals(
+    discountType === 'PERCENT'
+      ? (subtotal * discountValue) / 100
+      : discountValue,
+  );
+
+  if (amount > subtotal) {
+    throw new BadRequestException(
+      'Discount cannot exceed the invoice subtotal',
+    );
+  }
+
+  return amount;
 }
 
 function lineItemTotal(item: {
@@ -134,7 +165,16 @@ export class InvoicesService {
     const subtotal = toTwoDecimals(
       dto.line_items.reduce((sum, item) => sum + lineItemTotal(item), 0),
     );
-    const totalAmount = toTwoDecimals(subtotal - dto.discount_amount);
+    const discountType: DiscountType = dto.discount_type ?? 'FIXED';
+    const discountValue = dto.discount_value ?? dto.discount_amount ?? 0;
+
+    const discountAmount = calculateDiscountAmount(
+      subtotal,
+      discountType,
+      discountValue,
+    );
+
+    const totalAmount = toTwoDecimals(subtotal - discountAmount);
 
     const id = ulid();
     const number = await this.generateInvoiceNumber();
@@ -146,7 +186,9 @@ export class InvoicesService {
       invoice_date: new Date(dto.invoice_date),
       due_date: dto.due_date ? new Date(dto.due_date) : null,
       subtotal: String(subtotal),
-      discount_amount: String(dto.discount_amount),
+      discount_type: discountType,
+      discount_value: String(discountValue),
+      discount_amount: String(discountAmount),
       total_amount: String(totalAmount),
       currency_id: currency.id,
       invoice_status_id: draftStatus.id,
@@ -163,16 +205,37 @@ export class InvoicesService {
   async updateInvoice(id: string, dto: UpdateInvoiceDto, actorId: string) {
     const invoice = await this.getInvoiceOrThrow(id);
 
-    const discountAmount =
-      dto.discount_amount !== undefined
-        ? dto.discount_amount
-        : Number(invoice.subtotal) - Number(invoice.total_amount);
-    const totalAmount = toTwoDecimals(
-      Number(invoice.subtotal) - discountAmount,
-    );
+    const hasTypedDiscount =
+      dto.discount_type !== undefined || dto.discount_value !== undefined;
 
-    // Prevent reducing total below allocated amount
-    if (dto.discount_amount !== undefined) {
+    const shouldUpdateDiscount =
+      hasTypedDiscount || dto.discount_amount !== undefined;
+
+    let discountType = invoice.discount_type as DiscountType;
+    let discountValue = Number(invoice.discount_value);
+
+    if (hasTypedDiscount) {
+      discountType = dto.discount_type ?? discountType;
+      discountValue = dto.discount_value ?? discountValue;
+    } else if (dto.discount_amount !== undefined) {
+      // Backward compatibility for clients that still send discount_amount.
+      discountType = 'FIXED';
+      discountValue = dto.discount_amount;
+    }
+
+    const discountAmount = shouldUpdateDiscount
+      ? calculateDiscountAmount(
+          Number(invoice.subtotal),
+          discountType,
+          discountValue,
+        )
+      : Number(invoice.discount_amount);
+
+    const totalAmount = shouldUpdateDiscount
+      ? toTwoDecimals(Number(invoice.subtotal) - discountAmount)
+      : Number(invoice.total_amount);
+
+    if (shouldUpdateDiscount) {
       const [allocRow] = await this.db
         .select({
           allocated: sql<number>`coalesce(sum(${schema.paymentAllocations.allocated_amount}), 0)`,
@@ -184,7 +247,9 @@ export class InvoicesService {
             eq(schema.paymentAllocations.is_deleted, false),
           ),
         );
+
       const allocated = Number(allocRow?.allocated ?? 0);
+
       if (totalAmount < allocated) {
         throw new ConflictException(
           `Cannot reduce invoice total (${totalAmount}) below the allocated amount (${allocated})`,
@@ -198,8 +263,10 @@ export class InvoicesService {
         ...(dto.due_date !== undefined && {
           due_date: dto.due_date ? new Date(dto.due_date) : null,
         }),
-        ...(dto.discount_amount !== undefined && {
-          discount_amount: String(dto.discount_amount),
+        ...(shouldUpdateDiscount && {
+          discount_type: discountType,
+          discount_value: String(discountValue),
+          discount_amount: String(discountAmount),
           total_amount: String(totalAmount),
         }),
         ...(dto.notes !== undefined && { notes: dto.notes ?? null }),
@@ -820,14 +887,42 @@ export class InvoicesService {
         0,
       ),
     );
-    const totalAmount = toTwoDecimals(
-      subtotal - Number(invoice.discount_amount),
+    const discountType = invoice.discount_type as DiscountType;
+    const discountValue = Number(invoice.discount_value);
+
+    const discountAmount = calculateDiscountAmount(
+      subtotal,
+      discountType,
+      discountValue,
     );
+
+    const totalAmount = toTwoDecimals(subtotal - discountAmount);
+
+    const [allocRow] = await dbh
+      .select({
+        allocated: sql<number>`coalesce(sum(${schema.paymentAllocations.allocated_amount}), 0)`,
+      })
+      .from(schema.paymentAllocations)
+      .where(
+        and(
+          eq(schema.paymentAllocations.invoice_id, invoiceId),
+          eq(schema.paymentAllocations.is_deleted, false),
+        ),
+      );
+
+    const allocated = Number(allocRow?.allocated ?? 0);
+
+    if (totalAmount < allocated) {
+      throw new ConflictException(
+        `Cannot reduce invoice total (${totalAmount}) below the allocated amount (${allocated})`,
+      );
+    }
 
     await dbh
       .update(schema.invoices)
       .set({
         subtotal: String(subtotal),
+        discount_amount: String(discountAmount),
         total_amount: String(totalAmount),
         updated_at: new Date(),
         updated_by: actorId,
@@ -876,6 +971,8 @@ export class InvoicesService {
       invoice_date: row.invoice_date,
       due_date: row.due_date,
       subtotal: row.subtotal,
+      discount_type: row.discount_type,
+      discount_value: row.discount_value,
       discount_amount: row.discount_amount,
       total_amount: row.total_amount,
       currency_id: row.currency_id,

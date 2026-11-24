@@ -381,7 +381,21 @@ export class RegistrationOperationalSummaryService {
 
   private async getInvoicesForRegistration(registrationId: string) {
     const rows = await this.db
-      .select()
+      .select({
+        id: schema.invoices.id,
+        invoice_number: schema.invoices.invoice_number,
+        invoice_date: schema.invoices.invoice_date,
+        due_date: schema.invoices.due_date,
+        subtotal: schema.invoices.subtotal,
+        discount_type: schema.invoices.discount_type,
+        discount_value: schema.invoices.discount_value,
+        discount_amount: schema.invoices.discount_amount,
+        total_amount: schema.invoices.total_amount,
+        invoice_status_id: schema.invoices.invoice_status_id,
+        created_at: schema.invoices.created_at,
+        status_code: schema.invoiceStatuses.status_code,
+        status_name: schema.invoiceStatuses.name,
+      })
       .from(schema.invoices)
       .leftJoin(
         schema.invoiceStatuses,
@@ -397,7 +411,7 @@ export class RegistrationOperationalSummaryService {
 
     if (rows.length === 0) return [];
 
-    const invoiceIds = rows.map((r) => r.invoices.id);
+    const invoiceIds = rows.map((row) => row.id);
 
     const allocationRows = await this.db
       .select({
@@ -418,20 +432,25 @@ export class RegistrationOperationalSummaryService {
     );
 
     return rows.map((row) => {
-      const totalAmount = Number(row.invoices.total_amount);
-      const allocated = allocationMap.get(row.invoices.id) ?? 0;
+      const totalAmount = Number(row.total_amount);
+      const allocated = allocationMap.get(row.id) ?? 0;
+
       return {
-        id: row.invoices.id,
-        invoice_number: row.invoices.invoice_number,
-        invoice_date: row.invoices.invoice_date,
-        due_date: row.invoices.due_date,
-        total_amount: row.invoices.total_amount,
+        id: row.id,
+        invoice_number: row.invoice_number,
+        invoice_date: row.invoice_date,
+        due_date: row.due_date,
+        subtotal: row.subtotal,
+        discount_type: row.discount_type,
+        discount_value: row.discount_value,
+        discount_amount: row.discount_amount,
+        total_amount: row.total_amount,
         outstanding_balance: toTwoDecimals(totalAmount - allocated),
-        status: row.invoice_statuses
+        status: row.status_code
           ? {
-              id: row.invoice_statuses.id,
-              code: row.invoice_statuses.status_code,
-              name: row.invoice_statuses.name,
+              id: row.invoice_status_id,
+              code: row.status_code,
+              name: row.status_name,
             }
           : null,
       };

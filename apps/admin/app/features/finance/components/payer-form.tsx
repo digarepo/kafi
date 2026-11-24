@@ -141,7 +141,7 @@ export function PayerForm({
             <form.Field name="payer_type_id">
               {(field: AnyFieldApi) => (
                 <div className="space-y-2 md:col-span-2">
-                  <Label className="text-sm font-medium">Payer type</Label>
+                  <Label className="text-sm font-medium">Payer type <span className="text-destructive">*</span></Label>
                   <Select
                     value={field.state.value ?? ''}
                     onValueChange={(v) => field.handleChange(v ?? '')}
@@ -215,7 +215,7 @@ export function PayerForm({
                     >
                       Contact name
                     </Label>
-                    <Input
+                    <Input aria-invalid={field.state.meta.errors.length > 0}
                       id="contact_name"
                       value={field.state.value ?? ''}
                       onChange={(e) => field.handleChange(e.target.value)}
@@ -237,7 +237,7 @@ export function PayerForm({
                         value={field.state.value ?? ''}
                         onValueChange={(v) => field.handleChange(v ?? '')}
                       >
-                        <SelectTrigger className="h-9 w-full">
+                        <SelectTrigger aria-invalid={field.state.meta.errors.length > 0} className="h-9 w-full">
                           <SelectValue>
                             {travellers
                               .map((t) => ({
@@ -275,7 +275,7 @@ export function PayerForm({
                         value={field.state.value ?? ''}
                         onValueChange={(v) => field.handleChange(v ?? '')}
                       >
-                        <SelectTrigger className="h-9 w-full">
+                        <SelectTrigger aria-invalid={field.state.meta.errors.length > 0} className="h-9 w-full">
                           <SelectValue>
                             {contactPersons
                               .map((c) => ({
@@ -312,7 +312,7 @@ export function PayerForm({
                       >
                         Contact name
                       </Label>
-                      <Input
+                      <Input aria-invalid={field.state.meta.errors.length > 0}
                         id="contact_name"
                         value={field.state.value ?? ''}
                         onChange={(e) => field.handleChange(e.target.value)}
@@ -336,7 +336,7 @@ export function PayerForm({
                       >
                         Phone number
                       </Label>
-                      <Input
+                      <Input aria-invalid={field.state.meta.errors.length > 0}
                         id="phone_number"
                         value={field.state.value ?? ''}
                         onChange={(e) => field.handleChange(e.target.value)}
@@ -379,7 +379,7 @@ export function PayerForm({
                 <Label htmlFor="notes" className="text-sm font-medium">
                   Notes
                 </Label>
-                <Textarea
+                <Textarea aria-invalid={field.state.meta.errors.length > 0}
                   id="notes"
                   value={field.state.value ?? ''}
                   onChange={(e) => field.handleChange(e.target.value)}
