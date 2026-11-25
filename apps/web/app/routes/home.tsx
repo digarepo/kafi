@@ -56,7 +56,7 @@ const structuredData = {
 
 export default function Home() {
   return (
-    <main id="main-content" className="min-h-screen bg-background py-12">
+    <main id="main-content" className="min-h-screen bg-background">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}

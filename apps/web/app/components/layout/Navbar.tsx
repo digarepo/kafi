@@ -2,6 +2,7 @@ import { Button } from '@ui/components/ui/button';
 import { ThemeToggle } from '@ui/components/theme-toggle';
 import { ArrowRightIcon } from '@phosphor-icons/react';
 import { Link, NavLink as RouterNavLink } from 'react-router';
+import { useEffect, useState } from 'react';
 
 type NavItem = {
   href: string;
@@ -17,19 +18,28 @@ const NAV_LINKS: NavItem[] = [
 ];
 
 export function Navbar() {
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 24);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
   return (
     <header className="pointer-events-none fixed inset-x-0 top-4 z-40 hidden px-4 lg:block">
       <div
-        className="
-          pointer-events-auto mx-auto flex h-16 w-full max-w-6xl
+        className={`
+          pointer-events-auto mx-auto flex w-full max-w-6xl
           items-center justify-between gap-6 rounded-full
-          border border-accent/20
-          bg-linear-to-b from-accent/10 to-accent/25
-          px-5 shadow-soft backdrop-blur-xl
-          dark:border-primary/25
-          dark:from-primary/15 dark:to-primary/30
-          lg:px-7
-        "
+          px-5 transition-all duration-300 lg:px-7
+          ${
+            scrolled
+              ? 'h-14 border border-border/60 bg-background/80 shadow-elevated backdrop-blur-xl'
+              : 'h-16 border border-border/30 bg-background/50 backdrop-blur-md'
+          }
+        `}
       >
         {/* Logo */}
         <Link
@@ -40,20 +50,18 @@ export function Navbar() {
           <img
             src="/kafi-icon-gold.svg"
             alt=""
-            width={40}
-            height={40}
-            className="size-10 object-contain transition-transform duration-300 hover:rotate-6 dark:hidden"
+            width={36}
+            height={36}
+            className="size-9 object-contain transition-transform duration-300 hover:rotate-6 dark:hidden"
           />
-
           <img
             src="/kafi-icon-green.svg"
             alt=""
-            width={40}
-            height={40}
-            className="hidden size-10 object-contain transition-transform duration-300 hover:rotate-6 dark:block"
+            width={36}
+            height={36}
+            className="hidden size-9 object-contain transition-transform duration-300 hover:rotate-6 dark:block"
           />
-
-          <span className="flex gap-1.5 whitespace-nowrap font-heading text-base font-bold tracking-tight text-foreground xl:text-lg">
+          <span className="flex gap-1.5 whitespace-nowrap font-heading text-base font-bold tracking-tight text-foreground">
             <span>KAFI</span>
             <span className="font-medium text-accent">TOURS</span>
           </span>
@@ -62,7 +70,7 @@ export function Navbar() {
         {/* Main navigation */}
         <nav
           aria-label="Main navigation"
-          className="flex min-w-0 items-center justify-center gap-3 xl:gap-5"
+          className="flex min-w-0 items-center justify-center gap-1 xl:gap-2"
         >
           {NAV_LINKS.map((link) => (
             <RouterNavLink
@@ -71,12 +79,15 @@ export function Navbar() {
               end={link.href === '/'}
               className={({ isActive }) =>
                 [
-                  'whitespace-nowrap rounded-full px-2.5 py-2',
+                  'relative whitespace-nowrap px-3 py-2',
                   'text-sm font-semibold transition-colors duration-200',
                   'motion-reduce:transition-none',
+                  'after:absolute after:left-1/2 after:-translate-x-1/2 after:bottom-1',
+                  'after:h-[3px] after:rounded-full after:bg-accent',
+                  'after:transition-all after:duration-300',
                   isActive
-                    ? 'bg-accent/15 text-foreground'
-                    : 'text-muted-foreground hover:bg-accent/10 hover:text-foreground',
+                    ? 'text-foreground after:w-5'
+                    : 'text-muted-foreground hover:text-foreground after:w-0',
                 ].join(' ')
               }
             >
@@ -86,9 +97,8 @@ export function Navbar() {
         </nav>
 
         {/* Theme and booking actions */}
-        <div className="flex shrink-0 items-center gap-3">
+        <div className="flex shrink-0 items-center gap-2.5">
           <ThemeToggle />
-
           <Button
             render={<Link to="/booking" />}
             className="
@@ -98,7 +108,7 @@ export function Navbar() {
               motion-reduce:transition-none
             "
           >
-            Plan My Umrah
+            Book Umrah
             <ArrowRightIcon size={16} weight="bold" aria-hidden="true" />
           </Button>
         </div>
