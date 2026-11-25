@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
-
+import { PageLoading } from '../../../shared/page-loading';
 import { InvoiceForm } from "../components/invoice-form";
 import type { InvoiceFormOutput } from "../types/finance.types";
 import {
@@ -47,7 +47,7 @@ export function InvoiceCreatePage() {
     }
   }
 
-  if (loading) return <p className="text-muted-foreground">Loading...</p>;
+  if (loading) return <PageLoading />;
 
   return (
     <div className="py-6">

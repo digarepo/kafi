@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { toast } from 'sonner';
-
+import { PageLoading } from '../../../shared/page-loading';
 import { usePermissions } from '../../../core/permissions';
 import { api, type Registration } from '../../../lib/api.js';
 import { documentsApi } from '../lib/api';
@@ -69,7 +69,7 @@ export function VisaApplicationNewPage() {
     );
   }
 
-  if (loading) return <p className="text-muted-foreground">Loading...</p>;
+  if (loading) return <PageLoading />;
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">

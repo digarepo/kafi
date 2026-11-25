@@ -15,6 +15,7 @@ import {
   Label,
   Textarea,
 } from "@kafi/ui";
+import { PageLoading } from '../../../shared/page-loading';
 import { toast } from "sonner";
 
 import { usePermissions } from "../../../core/permissions";
@@ -139,7 +140,7 @@ export function CreditExceptionRequestDetailPage({ id }: CreditExceptionRequestD
     }
   }
 
-  if (loading) return <p className="text-muted-foreground">Loading...</p>;
+  if (loading) return <PageLoading />;
   if (!request) return <p className="text-destructive">{error ?? "Request not found"}</p>;
 
   const status = listItem?.status ?? null;

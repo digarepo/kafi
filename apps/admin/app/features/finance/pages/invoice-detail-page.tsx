@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { Button, Card, CardContent, CardHeader, CardTitle } from "@kafi/ui";
-
+import { PageLoading } from '../../../shared/page-loading';
 import { usePermissions } from "../../../core/permissions";
 import { useDestructiveConfirmation } from "../../../shared/delete-dialog";
 import { api, type Invoice, type UpdateInvoiceInput } from "../../../lib/api.js";
@@ -73,7 +73,7 @@ export function InvoiceDetailPage({ id }: InvoiceDetailPageProps) {
     }
   }
 
-  if (loading) return <p className="text-muted-foreground">Loading...</p>;
+  if (loading) return <PageLoading />;
   if (!invoice) return <p className="text-destructive">{error ?? "Invoice not found"}</p>;
 
   return (

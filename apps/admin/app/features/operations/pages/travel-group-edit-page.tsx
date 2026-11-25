@@ -5,6 +5,7 @@ import {
   type PackageVersion,
   type TravelGroup,
 } from '../../../lib/api.js';
+import { PageLoading } from '../../../shared/page-loading';
 import { TravelGroupForm } from '../components/travel-group-form';
 import type { TravelGroupFormOutput } from '../types/operations.types';
 
@@ -51,7 +52,7 @@ export function TravelGroupEditPage() {
     navigate(`/travel-groups/${id}`);
   }
 
-  if (loading) return <p className="text-muted-foreground">Loading…</p>;
+  if (loading) return <PageLoading />;
   if (error || !group)
     return (
       <p className="text-destructive">{error ?? 'Travel group not found'}</p>

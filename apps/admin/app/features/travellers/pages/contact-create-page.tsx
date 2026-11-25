@@ -10,6 +10,7 @@ import {
   type Language,
   type LookupOption,
 } from '../../../lib/api.js';
+import { PageLoading } from '../../../shared/page-loading';
 
 export function ContactCreatePage() {
   const navigate = useNavigate();
@@ -62,7 +63,7 @@ export function ContactCreatePage() {
     }
   }
 
-  if (loading) return <p className="text-muted-foreground">Loading...</p>;
+  if (loading) return <PageLoading />;
 
   return (
     <div className="space-y-6">

@@ -11,6 +11,7 @@ import {
   type Language,
   type LookupOption,
 } from '../../../lib/api.js';
+import { PageLoading } from '../../../shared/page-loading';
 
 interface ContactEditPageProps {
   id: string;
@@ -71,7 +72,7 @@ export function ContactEditPage({ id }: ContactEditPageProps) {
     }
   }
 
-  if (loading) return <p className="text-muted-foreground">Loading...</p>;
+  if (loading) return <PageLoading />;
   if (!contact)
     return (
       <p className="text-destructive">{error ?? 'Contact person not found'}</p>

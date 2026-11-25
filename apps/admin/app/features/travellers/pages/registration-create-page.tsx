@@ -6,6 +6,7 @@ import {
   type PackageVersion,
   type TravelRound,
 } from '../../../lib/api.js';
+import { PageLoading } from '../../../shared/page-loading';
 
 export function RegistrationCreatePage() {
   const [searchParams] = useSearchParams();
@@ -35,7 +36,7 @@ export function RegistrationCreatePage() {
     void load();
   }, []);
 
-  if (loading) return <p className="text-muted-foreground">Loading...</p>;
+  if (loading) return <PageLoading />;
 
   return (
     <div className="space-y-6">

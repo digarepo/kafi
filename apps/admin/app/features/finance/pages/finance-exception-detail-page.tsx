@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { Button, Card, CardContent, CardHeader, CardTitle } from "@kafi/ui";
 import { toast } from "sonner";
-
+import { PageLoading } from '../../../shared/page-loading';
 import { usePermissions } from "../../../core/permissions";
 import { useDestructiveConfirmation } from "../../../shared/delete-dialog";
 import { FinanceStatusBadge } from "../../../shared/finance-status";
@@ -100,7 +100,7 @@ export function FinanceExceptionDetailPage({ id }: FinanceExceptionDetailPagePro
     }
   }
 
-  if (loading) return <p className="text-muted-foreground">Loading...</p>;
+  if (loading) return <PageLoading />;
   if (!exception) return <p className="text-destructive">{error ?? "Exception not found"}</p>;
 
   const status = listItem?.status ?? null;

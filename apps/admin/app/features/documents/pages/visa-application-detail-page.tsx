@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { toast } from 'sonner';
 import { Button } from '@kafi/ui';
-
+import { PageLoading } from '../../../shared/page-loading';
 import { usePermissions } from '../../../core/permissions';
 import { useDestructiveConfirmation } from '../../../shared/delete-dialog';
 import { WorkflowStatusBadge } from '../../../shared/operational-ui';
@@ -112,7 +112,7 @@ export function VisaApplicationDetailPage() {
     }
   }
 
-  if (loading) return <p>Loading...</p>;
+  if (loading) return <PageLoading />;
   if (error) return <p className="text-destructive">{error}</p>;
   if (!visa) return <p>Visa application not found</p>;
 

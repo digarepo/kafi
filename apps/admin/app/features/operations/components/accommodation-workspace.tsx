@@ -13,6 +13,7 @@ import {
   UserPlus,
   X,
 } from 'lucide-react';
+import { PageLoading } from '../../../shared/page-loading';
 import {
   Button,
   Card,
@@ -440,7 +441,7 @@ function StayRoomManager({ stay, group, onChanged }: StayRoomManagerProps) {
   }
 
   if (loading)
-    return <p className="text-sm text-muted-foreground">Loading rooms…</p>;
+    return <PageLoading label="Loading rooms…" />;
 
   return (
     <div className="space-y-4">

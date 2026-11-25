@@ -12,6 +12,7 @@ import {
   type LookupOption,
   type Traveller,
 } from '../../../lib/api.js';
+import { PageLoading } from '../../../shared/page-loading';
 
 export function TravellerCreatePage() {
   const navigate = useNavigate();
@@ -78,7 +79,7 @@ export function TravellerCreatePage() {
     }
   }
 
-  if (loading) return <p className="text-muted-foreground">Loading...</p>;
+  if (loading) return <PageLoading />;
 
   return (
     <div className="space-y-6">

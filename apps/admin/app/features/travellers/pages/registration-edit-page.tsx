@@ -8,6 +8,7 @@ import {
   type Registration,
   type Traveller,
 } from '../../../lib/api.js';
+import { PageLoading } from '../../../shared/page-loading';
 
 interface RegistrationEditPageProps {
   id: string;
@@ -56,7 +57,7 @@ export function RegistrationEditPage({ id }: RegistrationEditPageProps) {
     }
   }
 
-  if (loading) return <p className="text-muted-foreground">Loading...</p>;
+  if (loading) return <PageLoading />;
   if (!registration) return <p className="text-destructive">{error ?? 'Registration not found'}</p>;
 
   return (

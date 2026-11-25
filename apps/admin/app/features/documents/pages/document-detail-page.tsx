@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router';
 import { Button } from '@kafi/ui';
-
+import { PageLoading } from '../../../shared/page-loading';
 import { usePermissions } from '../../../core/permissions';
 import { useDestructiveConfirmation } from '../../../shared/delete-dialog';
 import { documentsApi, type DocumentDetail } from '../lib/api';
@@ -53,7 +53,7 @@ export function DocumentDetailPage() {
     }
   }
 
-  if (loading) return <p>Loading...</p>;
+  if (loading) return <PageLoading />;
   if (error) return <p className="text-destructive">{error}</p>;
   if (!doc) return <p>Document not found</p>;
 

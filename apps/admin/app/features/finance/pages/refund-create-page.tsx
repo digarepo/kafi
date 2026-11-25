@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { toast } from "sonner";
-
+import { PageLoading } from '../../../shared/page-loading';
 import { RefundForm } from "../components/refund-form";
 import {
   api,
@@ -82,7 +82,7 @@ export function RefundCreatePage() {
     }
   }
 
-  if (loading) return <p className="text-muted-foreground">Loading...</p>;
+  if (loading) return <PageLoading />;
 
   if (payments.length === 0) {
     return (

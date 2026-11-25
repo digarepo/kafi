@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { Button, Card, CardContent, CardHeader, CardTitle } from "@kafi/ui";
-
+import { PageLoading } from '../../../shared/page-loading';
 import { usePermissions } from "../../../core/permissions";
 import { useDestructiveConfirmation } from "../../../shared/delete-dialog";
 import { api, type AllocationInput, type InvoiceListItem, type Payment } from "../../../lib/api.js";
@@ -72,7 +72,7 @@ export function PaymentDetailPage({ id }: PaymentDetailPageProps) {
     }
   }
 
-  if (loading) return <p className="text-muted-foreground">Loading...</p>;
+  if (loading) return <PageLoading />;
   if (!payment) return <p className="text-destructive">{error ?? "Payment not found"}</p>;
 
   return (

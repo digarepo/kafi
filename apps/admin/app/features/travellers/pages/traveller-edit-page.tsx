@@ -9,6 +9,7 @@ import {
   type LookupOption,
   type Traveller,
 } from '../../../lib/api.js';
+import { PageLoading } from '../../../shared/page-loading';
 
 interface TravellerEditPageProps {
   id: string;
@@ -58,7 +59,7 @@ export function TravellerEditPage({ id }: TravellerEditPageProps) {
     navigate(`/travellers/${id}`);
   }
 
-  if (loading) return <p className="text-muted-foreground">Loading...</p>;
+  if (loading) return <PageLoading />;
   if (!traveller)
     return (
       <p className="text-destructive">{loadError ?? 'Traveller not found'}</p>

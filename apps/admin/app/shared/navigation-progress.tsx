@@ -18,7 +18,7 @@ export function NavigationProgress() {
   if (!visible) return null;
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-background/40 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-background/25 backdrop-blur-[2px]"
       role="status"
       aria-live="polite"
       aria-label="Loading page"

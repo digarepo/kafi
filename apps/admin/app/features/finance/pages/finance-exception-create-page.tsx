@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { toast } from "sonner";
-
+import { PageLoading } from '../../../shared/page-loading';
 import { FinanceExceptionForm } from "../components/finance-exception-form";
 import { api, type CreateFinanceExceptionInput } from "../../../lib/api.js";
 
@@ -78,7 +78,7 @@ export function FinanceExceptionCreatePage() {
     }
   }
 
-  if (loading) return <p className="text-muted-foreground">Loading...</p>;
+  if (loading) return <PageLoading />;
 
   if (registrations.length === 0) {
     return (
