@@ -32,6 +32,13 @@ const MobileBottomNav = lazy(() =>
   })),
 );
 
+// Lazy-load the floating contact button — non-critical interactive widget.
+const ContactFab = lazy(() =>
+  import('./components/layout/ContactFab').then((m) => ({
+    default: m.ContactFab,
+  })),
+);
+
 // Default meta as a safety net. Route-level meta() functions override these.
 // This prevents any route from accidentally rendering without a title.
 export function meta() {
@@ -58,25 +65,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <link rel="preconnect" href={import.meta.env.VITE_API_URL} />
         <link rel="dns-prefetch" href={import.meta.env.VITE_API_URL} />
 
-        {/* Preload critical font weights — body text, bold, and headings.
-            All three are used above the fold on every page. */}
+        {/* Preload the DM Sans variable font — single file covering all
+            weights used across body and headings on every page. */}
         <link
           rel="preload"
-          href="/fonts/inter-400.woff2"
-          as="font"
-          type="font/woff2"
-          crossOrigin="anonymous"
-        />
-        <link
-          rel="preload"
-          href="/fonts/inter-700.woff2"
-          as="font"
-          type="font/woff2"
-          crossOrigin="anonymous"
-        />
-        <link
-          rel="preload"
-          href="/fonts/montserrat-700.woff2"
+          href="/fonts/dm-sans.woff2"
           as="font"
           type="font/woff2"
           crossOrigin="anonymous"
@@ -132,6 +125,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <Footer />
             <Suspense fallback={null}>
               <MobileBottomNav />
+            </Suspense>
+            <Suspense fallback={null}>
+              <ContactFab />
             </Suspense>
           </ThemeProvider>
         </UIConfigProvider>

@@ -38,10 +38,10 @@ export function Partners() {
     <section className="py-12 border-t border-b border-border/30 bg-background/50 relative z-10">
       <div className="mx-auto container px-6 sm:px-8 lg:px-12 flex flex-col md:flex-row items-center justify-evenly gap-8 text-center md:text-left">
         <div>
-          <h2 className="font-heading text-xs font-bold text-brand-light dark:text-brand-gold uppercase tracking-wider">
+          <h2 className="font-heading text-xs font-semibold text-brand-light dark:text-brand-gold uppercase tracking-wider">
             In Partnership With
           </h2>
-          <p className="text-[12px] text-muted-foreground font-normal mt-0.5">
+          <p className="text-sm text-muted-foreground mt-0.5">
             Securing safe flights and premium logistics for all pilgrims.
           </p>
         </div>
@@ -92,10 +92,10 @@ export function Destinations() {
           >
             Spiritual Centerpoints
           </Badge>
-          <h2 className="font-heading text-3xl font-extrabold tracking-tight text-foreground">
+          <h2 className="font-heading text-3xl sm:text-4xl lg:text-5xl font-semibold tracking-tight text-foreground">
             Travel Destinations
           </h2>
-          <p className="text-muted-foreground font-normal leading-relaxed text-sm">
+          <p className="text-base leading-7 text-muted-foreground">
             Curated packages utilizing high-quality logistics and memorable
             Umrah stay.
           </p>
@@ -127,10 +127,10 @@ export function Destinations() {
             </div>
 
             <div className="z-10 mt-auto p-6 space-y-3 max-w-xl text-left">
-              <h3 className="font-heading text-2xl font-bold tracking-tight text-primary-foreground">
+              <h3 className="font-heading text-2xl font-semibold tracking-tight text-white">
                 Makkah Al-Mukarramah
               </h3>
-              <p className="text-sm text-accent-foreground font-light leading-relaxed">
+              <p className="text-sm text-white/80 font-normal leading-relaxed">
                 Perform your umrah with thoughtfully arranged accomodation near
                 al-masjid Al-Haram, Allowing you to focus on your worship with
                 convenience.
@@ -165,10 +165,10 @@ export function Destinations() {
             </div>
 
             <div className="z-10 mt-auto p-6 space-y-3 text-left">
-              <h3 className="font-heading text-xl font-bold tracking-tight text-primary-foreground">
+              <h3 className="font-heading text-xl font-semibold tracking-tight text-white">
                 Al-Madinah Al-Munawwarah
               </h3>
-              <p className="text-sm text-accent-foreground font-light leading-relaxed">
+              <p className="text-sm text-white/80 font-normal leading-relaxed">
                 Visit the Prophet’s Mosque (Al-Masjid an-Nabawi) and trace
                 historical landmarks in peaceful guided groups.
               </p>
@@ -177,7 +177,8 @@ export function Destinations() {
 
           {/* Card 3: Hub Banner (Horizontal Banner, spans all 12 columns) */}
           <Card className="card card-hover lg:col-span-12 overflow-hidden border-border/30 bg-card p-6 flex flex-col md:flex-row justify-between items-center gap-6 min-h-60 relative">
-            <div className="absolute inset-0 z-0 opacity-35">
+            <div className="absolute inset-0 z-0">
+              <div className="absolute inset-0 bg-background/70 dark:bg-background/80" />
               <img
                 src="/addis-departure.webp"
                 alt="Ethiopian Airlines aircraft at Addis Ababa departure"
@@ -195,10 +196,10 @@ export function Destinations() {
                 <AirplaneIcon weight="light" className="w-6 h-6 rotate-45" />
               </div>
               <div className="space-y-1">
-                <span className="text-[10px] text-accent font-bold uppercase tracking-wider">
+                <span className="text-xs text-accent font-semibold uppercase tracking-wider">
                   Flight Partner
                 </span>
-                <h3 className="font-heading text-lg font-bold text-foreground">
+                <h3 className="font-heading text-lg font-semibold text-foreground">
                   Ethiopian Airlines
                 </h3>
                 <p className="text-sm text-foreground/70 font-normal max-w-2xl leading-relaxed">
@@ -267,12 +268,12 @@ export function Features() {
           >
             Handling your Umrah
           </Badge>
-          <h2 className="font-heading text-3xl font-extrabold tracking-tight text-foreground leading-[1.15]">
+          <h2 className="font-heading text-3xl sm:text-4xl lg:text-5xl font-semibold tracking-tight text-foreground leading-[1.15]">
             Why Travelers Choose <br />
-            <span className="font-bold text-primary">KAFI </span>
+            <span className="font-semibold text-primary">KAFI </span>
             <span className="text-accent font-normal">TOURS</span>
           </h2>
-          <p className="text-muted-foreground font-normal text-sm leading-relaxed">
+          <p className="text-base leading-7 text-muted-foreground">
             Every Umrah deserves careful planning. We coordinate visa
             processing, flights, accommodation, transportation, and essential
             travel arrangements so you can devote more of your attention to
@@ -302,10 +303,10 @@ export function Features() {
               <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-accent/10 border border-accent/15 group-hover:scale-110 transition-transform duration-300">
                 {feat.icon}
               </div>
-              <h3 className="font-heading text-sm font-bold text-foreground mb-1">
+              <h3 className="font-heading text-base font-semibold text-foreground mb-1">
                 {feat.title}
               </h3>
-              <p className="text-xs text-muted-foreground font-light leading-relaxed">
+              <p className="text-sm leading-6 text-muted-foreground">
                 {feat.desc}
               </p>
             </Card>
@@ -404,10 +405,10 @@ export function Pricing() {
           >
             Clear Pricing
           </Badge>
-          <h2 className="font-heading text-3xl font-extrabold tracking-tight text-foreground">
+          <h2 className="font-heading text-3xl sm:text-4xl lg:text-5xl font-semibold tracking-tight text-foreground">
             Travel Packages
           </h2>
-          <p className="text-muted-foreground font-light text-sm">
+          <p className="text-base leading-7 text-muted-foreground">
             Choose the package comfort level that best matches your family
             itinerary.
           </p>
@@ -419,21 +420,21 @@ export function Pricing() {
           <Card className="card flex flex-col justify-between border-border/30 bg-linear-to-b from-card to-muted/10 p-6 relative">
             <div className="space-y-4">
               <div className="space-y-1">
-                <h3 className="font-heading text-sm font-bold text-foreground">
+                <h3 className="font-heading text-base font-semibold text-foreground">
                   Economy Package
                 </h3>
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-sm text-muted-foreground">
                   Best vaue for money
                 </p>
               </div>
               <div className="flex items-baseline gap-1 text-foreground">
-                <span className="text-2xl font-bold">ETB 145,000</span>
-                <span className="text-[10px] text-muted-foreground font-light">
+                <span className="text-2xl font-semibold">ETB 145,000</span>
+                <span className="text-xs text-muted-foreground font-normal">
                   / traveler
                 </span>
               </div>
               <Separator className="opacity-60" />
-              <ul className="space-y-3 text-xs text-muted-foreground font-light">
+              <ul className="space-y-3 text-sm text-muted-foreground">
                 <li className="flex items-center gap-2">
                   <CheckIcon className="text-primary w-4 h-4 shrink-0" />
                   <span>Ethiopian Airlines flight</span>
@@ -470,23 +471,23 @@ export function Pricing() {
 
             <div className="space-y-4">
               <div className="space-y-1">
-                <h3 className="font-heading text-sm font-bold text-foreground">
+                <h3 className="font-heading text-base font-semibold text-foreground">
                   Comfort Package
                 </h3>
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-sm text-muted-foreground">
                   Optimal balance of service & price
                 </p>
               </div>
               <div className="flex items-baseline gap-1 text-foreground">
-                <span className="text-2xl font-bold text-primary">
+                <span className="text-2xl font-semibold text-primary">
                   ETB 160,000
                 </span>
-                <span className="text-[10px] text-muted-foreground font-light">
+                <span className="text-xs text-muted-foreground font-normal">
                   / traveler
                 </span>
               </div>
               <Separator className="opacity-60" />
-              <ul className="space-y-3 text-xs text-foreground font-light">
+              <ul className="space-y-3 text-sm text-foreground">
                 <li className="flex items-center gap-2">
                   <CheckIcon className="text-primary w-4 h-4 shrink-0" />
                   <span>Everything in Economy plus</span>
@@ -516,24 +517,24 @@ export function Pricing() {
           <Card className="card flex flex-col justify-between border-border/30 bg-linear-to-b from-card to-muted/10 p-6 relative">
             <div className="space-y-4">
               <div className="space-y-1">
-                <h3 className="font-heading text-sm font-bold text-foreground">
+                <h3 className="font-heading text-base font-semibold text-foreground">
                   Premium Package
                 </h3>
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-sm text-muted-foreground">
                   Ultimate luxury spiritual experience
                 </p>
               </div>
               <div className="flex items-baseline gap-1 text-foreground">
-                <span className="text-[10px]">starting from </span>
-                <span className="text-2xl text-brand-gold font-bold">
+                <span className="text-xs">starting from </span>
+                <span className="text-2xl text-brand-gold font-semibold">
                   ETB 240,000
                 </span>
-                <span className="text-[10px] text-muted-foreground font-light">
+                <span className="text-xs text-muted-foreground font-normal">
                   / traveler
                 </span>
               </div>
               <Separator className="opacity-60" />
-              <ul className="space-y-3 text-xs text-muted-foreground font-light">
+              <ul className="space-y-3 text-sm text-muted-foreground">
                 <li className="flex items-center gap-2">
                   <CheckIcon className="text-primary w-4 h-4 shrink-0" />
                   <span>Business Class Flights</span>
@@ -586,10 +587,10 @@ export function CTA() {
             >
               Begin Your Journey
             </Badge>
-            <h2 className="font-heading text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
+            <h2 className="font-heading text-2xl sm:text-3xl font-semibold tracking-tight text-foreground">
               Ready to Book Your Travel?
             </h2>
-            <p className="text-xs sm:text-sm text-muted-foreground font-light leading-relaxed">
+            <p className="text-sm sm:text-base leading-7 text-muted-foreground">
               Register your interest and one of our dedicated spiritual travel
               coordinators will reach out to build your custom itinerary.
             </p>
