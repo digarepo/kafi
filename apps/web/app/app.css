@@ -346,6 +346,25 @@ h6 {
     }
   }
 
+  /* Ambient glows — radial gradients instead of filter:blur(). Large blur
+     filters render as black squares on mobile GPUs (iOS Safari/Chrome), so
+     never reintroduce blur-Nxl on decorative background elements. */
+  .ambient-glow-accent {
+    background-image: radial-gradient(
+      closest-side,
+      var(--accent),
+      transparent 70%
+    );
+  }
+
+  .ambient-glow-primary {
+    background-image: radial-gradient(
+      closest-side,
+      var(--primary),
+      transparent 70%
+    );
+  }
+
   .bg-star-pattern {
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56' viewBox='0 0 56 56'%3E%3Cg fill='none' stroke='currentColor' stroke-width='1'%3E%3Cpath d='M28 6 L34 22 L50 28 L34 34 L28 50 L22 34 L6 28 L22 22 Z'/%3E%3Ccircle cx='28' cy='28' r='6'/%3E%3C/g%3E%3C/svg%3E");
     background-size: 56px 56px;

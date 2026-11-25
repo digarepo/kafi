@@ -162,7 +162,7 @@ function NotFoundIllustration() {
 
       {/* Glow effect behind */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <div className="w-32 h-32 rounded-full bg-brand-primary/5 dark:bg-brand-primary/10 blur-2xl animate-pulse-glow" />
+        <div className="w-32 h-32 rounded-full ambient-glow-primary opacity-15 animate-pulse-glow" />
       </div>
     </div>
   );
