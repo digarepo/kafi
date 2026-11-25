@@ -18,7 +18,6 @@ export async function clientLoader() {
 /**
  * Public password-reset route.
  */
-export { RouteHydrateFallback as HydrateFallback } from '../shared/route-hydrate-fallback';
 
 export default function ResetPasswordRoute() {
   return <ResetPasswordPage />;

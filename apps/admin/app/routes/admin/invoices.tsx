@@ -24,7 +24,6 @@ export function meta() {
  *
  * @returns The invoices layout route element.
  */
-export { RouteHydrateFallback as HydrateFallback } from '../../shared/route-hydrate-fallback';
 
 export default function InvoicesLayout() {
   return (

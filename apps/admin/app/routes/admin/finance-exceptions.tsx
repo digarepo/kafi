@@ -5,7 +5,6 @@ export function meta() {
   return [{ title: 'Finance Exceptions | Kafi Admin' }];
 }
 
-export { RouteHydrateFallback as HydrateFallback } from '../../shared/route-hydrate-fallback';
 
 export default function FinanceExceptionsLayout() {
   return (

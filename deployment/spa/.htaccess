@@ -1,0 +1,10 @@
+# SPA fallback — client-side routes have no physical file; serve index.html
+# so React Router can resolve the route in the browser. Real files
+# (assets, images, favicons) are served directly.
+<IfModule mod_rewrite.c>
+RewriteEngine On
+RewriteBase /
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule . /index.html [L]
+</IfModule>

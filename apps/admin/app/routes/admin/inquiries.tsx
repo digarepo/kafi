@@ -14,7 +14,6 @@ export function meta() {
   return [{ title: 'Inquiry inbox | Kafi Admin' }];
 }
 
-export { RouteHydrateFallback as HydrateFallback } from '../../shared/route-hydrate-fallback';
 
 export default function InquiriesLayout() {
   return (
