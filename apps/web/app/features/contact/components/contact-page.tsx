@@ -15,7 +15,6 @@ import {
   PhoneIcon,
   WhatsappLogoIcon,
 } from '@phosphor-icons/react';
-import { Badge } from '@ui/components/ui/badge';
 import { Button } from '@ui/components/ui/button';
 
 import ContactPanel from './contact-panel';
@@ -37,30 +36,38 @@ const LOCATION = {
 export default function ContactPage() {
   return (
     <main id="main-content">
-      <section className="relative overflow-hidden border-b border-border/10 bg-linear-to-b from-muted/10 to-background pt-28 pb-12 md:pt-32 md:pb-16">
-        <div className="mx-auto max-w-7xl px-6 sm:px-8 lg:px-12">
+      <section className="relative overflow-hidden pt-32 pb-14 md:pb-16">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -top-32 -left-32 h-96 w-96 rounded-full bg-accent/15 blur-3xl"
+        />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute bottom-0 right-1/4 h-80 w-80 rounded-full bg-primary/10 blur-3xl"
+        />
+        <div className="mx-auto max-w-7xl px-6 sm:px-8 lg:px-12 relative z-10">
           <div className="max-w-3xl">
-            <Badge variant="outline" className="mb-6">
-              Contact us
-            </Badge>
-            <h1 className="font-heading text-balance text-3xl font-semibold tracking-tight text-foreground sm:text-4xl md:text-5xl">
-              Begin your journey with a conversation.
+            <h1 className="font-heading text-balance text-[2.25rem] sm:text-5xl lg:text-6xl font-semibold tracking-[-0.035em] leading-[1.08] text-foreground">
+              Begin your journey with{' '}
+              <span className="text-primary">a conversation.</span>
             </h1>
-            <p className="mt-6 text-base font-light leading-relaxed text-muted-foreground md:text-lg">
+            <p className="mt-6 max-w-2xl text-base leading-7 sm:text-lg sm:leading-8 text-muted-foreground">
               Whether you are planning your first Umrah or a bespoke travel
               experience, our team is here to guide you with care, clarity and
               deep local expertise.
             </p>
           </div>
 
-          <div className="mt-12 px-2 sm:px-0 grid divide-y rounded-2xl border border-border/20 bg-muted/10 sm:mt-16 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+          <div className="mt-12 grid divide-y divide-border/30 rounded-2xl border border-border/40 bg-card shadow-soft sm:mt-16 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
             <Link
               to="#enquiry"
-              className="group flex items-center justify-between gap-4 py-5 sm:px-6 sm:py-6"
+              className="group flex items-center justify-between gap-4 px-6 py-5 sm:py-6 transition-colors hover:bg-accent/5 rounded-t-2xl sm:rounded-l-2xl sm:rounded-tr-none"
             >
-              <div className="flex items-center gap-3">
-                <EnvelopeIcon className="size-5 text-accent" weight="light" />
-                <span className="text-sm font-medium text-foreground">
+              <div className="flex items-center gap-3.5">
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10 border border-accent/15 text-accent">
+                  <EnvelopeIcon className="size-5" weight="duotone" />
+                </span>
+                <span className="text-sm font-semibold text-foreground">
                   Send an enquiry
                 </span>
               </div>
@@ -69,11 +76,13 @@ export default function ContactPage() {
 
             <Link
               to={`tel:${PHONE_PRIMARY.replace(/\s/g, '')}`}
-              className="group flex items-center justify-between gap-4 py-5 sm:px-6 sm:py-6"
+              className="group flex items-center justify-between gap-4 px-6 py-5 sm:py-6 transition-colors hover:bg-accent/5"
             >
-              <div className="flex items-center gap-3">
-                <PhoneIcon className="size-5 text-accent" weight="light" />
-                <span className="text-sm font-medium text-foreground">
+              <div className="flex items-center gap-3.5">
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10 border border-accent/15 text-accent">
+                  <PhoneIcon className="size-5" weight="duotone" />
+                </span>
+                <span className="text-sm font-semibold text-foreground">
                   Call us
                 </span>
               </div>
@@ -84,14 +93,13 @@ export default function ContactPage() {
               to={WHATSAPP_HREF}
               target="_blank"
               rel="noreferrer"
-              className="group flex items-center justify-between gap-4 py-5 sm:px-6 sm:py-6"
+              className="group flex items-center justify-between gap-4 px-6 py-5 sm:py-6 transition-colors hover:bg-accent/5 rounded-b-2xl sm:rounded-r-2xl sm:rounded-bl-none"
             >
-              <div className="flex items-center gap-3">
-                <WhatsappLogoIcon
-                  className="size-5 text-accent"
-                  weight="light"
-                />
-                <span className="text-sm font-medium text-foreground">
+              <div className="flex items-center gap-3.5">
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10 border border-accent/15 text-accent">
+                  <WhatsappLogoIcon className="size-5" weight="duotone" />
+                </span>
+                <span className="text-sm font-semibold text-foreground">
                   WhatsApp
                 </span>
               </div>
@@ -101,13 +109,17 @@ export default function ContactPage() {
         </div>
       </section>
 
-      <section id="enquiry" className="bg-muted/10 py-16 md:py-24">
-        <div className="mx-auto max-w-7xl px-6 sm:px-8 lg:px-12">
+      <section id="enquiry" className="bg-muted/30 py-16 md:py-24 relative overflow-hidden">
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 bg-star-pattern opacity-[0.04] dark:opacity-[0.06] pointer-events-none"
+        />
+        <div className="mx-auto max-w-7xl px-6 sm:px-8 lg:px-12 relative z-10">
           <div className="mb-12 max-w-2xl">
-            <h2 className="font-heading text-balance text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
+            <h2 className="font-heading text-balance text-3xl sm:text-4xl font-semibold tracking-tight text-foreground">
               Tailor your enquiry
             </h2>
-            <p className="mt-4 text-base font-light leading-relaxed text-muted-foreground">
+            <p className="mt-4 text-base leading-7 text-muted-foreground">
               Share a few details and a travel coordinator will prepare a
               personal response. All fields marked with an asterisk are
               required.
@@ -125,27 +137,23 @@ export default function ContactPage() {
         </div>
       </section>
 
-      <section className="border-t border-border/10 bg-muted/20 py-16 md:py-24">
+      <section className="py-16 md:py-24">
         <div className="mx-auto max-w-7xl px-6 sm:px-8 lg:px-12">
-          <div className="grid gap-12 lg:grid-cols-12">
+          <div className="grid gap-12 lg:grid-cols-12 lg:items-center">
             <div className="lg:col-span-4">
-              <Badge variant="outline" className="mb-4">
-                Visit us
-              </Badge>
-              <h2 className="font-heading text-balance text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
+              <h2 className="font-heading text-balance text-3xl sm:text-4xl font-semibold tracking-tight text-foreground">
                 Our office
               </h2>
               <div className="mt-6 space-y-4">
-                <div className="flex items-start gap-3">
-                  <MapPinIcon
-                    className="mt-0.5 size-5 shrink-0 text-accent"
-                    weight="light"
-                  />
+                <div className="flex items-start gap-3.5">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/10 border border-accent/15 text-accent">
+                    <MapPinIcon className="size-5" weight="duotone" />
+                  </span>
                   <div>
-                    <p className="font-medium text-foreground">
+                    <p className="font-semibold text-foreground">
                       {LOCATION.name}
                     </p>
-                    <p className="text-sm font-light text-muted-foreground">
+                    <p className="text-sm text-muted-foreground mt-0.5">
                       {LOCATION.address}
                     </p>
                   </div>
@@ -159,7 +167,7 @@ export default function ContactPage() {
                       rel="noreferrer"
                     />
                   }
-                  className="h-11 gap-2 px-5 text-sm"
+                  className="h-11 gap-2 px-5 text-sm font-semibold"
                 >
                   Get directions <ArrowRightIcon className="size-4" />
                 </Button>

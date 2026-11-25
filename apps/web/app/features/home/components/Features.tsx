@@ -476,9 +476,9 @@ export function Pricing() {
                   Best value for money
                 </p>
               </div>
-              <div className="flex items-baseline gap-1.5">
+              <div className="flex flex-wrap items-baseline gap-x-1.5">
                 <span className="text-xs text-muted-foreground">from</span>
-                <span className="font-heading text-3xl font-semibold tracking-tight">
+                <span className="font-heading text-3xl font-semibold tracking-tight whitespace-nowrap">
                   ETB 150,000
                 </span>
                 <span className="text-xs text-muted-foreground">/ traveler</span>
@@ -529,9 +529,9 @@ export function Pricing() {
                   Optimal balance of service & price
                 </p>
               </div>
-              <div className="flex items-baseline gap-1.5">
+              <div className="flex flex-wrap items-baseline gap-x-1.5">
                 <span className="text-xs text-muted-foreground">from</span>
-                <span className="font-heading text-3xl font-semibold tracking-tight text-primary">
+                <span className="font-heading text-3xl font-semibold tracking-tight whitespace-nowrap text-primary">
                   ETB 180,000
                 </span>
                 <span className="text-xs text-muted-foreground">/ traveler</span>
@@ -578,9 +578,9 @@ export function Pricing() {
                   Complete, unhurried premium care
                 </p>
               </div>
-              <div className="flex items-baseline gap-1.5">
+              <div className="flex flex-wrap items-baseline gap-x-1.5">
                 <span className="text-xs text-white/60">from</span>
-                <span className="font-heading text-3xl font-semibold tracking-tight text-accent">
+                <span className="font-heading text-3xl font-semibold tracking-tight whitespace-nowrap text-accent">
                   ETB 340,000
                 </span>
                 <span className="text-xs text-white/60">/ traveler</span>

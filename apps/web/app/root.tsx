@@ -12,8 +12,6 @@ import type { Route } from './+types/root';
 import './app.css';
 import { ThemeProvider } from '@ui/providers/theme-provider';
 import { UIConfigProvider } from '@ui/providers/ui-config-provider';
-import { Navbar } from './components/layout/Navbar';
-import { Footer } from './components/layout/Footer';
 import { captureAttribution } from './lib/attribution';
 import { trackPageView } from './lib/analytics';
 
@@ -22,21 +20,6 @@ import { trackPageView } from './lib/analytics';
 // before any user-triggered toast (form submissions, etc.).
 const Toaster = lazy(() =>
   import('@ui/components/ui/sonner').then((m) => ({ default: m.Toaster })),
-);
-
-// Lazy-load the mobile menu so the Sheet component (and its @base-ui/react
-// dialog dependency) is not part of the initial bundle on every page.
-const MobileBottomNav = lazy(() =>
-  import('./components/layout/MobileMenu').then((m) => ({
-    default: m.MobileBottomNav,
-  })),
-);
-
-// Lazy-load the floating contact button — non-critical interactive widget.
-const ContactFab = lazy(() =>
-  import('./components/layout/ContactFab').then((m) => ({
-    default: m.ContactFab,
-  })),
 );
 
 // Default meta as a safety net. Route-level meta() functions override these.
@@ -117,17 +100,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
             >
               Skip to content
             </a>
-            <Navbar />
             {children}
             <Suspense fallback={null}>
               <Toaster richColors position="top-right" duration={3000} />
-            </Suspense>
-            <Footer />
-            <Suspense fallback={null}>
-              <MobileBottomNav />
-            </Suspense>
-            <Suspense fallback={null}>
-              <ContactFab />
             </Suspense>
           </ThemeProvider>
         </UIConfigProvider>

@@ -13,7 +13,6 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@ui/components/ui/accordion';
-import { Badge } from '@ui/components/ui/badge';
 import { Card } from '@ui/components/ui/card';
 
 import { FAQ_CATEGORIES } from '../data/faq-data';
@@ -30,21 +29,23 @@ import { LazyInlineFaqQuestionCard } from './lazy-inline-faq-question-card';
 function FaqCategorySection({ category }: { category: FaqCategory }) {
   return (
     <Card className="card border-border/40 p-6 md:p-8">
-      <h2 className="font-heading text-sm font-bold uppercase tracking-wider text-foreground">
+      <h2 className="font-heading text-lg font-semibold tracking-tight text-foreground">
         {category.title}
       </h2>
 
-      <Accordion defaultValue={[]} keepMounted className="mt-6">
+      <Accordion defaultValue={[]} keepMounted className="mt-5 gap-3">
         {category.items.map((item) => (
-          <AccordionItem key={item.id} value={item.id}>
-            <AccordionTrigger className="py-4 text-sm font-medium text-foreground hover:text-accent hover:no-underline">
+          <AccordionItem
+            key={item.id}
+            value={item.id}
+            className="not-last:border-b-0 rounded-xl border border-border/40 bg-muted/20 px-5 transition-colors duration-200 data-open:border-accent/40 data-open:bg-accent/5"
+          >
+            <AccordionTrigger className="py-4 text-sm font-semibold text-foreground hover:text-accent hover:no-underline">
               {item.question}
             </AccordionTrigger>
 
-            <AccordionContent>
-              <p className="text-sm font-light leading-relaxed text-muted-foreground">
-                {item.answer}
-              </p>
+            <AccordionContent className="text-muted-foreground">
+              <p className="pb-2 text-sm leading-6">{item.answer}</p>
             </AccordionContent>
           </AccordionItem>
         ))}
@@ -60,21 +61,22 @@ function FaqCategorySection({ category }: { category: FaqCategory }) {
  */
 function FaqHero() {
   return (
-    <section className="relative overflow-hidden border-b border-border/10 pt-28 pb-12 md:pt-32 md:pb-16">
-      <div className="mx-auto max-w-7xl px-6 sm:px-8 lg:px-12">
+    <section className="relative overflow-hidden pt-32 pb-14 md:pb-16">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -top-32 -left-32 h-96 w-96 rounded-full bg-accent/15 blur-3xl"
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute bottom-0 right-1/4 h-80 w-80 rounded-full bg-primary/10 blur-3xl"
+      />
+      <div className="mx-auto max-w-7xl px-6 sm:px-8 lg:px-12 relative z-10">
         <div className="max-w-3xl">
-          <Badge
-            variant="outline"
-            className="border-accent/20 bg-accent/5 px-3 py-0.5 font-semibold text-accent"
-          >
-            FAQ
-          </Badge>
-
-          <h1 className="mt-6 font-heading text-balance text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-            Answers to common questions.
+          <h1 className="font-heading text-balance text-[2.25rem] sm:text-5xl lg:text-6xl font-semibold tracking-[-0.035em] leading-[1.08] text-foreground">
+            Answers to <span className="text-primary">common questions.</span>
           </h1>
 
-          <p className="mt-4 text-base font-light leading-relaxed text-muted-foreground md:text-lg">
+          <p className="mt-6 max-w-2xl text-base leading-7 sm:text-lg sm:leading-8 text-muted-foreground">
             If you are planning an Umrah journey, you will find practical
             guidance here on packages, visas, flights, accommodation, and what
             to expect before you travel.
@@ -92,9 +94,13 @@ function FaqHero() {
  */
 function FaqContent() {
   return (
-    <section className="section-padding border-t border-border/10">
-      <div className="mx-auto max-w-7xl px-6 sm:px-8 lg:px-12">
-        <div className="mx-auto max-w-4xl space-y-10">
+    <section className="section-padding bg-muted/30 relative overflow-hidden">
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 bg-star-pattern opacity-[0.04] dark:opacity-[0.06] pointer-events-none"
+      />
+      <div className="mx-auto max-w-7xl px-6 sm:px-8 lg:px-12 relative z-10">
+        <div className="mx-auto max-w-4xl space-y-6">
           {FAQ_CATEGORIES.map((category) => (
             <FaqCategorySection key={category.id} category={category} />
           ))}
@@ -117,8 +123,19 @@ export default function FaqPage() {
     >
       <FaqHero />
       <FaqContent />
-      <section className="mb-20 rounded-3xl bg-muted/30 p-2 sm:p-4 md:mt-28">
-        <LazyInlineFaqQuestionCard />
+      <section className="relative">
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 1440 60"
+          preserveAspectRatio="none"
+          className="block w-full h-10 sm:h-14 text-muted/30 dark:text-muted/20"
+          fill="currentColor"
+        >
+          <path d="M0 60 L0 40 Q240 10 480 40 Q600 55 660 40 Q690 15 720 4 Q750 15 780 40 Q840 55 960 40 Q1200 10 1440 40 L1440 60 Z" />
+        </svg>
+        <div className="mx-auto max-w-7xl px-6 py-16 sm:px-8 lg:px-12 lg:py-20">
+          <LazyInlineFaqQuestionCard />
+        </div>
       </section>
     </main>
   );

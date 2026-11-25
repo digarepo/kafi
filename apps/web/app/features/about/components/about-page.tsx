@@ -10,7 +10,6 @@
 
 import { useState } from 'react';
 
-import { Badge } from '@ui/components/ui/badge';
 import { Button } from '@ui/components/ui/button';
 import { CheckIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
@@ -21,29 +20,29 @@ import { PRINCIPLES } from '../data/about-content';
 
 /**
  * Renders the introductory hero section.
- *
- * @returns The hero section with a restrained heading and short narrative.
  */
 function Intro() {
   return (
-    <section className="relative overflow-hidden border-b border-border/10 pt-28 pb-16 md:pt-32 md:pb-24">
-      <div className="mx-auto max-w-7xl px-6 sm:px-8 lg:px-12">
+    <section className="relative overflow-hidden pt-32 pb-16 sm:pb-20">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -top-32 -left-32 h-96 w-96 rounded-full bg-accent/15 blur-3xl"
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute bottom-0 right-1/4 h-80 w-80 rounded-full bg-primary/10 blur-3xl"
+      />
+      <div className="mx-auto max-w-7xl px-6 sm:px-8 lg:px-12 relative z-10">
         <div className="max-w-3xl space-y-6">
-          <Badge
-            variant="outline"
-            className="border-accent/20 bg-accent/5 px-3 py-0.5 font-semibold text-accent"
-          >
-            About Kafi
-          </Badge>
-
-          <h1 className="font-heading text-balance text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-            Journeys shaped by care, clarity, and purpose.
+          <h1 className="font-heading text-balance text-[2.25rem] sm:text-5xl lg:text-6xl font-semibold tracking-[-0.035em] leading-[1.08] text-foreground">
+            Journeys shaped by{' '}
+            <span className="text-primary">care, clarity,</span> and purpose.
           </h1>
 
-          <p className="text-base font-light leading-relaxed text-muted-foreground md:text-lg">
-            Kafi Tours helps pilgrims plan and navigate Umrah with the practical
-            support and thoughtful coordination that lets them focus on the
-            spiritual experience ahead.
+          <p className="max-w-2xl text-base leading-7 sm:text-lg sm:leading-8 text-muted-foreground">
+            Kafi Tours helps pilgrims plan and navigate Umrah with the
+            practical support and thoughtful coordination that lets them focus
+            on the spiritual experience ahead.
           </p>
         </div>
       </div>
@@ -53,46 +52,41 @@ function Intro() {
 
 /**
  * Renders the "Who we are" editorial section.
- *
- * @returns A two-column section explaining Kafi Tours' role.
  */
 function WhoWeAre() {
   return (
-    <section className="section-padding border-t border-border/10 bg-muted/20">
-      <div className="mx-auto max-w-7xl px-6 sm:px-8 lg:px-12">
+    <section className="section-padding bg-muted/30 relative overflow-hidden">
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 bg-star-pattern opacity-[0.04] dark:opacity-[0.06] pointer-events-none"
+      />
+      <div className="mx-auto max-w-7xl px-6 sm:px-8 lg:px-12 relative z-10">
         <div className="grid gap-12 lg:grid-cols-12">
           <div className="lg:col-span-4">
-            <Badge
-              variant="outline"
-              className="border-accent/20 bg-accent/5 px-3 py-0.5 font-semibold text-accent"
-            >
-              Who we are
-            </Badge>
-
-            <h2 className="mt-4 font-heading text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
+            <h2 className="font-heading text-3xl sm:text-4xl font-semibold tracking-tight text-foreground">
               A travel partner for pilgrims.
             </h2>
           </div>
 
           <div className="space-y-6 lg:col-span-7 lg:col-start-6">
-            <p className="text-base font-light leading-relaxed text-muted-foreground">
-              Kafi Tours is a travel and travel service built around the needs
-              of people preparing for Umrah. We work with individuals, families,
-              and groups to arrange the practical elements that make a travel
+            <p className="text-base leading-7 text-muted-foreground">
+              Kafi Tours is a travel service built around the needs of people
+              preparing for Umrah. We work with individuals, families, and
+              groups to arrange the practical elements that make a journey
               possible: flights, accommodation, ground transport, visa support,
               and on-the-ground guidance.
             </p>
 
-            <p className="text-base font-light leading-relaxed text-muted-foreground">
+            <p className="text-base leading-7 text-muted-foreground">
               Our role is to reduce complexity. By coordinating the many details
               of travel, we help pilgrims arrive prepared and move through each
               stage of the journey with greater ease.
             </p>
 
-            <p className="text-base font-light leading-relaxed text-muted-foreground">
+            <p className="text-base leading-7 text-muted-foreground">
               We believe that thoughtful preparation is part of a respectful
-              travel. When logistics are handled well, the heart of the journey
-              can remain where it belongs.
+              journey. When logistics are handled well, the heart of the
+              experience can remain where it belongs.
             </p>
           </div>
         </div>
@@ -103,27 +97,18 @@ function WhoWeAre() {
 
 /**
  * Renders the "Our approach" section with a numbered list of principles.
- *
- * @returns A two-column section with principles.
  */
 function Approach() {
   return (
-    <section className="section-padding border-t border-border/10">
+    <section className="section-padding">
       <div className="mx-auto max-w-7xl px-6 sm:px-8 lg:px-12">
         <div className="grid gap-12 lg:grid-cols-12">
           <div className="lg:col-span-5">
-            <Badge
-              variant="outline"
-              className="border-accent/20 bg-accent/5 px-3 py-0.5 font-semibold text-accent"
-            >
-              Our approach
-            </Badge>
-
-            <h2 className="mt-4 font-heading text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
+            <h2 className="font-heading text-3xl sm:text-4xl font-semibold tracking-tight text-foreground">
               Clarity, care, guidance, dependability.
             </h2>
 
-            <p className="mt-4 max-w-md text-sm font-light leading-relaxed text-muted-foreground">
+            <p className="mt-4 max-w-md text-base leading-7 text-muted-foreground">
               These four commitments shape how we respond to every enquiry,
               build every itinerary, and support every pilgrim.
             </p>
@@ -137,19 +122,19 @@ function Approach() {
                   key={principle.title}
                   className="flex gap-5 border-b border-border/20 pb-10 last:border-0 last:pb-0"
                 >
-                  <span className="text-xs font-bold text-accent/70">
+                  <span className="font-heading text-sm font-semibold text-accent/70 pt-0.5">
                     {String(index + 1).padStart(2, '0')}
                   </span>
 
                   <div className="space-y-2">
                     <div className="flex items-center gap-3">
-                      <Icon className="size-5 text-accent" weight="light" />
-                      <h3 className="font-heading text-base font-semibold text-foreground">
+                      <Icon className="size-5 text-accent" weight="duotone" />
+                      <h3 className="font-heading text-lg font-semibold text-foreground">
                         {principle.title}
                       </h3>
                     </div>
 
-                    <p className="text-sm font-light leading-relaxed text-muted-foreground">
+                    <p className="text-sm leading-6 text-muted-foreground">
                       {principle.description}
                     </p>
                   </div>
@@ -165,34 +150,29 @@ function Approach() {
 
 /**
  * Renders the "Experience" section explaining the holistic journey.
- *
- * @returns A two-column section with text and a practical checklist card.
  */
 function Experience() {
   return (
-    <section className="section-padding border-t border-border/10 bg-muted/20">
-      <div className="mx-auto max-w-7xl px-6 sm:px-8 lg:px-12">
+    <section className="section-padding bg-muted/30 relative overflow-hidden">
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 bg-star-pattern opacity-[0.04] dark:opacity-[0.06] pointer-events-none"
+      />
+      <div className="mx-auto max-w-7xl px-6 sm:px-8 lg:px-12 relative z-10">
         <div className="grid gap-12 lg:grid-cols-12 lg:items-start">
           <div className="max-w-2xl lg:col-span-7">
-            <Badge
-              variant="outline"
-              className="border-accent/20 bg-accent/5 px-3 py-0.5 font-semibold text-accent"
-            >
-              The experience
-            </Badge>
-
-            <h2 className="mt-4 font-heading text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
+            <h2 className="font-heading text-3xl sm:text-4xl font-semibold tracking-tight text-foreground">
               More than a booking.
             </h2>
 
-            <p className="mt-4 text-base font-light leading-relaxed text-muted-foreground">
-              An Umrah journey is not a collection of separate services. It is a
-              single, continuous experience that begins with the first
-              conversation and ends when you return home. Our aim is to hold the
-              whole picture together.
+            <p className="mt-4 text-base leading-7 text-muted-foreground">
+              An Umrah journey is not a collection of separate services. It is
+              a single, continuous experience that begins with the first
+              conversation and ends when you return home. Our aim is to hold
+              the whole picture together.
             </p>
 
-            <p className="mt-4 text-base font-light leading-relaxed text-muted-foreground">
+            <p className="mt-4 text-base leading-7 text-muted-foreground">
               We coordinate flights, accommodation, transport, and practical
               support so that the journey feels connected rather than
               fragmented. You are not passed from one vendor to another. You
@@ -201,8 +181,8 @@ function Experience() {
           </div>
 
           <div className="lg:col-span-5">
-            <div className="card p-8">
-              <h3 className="font-heading text-sm font-semibold text-foreground">
+            <div className="card border-border/40 p-7">
+              <h3 className="font-heading text-base font-semibold text-foreground">
                 What this means in practice
               </h3>
 
@@ -215,10 +195,10 @@ function Experience() {
                 ].map((item) => (
                   <li
                     key={item}
-                    className="flex items-start gap-3 text-sm font-light text-muted-foreground"
+                    className="flex items-start gap-3 text-sm leading-6 text-muted-foreground"
                   >
                     <CheckIcon
-                      className="mt-0.5 size-4 shrink-0 text-accent"
+                      className="mt-1 size-4 shrink-0 text-accent"
                       weight="bold"
                     />
                     <span>{item}</span>
@@ -235,58 +215,80 @@ function Experience() {
 
 /**
  * Renders the closing call-to-action section.
- *
- * @returns A centered section linking to services, packages, and contact.
  */
 function Closing() {
   const [showForm, setShowForm] = useState(false);
 
   return (
-    <section className="section-padding border-t border-border/10">
-      <div className="mx-auto max-w-4xl px-6 text-center sm:px-8 lg:px-12">
-        <Badge
-          variant="outline"
-          className="border-accent/20 bg-accent/5 px-3 py-0.5 font-semibold text-accent"
-        >
-          Begin your journey
-        </Badge>
-
-        <h2 className="mt-4 font-heading text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
-          Start with a conversation.
-        </h2>
-
-        <p className="mx-auto mt-4 max-w-2xl text-base font-light leading-relaxed text-muted-foreground">
-          Every travel is personal. Tell us what you have in mind and we will
-          help you understand the next steps.
-        </p>
-
-        <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
-          {showForm ? (
-            <LazyInlineCallbackForm
-              source="about"
-              onSuccess={() => {
-                setTimeout(() => setShowForm(false), 5000);
-              }}
-              onCancel={() => setShowForm(false)}
+    <section className="relative">
+      <svg
+        aria-hidden="true"
+        viewBox="0 0 1440 60"
+        preserveAspectRatio="none"
+        className="block w-full h-10 sm:h-14 text-muted/30 dark:text-muted/20"
+        fill="currentColor"
+      >
+        <path d="M0 60 L0 40 Q240 10 480 40 Q600 55 660 40 Q690 15 720 4 Q750 15 780 40 Q840 55 960 40 Q1200 10 1440 40 L1440 60 Z" />
+      </svg>
+      <div className="section-padding relative overflow-hidden">
+        <div className="mx-auto max-w-5xl px-6 sm:px-8 lg:px-12 relative z-10">
+          <div className="relative rounded-[2rem] border border-accent/25 bg-linear-to-t from-accent/10 to-card px-6 py-12 sm:px-10 md:p-16 text-center space-y-8 shadow-elevated overflow-hidden">
+            <div
+              aria-hidden="true"
+              className="absolute inset-0 bg-star-pattern opacity-[0.05] pointer-events-none"
             />
-          ) : (
-            <>
-              <Button
-                onClick={() => setShowForm(true)}
-                className="h-11 px-6 text-sm"
+            <div className="space-y-4 max-w-xl mx-auto relative z-10">
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 40 24"
+                className="mx-auto h-6 w-10 text-accent"
+                fill="none"
               >
-                Request a Callback
-              </Button>
+                <path
+                  d="M2 22 Q20 -4 38 22"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                />
+                <circle cx="20" cy="9" r="2.5" fill="currentColor" />
+              </svg>
+              <h2 className="font-heading text-3xl sm:text-4xl font-semibold tracking-tight text-foreground">
+                Start with a conversation.
+              </h2>
+              <p className="text-sm sm:text-base leading-7 text-muted-foreground">
+                Every journey is personal. Tell us what you have in mind and we
+                will help you understand the next steps.
+              </p>
+            </div>
 
-              <Button
-                variant="outline"
-                render={<Link to="/packages" />}
-                className="h-11 px-6 text-sm"
-              >
-                View Packages
-              </Button>
-            </>
-          )}
+            <div className="relative z-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
+              {showForm ? (
+                <LazyInlineCallbackForm
+                  source="about"
+                  onSuccess={() => {
+                    setTimeout(() => setShowForm(false), 5000);
+                  }}
+                  onCancel={() => setShowForm(false)}
+                />
+              ) : (
+                <>
+                  <Button
+                    onClick={() => setShowForm(true)}
+                    className="h-12 px-8 text-sm font-semibold"
+                  >
+                    Request a Callback
+                  </Button>
+
+                  <Button
+                    variant="ghost"
+                    render={<Link to="/packages" />}
+                    className="h-12 px-4 text-sm font-semibold text-muted-foreground hover:text-foreground"
+                  >
+                    View Packages
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -295,8 +297,6 @@ function Closing() {
 
 /**
  * Renders the full About page.
- *
- * @returns The assembled about page.
  */
 export default function AboutPage() {
   return (

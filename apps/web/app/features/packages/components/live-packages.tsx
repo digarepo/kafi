@@ -74,6 +74,100 @@ export function selectShowcasePackages(
 export { tierKey };
 
 /**
+ * Static tier content shown when no published packages are available — keeps
+ * the page useful when the API is empty or unreachable. Fallback versions
+ * have no slug; their CTA points at /booking rather than a detail page.
+ */
+function fallbackPkg(
+  id: string,
+  template: string,
+  price: number,
+  inclusions: string[],
+): PublicPackageVersion {
+  return {
+    id: `fallback-${id}`,
+    package_version_code: '',
+    version_name: template,
+    version_number: 1,
+    slug: id,
+    hero_image_url: null,
+    sort_order: 0,
+    year: new Date().getFullYear(),
+    departure_date: null,
+    return_date: null,
+    base_price: price,
+    max_capacity: null,
+    published_at: null,
+    sales_start_date: null,
+    sales_end_date: null,
+    status: 'PUBLISHED',
+    status_name: 'Published',
+    package_template: { id: `fallback-${id}`, name: template },
+    package_category: null,
+    pilgrimage_type: { id: 'umrah', name: 'Umrah' },
+    season: null,
+    currency: { id: 'etb', code: 'ETB', name: 'Ethiopian Birr' },
+    currency_id: 'etb',
+    available_capacity: null,
+    inclusions: inclusions.map((text, i) => ({
+      id: `${id}-${i}`,
+      inclusion_text: text,
+      display_order: i,
+      is_highlighted: false,
+    })),
+  };
+}
+
+export const FALLBACK_PACKAGES: PublicPackageVersion[] = [
+  fallbackPkg('economy', 'Economy Umrah Package', 150000, [
+    'Ethiopian Airlines flight',
+    'Standard accommodation',
+    'Shared shuttle transport',
+    'Umrah visa processing',
+  ]),
+  fallbackPkg('comfort', 'Comfort Umrah Package', 180000, [
+    'Everything in Economy, plus',
+    'Upgraded hotel',
+    'Dedicated group guides & buses',
+    'Full visa & ground coordination',
+  ]),
+  fallbackPkg('premium', 'Premium Umrah Package', 340000, [
+    'Business class flights',
+    '5-star hotels on Haram courtyard',
+    'Private VIP transfers & visa queue skip',
+    '1-on-1 dedicated tour guides',
+  ]),
+];
+
+/** True when the version is static fallback content, not API-published. */
+export function isFallbackPackage(pkg: PublicPackageVersion): boolean {
+  return pkg.id.startsWith('fallback-');
+}
+
+/**
+ * Merges live packages with static fallback tiers. A live version only counts
+ * if its departure date is today or later (or unset); past-dated versions are
+ * treated as stale and their tier falls back. The page always shows the full
+ * lineup — live where published and upcoming, static everywhere else.
+ */
+export function mergeWithFallback(
+  live: PublicPackageVersion[],
+): PublicPackageVersion[] {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const current = live.filter((p) => {
+    if (!p.departure_date) return true;
+    return new Date(`${p.departure_date.slice(0, 10)}T00:00:00`) >= today;
+  });
+  const liveTiers = new Set(current.map(tierKey));
+  const merged = [
+    ...current,
+    ...FALLBACK_PACKAGES.filter((p) => !liveTiers.has(tierKey(p))),
+  ];
+  return merged.sort((a, b) => tierRank(a) - tierRank(b));
+}
+
+/**
  * Renders the live package cards in a responsive grid.
  *
  * @remarks

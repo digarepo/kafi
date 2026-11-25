@@ -127,14 +127,31 @@ export default function InlineCustomServiceCard() {
   }, [isSuccess, form]);
 
   return (
-    <Card className="card relative mt-12 overflow-hidden border-accent/25 bg-linear-to-b from-accent/10 to-background p-4 text-center shadow-elevated md:p-16">
-      <div className="mx-auto max-w-xl space-y-6">
+    <Card className="card relative overflow-hidden rounded-[2rem] border-accent/25 bg-linear-to-t from-accent/10 to-card p-6 text-center shadow-elevated sm:p-10 md:p-16">
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 bg-star-pattern opacity-[0.05] pointer-events-none"
+      />
+      <div className="relative mx-auto max-w-xl space-y-6">
         <div className="space-y-4">
-          <h2 className="font-heading text-2xl font-extrabold tracking-tight text-foreground sm:text-3xl">
-            Need Custom Travel Assistance?
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 40 24"
+            className="mx-auto h-6 w-10 text-accent"
+            fill="none"
+          >
+            <path
+              d="M2 22 Q20 -4 38 22"
+              stroke="currentColor"
+              strokeWidth="1.5"
+            />
+            <circle cx="20" cy="9" r="2.5" fill="currentColor" />
+          </svg>
+          <h2 className="font-heading text-3xl sm:text-4xl font-semibold tracking-tight text-foreground">
+            Need custom travel assistance?
           </h2>
 
-          <p className="text-sm font-light leading-relaxed text-muted-foreground">
+          <p className="text-sm sm:text-base leading-7 text-muted-foreground">
             Whether you need standalone visa processing, custom group Ziyarat
             tours, or specific hotel arrangements near the Haram, our team is
             ready to assist.
@@ -295,7 +312,7 @@ export default function InlineCustomServiceCard() {
           <div className="flex flex-col items-center gap-4">
             <Button
               onClick={() => setIsExpanded(true)}
-              className="h-11 px-8 text-sm"
+              className="h-12 px-8 text-sm font-semibold"
             >
               Request Service Assistance
             </Button>
