@@ -12,7 +12,7 @@
       "executor": "nx:run-commands",
       "options": {
         "cwd": "apps/web",
-        "command": "react-router dev --port 3001"
+        "command": "react-router dev --port 3001 --host"
       }
     },
     "build": {
