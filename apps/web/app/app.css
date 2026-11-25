@@ -306,6 +306,46 @@ h6 {
     animation: shimmer 2s linear infinite;
   }
 
+  /* Skip link — hidden by default; only ever revealed on devices with a
+     precise pointer + hover (real keyboards). Mobile browsers apply
+     :focus-visible to tapped elements, so utility variants leak there. */
+  .skip-link {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .skip-link:focus-visible {
+      position: fixed;
+      top: 1rem;
+      left: 1rem;
+      z-index: 100;
+      width: auto;
+      height: auto;
+      margin: 0;
+      padding: 0.5rem 1rem;
+      overflow: visible;
+      clip: auto;
+      clip-path: none;
+      white-space: normal;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg, 0.5rem);
+      background: var(--background);
+      color: var(--foreground);
+      font-size: 0.875rem;
+      font-weight: 500;
+      box-shadow: var(--shadow-elevated, 0 4px 12px rgba(0, 0, 0, 0.1));
+    }
+  }
+
   .bg-star-pattern {
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56' viewBox='0 0 56 56'%3E%3Cg fill='none' stroke='currentColor' stroke-width='1'%3E%3Cpath d='M28 6 L34 22 L50 28 L34 34 L28 50 L22 34 L6 28 L22 22 Z'/%3E%3Ccircle cx='28' cy='28' r='6'/%3E%3C/g%3E%3C/svg%3E");
     background-size: 56px 56px;
