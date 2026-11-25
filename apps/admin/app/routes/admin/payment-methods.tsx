@@ -14,7 +14,6 @@ export function meta() {
  * The page component lives in the finance feature module and handles
  * state, validation, and API calls.
  */
-export { RouteHydrateFallback as HydrateFallback } from '../../shared/route-hydrate-fallback';
 
 export default function PaymentMethodsRoute() {
   return (

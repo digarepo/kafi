@@ -5,7 +5,6 @@ export function meta() {
   return [{ title: 'Refunds | Kafi Admin' }];
 }
 
-export { RouteHydrateFallback as HydrateFallback } from '../../shared/route-hydrate-fallback';
 
 export default function RefundsLayout() {
   return (

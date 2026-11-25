@@ -5,7 +5,6 @@ export function meta() {
   return [{ title: 'Visa applications | Kafi Admin' }];
 }
 
-export { RouteHydrateFallback as HydrateFallback } from '../../shared/route-hydrate-fallback';
 
 export default function VisaApplicationsLayout() {
   return (

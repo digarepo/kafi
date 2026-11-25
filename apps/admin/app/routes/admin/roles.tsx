@@ -16,7 +16,6 @@ export async function clientLoader() {
   return { roles: [], permissions: {} as PermissionGroup };
 }
 
-export { RouteHydrateFallback as HydrateFallback } from "../../shared/route-hydrate-fallback";
 
 export default function RolesPage() {
   const initial = useLoaderData<typeof clientLoader>();
