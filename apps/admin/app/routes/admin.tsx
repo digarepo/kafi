@@ -7,6 +7,7 @@ import { redirect, useLoaderData } from "react-router";
 import { api } from "../lib/api";
 import { AuthProvider } from "../core/auth";
 import { AppLayout } from "../shell/layouts/app-layout";
+import { NavigationProgress } from "../shared/navigation-progress";
 
 export function meta() {
   return [{ title: "Admin | Kafi" }];
@@ -56,6 +57,7 @@ export default function AdminRoute() {
 
   return (
     <AuthProvider initialUser={user}>
+      <NavigationProgress />
       <AppLayout />
     </AuthProvider>
   );
