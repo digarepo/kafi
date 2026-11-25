@@ -81,7 +81,7 @@ function DepartureTicket({
       {/* Soft shadow layer to fake depth */}
       <div
         aria-hidden="true"
-        className="absolute inset-0 translate-y-3 rotate-2 rounded-3xl bg-primary/10 dark:bg-primary/20 blur-sm"
+        className="absolute inset-0 translate-y-3 rotate-2 rounded-3xl bg-primary/5 dark:bg-primary/15"
       />
       <div className="relative rounded-3xl border border-border/50 bg-card shadow-elevated overflow-hidden">
         {/* Top — route */}
@@ -248,11 +248,11 @@ export function Hero() {
       {/* Ambient gold + green glows */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute -top-32 -left-32 h-96 w-96 rounded-full bg-accent/15 blur-3xl"
+        className="pointer-events-none absolute -top-32 -left-32 h-96 w-96 rounded-full ambient-glow-accent opacity-25"
       />
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute bottom-0 right-1/4 h-80 w-80 rounded-full bg-primary/10 blur-3xl"
+        className="pointer-events-none absolute bottom-0 right-1/4 h-80 w-80 rounded-full ambient-glow-primary opacity-25"
       />
       <TawafArcs />
 

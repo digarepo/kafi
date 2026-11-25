@@ -78,11 +78,11 @@ export default function PackagesPage({
       <section className="relative overflow-hidden pt-32 pb-16 sm:pb-20">
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute -top-32 -left-32 h-96 w-96 rounded-full bg-accent/15 blur-3xl"
+          className="pointer-events-none absolute -top-32 -left-32 h-96 w-96 rounded-full ambient-glow-accent opacity-25"
         />
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute bottom-0 right-0 h-80 w-80 rounded-full bg-primary/10 blur-3xl"
+          className="pointer-events-none absolute bottom-0 right-0 h-80 w-80 rounded-full ambient-glow-primary opacity-25"
         />
         <svg
           aria-hidden="true"
