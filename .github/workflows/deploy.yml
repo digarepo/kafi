@@ -148,32 +148,16 @@ jobs:
           tar -czf deploy-web.tar.gz -C deploy web
           test -f deploy/web/build/server/index.js
 
+      # Admin is a static SPA (ssr:false) — ships build/client plus an
+      # .htaccess fallback; no node_modules, no server.js, no restart needed.
       - name: Package admin
         if: steps.affected.outputs.admin == 'true'
         run: |
-          test -f kafi-ui-1.0.0.tgz || npm pack ./packages/ui
           mkdir -p deploy/admin
-          UI_PACKAGE=$(ls kafi-ui-*.tgz)
-          cp apps/admin/package.json deploy/admin/
-          cp "$UI_PACKAGE" deploy/admin/
-          node deployment/prepare-package-json.mjs deploy/admin/package.json "$UI_PACKAGE"
-          cp deployment/react-router/server.js deploy/admin/
-          cp deployment/react-router/start.cjs deploy/admin/
-          cp -R apps/admin/build deploy/admin/
-          cp -R apps/admin/public deploy/admin/
-          mkdir deploy/admin/tmp
-          NEW_HASH=$(cat deploy/admin/package.json deploy/admin/kafi-*.tgz | sha256sum | cut -d' ' -f1)
-          OLD_HASH=$(ssh ${{ secrets.CPANEL_USER }}@${{ secrets.CPANEL_HOST }} \
-            'cat ~/${{ inputs.admin_dir }}/.installed-package-sha 2>/dev/null || echo none')
-          if [ "$NEW_HASH" != "$OLD_HASH" ]; then
-            echo "Dependency set changed; bundling node_modules in CI"
-            (cd deploy/admin && npm install --omit=dev --no-audit --no-fund && echo "$NEW_HASH" > DEP_HASH)
-            test -d deploy/admin/node_modules/@kafi/ui
-          else
-            echo "Dependencies unchanged; shipping code only"
-          fi
+          cp -R apps/admin/build/client/. deploy/admin/
+          cp deployment/spa/.htaccess deploy/admin/
+          test -f deploy/admin/index.html
           tar -czf deploy-admin.tar.gz -C deploy admin
-          test -f deploy/admin/build/server/index.js
 
       - name: Package api
         if: steps.affected.outputs.api == 'true'
@@ -246,13 +230,8 @@ jobs:
           export CI=true
           cd ~/${{ inputs.admin_dir }}
           tar -xzf deploy-admin.tar.gz --strip-components=1
-          rm -f deploy-admin.tar.gz package-lock.json
-          if [ -f DEP_HASH ]; then
-            test -d node_modules/@kafi/ui
-            mv DEP_HASH .installed-package-sha
-            echo "Dependencies updated from CI bundle"
-          fi
-          touch tmp/restart.txt
+          rm -f deploy-admin.tar.gz
+          test -f index.html
           EOF
 
       - name: Apply api on server

@@ -5,7 +5,6 @@ export function meta() {
   return [{ title: 'Credit Exception Requests | Kafi Admin' }];
 }
 
-export { RouteHydrateFallback as HydrateFallback } from '../../shared/route-hydrate-fallback';
 
 export default function CreditExceptionRequestsLayout() {
   return (

@@ -5,7 +5,6 @@ export function meta() {
   return [{ title: 'Contact persons | Kafi Admin' }];
 }
 
-export { RouteHydrateFallback as HydrateFallback } from '../../shared/route-hydrate-fallback';
 
 export default function ContactPersonsLayout() {
   return (
