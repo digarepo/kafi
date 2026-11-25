@@ -1,3 +1,5 @@
+import { ArrowLeftIcon } from '@phosphor-icons/react';
+import { Link } from 'react-router';
 import { buildOgMeta, SITE_URL } from '@/lib/og';
 
 /**
@@ -19,15 +21,34 @@ export function meta() {
 
 export default function TosRoute() {
   return (
-    <article className="mx-auto max-w-3xl px-6 py-12 text-foreground md:py-20">
-      <header className="mb-10">
-        <h1 className="font-heading text-3xl font-bold tracking-tight md:text-4xl">
-          Terms of Service
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Last Updated: July 2026
-        </p>
+    <main className="min-h-screen bg-background text-foreground">
+      <header className="border-b border-border/30">
+        <div className="mx-auto flex h-16 max-w-3xl items-center justify-between px-6">
+          <Link
+            to="/"
+            className="flex items-center gap-2 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <ArrowLeftIcon className="size-4" />
+            Back to Kafi Tours
+          </Link>
+          <img src="/kafi-icon-gold.svg" alt="" className="h-7 w-7 dark:hidden" />
+          <img
+            src="/kafi-icon-green.svg"
+            alt=""
+            className="hidden h-7 w-7 dark:block"
+          />
+        </div>
       </header>
+
+      <article className="mx-auto max-w-3xl px-6 py-12 md:py-16">
+        <header className="mb-10">
+          <h1 className="font-heading text-3xl font-semibold tracking-tight md:text-4xl">
+            Terms of Service
+          </h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Last Updated: July 2026
+          </p>
+        </header>
 
       <section className="mb-10">
         <h2 className="mb-4 font-heading text-xl font-semibold">
@@ -100,6 +121,7 @@ export default function TosRoute() {
           shall be resolved in accordance with Ethiopian law.
         </p>
       </section>
-    </article>
+      </article>
+    </main>
   );
 }

@@ -9,7 +9,6 @@
  */
 
 import { useSearchParams } from 'react-router';
-import { Badge } from '@ui/components/ui/badge';
 
 import { packages } from '@/features/packages/data/packages';
 import { services } from '@/features/services/data/services';
@@ -40,21 +39,22 @@ export default function EnquiryPage() {
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <section className="relative overflow-hidden border-b border-border/10 bg-linear-to-b from-muted/10 to-background pt-28 pb-12 md:pt-32 md:pb-16">
-        <div className="mx-auto max-w-7xl px-6 sm:px-8 lg:px-12">
+      <section className="relative overflow-hidden pt-32 pb-14 md:pb-16">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -top-32 -left-32 h-96 w-96 rounded-full bg-accent/15 blur-3xl"
+        />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute bottom-0 right-1/4 h-80 w-80 rounded-full bg-primary/10 blur-3xl"
+        />
+        <div className="mx-auto max-w-7xl px-6 sm:px-8 lg:px-12 relative z-10">
           <div className="max-w-3xl">
-            <Badge
-              variant="outline"
-              className="border-accent/20 bg-accent/5 px-3 py-0.5 font-semibold text-accent"
-            >
-              Get in touch
-            </Badge>
-
-            <h1 className="mt-6 font-heading text-balance text-3xl font-semibold tracking-tight text-foreground sm:text-4xl md:text-5xl">
-              Send us an enquiry.
+            <h1 className="font-heading text-balance text-[2.25rem] sm:text-5xl lg:text-6xl font-semibold tracking-[-0.035em] leading-[1.08] text-foreground">
+              Send us <span className="text-primary">an enquiry.</span>
             </h1>
 
-            <p className="mt-6 text-base font-light leading-relaxed text-muted-foreground md:text-lg">
+            <p className="mt-6 max-w-2xl text-base leading-7 sm:text-lg sm:leading-8 text-muted-foreground">
               Whether you have a question about a package, a service, or a
               custom travel plan, our team is ready to help.
             </p>
@@ -62,8 +62,12 @@ export default function EnquiryPage() {
         </div>
       </section>
 
-      <section className="bg-muted/10 py-16 md:py-24">
-        <div className="mx-auto max-w-7xl px-6 sm:px-8 lg:px-12">
+      <section className="bg-muted/30 py-16 md:py-24 relative overflow-hidden">
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 bg-star-pattern opacity-[0.04] dark:opacity-[0.06] pointer-events-none"
+        />
+        <div className="mx-auto max-w-7xl px-6 sm:px-8 lg:px-12 relative z-10">
           <div className="grid gap-12 lg:grid-cols-12">
             <div className="lg:col-span-7">
               <EnquiryForm
@@ -76,30 +80,24 @@ export default function EnquiryPage() {
             </div>
 
             <div className="lg:col-span-5">
-              <div className="rounded-2xl border border-border/20 bg-muted/20 p-6 sm:p-8">
-                <h2 className="font-heading text-lg font-semibold text-foreground">
+              <div className="card border-border/40 p-6 sm:p-8">
+                <h2 className="font-heading text-lg font-semibold tracking-tight text-foreground">
                   How we respond
                 </h2>
 
-                <ul className="mt-4 space-y-4 text-sm font-light leading-relaxed text-muted-foreground">
-                  <li className="flex items-start gap-3">
-                    <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent/10 text-xs font-bold text-accent">
-                      1
-                    </span>
-                    We read your enquiry and check the relevant details.
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent/10 text-xs font-bold text-accent">
-                      2
-                    </span>
-                    A travel coordinator contacts you by phone or email.
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent/10 text-xs font-bold text-accent">
-                      3
-                    </span>
-                    We prepare a clear answer or a personalised proposal.
-                  </li>
+                <ul className="mt-5 space-y-5 text-sm leading-6 text-muted-foreground">
+                  {[
+                    'We read your enquiry and check the relevant details.',
+                    'A travel coordinator contacts you by phone or email.',
+                    'We prepare a clear answer or a personalised proposal.',
+                  ].map((step, i) => (
+                    <li key={step} className="flex items-start gap-3.5">
+                      <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-accent/25 bg-accent/10 text-xs font-semibold text-accent">
+                        {i + 1}
+                      </span>
+                      <span className="pt-1">{step}</span>
+                    </li>
+                  ))}
                 </ul>
               </div>
             </div>

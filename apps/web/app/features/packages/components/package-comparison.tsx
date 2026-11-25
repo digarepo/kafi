@@ -13,7 +13,6 @@ import {
 
 import { Link } from 'react-router';
 
-import { Badge } from '@ui/components/ui/badge';
 import { Button } from '@ui/components/ui/button';
 
 import type { PublicPackageVersion } from '../../../lib/public-api';
@@ -144,19 +143,12 @@ export function PackageComparison({
     <section className="section-padding border-t border-border/20 bg-muted/20">
       <div className="mx-auto max-w-7xl px-6 sm:px-8 lg:px-12">
         {/* Heading */}
-        <div className="mb-10 max-w-2xl space-y-3">
-          <Badge
-            variant="outline"
-            className="border-accent/20 bg-accent/5 px-3 py-0.5 font-semibold text-accent"
-          >
-            Compare side by side
-          </Badge>
-
-          <h2 className="font-heading text-3xl font-extrabold tracking-tight text-foreground">
+        <div className="mb-12 max-w-2xl space-y-3 text-left">
+          <h2 className="font-heading text-3xl sm:text-4xl lg:text-5xl font-semibold tracking-tight text-foreground">
             Find the right fit at a glance
           </h2>
 
-          <p className="text-sm font-light leading-relaxed text-muted-foreground">
+          <p className="text-base leading-7 text-muted-foreground">
             Every Kafi package shares the same essential foundation. The
             difference is in the level of comfort, guidance, and personal
             attention.
@@ -166,7 +158,7 @@ export function PackageComparison({
         {/* Table */}
         <div className="relative overflow-x-auto rounded-2xl border border-border/40 bg-card shadow-card">
           {/* Scroll hint for narrow screens */}
-          <div className="pointer-events-none absolute right-3 top-3 z-20 hidden text-[10px] font-medium uppercase tracking-widest text-muted-foreground sm:block lg:hidden">
+          <div className="pointer-events-none absolute right-3 top-3 z-20 hidden text-xs font-medium uppercase tracking-widest text-muted-foreground sm:block lg:hidden">
             Swipe →
           </div>
 
@@ -176,7 +168,7 @@ export function PackageComparison({
                 {/* Sticky feature header — solid bg so columns slide under it */}
                 <th
                   scope="col"
-                  className="sticky left-0 z-10 bg-muted p-4 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground sm:p-5"
+                  className="sticky left-0 z-10 bg-muted p-4 text-xs font-semibold uppercase tracking-widest text-muted-foreground sm:p-5"
                 >
                   Feature
                 </th>
@@ -193,12 +185,12 @@ export function PackageComparison({
                       }`}
                     >
                       <div className="space-y-1">
-                        <p className="text-sm font-bold tracking-tight text-foreground">
+                        <p className="text-sm font-semibold tracking-tight text-foreground">
                           {key.charAt(0).toUpperCase() + key.slice(1)}
                         </p>
 
                         {popular && (
-                          <span className="inline-flex rounded-full bg-accent/20 px-2 py-0.5 text-[9px] font-semibold tracking-wide text-foreground">
+                          <span className="inline-flex rounded-full bg-accent/20 px-2 py-0.5 text-xs font-semibold tracking-wide text-foreground">
                             Most Popular
                           </span>
                         )}
@@ -274,7 +266,7 @@ export function PackageComparison({
                       <Link to={`/packages/${pkg.slug}`}>
                         <Button
                           variant={popular ? 'default' : 'outline'}
-                          className="h-9 w-full text-xs"
+                          className="h-9 w-full text-xs font-semibold"
                         >
                           View Details
                         </Button>

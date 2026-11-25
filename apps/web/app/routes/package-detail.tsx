@@ -3,6 +3,7 @@ import { ArrowLeftIcon } from '@phosphor-icons/react';
 
 import { type Route } from './+types/package-detail';
 import { LivePackageDetail } from '@/features/packages/components/live-package-detail';
+import { FALLBACK_PACKAGES } from '@/features/packages/components/live-packages';
 import {
   getPublicPackage,
   listPublicPackages,
@@ -31,10 +32,18 @@ export async function loader({ params }: Route.LoaderArgs): Promise<{
   try {
     current = await getPublicPackage(slug);
   } catch {
-    throw new Response('Package not found', { status: 404 });
+    // No published version for this slug — resolve static fallback tiers so
+    // /packages/economy|comfort|premium still render a detail page.
+    const fallback = FALLBACK_PACKAGES.find((p) => p.slug === slug);
+    if (!fallback) throw new Response('Package not found', { status: 404 });
+    return {
+      pkg: fallback,
+      variants: [],
+      related: FALLBACK_PACKAGES.filter((p) => p.slug !== slug),
+    };
   }
 
-  const all = await listPublicPackages();
+  const all = await listPublicPackages().catch(() => ({ data: [] }));
 
   const templateId = current.package_template?.id;
 
@@ -84,7 +93,16 @@ export async function loader({ params }: Route.LoaderArgs): Promise<{
     }
   }
 
-  return { pkg: current, variants, related: showcase.slice(0, 2) };
+  return {
+    pkg: current,
+    variants,
+    related:
+      showcase.length > 0
+        ? showcase.slice(0, 2)
+        : FALLBACK_PACKAGES.filter(
+            (p) => p.package_template?.id !== templateId,
+          ),
+  };
 }
 
 /**

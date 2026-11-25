@@ -12,8 +12,6 @@ import type { Route } from './+types/root';
 import './app.css';
 import { ThemeProvider } from '@ui/providers/theme-provider';
 import { UIConfigProvider } from '@ui/providers/ui-config-provider';
-import { Navbar } from './components/layout/Navbar';
-import { Footer } from './components/layout/Footer';
 import { captureAttribution } from './lib/attribution';
 import { trackPageView } from './lib/analytics';
 
@@ -22,21 +20,6 @@ import { trackPageView } from './lib/analytics';
 // before any user-triggered toast (form submissions, etc.).
 const Toaster = lazy(() =>
   import('@ui/components/ui/sonner').then((m) => ({ default: m.Toaster })),
-);
-
-// Lazy-load the mobile menu so the Sheet component (and its @base-ui/react
-// dialog dependency) is not part of the initial bundle on every page.
-const MobileBottomNav = lazy(() =>
-  import('./components/layout/MobileMenu').then((m) => ({
-    default: m.MobileBottomNav,
-  })),
-);
-
-// Lazy-load the floating contact button — non-critical interactive widget.
-const ContactFab = lazy(() =>
-  import('./components/layout/ContactFab').then((m) => ({
-    default: m.ContactFab,
-  })),
 );
 
 // Default meta as a safety net. Route-level meta() functions override these.
@@ -113,21 +96,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <ThemeProvider defaultTheme="system">
             <a
               href="#main-content"
-              className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-100 focus:rounded-lg focus:bg-background focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:shadow-elevated focus:border focus:border-border"
+              className="sr-only focus-visible:not-sr-only focus-visible:fixed focus-visible:left-4 focus-visible:top-4 focus-visible:z-100 focus-visible:rounded-lg focus-visible:bg-background focus-visible:px-4 focus-visible:py-2 focus-visible:text-sm focus-visible:font-medium focus-visible:shadow-elevated focus-visible:border focus-visible:border-border"
             >
               Skip to content
             </a>
-            <Navbar />
             {children}
             <Suspense fallback={null}>
               <Toaster richColors position="top-right" duration={3000} />
-            </Suspense>
-            <Footer />
-            <Suspense fallback={null}>
-              <MobileBottomNav />
-            </Suspense>
-            <Suspense fallback={null}>
-              <ContactFab />
             </Suspense>
           </ThemeProvider>
         </UIConfigProvider>

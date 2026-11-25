@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ArrowRightIcon } from '@phosphor-icons/react';
 
-import { Badge } from '@ui/components/ui/badge';
 import { Button } from '@ui/components/ui/button';
 import { Card } from '@ui/components/ui/card';
 import { Separator } from '@ui/components/ui/separator';
@@ -65,21 +64,18 @@ export function JourneySteps() {
         {/* Header */}
         <div className="flex items-start justify-between">
           <div className="space-y-1">
-            <span className="text-[10px] font-semibold uppercase tracking-widest text-accent">
+            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">
               The Kafi Journey
             </span>
 
-            <h2 className="font-heading text-md font-bold text-foreground">
+            <h2 className="font-heading text-lg font-semibold tracking-tight text-foreground">
               How It Works
             </h2>
           </div>
 
-          <Badge
-            variant="outline"
-            className="border-accent/20 bg-accent/5 px-2.5 py-1 text-[10px] font-semibold text-accent"
-          >
-            {activeStep.number} / {String(journeySteps.length).padStart(2, '')}
-          </Badge>
+          <span className="text-xs font-semibold text-muted-foreground">
+            {activeStep.number} / {journeySteps.length}
+          </span>
         </div>
 
         {/* Progress Timeline */}
@@ -102,7 +98,7 @@ export function JourneySteps() {
                 <div className="flex items-center justify-between">
                   <span
                     className={[
-                      'text-[9px] font-semibold tracking-widest transition-colors duration-300',
+                      'text-xs font-semibold tracking-widest transition-colors duration-300',
                       isActive
                         ? 'text-accent'
                         : isCompleted
@@ -136,11 +132,11 @@ export function JourneySteps() {
 
         {/* Current Step */}
         <div className="space-y-2">
-          <h3 className="font-heading text-sm font-bold text-primary">
+          <h3 className="font-heading text-base font-semibold text-primary">
             {activeStep.title}
           </h3>
 
-          <p className="text-xs font-light leading-relaxed text-muted-foreground sm:text-sm">
+          <p className="text-sm leading-6 text-muted-foreground sm:text-sm">
             {activeStep.description}
           </p>
         </div>
@@ -149,12 +145,12 @@ export function JourneySteps() {
 
         {/* Footer */}
         <div className="flex items-center justify-between gap-4">
-          <span className="text-[10px] font-medium text-muted-foreground">
+          <span className="text-xs text-muted-foreground">
             Your journey, handled with care.
           </span>
 
           <Link to="/packages" className="shrink-0">
-            <Button size="sm" className="h-9 gap-1.5 px-3 text-[11px]">
+            <Button size="sm" className="h-9 gap-1.5 px-3 text-xs">
               Explore Packages
               <ArrowRightIcon weight="bold" className="h-3 w-3" />
             </Button>

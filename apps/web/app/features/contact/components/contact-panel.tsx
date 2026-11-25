@@ -85,7 +85,7 @@ function PanelSection({
         <Icon className="size-5 text-accent" weight="light" />
       </div>
       <div className="min-w-0 flex-1 space-y-3">
-        <h3 className="font-heading text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+        <h3 className="font-heading text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
           {title}
         </h3>
         {children}
@@ -177,7 +177,7 @@ export default function ContactPanel() {
                   key={item.day}
                   className="flex justify-between gap-4 text-sm"
                 >
-                  <dt className="font-light text-muted-foreground">
+                  <dt className=" text-muted-foreground">
                     {item.day}
                   </dt>
                   <dd className="text-right font-medium text-foreground">
